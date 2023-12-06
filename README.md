@@ -74,8 +74,6 @@ Test cases are located in `./src/tests`, fixtures are located in `./tests`
 - [x] scoped-packages.test.js
 - [x] simple.test.js
 - [x] symlink.test.js
-- [x] ~unsafe-cache.test.js~
-- [x] ~yield.test.js~
 
 Irrelevant tests
 
@@ -84,6 +82,8 @@ Irrelevant tests
 - forEachBail.test.js
 - getPaths.test.js
 - pr-53.test.js
+- unsafe-cache.test.js
+- yield.test.js
 
-[enhanced-resolve](https://github.com/webpack/enhanced-resolve)
-[tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin)
+[enhanced-resolve]: https://github.com/webpack/enhanced-resolve
+[tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
