@@ -1,4 +1,5 @@
 [package]
+version      = "0.6.0"
 name         = "oxc_resolver"
 authors      = ["Boshen <boshenc@gmail.com>", "Oxc contributors"]
 categories   = ["development-tools"]
@@ -10,7 +11,6 @@ license      = "MIT"
 readme       = "README.md"
 repository   = "https://github.com/oxc-project/oxc_resolver"
 rust-version = "1.60"
-version      = "0.5.5"
 
 [lib]
 doctest = false
