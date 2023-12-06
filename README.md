@@ -7,12 +7,14 @@
 
 <div align="center">
 
+[![Crates.io][crates-badge]][crates-url]
+[![Docs.rs][docs-badge]][docs-url]
+
 [![MIT licensed][license-badge]][license-url]
 [![Build Status][ci-badge]][ci-url]
 [![Code Coverage][code-coverage-badge]][code-coverage-url]
 [![CodSpeed Badge][codspeed-badge]][codspeed-url]
 [![Sponsors][sponsors-badge]][sponsors-url]
-
 [![Discord chat][discord-badge]][discord-url]
 
 </div>
@@ -119,3 +121,7 @@ Irrelevant tests
 [sponsors-url]: https://github.com/sponsors/Boshen
 [codspeed-badge]: https://img.shields.io/endpoint?url=https://codspeed.io/badge.json
 [codspeed-url]: https://codspeed.io/oxc-project/oxc_resolver
+[crates-badge]: https://img.shields.io/crates/d/oxc_resolver?label=crates.io
+[crates-url]: https://crates.io/crates/oxc_resolver
+[docs-badge]: https://img.shields.io/docsrs/oxc_resolver
+[docs-url]: https://docs.rs/oxc_resolver/latest/oxc_resolver/
