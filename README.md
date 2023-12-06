@@ -107,6 +107,18 @@ Irrelevant tests
 - unsafe-cache.test.js
 - yield.test.js
 
+## 📖 License
+
+`oxc_resolver` is free and open-source software licensed under the [MIT License](./LICENSE).
+
+Oxc partially copies code from the following projects.
+
+| Project                                                                                       | License                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)                       | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)                                                                                                            |
+| [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)                           | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)                                                                                                            |
+| [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)                             | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)                                                                                                                 |
+
 [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
 [tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
 
