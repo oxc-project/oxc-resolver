@@ -1,0 +1,12 @@
+{
+  "name": "pnpm8",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "packageManager": "pnpm@8.10.5",
+  "devDependencies": {
+    "styled-components": "6.1.1"
+  }
+}
