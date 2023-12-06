@@ -26,6 +26,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Pnpm
+        uses: ./.github/actions/pnpm
+
       - name: Install Rust Toolchain
         uses: ./.github/actions/rustup
         with:
