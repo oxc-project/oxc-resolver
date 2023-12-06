@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.yml'
+      - '!.github/workflows/ci.yml'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.yml'
+      - '!.github/workflows/ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
+
+jobs:
+  cache: # Warm cache factory for all other CI jobs
+    name: Check and Build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+          - os: ubuntu-latest
+          - os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: ./.github/actions/rustup
+        with:
+          save-cache: ${{ github.ref_name == 'main' }}
+
+      - name: Cargo check
+        run: cargo check --locked
+
+      # Only need to build the test to create a warm cache on the main branch
+      - name: Build cache by Cargo Check and Cargo Test
+        if: ${{ github.ref_name == 'main' }}
+        run: cargo test --quiet --no-run
+
+  wasm:
+    name: Check Wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: ./.github/actions/rustup
+        with:
+          shared-key: 'wasm'
+          save-cache: ${{ github.ref_name == 'main' }}
+
+      - name: Check
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo check --target wasm32-unknown-unknown
+
+  typos:
+    name: Spell Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: crate-ci/typos@master
+        with:
+          files: .
+
+  deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'Cargo.lock'
+
+      - name: Install cargo-deny
+        if: steps.filter.outputs.src == 'true'
+        uses: taiki-e/install-action@cargo-deny
+
+      - uses: ./.github/actions/rustup
+        with:
+          restore-cache: false
+
+      - if: steps.filter.outputs.src == 'true'
+        run: cargo deny check
+
+  unused-deps:
+    name: Check Unused Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'Cargo.lock'
+              - '**/Cargo.toml'
+
+      - name: Install cargo-machete
+        if: steps.filter.outputs.src == 'true'
+        uses: taiki-e/install-action@cargo-machete
+
+      - name: Install Rust
+        if: steps.filter.outputs.src == 'true'
+        uses: ./.github/actions/rustup
+        with:
+          restore-cache: false
+
+      - if: steps.filter.outputs.src == 'true'
+        run: cargo machete
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: ./.github/actions/rustup
+        with:
+          fmt: true
+          restore-cache: false
+
+      - run: cargo fmt --all -- --check
+
+  lint:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: ./.github/actions/rustup
+        with:
+          clippy: true
+
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+  doc:
+    name: Doc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: ./.github/actions/rustup
+        with:
+          docs: true
+
+      - name: Run doc
+        run: RUSTDOCFLAGS='-D warnings' cargo doc
+
+  test:
+    name: Test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+          - os: ubuntu-latest
+          - os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: ./.github/actions/rustup
+      - run: cargo test --quiet
