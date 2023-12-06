@@ -124,7 +124,7 @@ pub struct ResolveOptions {
     pub symlinks: bool,
 
     /// Whether to parse [module.builtinModules](https://nodejs.org/api/module.html#modulebuiltinmodules) or not.
-    /// For example, "zlib" will throw [ResolveError::Builtin] when set to true.
+    /// For example, "zlib" will throw [crate::ResolveError::Builtin] when set to true.
     ///
     /// Default `false`
     pub builtin_modules: bool,
