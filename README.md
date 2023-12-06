@@ -1,3 +1,22 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Boshen/oxc-assets/main/preview-dark-transparent.png" width="600">
+    <img alt="OXC Logo" src="https://raw.githubusercontent.com/Boshen/oxc-assets/main/preview-white.png" width="600">
+  </picture>
+</p>
+
+<div align="center">
+
+[![MIT licensed][license-badge]][license-url]
+[![Build Status][ci-badge]][ci-url]
+[![Code Coverage][code-coverage-badge]][code-coverage-url]
+[![CodSpeed Badge][codspeed-badge]][codspeed-url]
+[![Sponsors][sponsors-badge]][sponsors-url]
+
+[![Discord chat][discord-badge]][discord-url]
+
+</div>
+
 # Oxc Resolver
 
 Rust port of [enhanced-resolve].
@@ -87,3 +106,16 @@ Irrelevant tests
 
 [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
 [tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
+
+[discord-badge]: https://img.shields.io/discord/1079625926024900739?logo=discord&label=Discord
+[discord-url]: https://discord.gg/9uXCAwqQZW
+[license-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[license-url]: https://github.com/oxc-project/oxc_resolver/blob/main/LICENSE
+[ci-badge]: https://github.com/oxc-project/oxc_resolver/actions/workflows/ci.yml/badge.svg?event=push&branch=main
+[ci-url]: https://github.com/oxc-project/oxc_resolver/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain
+[code-coverage-badge]: https://codecov.io/github/oxc-project/oxc_resolver/branch/main/graph/badge.svg
+[code-coverage-url]: https://codecov.io/gh/oxc-project/oxc_resolver
+[sponsors-badge]: https://img.shields.io/github/sponsors/Boshen
+[sponsors-url]: https://github.com/sponsors/Boshen
+[codspeed-badge]: https://img.shields.io/endpoint?url=https://codspeed.io/badge.json
+[codspeed-url]: https://codspeed.io/oxc-project/oxc_resolver
