@@ -118,6 +118,7 @@ Oxc partially copies code from the following projects.
 | [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)                       | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)                                                                                                            |
 | [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)                           | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)                                                                                                            |
 | [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)                             | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)                                                                                                                 |
+| [tmccombs/json-comments-rs](https://github.com/tmccombs/json-comments-rs)                     | [Apache 2.0](https://github.com/tmccombs/json-comments-rs/blob/main/LICENSE)                                                                                                    |
 
 [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
 [tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
