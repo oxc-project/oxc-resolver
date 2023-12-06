@@ -902,7 +902,9 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         ctx: &mut ResolveContext,
     ) -> ResolveState {
-        let Some(path_extension) = cached_path.path().extension() else { return Ok(None) };
+        let Some(path_extension) = cached_path.path().extension() else {
+            return Ok(None);
+        };
         let Some((_, extensions)) = self
             .options
             .extension_alias
@@ -925,7 +927,9 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> ResolveState {
-        let Some(tsconfig_options) = &self.options.tsconfig else { return Ok(None) };
+        let Some(tsconfig_options) = &self.options.tsconfig else {
+            return Ok(None);
+        };
         let tsconfig =
             self.load_tsconfig(&tsconfig_options.config_file, &tsconfig_options.references)?;
         let paths = tsconfig.resolve(cached_path.path(), specifier);
