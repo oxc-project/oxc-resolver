@@ -67,6 +67,17 @@ The options are aligned with [enhanced-resolve].
 | resolver         | undefined                   | A prepared Resolver to which the plugins are attached                                                                                                     |
 | unsafeCache      | false                       | Use this cache object to unsafely cache the successful requests
 
+## Debugging
+
+### Rspack
+
+The following environment variable will emit tracing information.
+
+```bash
+RSPACK_PROFILE='TRACE=filter=oxc_resolver=trace&layer=logger' rspack build
+```
+
+
 ## Test
 
 Tests are ported from
