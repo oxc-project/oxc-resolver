@@ -601,7 +601,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         if cached_path.is_file(&self.cache.fs) {
             return Ok(Some(cached_path.clone()));
         }
-        tracing::trace!(path = ?cached_path, "is_not_file");
         Ok(None)
     }
 
@@ -612,7 +611,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         ctx: &mut ResolveContext,
     ) -> ResolveState {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
-        tracing::trace!(path = ?cached_path, package_name, subpath, "load_node_modules");
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
         for module_name in &self.options.modules {
@@ -693,7 +691,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         if package_json.exports.is_empty() {
             return Ok(None);
         };
-        tracing::trace!(path = ?cached_path, exports = ?package_json.exports, "load_package_exports");
         // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
         //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
         // Note: The subpath is not prepended with a dot on purpose
@@ -745,7 +742,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
         // defined in the ESM resolver.
         let package_url = package_json.directory();
-        tracing::trace!(package = ?package_url, exports = ?package_json.exports, "load_package_self");
         // Note: The subpath is not prepended with a dot on purpose
         // because `package_exports_resolve` matches subpath without the leading dot.
         for exports in &package_json.exports {
@@ -934,7 +930,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             self.load_tsconfig(&tsconfig_options.config_file, &tsconfig_options.references)?;
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
-            tracing::trace!(path = ?cached_path, tsconfig_path = ?path, "load_tsconfig_paths");
             let cached_path = self.cache.value(&path);
             if let Ok(path) = self.require_relative(&cached_path, ".", ctx) {
                 return Ok(Some(path));
