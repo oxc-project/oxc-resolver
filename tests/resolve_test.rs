@@ -18,13 +18,17 @@ fn chinese() {
 fn styled_components() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm8");
+    let module_path = path.join("node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components");
     let specifier = "styled-components";
 
     // cjs
     let options =
         ResolveOptions { alias_fields: vec![vec!["browser".into()]], ..ResolveOptions::default() };
     let resolution = Resolver::new(options).resolve(&path, specifier);
-    assert_eq!(resolution.map(|r| r.into_path_buf()), Ok(path.join("node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components/dist/styled-components.browser.cjs.js")));
+    assert_eq!(
+        resolution.map(|r| r.into_path_buf()),
+        Ok(module_path.join("dist/styled-components.browser.cjs.js"))
+    );
 
     // esm
     let options = ResolveOptions {
@@ -33,5 +37,40 @@ fn styled_components() {
         ..ResolveOptions::default()
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
-    assert_eq!(resolution.map(|r| r.into_path_buf()), Ok(path.join("node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components/dist/styled-components.browser.esm.js")));
+    assert_eq!(
+        resolution.map(|r| r.into_path_buf()),
+        Ok(module_path.join("dist/styled-components.browser.esm.js"))
+    );
+}
+
+#[test]
+fn axios() {
+    let dir = dir();
+    let path = dir.join("fixtures/pnpm8");
+    let module_path = path.join("node_modules/.pnpm/axios@1.6.2/node_modules/axios");
+    let specifier = "axios";
+
+    // default
+    let options = ResolveOptions::default();
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(resolution.map(|r| r.into_path_buf()), Ok(module_path.join("index.js")));
+
+    // browser
+    let options = ResolveOptions {
+        condition_names: vec!["browser".into(), "require".into()],
+        ..ResolveOptions::default()
+    };
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(
+        resolution.map(|r| r.into_path_buf()),
+        Ok(module_path.join("dist/browser/axios.cjs"))
+    );
+
+    // cjs
+    let options = ResolveOptions {
+        condition_names: vec!["node".into(), "require".into()],
+        ..ResolveOptions::default()
+    };
+    let resolution = Resolver::new(options).resolve(&path, specifier);
+    assert_eq!(resolution.map(|r| r.into_path_buf()), Ok(module_path.join("dist/node/axios.cjs")));
 }
