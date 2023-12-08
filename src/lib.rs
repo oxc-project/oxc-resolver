@@ -790,13 +790,16 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         package_json: &PackageJson,
         ctx: &mut ResolveContext,
     ) -> ResolveState {
-        let Some(specifier) = package_json.resolve_browser_field(path, specifier)? else {
+        let Some(new_specifier) = package_json.resolve_browser_field(path, specifier)? else {
             return Ok(None);
         };
-        if ctx.resolving_alias.as_ref().is_some_and(|s| s == specifier) {
+        if specifier.is_some_and(|s| s == new_specifier) {
             return Ok(None);
         }
-        let specifier = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
+        if ctx.resolving_alias.as_ref().is_some_and(|s| s == new_specifier) {
+            return Err(ResolveError::Recursion);
+        }
+        let specifier = Specifier::parse(new_specifier).map_err(ResolveError::Specifier)?;
         ctx.with_query_fragment(specifier.query, specifier.fragment);
         ctx.with_resolving_alias(specifier.path().to_string());
         ctx.with_fully_specified(false);
@@ -845,7 +848,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                         if let Some(path) = self.load_alias_value(
                             cached_path,
                             alias_key,
-                            new_specifier.path(), // pass in passed alias value
+                            new_specifier.path(), // pass in parsed alias value
                             specifier,
                             ctx,
                         )? {

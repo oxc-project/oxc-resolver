@@ -11,7 +11,7 @@ use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Deserializer};
 
-use crate::{path::PathUtil, ResolveError, ResolveOptions};
+use crate::{ResolveError, ResolveOptions};
 
 type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
@@ -145,24 +145,9 @@ impl PackageJson {
         }
 
         // Dynamically create `browser_fields`.
-        let dir = path.parent().unwrap();
         for object_path in &options.alias_fields {
             if let Some(browser_field) = Self::get_value_by_path(&package_json_value, object_path) {
-                let mut browser_field = BrowserField::deserialize(browser_field)?;
-                // Normalize all relative paths to make browser_field a constant value lookup
-                if let BrowserField::Map(map) = &mut browser_field {
-                    let relative_paths = map
-                        .keys()
-                        .filter(|path| path.starts_with("."))
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    for relative_path in relative_paths {
-                        if let Some(value) = map.remove(&relative_path) {
-                            let normalized_path = dir.normalize_with(relative_path);
-                            map.insert(normalized_path, value);
-                        }
-                    }
-                }
+                let browser_field = BrowserField::deserialize(browser_field)?;
                 package_json.browser_fields.push(browser_field);
             }
         }
@@ -219,18 +204,43 @@ impl PackageJson {
     /// # Errors
     ///
     /// * Returns [ResolveError::Ignored] for `"path": false` in `browser` field.
+    ///
+    /// # Panics
+    ///
+    /// * `self.path` is empty
     pub fn resolve_browser_field(
         &self,
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&str>, ResolveError> {
-        let request = request.map_or(path, |r| Path::new(r));
+        if self.browser_fields.is_empty() {
+            return Ok(None);
+        }
+
+        let request = match request {
+            Some(r) => Path::new(r),
+            None => match path.strip_prefix(self.path.parent().unwrap()) {
+                Ok(r) => {
+                    if r.components().count() == 0 {
+                        Path::new(".")
+                    } else {
+                        r
+                    }
+                }
+                Err(_) => return Ok(None),
+            },
+        };
         for browser in &self.browser_fields {
             // Only object is valid, all other types are invalid
             // https://github.com/webpack/enhanced-resolve/blob/3a28f47788de794d9da4d1702a3a583d8422cd48/lib/AliasFieldPlugin.js#L44-L52
             if let BrowserField::Map(field_data) = browser {
-                if let Some(value) = field_data.get(request) {
-                    return Self::alias_value(path, value);
+                for (key, value) in field_data {
+                    if key.strip_prefix(".").ok().filter(|key| *key == request).is_some() {
+                        return Self::alias_value(path, value);
+                    }
+                    if *key == request {
+                        return Self::alias_value(path, value);
+                    }
                 }
             }
         }
