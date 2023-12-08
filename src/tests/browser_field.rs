@@ -106,3 +106,26 @@ fn crypto_js() {
     let resolved_path = resolver.resolve(f.join("crypto-js"), "crypto").map(|r| r.full_path());
     assert_eq!(resolved_path, Err(ResolveError::Ignored(f.join("crypto-js"))));
 }
+
+// https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/test/cases/resolving/browser-field/index.js#L40-L43
+#[test]
+fn recursive() {
+    let f = super::fixture().join("browser-module");
+
+    let resolver = Resolver::new(ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    });
+
+    let data = [
+        ("should handle recursive file 1", f.clone(), "recursive-file/a"),
+        ("should handle recursive file 2", f.clone(), "recursive-file/b"),
+        ("should handle recursive file 3", f.clone(), "recursive-file/c"),
+        ("should handle recursive file 4", f.clone(), "recursive-file/d"),
+    ];
+
+    for (comment, path, request) in data {
+        let resolved_path = resolver.resolve(&path, request);
+        assert_eq!(resolved_path, Err(ResolveError::Recursion), "{comment} {path:?} {request}");
+    }
+}
