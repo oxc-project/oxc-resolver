@@ -26,11 +26,11 @@ ready:
 # use .ignore file getting the ignore list
 # Run `cargo watch`
 watch command:
-  cargo watch --no-vcs-ignores -i '*snap*' -x '{{command}}'
+  cargo watch -x '{{command}}'
 
 # Run the example in `parser`, `formatter`, `linter`
-example tool *args='':
-  just watch 'run -p oxc_{{tool}} --example {{tool}} -- {{args}}'
+example *args='':
+  just watch 'run --example resolver -- {{args}}'
 
 # Format all files
 fmt:
