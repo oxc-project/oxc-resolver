@@ -151,15 +151,17 @@ impl PackageJson {
                 let mut browser_field = BrowserField::deserialize(browser_field)?;
                 // Normalize all relative paths to make browser_field a constant value lookup
                 if let BrowserField::Map(map) = &mut browser_field {
-                    let relative_paths = map
-                        .keys()
-                        .filter(|path| path.starts_with("."))
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    for relative_path in relative_paths {
-                        if let Some(value) = map.remove(&relative_path) {
-                            let normalized_path = dir.normalize_with(relative_path);
-                            map.insert(normalized_path, value);
+                    let keys = map.keys().cloned().collect::<Vec<_>>();
+                    for key in keys {
+                        // Normalize the key if it looks like a file "foo.js"
+                        if key.extension().is_some() {
+                            map.insert(dir.normalize_with(&key), map[&key].clone());
+                        }
+                        // Normalize the key if it is relative path "./relative"
+                        if key.starts_with(".") {
+                            if let Some(value) = map.remove(&key) {
+                                map.insert(dir.normalize_with(&key), value);
+                            }
                         }
                     }
                 }
@@ -224,7 +226,10 @@ impl PackageJson {
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&str>, ResolveError> {
-        let request = request.map_or(path, |r| Path::new(r));
+        if self.browser_fields.is_empty() {
+            return Ok(None);
+        }
+        let request = request.map_or(path, Path::new);
         for browser in &self.browser_fields {
             // Only object is valid, all other types are invalid
             // https://github.com/webpack/enhanced-resolve/blob/3a28f47788de794d9da4d1702a3a583d8422cd48/lib/AliasFieldPlugin.js#L44-L52
