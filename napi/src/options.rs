@@ -1,4 +1,4 @@
-use std::{fmt, path::PathBuf};
+use std::path::PathBuf;
 
 use napi::Either;
 use napi_derive::napi;
@@ -162,7 +162,7 @@ impl EnforceExtension {
 }
 
 /// Alias Value for [ResolveOptions::alias] and [ResolveOptions::fallback].
-
+/// Use struct because napi don't support structured union now
 #[napi(object)]
 #[derive(Debug, Clone)]
 pub struct Restriction {
@@ -222,6 +222,53 @@ impl Default for NapiResolveOptions {
             roots: Some(vec![]),
             symlinks: Some(true),
             builtin_modules: Some(false),
+        }
+    }
+}
+
+impl Into<oxc_resolver::Restriction> for Restriction {
+    fn into(self) -> oxc_resolver::Restriction {
+        match (self.path, self.regex) {
+            (None, None) => {
+                panic!("Should specifiy path or regex")
+            }
+            (None, Some(regex)) => oxc_resolver::Restriction::RegExp(regex),
+            (Some(path), None) => oxc_resolver::Restriction::Path(PathBuf::from(path)),
+            (Some(_), Some(_)) => {
+                panic!("Restriction can't be path and regex at the same time")
+            }
+        }
+    }
+}
+
+impl Into<oxc_resolver::EnforceExtension> for EnforceExtension {
+    fn into(self) -> oxc_resolver::EnforceExtension {
+        match self {
+            EnforceExtension::Auto => oxc_resolver::EnforceExtension::Auto,
+            EnforceExtension::Enabled => oxc_resolver::EnforceExtension::Enabled,
+            EnforceExtension::Disabled => oxc_resolver::EnforceExtension::Disabled,
+        }
+    }
+}
+
+impl Into<oxc_resolver::TsconfigOptions> for TsconfigOptions {
+    fn into(self) -> oxc_resolver::TsconfigOptions {
+        oxc_resolver::TsconfigOptions {
+            config_file: PathBuf::from(self.config_file),
+            references: match self.references {
+                Either::A(string) if string.as_str() == "disabled" => {
+                    oxc_resolver::TsconfigReferences::Disabled
+                }
+                Either::A(string) if string.as_str() == "auto" => {
+                    oxc_resolver::TsconfigReferences::Auto
+                }
+                Either::A(opt) => {
+                    panic!("`{}` is not a valid option for  tsconfig references", opt)
+                }
+                Either::B(paths) => oxc_resolver::TsconfigReferences::Paths(
+                    paths.into_iter().map(PathBuf::from).collect::<Vec<_>>(),
+                ),
+            },
         }
     }
 }

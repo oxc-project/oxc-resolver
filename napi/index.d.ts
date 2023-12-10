@@ -164,7 +164,10 @@ export const enum EnforceExtension {
   Enabled = 1,
   Disabled = 2
 }
-/** Alias Value for [ResolveOptions::alias] and [ResolveOptions::fallback]. */
+/**
+ * Alias Value for [ResolveOptions::alias] and [ResolveOptions::fallback].
+ * Use struct because napi don't support structured union now
+ */
 export interface Restriction {
   path?: string
   regex?: string
@@ -195,7 +198,7 @@ export interface ResolveResult {
 }
 export function sync(path: string, request: string): ResolveResult
 export class ResolverFactory {
-  constructor(op: ResolveOptions)
+  constructor(op: NapiResolveOptions)
   static default(): ResolverFactory
   sync(path: string, request: string): ResolveResult
 }
