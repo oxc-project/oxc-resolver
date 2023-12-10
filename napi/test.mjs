@@ -10,5 +10,5 @@ const cwd = process.cwd();
 assert(resolve.sync(cwd, "./index.js").path, path.join(cwd, 'index.js'));
 
 // `ResolverFactory`
-const resolver = new ResolverFactory();
+const resolver = ResolverFactory.default();
 assert(resolver.sync(cwd, "./index.js").path, path.join(cwd, 'index.js'));

@@ -1,8 +1,13 @@
+extern crate napi;
+extern crate napi_derive;
+extern crate oxc_resolver;
 use std::path::{Path, PathBuf};
 
 use napi_derive::napi;
-
+mod options;
 use oxc_resolver::{ResolveOptions, Resolver};
+
+use self::options::NapiResolveOptions;
 
 #[napi(object)]
 pub struct ResolveResult {
@@ -15,17 +20,17 @@ pub struct ResolverFactory {
     resolver: Resolver,
 }
 
-impl Default for ResolverFactory {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[napi]
 impl ResolverFactory {
     #[napi(constructor)]
-    pub fn new() -> Self {
-        Self { resolver: Resolver::new(ResolveOptions::default()) }
+    pub fn new(#[napi(ts_arg_type = "ResolveOptions")] op: NapiResolveOptions) -> Self {
+        let default_options = ResolveOptions::default();
+        Self { resolver: Resolver::new(default_options) }
+    }
+    #[napi]
+    pub fn default() -> Self {
+        let default_options = ResolveOptions::default();
+        Self { resolver: Resolver::new(default_options) }
     }
 
     #[allow(clippy::needless_pass_by_value)]
