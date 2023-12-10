@@ -230,7 +230,7 @@ impl Into<oxc_resolver::Restriction> for Restriction {
     fn into(self) -> oxc_resolver::Restriction {
         match (self.path, self.regex) {
             (None, None) => {
-                panic!("Should specifiy path or regex")
+                panic!("Should specify path or regex")
             }
             (None, Some(regex)) => oxc_resolver::Restriction::RegExp(regex),
             (Some(path), None) => oxc_resolver::Restriction::Path(PathBuf::from(path)),
