@@ -198,34 +198,6 @@ pub struct TsconfigOptions {
 //     Paths(Vec<String>),
 // }
 
-impl Default for NapiResolveOptions {
-    fn default() -> Self {
-        Self {
-            tsconfig: None,
-            alias: Some(HashMap::new()),
-            alias_fields: Some(vec![]),
-            condition_names: Some(vec![]),
-            description_files: Some(vec!["package.json".into()]),
-            enforce_extension: Some(EnforceExtension::Auto),
-            extension_alias: Some(HashMap::new()),
-            exports_fields: Some(vec![vec!["exports".into()]]),
-            extensions: Some(vec![".js".into(), ".json".into(), ".node".into()]),
-            fallback: Some(HashMap::new()),
-            fully_specified: Some(false),
-            main_fields: Some(vec!["main".into()]),
-            main_files: Some(vec!["index".into()]),
-            modules: Some(vec!["node_modules".into()]),
-            resolve_to_context: Some(false),
-            prefer_relative: Some(false),
-            prefer_absolute: Some(false),
-            restrictions: Some(vec![]),
-            roots: Some(vec![]),
-            symlinks: Some(true),
-            builtin_modules: Some(false),
-        }
-    }
-}
-
 impl Into<oxc_resolver::Restriction> for Restriction {
     fn into(self) -> oxc_resolver::Restriction {
         match (self.path, self.regex) {
