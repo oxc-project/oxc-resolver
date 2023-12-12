@@ -3,7 +3,6 @@ name    = "oxc_napi_resolver"
 version = "0.0.0"
 publish = false
 
-
 [lib]
 crate-type = ["cdylib"]
 test       = false

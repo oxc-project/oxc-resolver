@@ -1,13 +1,15 @@
 extern crate napi;
 extern crate napi_derive;
 extern crate oxc_resolver;
+
 use std::path::{Path, PathBuf};
 
 use napi_derive::napi;
-mod options;
 use oxc_resolver::{ResolveOptions, Resolver};
 
 use self::options::NapiResolveOptions;
+
+mod options;
 
 #[napi(object)]
 pub struct ResolveResult {

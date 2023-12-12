@@ -173,7 +173,6 @@ pub struct Restriction {
 /// Tsconfig Options
 ///
 /// Derived from [tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin#options)
-
 #[napi(object)]
 #[derive(Debug, Clone)]
 pub struct TsconfigOptions {
@@ -188,15 +187,6 @@ pub struct TsconfigOptions {
     #[napi(ts_type = "'disabled'| 'auto' | 'Array<string>'")]
     pub references: Either<String, Vec<String>>,
 }
-
-// #[derive(Debug, Clone)]
-// pub enum TsconfigReferences {
-//     Disabled,
-//     /// Use the `references` field from tsconfig read from `config_file`.
-//     Auto,
-//     /// Manually provided relative or absolute path.
-//     Paths(Vec<String>),
-// }
 
 impl Into<oxc_resolver::Restriction> for Restriction {
     fn into(self) -> oxc_resolver::Restriction {

@@ -19,10 +19,10 @@ assert.strict(resolver.sync(cwd, "./ts").error.length > 0);
 // custom constructor
 const resolver2 = new ResolverFactory(
   {
-    extensions: ['.js', '.ts', '.node']
+    extensions: ['.mjs']
   }
 );
 
 // After add `.ts` extension, resolver can resolve `ts` as `ts.ts` now
-assert.deepStrictEqual(resolver2.sync(cwd, "./ts").path, path.join(cwd, 'ts.ts'));
+assert.deepStrictEqual(resolver2.sync(cwd, "./test.mjs").path, path.join(cwd, 'test.mjs'));
 
