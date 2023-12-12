@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "napi build --platform --release",
+    "build:debug": "napi build --platform ",
     "test": "node test.mjs"
   },
   "devDependencies": {
