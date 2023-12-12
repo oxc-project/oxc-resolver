@@ -182,8 +182,8 @@ pub struct TsconfigOptions {
     /// * an absolute path to the configuration file.
     pub config_file: String,
     /// Support for Typescript Project References.
-    /// For the type TsconfigReferences
-    ///
+    /// alias type for [oxc_resolver::TsconfigReferences], cause napi does't support structured
+    /// enum
     #[napi(ts_type = "'disabled'| 'auto' | 'Array<string>'")]
     pub references: Either<String, Vec<String>>,
 }
