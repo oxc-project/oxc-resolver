@@ -188,7 +188,7 @@ pub struct TsconfigOptions {
 #[derive(Debug, Clone)]
 pub enum TsconfigReferences {
     Disabled,
-    /// Use the `references` field from tsconfig read from `config_file`.
+    /// Use the `references` field from tsconfig of `config_file`.
     Auto,
     /// Manually provided relative or absolute path.
     Paths(Vec<PathBuf>),

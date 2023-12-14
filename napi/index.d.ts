@@ -187,10 +187,11 @@ export interface TsconfigOptions {
   configFile: string
   /**
    * Support for Typescript Project References.
-   * For the type TsconfigReferences
    *
+   * * `'auto'`: use the `references` field from tsconfig of `config_file`.
+   * * `string[]`: manually provided relative or absolute path.
    */
-  references: 'disabled'| 'auto' | 'Array<string>'
+  references?: 'auto' | string[]
 }
 export interface ResolveResult {
   path?: string
