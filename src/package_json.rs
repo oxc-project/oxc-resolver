@@ -179,6 +179,18 @@ impl PackageJson {
 
         package_json.path = path;
         package_json.realpath = realpath;
+
+        // Remove large fields that useless for pragmatic use, see [raw_json] API
+        if let Some(package_json_value) = package_json_value.as_object_mut() {
+            package_json_value.remove("description");
+            package_json_value.remove("keywords");
+            package_json_value.remove("scripts");
+            package_json_value.remove("dependencies");
+            package_json_value.remove("devDependencies");
+            package_json_value.remove("peerDependencies");
+            package_json_value.remove("optionalDependencies");
+        }
+
         package_json.raw_json = Arc::new(package_json_value);
         Ok(package_json)
     }
@@ -201,7 +213,15 @@ impl PackageJson {
         Some(value)
     }
 
-    /// Raw json of `package.json`
+    /// Raw serde json value of `package.json`.
+    ///
+    /// This is currently used in Rspack for:
+    /// * getting the `sideEffects` field
+    /// * query in <https://www.rspack.dev/config/module.html#ruledescriptiondata> - search on GitHub indicates query on the `type` field.
+    ///
+    /// To reduce overall memory consumption, large fields that useless for pragmatic use are removed.
+    /// They are: `description`, `keywords`, `scripts`,
+    /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
     pub fn raw_json(&self) -> &serde_json::Value {
         self.raw_json.as_ref()
     }
