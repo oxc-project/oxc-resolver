@@ -45,7 +45,7 @@ jobs:
         run: cargo llvm-cov --lcov --output-path lcov.info
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: codecov
           path: lcov.info
