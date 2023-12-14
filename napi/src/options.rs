@@ -181,11 +181,13 @@ pub struct TsconfigOptions {
     /// * a relative path to the configuration file. It will be resolved relative to cwd.
     /// * an absolute path to the configuration file.
     pub config_file: String,
+
     /// Support for Typescript Project References.
-    /// alias type for [oxc_resolver::TsconfigReferences], cause napi does't support structured
-    /// enum
-    #[napi(ts_type = "'disabled'| 'auto' | 'Array<string>'")]
-    pub references: Either<String, Vec<String>>,
+    ///
+    /// * `'auto'`: use the `references` field from tsconfig of `config_file`.
+    /// * `string[]`: manually provided relative or absolute path.
+    #[napi(ts_type = "'auto' | string[]")]
+    pub references: Option<Either<String, Vec<String>>>,
 }
 
 impl Into<oxc_resolver::Restriction> for Restriction {
@@ -218,18 +220,16 @@ impl Into<oxc_resolver::TsconfigOptions> for TsconfigOptions {
         oxc_resolver::TsconfigOptions {
             config_file: PathBuf::from(self.config_file),
             references: match self.references {
-                Either::A(string) if string.as_str() == "disabled" => {
-                    oxc_resolver::TsconfigReferences::Disabled
-                }
-                Either::A(string) if string.as_str() == "auto" => {
+                Some(Either::A(string)) if string.as_str() == "auto" => {
                     oxc_resolver::TsconfigReferences::Auto
                 }
-                Either::A(opt) => {
+                Some(Either::A(opt)) => {
                     panic!("`{}` is not a valid option for  tsconfig references", opt)
                 }
-                Either::B(paths) => oxc_resolver::TsconfigReferences::Paths(
+                Some(Either::B(paths)) => oxc_resolver::TsconfigReferences::Paths(
                     paths.into_iter().map(PathBuf::from).collect::<Vec<_>>(),
                 ),
+                None => oxc_resolver::TsconfigReferences::Disabled,
             },
         }
     }
