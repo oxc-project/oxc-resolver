@@ -175,7 +175,7 @@ jobs:
           # publish subpackages first
           for package in npm/oxc-resolver-*
           do
-            npm publish --dry-run $package/ --tag latest --provenance --access public
+            npm publish $package/ --tag latest --provenance --access public
           done
           # publish root package last
-          npm publish --dry-run npm/ --tag latest --provenance --access public
+          npm publish npm/ --tag latest --provenance --access public
