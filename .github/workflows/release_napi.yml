@@ -143,6 +143,12 @@ jobs:
         with:
           name: binaries
 
+      - name: Move download artifacts from directories to root
+        shell: bash
+        run: |
+          mv binaries-*/*.zip .
+          mv binaries-*/*.gz .
+
       - name: Unzip
         uses: montudor/action-zip@v1
         with:
