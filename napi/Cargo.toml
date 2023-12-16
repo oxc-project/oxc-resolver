@@ -10,7 +10,7 @@ doctest    = false
 
 [dependencies]
 oxc_resolver = { path = "../../oxc_resolver" }
-napi         = { version = "2", features = ["serde-json", "async"] }
+napi         = { version = "2", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive  = { version = "2" }
 
 [build-dependencies]
