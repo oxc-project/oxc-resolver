@@ -586,8 +586,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         ctx: &mut ResolveContext,
     ) -> ResolveState {
         if let Some(package_json) = cached_path.find_package_json(&self.cache.fs, &self.options)? {
-            let path = cached_path.path();
-            if let Some(path) = self.load_browser_field(path, None, &package_json, ctx)? {
+            if let Some(path) = self.load_browser_field(cached_path, None, &package_json, ctx)? {
                 return Ok(Some(path));
             }
         }
@@ -723,12 +722,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         };
         // 3. If the SCOPE/package.json "exports" is null or undefined, return.
         if package_json.exports.is_empty() {
-            return self.load_browser_field(
-                cached_path.path(),
-                Some(specifier),
-                &package_json,
-                ctx,
-            );
+            return self.load_browser_field(cached_path, Some(specifier), &package_json, ctx);
         }
         // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
         let Some(subpath) = package_json
@@ -766,7 +760,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         package_json: &PackageJson,
         ctx: &mut ResolveContext,
     ) -> ResolveState {
-        if let Some(path) = self.load_browser_field(cached_path.path(), None, package_json, ctx)? {
+        if let Some(path) = self.load_browser_field(cached_path, None, package_json, ctx)? {
             return Ok(Some(path));
         }
 
@@ -785,11 +779,12 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     /// enhanced-resolve: AliasFieldPlugin for [ResolveOptions::alias_fields]
     fn load_browser_field(
         &self,
-        path: &Path,
+        cached_path: &CachedPath,
         specifier: Option<&str>,
         package_json: &PackageJson,
         ctx: &mut ResolveContext,
     ) -> ResolveState {
+        let path = cached_path.path();
         let Some(new_specifier) = package_json.resolve_browser_field(path, specifier)? else {
             return Ok(None);
         };
