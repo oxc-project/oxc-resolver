@@ -6,6 +6,7 @@
     "module-b": "module-c",
     "module-c": "module-c",
     "./toString": "./lib/toString.js",
+    "./lib/main.js": "./lib/main.js",
     ".": false
   },
   "innerBrowser1": {

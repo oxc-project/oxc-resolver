@@ -61,6 +61,7 @@ fn replace_file() {
         ("should check only alias field properties", f.clone(), "./toString", f.join("lib/toString.js")),
         // not part of enhanced-resolve
         ("recursion", f.clone(), "module-c", f.join("node_modules/module-c.js")),
+        ("resolve self", f.clone(), "./lib/main.js", f.join("lib/main.js")),
     ];
 
     for (comment, path, request, expected) in data {
