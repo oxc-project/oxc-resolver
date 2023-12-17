@@ -1,9 +1,9 @@
 // Instruction:
 //
-// run `cargo run -p oxc_resolver --example resolver -- `pwd` test.js`
-// or `cargo watch -x "run -p oxc_resolver --example resolver" -- `pwd` test.js`
+// run `cargo run --example resolver -- `pwd` test.js`
+// or `cargo watch -x "run --example resolver" -- `pwd` test.js`
 //
-// use `OXC_RESOLVER=DEBUG` for tracing
+// NOTE: The first argument must be a absolute path.
 
 use std::{env, path::PathBuf};
 
