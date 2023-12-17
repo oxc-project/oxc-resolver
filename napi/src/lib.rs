@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use napi_derive::napi;
 use oxc_resolver::{ResolveOptions, Resolver};
 
-use self::options::NapiResolveOptions;
+use self::options::{NapiResolveOptions, StrOrStrList};
 
 mod options;
 
@@ -48,14 +48,20 @@ impl ResolverFactory {
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or(default_options.alias),
-            alias_fields: op.alias_fields.unwrap_or(default_options.alias_fields),
+            alias_fields: op
+                .alias_fields
+                .map(|o| o.into_iter().map(|x| StrOrStrList(x).into()).collect::<Vec<_>>())
+                .unwrap_or(default_options.alias_fields),
             condition_names: op.condition_names.unwrap_or(default_options.condition_names),
             description_files: op.description_files.unwrap_or(default_options.description_files),
             enforce_extension: op
                 .enforce_extension
                 .map(|enforce_extension| enforce_extension.into())
                 .unwrap_or(default_options.enforce_extension),
-            exports_fields: op.exports_fields.unwrap_or(default_options.exports_fields),
+            exports_fields: op
+                .exports_fields
+                .map(|o| o.into_iter().map(|x| StrOrStrList(x).into()).collect::<Vec<_>>())
+                .unwrap_or(default_options.exports_fields),
             extension_alias: op
                 .extension_alias
                 .map(|extension_alias| extension_alias.into_iter().collect::<Vec<_>>())
@@ -80,9 +86,12 @@ impl ResolverFactory {
                 })
                 .unwrap_or(default_options.fallback),
             fully_specified: op.fully_specified.unwrap_or(default_options.fully_specified),
-            main_fields: op.main_fields.unwrap_or(default_options.main_fields),
+            main_fields: op
+                .main_fields
+                .map(|o| StrOrStrList(o).into())
+                .unwrap_or(default_options.main_fields),
             main_files: op.main_files.unwrap_or(default_options.main_files),
-            modules: op.modules.unwrap_or(default_options.modules),
+            modules: op.modules.map(|o| StrOrStrList(o).into()).unwrap_or(default_options.modules),
             resolve_to_context: op.resolve_to_context.unwrap_or(default_options.resolve_to_context),
             prefer_relative: op.prefer_relative.unwrap_or(default_options.prefer_relative),
             prefer_absolute: op.prefer_absolute.unwrap_or(default_options.prefer_absolute),

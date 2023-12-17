@@ -33,7 +33,7 @@ export interface NapiResolveOptions {
    *
    * Default `[]`
    */
-  aliasFields?: Array<Array<string>>
+  aliasFields?: (string | string[])[]
   /**
    * Condition names for exports field which defines entry points of a package.
    * The key order in the exports field is significant. During condition matching, earlier entries have higher priority and take precedence over later entries.
@@ -65,7 +65,7 @@ export interface NapiResolveOptions {
    *
    * Default `[["exports"]]`.
    */
-  exportsFields?: Array<Array<string>>
+  exportsFields?: (string | string[])[]
   /**
    * An object which maps extension to extension aliases.
    *
@@ -99,7 +99,7 @@ export interface NapiResolveOptions {
    *
    * Default `["main"]`.
    */
-  mainFields?: Array<string>
+  mainFields?: string | string[]
   /**
    * The filename to be used while resolving directories.
    *
@@ -111,7 +111,7 @@ export interface NapiResolveOptions {
    *
    * Default `["node_modules"]`
    */
-  modules?: Array<string>
+  modules?: string | string[]
   /**
    * Resolve to a context instead of a file.
    *
