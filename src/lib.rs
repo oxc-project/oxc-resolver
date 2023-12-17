@@ -788,6 +788,12 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         let Some(new_specifier) = package_json.resolve_browser_field(path, specifier)? else {
             return Ok(None);
         };
+        // Finish when resolving to self `{"./a.js": "./a.js"}`
+        if let Some(new_specifier) = new_specifier.strip_prefix("./") {
+            if path.ends_with(Path::new(new_specifier)) {
+                return Ok(Some(cached_path.clone()));
+            }
+        }
         if specifier.is_some_and(|s| s == new_specifier) {
             return Ok(None);
         }
