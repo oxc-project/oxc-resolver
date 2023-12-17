@@ -8,7 +8,7 @@ use std::{
 };
 
 use indexmap::IndexMap;
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Deserializer};
 
 use crate::{path::PathUtil, ResolveError, ResolveOptions};
@@ -113,7 +113,7 @@ impl<'de> Deserialize<'de> for ExportsKey {
 #[serde(untagged)]
 pub enum BrowserField {
     String(String),
-    Map(FxIndexMap<PathBuf, serde_json::Value>),
+    Map(FxHashMap<PathBuf, serde_json::Value>),
 }
 
 impl PackageJson {
