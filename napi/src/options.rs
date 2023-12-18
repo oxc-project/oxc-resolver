@@ -23,6 +23,7 @@ pub struct NapiResolveOptions {
     /// Create aliases to import or require certain modules more easily.
     /// A trailing $ can also be added to the given object's keys to signify an exact match.
     ///
+    // FIXME can be array
     pub alias: Option<HashMap<String, Vec<Option<String>>>>,
 
     /// A list of alias fields in description files.
@@ -30,7 +31,8 @@ pub struct NapiResolveOptions {
     /// Can be a path to json object such as `["path", "to", "exports"]`.
     ///
     /// Default `[]`
-    pub alias_fields: Option<Vec<Vec<String>>>,
+    #[napi(ts_type = "(string | string[])[]")]
+    pub alias_fields: Option<Vec<StrOrStrListType>>,
 
     /// Condition names for exports field which defines entry points of a package.
     /// The key order in the exports field is significant. During condition matching, earlier entries have higher priority and take precedence over later entries.
@@ -58,7 +60,8 @@ pub struct NapiResolveOptions {
     /// Can be a path to json object such as `["path", "to", "exports"]`.
     ///
     /// Default `[["exports"]]`.
-    pub exports_fields: Option<Vec<Vec<String>>>,
+    #[napi(ts_type = "(string | string[])[]")]
+    pub exports_fields: Option<Vec<StrOrStrListType>>,
 
     /// An object which maps extension to extension aliases.
     ///
@@ -75,6 +78,7 @@ pub struct NapiResolveOptions {
     /// Redirect module requests when normal resolving fails.
     ///
     /// Default `[]`
+    // FIXME can be array - same as alias
     pub fallback: Option<HashMap<String, Vec<Option<String>>>>,
 
     /// Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests).
@@ -87,7 +91,9 @@ pub struct NapiResolveOptions {
     /// A list of main fields in description files
     ///
     /// Default `["main"]`.
-    pub main_fields: Option<Vec<String>>,
+    // FIXME (string | string[] | { name: string | string[]; forceRelative: boolean })[]
+    #[napi(ts_type = "string | string[]")]
+    pub main_fields: Option<StrOrStrListType>,
 
     /// The filename to be used while resolving directories.
     ///
@@ -97,7 +103,8 @@ pub struct NapiResolveOptions {
     /// A list of directories to resolve modules from, can be absolute path or folder name.
     ///
     /// Default `["node_modules"]`
-    pub modules: Option<Vec<String>>,
+    #[napi(ts_type = "string | string[]")]
+    pub modules: Option<StrOrStrListType>,
 
     /// Resolve to a context instead of a file.
     ///
@@ -231,6 +238,18 @@ impl Into<oxc_resolver::TsconfigOptions> for TsconfigOptions {
                 ),
                 None => oxc_resolver::TsconfigReferences::Disabled,
             },
+        }
+    }
+}
+
+type StrOrStrListType = Either<String, Vec<String>>;
+pub struct StrOrStrList(pub StrOrStrListType);
+
+impl Into<Vec<String>> for StrOrStrList {
+    fn into(self) -> Vec<String> {
+        match self {
+            StrOrStrList(Either::A(s)) => Vec::from([s]),
+            StrOrStrList(Either::B(a)) => a,
         }
     }
 }
