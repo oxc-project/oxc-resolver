@@ -11,7 +11,7 @@ license      = "MIT"
 readme       = "README.md"
 repository   = "https://github.com/oxc-project/oxc_resolver"
 rust-version = "1.60"
-include      = ["/src"]
+include      = ["/src", "/examples"]
 
 [lib]
 doctest = false
