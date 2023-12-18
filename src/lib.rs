@@ -1110,9 +1110,10 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             if ctx.query.is_some() || ctx.fragment.is_some() {
                 let query = ctx.query.clone().unwrap_or_default();
                 let fragment = ctx.fragment.clone().unwrap_or_default();
-                return Err(ResolveError::PackagePathNotExported(format!(
-                    "./{subpath}{query}{fragment}"
-                )));
+                return Err(ResolveError::PackagePathNotExported(
+                    format!("./{subpath}{query}{fragment}"),
+                    package_url.join("package.json"),
+                ));
             }
             // 1. Let mainExport be undefined.
             let main_export = match exports {
@@ -1174,7 +1175,10 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             }
         }
         // 4. Throw a Package Path Not Exported error.
-        Err(ResolveError::PackagePathNotExported(format!(".{subpath}")))
+        Err(ResolveError::PackagePathNotExported(
+            format!(".{subpath}"),
+            package_url.join("package.json"),
+        ))
     }
 
     /// PACKAGE_IMPORTS_RESOLVE(specifier, parentURL, conditions)
@@ -1189,7 +1193,10 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         // 2. If specifier is exactly equal to "#" or starts with "#/", then
         if specifier == "#" || specifier.starts_with("#/") {
             // 1. Throw an Invalid Module Specifier error.
-            return Err(ResolveError::InvalidModuleSpecifier(specifier.to_string()));
+            return Err(ResolveError::InvalidModuleSpecifier(
+                specifier.to_string(),
+                cached_path.path().join("package.json"),
+            ));
         }
         // 3. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(parentURL).
         // 4. If packageURL is not null, then
@@ -1348,9 +1355,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                     // 1. If isImports is false, or if target starts with "../" or "/", or if target is a valid URL, then
                     if !is_imports || target.starts_with("../") || target.starts_with('/') {
                         // 1. Throw an Invalid Package Target error.
-                        // TODO:
-                        // Error [ERR_INVALID_PACKAGE_TARGET]: Invalid "exports" target "/a/" defined for './utils/*' in the package config /Users/bytedance/github/test-resolver/node_modules/foo/package.json; targets must start with "./"
-                        return Err(ResolveError::InvalidPackageTarget(target.to_string()));
+                        return Err(ResolveError::InvalidPackageTarget(
+                            target.to_string(),
+                            target_key.to_string(),
+                            package_url.join("package.json"),
+                        ));
                     }
                     // 2. If patternMatch is a String, then
                     //   1. Return PACKAGE_RESOLVE(target with every instance of "*" replaced by patternMatch, packageURL + "/").
@@ -1368,7 +1377,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 let target =
                     normalize_string_target(target_key, target, pattern_match, package_url)?;
                 if Path::new(target.as_ref()).is_invalid_exports_target() {
-                    return Err(ResolveError::InvalidPackageTarget(target.to_string()));
+                    return Err(ResolveError::InvalidPackageTarget(
+                        target.to_string(),
+                        target_key.to_string(),
+                        package_url.join("package.json"),
+                    ));
                 }
                 let resolved_target = package_url.join(target.as_ref()).normalize();
                 // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
@@ -1421,10 +1434,10 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 // 1. If _target.length is zero, return null.
                 if targets.is_empty() {
                     // Note: return PackagePathNotExported has the same effect as return because there are no matches.
-                    return Err(ResolveError::PackagePathNotExported(format!(
-                        ".{}",
-                        pattern_match.unwrap_or(".")
-                    )));
+                    return Err(ResolveError::PackagePathNotExported(
+                        format!(".{}", pattern_match.unwrap_or(".")),
+                        package_url.join("package.json"),
+                    ));
                 }
                 // 2. For each item targetValue in target, do
                 for (i, target_value) in targets.iter().enumerate() {

@@ -40,7 +40,7 @@ fn test() {
 
     #[rustfmt::skip]
     let fail = [
-        ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget("../b.js".to_string())),
+        ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget("../b.js".to_string(), "#b".to_string(), f.join("package.json"))),
         ("should resolve package #2", f, "#a", ResolveError::PackageImportNotDefined("#a".to_string())),
     ];
 
