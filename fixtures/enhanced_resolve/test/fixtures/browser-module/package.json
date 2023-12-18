@@ -7,6 +7,10 @@
     "module-c": "module-c",
     "./toString": "./lib/toString.js",
     "./lib/main.js": "./lib/main.js",
+    "./main.js": "./lib/main.js",
+    "./lib/xyz.js": "./xyz.js",
+    "./xyz.js": "./lib/xyz.js",
+    "./lib/non-existent.js": "./lib/non-existent.js",
     ".": false
   },
   "innerBrowser1": {

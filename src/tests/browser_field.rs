@@ -61,12 +61,35 @@ fn replace_file() {
         ("should check only alias field properties", f.clone(), "./toString", f.join("lib/toString.js")),
         // not part of enhanced-resolve
         ("recursion", f.clone(), "module-c", f.join("node_modules/module-c.js")),
-        ("resolve self", f.clone(), "./lib/main.js", f.join("lib/main.js")),
+        ("resolve self 1", f.clone(), "./lib/main.js", f.join("lib/main.js")),
+        ("resolve self 2", f.clone(), "./main.js", f.join("lib/main.js")),
     ];
 
     for (comment, path, request, expected) in data {
         let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+}
+
+#[test]
+fn recurse_fail() {
+    let f = super::fixture();
+
+    let resolver = Resolver::new(ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    });
+
+    #[rustfmt::skip]
+    let data = [
+        ("recurse non existent", f.clone(), "./lib/non-existent.js", ResolveError::NotFound(f.join("lib/non-existent.js"))),
+        ("path partial match 1", f.clone(), "./xyz.js", ResolveError::NotFound(f.join("xyz.js"))),
+        ("path partial match 2", f.clone(), "./lib/xyz.js", ResolveError::NotFound(f.join("lib/xyz.js"))),
+    ];
+
+    for (comment, path, request, expected) in data {
+        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Err(expected), "{comment} {path:?} {request}");
     }
 }
 

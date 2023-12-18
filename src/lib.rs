@@ -780,24 +780,28 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     fn load_browser_field(
         &self,
         cached_path: &CachedPath,
-        specifier: Option<&str>,
+        module_specifier: Option<&str>,
         package_json: &PackageJson,
         ctx: &mut ResolveContext,
     ) -> ResolveState {
         let path = cached_path.path();
-        let Some(new_specifier) = package_json.resolve_browser_field(path, specifier)? else {
+        let Some(new_specifier) = package_json.resolve_browser_field(path, module_specifier)?
+        else {
             return Ok(None);
         };
-        // Finish when resolving to self `{"./a.js": "./a.js"}`
-        if let Some(new_specifier) = new_specifier.strip_prefix("./") {
-            if path.ends_with(Path::new(new_specifier)) {
-                return Ok(Some(cached_path.clone()));
-            }
-        }
-        if specifier.is_some_and(|s| s == new_specifier) {
+        // Abort when resolving recursive module
+        if module_specifier.is_some_and(|s| s == new_specifier) {
             return Ok(None);
         }
         if ctx.resolving_alias.as_ref().is_some_and(|s| s == new_specifier) {
+            // Complete when resolving to self `{"./a.js": "./a.js"}`
+            if new_specifier.strip_prefix("./").filter(|s| path.ends_with(Path::new(s))).is_some() {
+                return if cached_path.is_file(&self.cache.fs) {
+                    Ok(Some(cached_path.clone()))
+                } else {
+                    Err(ResolveError::NotFound(cached_path.path().to_path_buf()))
+                };
+            }
             return Err(ResolveError::Recursion);
         }
         let specifier = Specifier::parse(new_specifier).map_err(ResolveError::Specifier)?;
