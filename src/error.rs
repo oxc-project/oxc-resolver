@@ -52,29 +52,21 @@ pub enum ResolveError {
     #[error("Restriction")]
     Restriction(PathBuf),
 
-    // TODO: TypeError [ERR_INVALID_MODULE_SPECIFIER]: Invalid module "./dist/../../../a.js" specifier is not a valid subpath for the "exports" resolution of /xxx/package.json
-    #[error("[ERR_INVALID_MODULE_SPECIFIER]: Invalid module specifier \"{0}\"")]
-    InvalidModuleSpecifier(String),
+    #[error("Invalid module \"{0}\" specifier is not a valid subpath for the \"exports\" resolution of {1}")]
+    InvalidModuleSpecifier(String, PathBuf),
 
-    // TODO: Error [ERR_INVALID_PACKAGE_TARGET]: Invalid "exports" target "./../../a.js" defined for './dist/a.js' in the package config /xxx/package.json
-    #[error("[ERR_INVALID_PACKAGE_TARGET]: Invalid \"exports\" target \"{0}\"")]
-    InvalidPackageTarget(String),
+    #[error("Invalid \"exports\" target \"{0}\" defined for '{1}' in the package config {2}")]
+    InvalidPackageTarget(String, String, PathBuf),
 
-    // TODO: Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './anything/else' is not defined by "exports" in /xxx/package.json
-    #[error(
-        "[ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath '{0}' is not defined by \"exports\""
-    )]
-    PackagePathNotExported(String),
+    #[error("Package subpath '{0}' is not defined by \"exports\" in {1}")]
+    PackagePathNotExported(String, PathBuf),
 
-    // TODO: Invalid package config /xxx/package.json. "exports" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only.
-    #[error("Invalid package config")]
+    #[error("Invalid package config \"{0}\", \"exports\" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only.")]
     InvalidPackageConfig(PathBuf),
 
-    // TODO: Default condition should be last one
-    #[error("Default condition should be last one")]
+    #[error("Default condition should be last one in \"{0}\"")]
     InvalidPackageConfigDefault(PathBuf),
 
-    // TODO: Expecting folder to folder mapping. "./data/timezones" should end with "/"
     #[error("Expecting folder to folder mapping. \"{0}\" should end with \"/\"")]
     InvalidPackageConfigDirectory(PathBuf),
 
