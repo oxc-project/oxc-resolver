@@ -15,6 +15,8 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # for softprops/action-gh-release@v1
     steps:
       - uses: actions/checkout@v4
 
