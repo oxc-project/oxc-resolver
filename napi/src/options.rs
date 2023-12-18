@@ -18,12 +18,11 @@ pub struct NapiResolveOptions {
     pub tsconfig: Option<TsconfigOptions>,
 
     /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].
+    ///
     /// For the second value of the tuple, `None -> AliasValue::Ignore`, Some(String) ->
     /// AliasValue::Path(String)`
     /// Create aliases to import or require certain modules more easily.
     /// A trailing $ can also be added to the given object's keys to signify an exact match.
-    ///
-    // FIXME can be array
     pub alias: Option<HashMap<String, Vec<Option<String>>>>,
 
     /// A list of alias fields in description files.
@@ -78,7 +77,6 @@ pub struct NapiResolveOptions {
     /// Redirect module requests when normal resolving fails.
     ///
     /// Default `[]`
-    // FIXME can be array - same as alias
     pub fallback: Option<HashMap<String, Vec<Option<String>>>>,
 
     /// Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests).
@@ -91,7 +89,6 @@ pub struct NapiResolveOptions {
     /// A list of main fields in description files
     ///
     /// Default `["main"]`.
-    // FIXME (string | string[] | { name: string | string[]; forceRelative: boolean })[]
     #[napi(ts_type = "string | string[]")]
     pub main_fields: Option<StrOrStrListType>,
 
