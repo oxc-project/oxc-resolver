@@ -15,6 +15,9 @@ assert.deepStrictEqual(resolver.sync(cwd, "./index.js").path, path.join(cwd, 'in
 
 assert.strict(resolver.sync(cwd, "./ts").error.length > 0);
 
+const newResolver = resolver.cloneWithOptions({});
+newResolver.clearCache();
+
 
 // custom constructor
 const resolver2 = new ResolverFactory(

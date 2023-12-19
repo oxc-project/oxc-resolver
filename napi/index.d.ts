@@ -19,11 +19,11 @@ export interface NapiResolveOptions {
   tsconfig?: TsconfigOptions
   /**
    * Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].
+   *
    * For the second value of the tuple, `None -> AliasValue::Ignore`, Some(String) ->
    * AliasValue::Path(String)`
    * Create aliases to import or require certain modules more easily.
    * A trailing $ can also be added to the given object's keys to signify an exact match.
-   *
    */
   alias?: Record<string, Array<string | undefined | null>>
   /**
@@ -199,7 +199,11 @@ export interface ResolveResult {
 }
 export function sync(path: string, request: string): ResolveResult
 export class ResolverFactory {
-  constructor(op: NapiResolveOptions)
+  constructor(options: NapiResolveOptions)
   static default(): ResolverFactory
+  /** Clone the resolver using the same underlying cache. */
+  cloneWithOptions(options: NapiResolveOptions): ResolverFactory
+  /** Clear the underlying cache. */
+  clearCache(): void
   sync(path: string, request: string): ResolveResult
 }
