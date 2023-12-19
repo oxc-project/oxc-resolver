@@ -252,8 +252,8 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { EnforceExtension, ResolverFactory, sync } = nativeBinding
+const { EnforceExtension, sync, ResolverFactory } = nativeBinding
 
 module.exports.EnforceExtension = EnforceExtension
-module.exports.ResolverFactory = ResolverFactory
 module.exports.sync = sync
+module.exports.ResolverFactory = ResolverFactory

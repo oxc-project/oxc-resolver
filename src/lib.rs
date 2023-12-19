@@ -147,6 +147,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         Self { cache: Arc::new(Cache::new(file_system)), ..Self::new(options) }
     }
 
+    /// Clone the resolver using the same underlying cache.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         Self { options: options.sanitize(), cache: Arc::clone(&self.cache) }
