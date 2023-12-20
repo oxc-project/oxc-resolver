@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// File System abstraction used for `ResolverGeneric`.
+/// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem: Send + Sync {
     /// See [std::fs::read_to_string]
     ///
