@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-/// The final path resolution with optional `?query` and `#fragment`.
+/// The final path resolution with optional `?query` and `#fragment`
 #[derive(Clone)]
 pub struct Resolution {
     pub(crate) path: PathBuf,
@@ -58,6 +58,7 @@ impl Resolution {
         self.fragment.as_deref()
     }
 
+    /// Returns serialized package_json
     pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
         self.package_json.as_ref()
     }

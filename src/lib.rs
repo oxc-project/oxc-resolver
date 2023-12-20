@@ -2,18 +2,24 @@
 //!
 //! Node.js Module Resolution.
 //!
-//! All configuration options are aligned with [enhanced-resolve]
+//! All configuration options are aligned with [enhanced-resolve].
 //!
 //! ## References:
 //!
-//! * Tests ported from [enhanced-resolve]
 //! * Algorithm adapted from Node.js [CommonJS Module Resolution Algorithm] and [ECMAScript Module Resolution Algorithm]
+//! * Tests are ported from [enhanced-resolve]
 //! * Some code adapted from [parcel-resolver]
 //!
 //! [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
 //! [CommonJS Module Resolution Algorithm]: https://nodejs.org/api/modules.html#all-together
 //! [ECMAScript Module Resolution Algorithm]: https://nodejs.org/api/esm.html#resolution-algorithm-specification
 //! [parcel-resolver]: https://github.com/parcel-bundler/parcel/blob/v2/packages/utils/node-resolver-rs
+//!
+//! ## Example
+//!
+//! ```rust
+#![doc = include_str!("../examples/resolver.rs")]
+//! ```
 
 mod builtins;
 mod cache;
@@ -63,7 +69,7 @@ pub use crate::{
 /// Resolver with the current operating system as the file system
 pub type Resolver = ResolverGeneric<FileSystemOs>;
 
-/// Generic implementation of the resolver, can be configured by the [FileSystem] trait.
+/// Generic implementation of the resolver, can be configured by the [FileSystem] trait
 pub struct ResolverGeneric<Fs> {
     options: ResolveOptions,
     cache: Arc<Cache<Fs>>,
@@ -153,10 +159,12 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         Self { options: options.sanitize(), cache: Arc::clone(&self.cache) }
     }
 
+    /// Returns the options.
     pub fn options(&self) -> &ResolveOptions {
         &self.options
     }
 
+    /// Clear the underlying cache.
     pub fn clear_cache(&self) {
         self.cache.clear();
     }

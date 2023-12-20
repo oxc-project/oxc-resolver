@@ -130,6 +130,7 @@ pub struct ResolveOptions {
     pub builtin_modules: bool,
 }
 
+/// Value for [ResolveOptions::enforce_extension]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnforceExtension {
     Auto,
@@ -164,13 +165,14 @@ pub enum AliasValue {
     Ignore,
 }
 
+/// Value for [ResolveOptions::restrictions]
 #[derive(Debug, Clone)]
 pub enum Restriction {
     Path(PathBuf),
     RegExp(String),
 }
 
-/// Tsconfig Options
+/// Tsconfig Options for [ResolveOptions::tsconfig]
 ///
 /// Derived from [tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin#options)
 #[derive(Debug, Clone)]
@@ -185,6 +187,7 @@ pub struct TsconfigOptions {
     pub references: TsconfigReferences,
 }
 
+/// Configuration for [TsconfigOptions::references]
 #[derive(Debug, Clone)]
 pub enum TsconfigReferences {
     Disabled,

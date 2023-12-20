@@ -15,25 +15,25 @@ use crate::{path::PathUtil, ResolveError, ResolveOptions};
 
 type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
+/// Deserialized package.json
 #[derive(Debug, Deserialize)]
 pub struct PackageJson {
     /// Path to `package.json`. Contains the `package.json` filename.
     #[serde(skip)]
-    pub path: PathBuf,
+    pub(crate) path: PathBuf,
 
     /// Realpath to `package.json`. Contains the `package.json` filename.
     #[serde(skip)]
-    pub realpath: PathBuf,
+    pub(crate) realpath: PathBuf,
 
     #[serde(skip)]
-    #[serde(default)]
-    pub raw_json: Arc<serde_json::Value>,
+    pub(crate) raw_json: Arc<serde_json::Value>,
 
     /// The "name" field defines your package's name.
     /// The "name" field can be used in addition to the "exports" field to self-reference a package using its name.
     ///
     /// <https://nodejs.org/api/packages.html#name>
-    pub name: Option<String>,
+    pub(crate) name: Option<String>,
 
     /// The "main" field defines the entry point of a package when imported by name via a node_modules lookup. Its value is a path.
     /// When a package has an "exports" field, this will take precedence over the "main" field when importing the package by name.
@@ -42,26 +42,26 @@ pub struct PackageJson {
     ///
     /// <https://nodejs.org/api/packages.html#main>
     #[serde(skip)]
-    pub main_fields: Vec<String>,
+    pub(crate) main_fields: Vec<String>,
 
     /// The "exports" field allows defining the entry points of a package when imported by name loaded either via a node_modules lookup or a self-reference to its own name.
     ///
     /// <https://nodejs.org/api/packages.html#exports>
     #[serde(skip)]
-    pub exports: Vec<ExportsField>,
+    pub(crate) exports: Vec<ExportsField>,
 
     /// In addition to the "exports" field, there is a package "imports" field to create private mappings that only apply to import specifiers from within the package itself.
     ///
     /// <https://nodejs.org/api/packages.html#subpath-imports>
     #[serde(default)]
-    pub imports: Box<MatchObject>,
+    pub(crate) imports: Box<MatchObject>,
 
     /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
     /// Multiple values are configured by [ResolveOptions::alias_fields].
     ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     #[serde(skip)]
-    pub browser_fields: Vec<BrowserField>,
+    pub(crate) browser_fields: Vec<BrowserField>,
 }
 
 /// `matchObj` defined in `PACKAGE_IMPORTS_EXPORTS_RESOLVE`
@@ -119,7 +119,7 @@ pub enum BrowserField {
 impl PackageJson {
     /// # Panics
     /// # Errors
-    pub fn parse(
+    pub(crate) fn parse(
         path: PathBuf,
         realpath: PathBuf,
         json: &str,
@@ -241,7 +241,7 @@ impl PackageJson {
     /// # Errors
     ///
     /// * Returns [ResolveError::Ignored] for `"path": false` in `browser` field.
-    pub fn resolve_browser_field(
+    pub(crate) fn resolve_browser_field(
         &self,
         path: &Path,
         request: Option<&str>,

@@ -53,7 +53,7 @@ pub trait FileSystem: Send + Sync {
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
 }
 
-/// Metadata information about a file.
+/// Metadata information about a file
 #[derive(Debug, Clone, Copy)]
 pub struct FileMetadata {
     pub(crate) is_file: bool,

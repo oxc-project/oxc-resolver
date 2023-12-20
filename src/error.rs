@@ -1,7 +1,9 @@
 use std::{io, path::PathBuf, sync::Arc};
 use thiserror::Error;
 
-/// All resolution errors.
+/// All resolution errors
+///
+/// `thiserror` is used to display meaningful error messages.
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ResolveError {
     /// Ignored path
@@ -96,13 +98,14 @@ impl ResolveError {
     }
 }
 
+/// Error for [ResolveError::Specifier]
 #[derive(Debug, Clone, Eq, PartialEq, Error)]
 pub enum SpecifierError {
-    #[error("[ERR_INVALID_ARG_VALUE]: The specifiers must be a non-empty string. Received ''")]
+    #[error("The specifiers must be a non-empty string. Received ''")]
     Empty,
 }
 
-/// JSON error from [serde_json::Error].
+/// JSON error from [serde_json::Error]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JSONError {
     pub path: PathBuf,
