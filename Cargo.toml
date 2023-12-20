@@ -1,7 +1,7 @@
 [package]
-version      = "0.6.2"
+version      = "1.0.0"
 name         = "oxc_resolver"
-authors      = ["Boshen <boshenc@gmail.com>", "Oxc contributors"]
+authors      = ["Boshen <boshenc@gmail.com>"]
 categories   = ["development-tools"]
 description  = "ESM / CJS module resolution"
 edition      = "2021"
