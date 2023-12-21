@@ -222,8 +222,8 @@ impl PackageJson {
     /// To reduce overall memory consumption, large fields that useless for pragmatic use are removed.
     /// They are: `description`, `keywords`, `scripts`,
     /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
-    pub fn raw_json(&self) -> &serde_json::Value {
-        self.raw_json.as_ref()
+    pub fn raw_json(&self) -> &Arc<serde_json::Value> {
+        &self.raw_json
     }
 
     /// Directory to `package.json`
