@@ -35,7 +35,7 @@ jobs:
           ignore-unpublished-changes: true
 
       - name: Create GitHub Release
-        if: steps.publish.outcome == 'success'
+        if: steps.publish.outcome == 'success' && join(fromJSON(steps.publish.outputs.published).version, '')
         uses: softprops/action-gh-release@v1
         with:
           name: v${{ join(fromJSON(steps.publish.outputs.published).version, '') }}
