@@ -38,7 +38,7 @@ jobs:
         if: steps.publish.outcome == 'success'
         uses: softprops/action-gh-release@v1
         with:
-          name: v${{ fromJSON(steps.publish.outputs.published)[0].version }}
+          name: v${{ join(fromJSON(steps.publish.outputs.published).version, '') }}
           draft: true
           fail_on_unmatched_files: true
           generate_release_notes: true
