@@ -4,7 +4,7 @@
 
 use serde_json::json;
 
-use crate::{MatchObject, PathUtil, ResolveContext, ResolveError, ResolveOptions, Resolver};
+use crate::{Ctx, MatchObject, PathUtil, ResolveError, ResolveOptions, Resolver};
 use std::{io::ErrorKind, path::Path};
 
 #[test]
@@ -1280,7 +1280,7 @@ fn test_cases() {
                 Path::new(""),
                 true,
                 &case.condition_names.iter().map(ToString::to_string).collect::<Vec<_>>(),
-                &mut ResolveContext::default(),
+                &mut Ctx::default(),
             )
             .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {

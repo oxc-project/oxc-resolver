@@ -2,7 +2,7 @@
 //!
 //! The huge exports field test cases are at the bottom of this file.
 
-use crate::{ExportsField, PathUtil, ResolveContext, ResolveError, ResolveOptions, Resolver};
+use crate::{Ctx, ExportsField, PathUtil, ResolveError, ResolveOptions, Resolver};
 use serde_json::json;
 use std::path::Path;
 
@@ -2497,7 +2497,7 @@ fn test_cases() {
                 case.request.trim_start_matches('.'),
                 &case.exports_field,
                 &case.condition_names.iter().map(ToString::to_string).collect::<Vec<_>>(),
-                &mut ResolveContext::default(),
+                &mut Ctx::default(),
             )
             .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {
