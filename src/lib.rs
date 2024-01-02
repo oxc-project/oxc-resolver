@@ -23,6 +23,7 @@
 
 mod builtins;
 mod cache;
+mod context;
 mod error;
 mod file_system;
 mod json_comments;
@@ -41,7 +42,6 @@ use std::{
     cmp::Ordering,
     ffi::OsStr,
     fmt,
-    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -49,6 +49,7 @@ use std::{
 use crate::{
     builtins::BUILTINS,
     cache::{Cache, CachedPath},
+    context::ResolveContext,
     file_system::FileSystemOs,
     package_json::{ExportsField, ExportsKey, MatchObject},
     path::PathUtil,
@@ -82,61 +83,6 @@ impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
 }
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
-
-#[derive(Debug, Default, Clone)]
-struct ResolveContext(ResolveContextImpl);
-
-impl Deref for ResolveContext {
-    type Target = ResolveContextImpl;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for ResolveContext {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl ResolveContext {
-    fn with_fully_specified(&mut self, yes: bool) {
-        self.fully_specified = yes;
-    }
-
-    fn with_query_fragment(&mut self, query: Option<&str>, fragment: Option<&str>) {
-        if let Some(query) = query {
-            self.query.replace(query.to_string());
-        }
-        if let Some(fragment) = fragment {
-            self.fragment.replace(fragment.to_string());
-        }
-    }
-
-    fn with_resolving_alias(&mut self, alias: String) {
-        self.resolving_alias = Some(alias);
-    }
-
-    fn test_for_infinite_recursion(&mut self) -> Result<(), ResolveError> {
-        self.depth += 1;
-        // 64 should be more than enough for detecting infinite recursion.
-        if self.depth > 64 {
-            return Err(ResolveError::Recursion);
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-struct ResolveContextImpl {
-    fully_specified: bool,
-    query: Option<String>,
-    fragment: Option<String>,
-    /// The current resolving alias for bailing recursion alias.
-    resolving_alias: Option<String>,
-    /// For avoiding infinite recursion, which will cause stack overflow.
-    depth: u8,
-}
 
 impl<Fs: FileSystem + Default> Default for ResolverGeneric<Fs> {
     fn default() -> Self {
@@ -192,10 +138,8 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     }
 
     fn resolve_impl(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
-        let mut ctx = ResolveContext(ResolveContextImpl {
-            fully_specified: self.options.fully_specified,
-            ..ResolveContextImpl::default()
-        });
+        let mut ctx = ResolveContext::default();
+        ctx.with_fully_specified(self.options.fully_specified);
         let specifier = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
         ctx.with_query_fragment(specifier.query, specifier.fragment);
         let cached_path = self.cache.value(path);
