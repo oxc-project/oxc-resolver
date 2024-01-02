@@ -125,7 +125,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         path: P,
         specifier: &str,
     ) -> Result<Resolution, ResolveError> {
-        let path = path.as_ref();
+        self.resolve_tracing(path.as_ref(), specifier)
+    }
+
+    /// Wrap `resolve_impl` with `tracing` information
+    fn resolve_tracing(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
         let span = tracing::debug_span!("resolve", path = ?path, specifier = specifier);
         let _enter = span.enter();
         tracing::trace!(options = ?self.options, "resolve_options");
