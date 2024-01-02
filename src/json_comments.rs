@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, clippy::struct_field_names)]
 
 //! Replace json comments with string in place.
 //!

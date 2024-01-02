@@ -21,7 +21,7 @@ use crate::{
 #[derive(Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
-    cache: DashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
+    paths: DashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     tsconfigs: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
 }
 
@@ -31,7 +31,7 @@ impl<Fs: FileSystem + Default> Cache<Fs> {
     }
 
     pub fn clear(&self) {
-        self.cache.clear();
+        self.paths.clear();
         self.tsconfigs.clear();
     }
 
@@ -41,7 +41,7 @@ impl<Fs: FileSystem + Default> Cache<Fs> {
             path.hash(&mut hasher);
             hasher.finish()
         };
-        if let Some(cache_entry) = self.cache.get((hash, path).borrow() as &dyn CacheKey) {
+        if let Some(cache_entry) = self.paths.get((hash, path).borrow() as &dyn CacheKey) {
             return cache_entry.clone();
         }
         let parent = path.parent().map(|p| self.value(p));
@@ -50,14 +50,14 @@ impl<Fs: FileSystem + Default> Cache<Fs> {
             path.to_path_buf().into_boxed_path(),
             parent,
         )));
-        self.cache.insert(data.clone());
+        self.paths.insert(data.clone());
         data
     }
 
-    pub fn tsconfig(
+    pub fn tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
         &self,
         path: &Path,
-        callback: impl FnOnce(&mut TsConfig) -> Result<(), ResolveError>, // callback for modifying tsconfig with `extends`
+        callback: F, // callback for modifying tsconfig with `extends`
     ) -> Result<Arc<TsConfig>, ResolveError> {
         if let Some(tsconfig_ref) = self.tsconfigs.get(path) {
             return Ok(Arc::clone(tsconfig_ref.value()));
