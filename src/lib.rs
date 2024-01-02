@@ -81,7 +81,7 @@ impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
     }
 }
 
-type ResolveState = Result<Option<CachedPath>, ResolveError>;
+type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
 #[derive(Debug, Default, Clone)]
 struct ResolveContext(ResolveContextImpl);
@@ -416,7 +416,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
         let Some(package_json) = cached_path.find_package_json(&self.cache.fs, &self.options)?
@@ -434,7 +434,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         self.resolve_esm_match(&path, &package_json, ctx)
     }
 
-    fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut ResolveContext) -> ResolveState {
+    fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut ResolveContext) -> ResolveResult {
         // enhanced-resolve feature: extension_alias
         if let Some(path) = self.load_extension_alias(cached_path, ctx)? {
             return Ok(Some(path));
@@ -460,7 +460,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         if !cached_path.is_dir(&self.cache.fs) {
             return Ok(None);
         }
@@ -497,7 +497,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         if self.options.resolve_to_context {
             return Ok(cached_path.is_dir(&self.cache.fs).then(|| cached_path.clone()));
         }
@@ -517,7 +517,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         path: &Path,
         extensions: &[String],
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         if ctx.fully_specified {
             return Ok(None);
         }
@@ -568,7 +568,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         Ok(())
     }
 
-    fn load_index(&self, cached_path: &CachedPath, ctx: &mut ResolveContext) -> ResolveState {
+    fn load_index(&self, cached_path: &CachedPath, ctx: &mut ResolveContext) -> ResolveResult {
         for main_file in &self.options.main_files {
             let main_path = cached_path.path().join(main_file);
             let cached_path = self.cache.value(&main_path);
@@ -593,7 +593,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         if let Some(package_json) = cached_path.find_package_json(&self.cache.fs, &self.options)? {
             if let Some(path) = self.load_browser_field(cached_path, None, &package_json, ctx)? {
                 return Ok(Some(path));
@@ -617,7 +617,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
@@ -688,7 +688,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         subpath: &str,
         cached_path: &CachedPath,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         // 2. If X does not match this pattern or DIR/NAME/package.json is not a file,
         //    return.
         let Some(package_json) = cached_path.package_json(&self.cache.fs, &self.options)? else {
@@ -722,7 +722,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
         let Some(package_json) = cached_path.find_package_json(&self.cache.fs, &self.options)?
@@ -768,7 +768,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         package_json: &PackageJson,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         if let Some(path) = self.load_browser_field(cached_path, None, package_json, ctx)? {
             return Ok(Some(path));
         }
@@ -792,7 +792,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         module_specifier: Option<&str>,
         package_json: &PackageJson,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         let path = cached_path.path();
         let Some(new_specifier) = package_json.resolve_browser_field(path, module_specifier)?
         else {
@@ -828,7 +828,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         aliases: &Alias,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         for (alias_key_raw, specifiers) in aliases {
             let from = alias_key_raw.strip_suffix('$');
             let alias_key = from.unwrap_or(alias_key_raw);
@@ -887,7 +887,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         alias_value: &str,
         request: &str,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         if request != alias_value
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
         {
@@ -914,7 +914,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         &self,
         cached_path: &CachedPath,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         let Some(path_extension) = cached_path.path().extension() else {
             return Ok(None);
         };
@@ -939,7 +939,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         let Some(tsconfig_options) = &self.options.tsconfig else {
             return Ok(None);
         };
@@ -1028,7 +1028,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {
@@ -1095,7 +1095,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         exports: &ExportsField,
         conditions: &[String],
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         // 1. If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
         if let ExportsField::Map(map) = exports {
             let mut has_dot = false;
@@ -1241,7 +1241,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         is_imports: bool,
         conditions: &[String],
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         // enhanced-resolve behaves differently, it throws
         // Error: CachedPath to directories is not possible with the exports field (specifier was ./dist/)
         if match_key.ends_with('/') {
@@ -1328,7 +1328,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         is_imports: bool,
         conditions: &[String],
         ctx: &mut ResolveContext,
-    ) -> ResolveState {
+    ) -> ResolveResult {
         fn normalize_string_target<'a>(
             target_key: &'a str,
             target: &'a str,
