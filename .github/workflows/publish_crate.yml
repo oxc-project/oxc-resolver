@@ -29,16 +29,16 @@ jobs:
         run: cargo check --locked
 
       - uses: katyo/publish-crates@v2
-        id: publish-crates
+        id: publish
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           ignore-unpublished-changes: true
 
       - name: Create GitHub Release
-        if: fromJSON(steps.publish-crates.outputs.published).*
+        if: steps.publish.outcome == 'success'
         uses: softprops/action-gh-release@v1
         with:
-          name: v${{ fromJSON(steps.publish-crates.outputs.published).version }}
+          name: v${{ fromJSON(steps.publish.outputs.published)[0].version }}
           draft: true
           fail_on_unmatched_files: true
           generate_release_notes: true
