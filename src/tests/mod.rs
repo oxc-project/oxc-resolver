@@ -1,6 +1,7 @@
 mod alias;
 mod browser_field;
 mod builtins;
+mod dependencies;
 mod exports_field;
 mod extension_alias;
 mod extensions;
@@ -10,6 +11,7 @@ mod imports_field;
 mod incorrect_description_file;
 mod main_field;
 mod memory_fs;
+mod missing;
 mod resolve;
 mod restrictions;
 mod roots;
