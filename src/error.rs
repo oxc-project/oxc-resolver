@@ -72,8 +72,8 @@ pub enum ResolveError {
     #[error(r#"Expecting folder to folder mapping. "{0}" should end with "/"#)]
     InvalidPackageConfigDirectory(PathBuf),
 
-    #[error("Package import not defined")]
-    PackageImportNotDefined(String),
+    #[error(r#"Package import specifier "{0}" is not defined in package {1}"#)]
+    PackageImportNotDefined(String, PathBuf),
 
     #[error("{0} is unimplemented")]
     Unimplemented(&'static str),

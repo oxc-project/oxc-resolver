@@ -374,8 +374,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             return Ok(None);
         }
         // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
-        let package_url = self.cache.value(package_json.directory());
-        let path = self.package_imports_resolve(&package_url, specifier, ctx)?;
+        let path = self.package_imports_resolve(&package_json, specifier, ctx)?;
         // 5. RESOLVE_ESM_MATCH(MATCH).
         self.resolve_esm_match(&path, &package_json, ctx)
     }
@@ -1125,7 +1124,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     /// PACKAGE_IMPORTS_RESOLVE(specifier, parentURL, conditions)
     fn package_imports_resolve(
         &self,
-        cached_path: &CachedPath,
+        package_json: &PackageJson,
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
@@ -1136,32 +1135,30 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             // 1. Throw an Invalid Module Specifier error.
             return Err(ResolveError::InvalidModuleSpecifier(
                 specifier.to_string(),
-                cached_path.path().join("package.json"),
+                package_json.path.clone(),
             ));
         }
         // 3. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(parentURL).
         // 4. If packageURL is not null, then
-        if let Some(package_json) = cached_path.find_package_json(&self.cache.fs, &self.options)? {
-            // 1. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
-            // 2. If pjson.imports is a non-null Object, then
-            if !package_json.imports.is_empty() {
-                // 1. Let resolved be the result of PACKAGE_IMPORTS_EXPORTS_RESOLVE( specifier, pjson.imports, packageURL, true, conditions).
-                let package_url = package_json.directory();
-                if let Some(path) = self.package_imports_exports_resolve(
-                    specifier,
-                    &package_json.imports,
-                    package_url,
-                    /* is_imports */ true,
-                    &self.options.condition_names,
-                    ctx,
-                )? {
-                    // 2. If resolved is not null or undefined, return resolved.
-                    return Ok(path);
-                }
-            }
+
+        // 1. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
+        // 2. If pjson.imports is a non-null Object, then
+
+        // 1. Let resolved be the result of PACKAGE_IMPORTS_EXPORTS_RESOLVE( specifier, pjson.imports, packageURL, true, conditions).
+        if let Some(path) = self.package_imports_exports_resolve(
+            specifier,
+            &package_json.imports,
+            package_json.directory(),
+            /* is_imports */ true,
+            &self.options.condition_names,
+            ctx,
+        )? {
+            // 2. If resolved is not null or undefined, return resolved.
+            return Ok(path);
         }
+
         // 5. Throw a Package Import Not Defined error.
-        Err(ResolveError::PackageImportNotDefined(specifier.to_string()))
+        Err(ResolveError::PackageImportNotDefined(specifier.to_string(), package_json.path.clone()))
     }
 
     /// PACKAGE_IMPORTS_EXPORTS_RESOLVE(matchKey, matchObj, packageURL, isImports, conditions)

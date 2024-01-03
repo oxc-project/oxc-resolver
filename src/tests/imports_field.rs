@@ -41,7 +41,7 @@ fn test() {
     #[rustfmt::skip]
     let fail = [
         ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget("../b.js".to_string(), "#b".to_string(), f.join("package.json"))),
-        ("should resolve package #2", f, "#a", ResolveError::PackageImportNotDefined("#a".to_string())),
+        ("should resolve package #2", f.clone(), "#a", ResolveError::PackageImportNotDefined("#a".to_string(), f.join("package.json"))),
     ];
 
     for (comment, path, request, error) in fail {
@@ -49,10 +49,6 @@ fn test() {
         assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
     }
 }
-
-// #[test]
-// field name path #1 - #2
-// fn field_name() {}
 
 // Small script for generating the test cases from enhanced_resolve
 // for (c of testCases) {
