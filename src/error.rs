@@ -17,7 +17,7 @@ pub enum ResolveError {
     /// }
     /// ```
     /// See <https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module>
-    #[error("Path is ignored")]
+    #[error("Path is ignored {0}")]
     Ignored(PathBuf),
 
     /// Path not found
@@ -35,7 +35,7 @@ pub enum ResolveError {
     ///
     /// This is an error due to not being a Node.js runtime.
     /// The `alias` option can be used to resolve a builtin module to a polyfill.
-    #[error("Builtin module")]
+    #[error("Builtin module {0}")]
     Builtin(String),
 
     /// All of the aliased extension are not found
@@ -51,25 +51,25 @@ pub enum ResolveError {
     JSON(JSONError),
 
     /// Restricted by `ResolveOptions::restrictions`
-    #[error("Restriction")]
-    Restriction(PathBuf),
+    #[error(r#"Path "{0}" restricted by {0}"#)]
+    Restriction(PathBuf, PathBuf),
 
-    #[error("Invalid module \"{0}\" specifier is not a valid subpath for the \"exports\" resolution of {1}")]
+    #[error(r#"Invalid module "{0}" specifier is not a valid subpath for the "exports" resolution of {1}"#)]
     InvalidModuleSpecifier(String, PathBuf),
 
-    #[error("Invalid \"exports\" target \"{0}\" defined for '{1}' in the package config {2}")]
+    #[error(r#"Invalid "exports" target "{0}" defined for '{1}' in the package config {2}"#)]
     InvalidPackageTarget(String, String, PathBuf),
 
-    #[error("Package subpath '{0}' is not defined by \"exports\" in {1}")]
+    #[error(r#"Package subpath '{0}' is not defined by "exports" in {1}"#)]
     PackagePathNotExported(String, PathBuf),
 
-    #[error("Invalid package config \"{0}\", \"exports\" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only.")]
+    #[error(r#"Invalid package config "{0}", "exports" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."#)]
     InvalidPackageConfig(PathBuf),
 
-    #[error("Default condition should be last one in \"{0}\"")]
+    #[error(r#"Default condition should be last one in "{0}""#)]
     InvalidPackageConfigDefault(PathBuf),
 
-    #[error("Expecting folder to folder mapping. \"{0}\" should end with \"/\"")]
+    #[error(r#"Expecting folder to folder mapping. "{0}" should end with "/"#)]
     InvalidPackageConfigDirectory(PathBuf),
 
     #[error("Package import not defined")]

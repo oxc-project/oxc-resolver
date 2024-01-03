@@ -494,7 +494,10 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             match restriction {
                 Restriction::Path(restricted_path) => {
                     if !is_inside(path, restricted_path) {
-                        return Err(ResolveError::Restriction(path.to_path_buf()));
+                        return Err(ResolveError::Restriction(
+                            path.to_path_buf(),
+                            restricted_path.clone(),
+                        ));
                     }
                 }
                 Restriction::RegExp(_) => {
