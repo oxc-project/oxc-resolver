@@ -340,17 +340,20 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
-        let (_, subpath) = Self::parse_package_specifier(specifier);
-        if subpath.is_empty() {
-            ctx.with_fully_specified(false);
-        }
-        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
-        if let Some(path) = self.load_package_self(cached_path, specifier, ctx)? {
-            return Ok(path);
-        }
-        // 6. LOAD_NODE_MODULES(X, dirname(Y))
-        if let Some(path) = self.load_node_modules(cached_path, specifier, ctx)? {
-            return Ok(path);
+        // Skip if directory does not exist
+        if cached_path.is_dir(&self.cache.fs) {
+            let (_, subpath) = Self::parse_package_specifier(specifier);
+            if subpath.is_empty() {
+                ctx.with_fully_specified(false);
+            }
+            // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
+            if let Some(path) = self.load_package_self(cached_path, specifier, ctx)? {
+                return Ok(path);
+            }
+            // 6. LOAD_NODE_MODULES(X, dirname(Y))
+            if let Some(path) = self.load_node_modules(cached_path, specifier, ctx)? {
+                return Ok(path);
+            }
         }
         // 7. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
