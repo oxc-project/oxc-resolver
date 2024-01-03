@@ -1,3 +1,5 @@
+//! Test public APIs
+
 use std::{env, path::PathBuf};
 
 use oxc_resolver::{Resolution, ResolveOptions, Resolver};
@@ -40,4 +42,17 @@ fn package_json() {
 fn clear_cache() {
     let resolver = Resolver::new(ResolveOptions::default());
     resolver.clear_cache(); // exists
+}
+
+#[test]
+fn options() {
+    let resolver = Resolver::new(ResolveOptions::default());
+    let options = resolver.options();
+    assert!(!format!("{options:?}").is_empty());
+}
+
+#[test]
+fn debug_resolver() {
+    let resolver = Resolver::new(ResolveOptions::default());
+    assert!(!format!("{resolver:?}").is_empty());
 }
