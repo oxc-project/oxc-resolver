@@ -444,6 +444,11 @@ OneTest {
     for test in fail {
         let resolved_path =
             test.resolver(&root).resolve(&root, test.requested_module).map(|f| f.full_path());
-        assert_eq!(resolved_path, Err(ResolveError::NotFound("/root".into())), "{}", test.name);
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::NotFound(test.requested_module.into())),
+            "{}",
+            test.name
+        );
     }
 }

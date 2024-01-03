@@ -1,6 +1,6 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/resolve.test.js>
 
-use crate::{ResolveOptions, Resolver};
+use crate::{ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn resolve() {
@@ -108,4 +108,12 @@ fn resolve_to_context() {
         let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
+}
+
+#[test]
+fn resolve_hash_as_module() {
+    let f = super::fixture();
+    let resolver = Resolver::new(ResolveOptions::default());
+    let resolution = resolver.resolve(&f, "#a");
+    assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
 }

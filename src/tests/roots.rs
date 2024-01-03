@@ -35,7 +35,7 @@ fn roots() {
 
     #[rustfmt::skip]
     let fail = [
-        ("should not work with relative path", "fixtures/b.js", ResolveError::NotFound(f.clone()))
+        ("should not work with relative path", "fixtures/b.js", ResolveError::NotFound("fixtures/b.js".into()))
     ];
 
     for (comment, request, expected) in fail {

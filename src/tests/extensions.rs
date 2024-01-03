@@ -29,7 +29,7 @@ fn extensions() {
 
     #[rustfmt::skip]
     let fail = [
-        ("not resolve to file when request has a trailing slash (relative)", "./foo.js/", f.join("foo.js"))
+        ("not resolve to file when request has a trailing slash (relative)", "./foo.js/", "./foo.js/".into())
     ];
 
     for (comment, request, expected_error) in fail {
@@ -93,7 +93,7 @@ fn multi_dot_extension() {
 
     #[rustfmt::skip]
     let fail = [
-        ("not resolve to file", "./index.", f.join("index."))
+        ("not resolve to file", "./index.", "./index.".into())
     ];
 
     for (comment, request, expected_error) in fail {

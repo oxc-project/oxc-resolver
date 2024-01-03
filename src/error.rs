@@ -20,9 +20,9 @@ pub enum ResolveError {
     #[error("Path is ignored {0}")]
     Ignored(PathBuf),
 
-    /// Path not found
-    #[error("Path not found {0}")]
-    NotFound(PathBuf),
+    /// Module not found
+    #[error("Cannot find module '{0}'")]
+    NotFound(/* specifier */ String),
 
     /// Tsconfig not found
     #[error("Tsconfig not found {0}")]

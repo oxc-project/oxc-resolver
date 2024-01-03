@@ -82,9 +82,9 @@ fn recurse_fail() {
 
     #[rustfmt::skip]
     let data = [
-        ("recurse non existent", f.clone(), "./lib/non-existent.js", ResolveError::NotFound(f.join("lib/non-existent.js"))),
-        ("path partial match 1", f.clone(), "./xyz.js", ResolveError::NotFound(f.join("xyz.js"))),
-        ("path partial match 2", f.clone(), "./lib/xyz.js", ResolveError::NotFound(f.join("lib/xyz.js"))),
+        ("recurse non existent", f.clone(), "./lib/non-existent.js", ResolveError::NotFound("./lib/non-existent.js".into())),
+        ("path partial match 1", f.clone(), "./xyz.js", ResolveError::NotFound("./xyz.js".into())),
+        ("path partial match 2", f.clone(), "./lib/xyz.js", ResolveError::NotFound("./lib/xyz.js".into())),
     ];
 
     for (comment, path, request, expected) in data {

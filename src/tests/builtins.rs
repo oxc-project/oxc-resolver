@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::{ResolveError, ResolveOptions, Resolver};
 
@@ -7,7 +7,7 @@ fn builtins_off() {
     let f = Path::new("/");
     let resolver = Resolver::default();
     let resolved_path = resolver.resolve(f, "zlib").map(|r| r.full_path());
-    assert_eq!(resolved_path, Err(ResolveError::NotFound(PathBuf::from("/"))));
+    assert_eq!(resolved_path, Err(ResolveError::NotFound("zlib".into())));
 }
 
 #[test]
