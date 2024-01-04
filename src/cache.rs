@@ -177,21 +177,23 @@ impl CachedPathImpl {
     }
 
     pub fn is_file<Fs: FileSystem>(&self, fs: &Fs, ctx: &mut Ctx) -> bool {
-        let yes = self.meta(fs).is_some_and(|meta| meta.is_file);
-        if yes {
+        if let Some(meta) = self.meta(fs) {
             ctx.add_file_dependency(self.path());
+            meta.is_file
         } else {
             ctx.add_missing_dependency(self.path());
+            false
         }
-        yes
     }
 
     pub fn is_dir<Fs: FileSystem>(&self, fs: &Fs, ctx: &mut Ctx) -> bool {
-        let yes = self.meta(fs).is_some_and(|meta| meta.is_dir);
-        if !yes {
-            ctx.add_missing_dependency(self.path());
-        }
-        yes
+        self.meta(fs).map_or_else(
+            || {
+                ctx.add_missing_dependency(self.path());
+                false
+            },
+            |meta| meta.is_dir,
+        )
     }
 
     fn symlink<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<Option<PathBuf>> {

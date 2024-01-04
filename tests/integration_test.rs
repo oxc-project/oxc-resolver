@@ -67,5 +67,5 @@ fn dependencies() {
         &mut ctx,
     );
     assert!(!ctx.file_dependencies.is_empty());
-    assert!(!ctx.missing_dependencies.is_empty());
+    assert!(ctx.missing_dependencies.is_empty());
 }

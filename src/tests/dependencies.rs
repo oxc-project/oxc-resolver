@@ -38,17 +38,31 @@ fn test() {
             "/a/node_modules/module/file.js",
             // These dependencies are different from enhanced-resolve due to different code path to
             // querying the file system
-            vec!["/a/node_modules/module/file.js", "/a/node_modules/module/package.json"],
             vec![
-                "/a/b/c",
-                "/a/b/node_modules/module",
-                "/a/b/package.json",
-                "/a/node_modules/module/file",
+                // found package.json
+                "/a/node_modules/module/package.json",
+                // symlink checks
                 "/a/node_modules/module/file.js",
-                "/a/node_modules/module/file.json",
+                // "/a/node_modules/module",
+                // "/a/node_modules",
+                // "/a",
+                // "/",
+            ],
+            vec![
+                // missing package.jsons
+                // "/a/b/c/package.json",
+                "/a/b/package.json",
                 "/a/package.json",
-                "/modules/module",
                 "/package.json",
+                // missing modules directories
+                "/a/b/c",
+                // "/a/b/c/node_modules",
+                // missing single file modules
+                "/modules/module",
+                "/a/b/node_modules/module",
+                // missing files with alternative extensions
+                "/a/node_modules/module/file",
+                "/a/node_modules/module/file.json",
             ],
         ),
         (
@@ -58,15 +72,22 @@ fn test() {
             "/modules/other-module/file.js",
             // These dependencies are different from enhanced-resolve due to different code path to
             // querying the file system
-            vec!["/modules/other-module/file.js"],
             vec![
+                // symlink checks
+                "/modules/other-module/file.js",
+                // "/modules/other-module",
+                // "/modules",
+                // "/",
+            ],
+            vec![
+                // missing package.jsons
+                // "/a/b/c/package.json",
                 "/a/b/c",
                 "/a/b/package.json",
                 "/a/package.json",
-                "/modules/other-module/file.js",
+                "/package.json",
                 "/modules/other-module/package.json",
                 "/modules/package.json",
-                "/package.json",
             ],
         ),
     ];

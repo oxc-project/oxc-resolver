@@ -57,7 +57,7 @@ fn default_enforce_extension() {
         ctx.file_dependencies,
         FxHashSet::from_iter([f.join("foo.ts"), f.join("package.json")])
     );
-    assert_eq!(ctx.missing_dependencies, FxHashSet::from_iter([f.join("foo.ts")]));
+    assert!(ctx.missing_dependencies.is_empty());
 }
 
 // should respect enforceExtension when extensions includes an empty string
@@ -78,7 +78,7 @@ fn respect_enforce_extension() {
         ctx.file_dependencies,
         FxHashSet::from_iter([f.join("foo.ts"), f.join("package.json")])
     );
-    assert_eq!(ctx.missing_dependencies, FxHashSet::from_iter([f.join("foo"), f.join("foo.ts")]));
+    assert_eq!(ctx.missing_dependencies, FxHashSet::from_iter([f.join("foo")]));
 }
 
 #[test]

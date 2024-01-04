@@ -588,10 +588,8 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             return Ok(Some(path));
         }
         if cached_path.is_file(&self.cache.fs, ctx) {
-            // ctx.add_file_dependency(cached_path.path());
             return Ok(Some(cached_path.clone()));
         }
-        // ctx.add_missing_dependency(cached_path.path());
         Ok(None)
     }
 
