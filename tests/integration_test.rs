@@ -2,7 +2,7 @@
 
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{Resolution, ResolveOptions, Resolver};
+use oxc_resolver::{Resolution, ResolveContext, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -55,4 +55,17 @@ fn options() {
 fn debug_resolver() {
     let resolver = Resolver::new(ResolveOptions::default());
     assert!(!format!("{resolver:?}").is_empty());
+}
+
+#[test]
+fn dependencies() {
+    let path = dir();
+    let mut ctx = ResolveContext::default();
+    let _ = Resolver::new(ResolveOptions::default()).resolve_with_context(
+        path,
+        "./tests/package.json",
+        &mut ctx,
+    );
+    assert!(!ctx.file_dependencies.is_empty());
+    assert!(ctx.missing_dependencies.is_empty());
 }

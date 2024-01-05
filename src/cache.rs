@@ -14,8 +14,8 @@ use dashmap::{DashMap, DashSet};
 use rustc_hash::FxHasher;
 
 use crate::{
-    package_json::PackageJson, path::PathUtil, FileMetadata, FileSystem, ResolveError,
-    ResolveOptions, TsConfig,
+    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, FileMetadata,
+    FileSystem, ResolveError, ResolveOptions, TsConfig,
 };
 
 #[derive(Default)]
@@ -176,12 +176,24 @@ impl CachedPathImpl {
         *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
     }
 
-    pub fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> bool {
-        self.meta(fs).is_some_and(|meta| meta.is_file)
+    pub fn is_file<Fs: FileSystem>(&self, fs: &Fs, ctx: &mut Ctx) -> bool {
+        if let Some(meta) = self.meta(fs) {
+            ctx.add_file_dependency(self.path());
+            meta.is_file
+        } else {
+            ctx.add_missing_dependency(self.path());
+            false
+        }
     }
 
-    pub fn is_dir<Fs: FileSystem>(&self, fs: &Fs) -> bool {
-        self.meta(fs).is_some_and(|meta| meta.is_dir)
+    pub fn is_dir<Fs: FileSystem>(&self, fs: &Fs, ctx: &mut Ctx) -> bool {
+        self.meta(fs).map_or_else(
+            || {
+                ctx.add_missing_dependency(self.path());
+                false
+            },
+            |meta| meta.is_dir,
+        )
     }
 
     fn symlink<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<Option<PathBuf>> {
@@ -219,16 +231,18 @@ impl CachedPathImpl {
         &self,
         module_name: &str,
         cache: &Cache<Fs>,
+        ctx: &mut Ctx,
     ) -> Option<CachedPath> {
         let cached_path = cache.value(&self.path.join(module_name));
-        cached_path.is_dir(&cache.fs).then(|| cached_path)
+        cached_path.is_dir(&cache.fs, ctx).then(|| cached_path)
     }
 
     pub fn cached_node_modules<Fs: FileSystem + Default>(
         &self,
         cache: &Cache<Fs>,
+        ctx: &mut Ctx,
     ) -> Option<CachedPath> {
-        self.node_modules.get_or_init(|| self.module_directory("node_modules", cache)).clone()
+        self.node_modules.get_or_init(|| self.module_directory("node_modules", cache, ctx)).clone()
     }
 
     /// Find package.json of a path by traversing parent directories.
@@ -240,10 +254,11 @@ impl CachedPathImpl {
         &self,
         fs: &Fs,
         options: &ResolveOptions,
+        ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let mut cache_value = self;
         // Go up directories when the querying path is not a directory
-        while !cache_value.is_dir(fs) {
+        while !cache_value.is_dir(fs, ctx) {
             if let Some(cv) = &cache_value.parent {
                 cache_value = cv.as_ref();
             } else {
@@ -252,7 +267,7 @@ impl CachedPathImpl {
         }
         let mut cache_value = Some(cache_value);
         while let Some(cv) = cache_value {
-            if let Some(package_json) = cv.package_json(fs, options)? {
+            if let Some(package_json) = cv.package_json(fs, options, ctx)? {
                 return Ok(Some(Arc::clone(&package_json)));
             }
             cache_value = cv.parent.as_deref();
@@ -269,9 +284,11 @@ impl CachedPathImpl {
         &self,
         fs: &Fs,
         options: &ResolveOptions,
+        ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
-        self.package_json
+        let result = self
+            .package_json
             .get_or_try_init(|| {
                 let package_json_path = self.path.join("package.json");
                 let Ok(package_json_string) = fs.read_to_string(&package_json_path) else {
@@ -292,7 +309,25 @@ impl CachedPathImpl {
                 .map(Some)
                 .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
             })
-            .cloned()
+            .cloned();
+        // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
+        match &result {
+            Ok(Some(package_json)) => {
+                ctx.add_file_dependency(&package_json.path);
+            }
+            Ok(None) => {
+                // Avoid an allocation by making this lazy
+                if let Some(deps) = &mut ctx.missing_dependencies {
+                    deps.push(self.path.join("package.json"));
+                }
+            }
+            Err(_) => {
+                if let Some(deps) = &mut ctx.file_dependencies {
+                    deps.push(self.path.join("package.json"));
+                }
+            }
+        }
+        result
     }
 }
 

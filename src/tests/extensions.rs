@@ -1,6 +1,7 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/extensions.test.js>
 
-use crate::{EnforceExtension, Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::{EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
+use rustc_hash::FxHashSet;
 
 #[test]
 fn extensions() {
@@ -44,14 +45,19 @@ fn extensions() {
 fn default_enforce_extension() {
     let f = super::fixture().join("extensions");
 
+    let mut ctx = ResolveContext::default();
     let resolved = Resolver::new(ResolveOptions {
         extensions: vec![".ts".into(), String::new(), ".js".into()],
         ..ResolveOptions::default()
     })
-    .resolve(&f, "./foo");
+    .resolve_with_context(&f, "./foo", &mut ctx);
 
     assert_eq!(resolved.map(Resolution::into_path_buf), Ok(f.join("foo.ts")));
-    // TODO: need to match missingDependencies returned from the resolve function
+    assert_eq!(
+        ctx.file_dependencies,
+        FxHashSet::from_iter([f.join("foo.ts"), f.join("package.json")])
+    );
+    assert!(ctx.missing_dependencies.is_empty());
 }
 
 // should respect enforceExtension when extensions includes an empty string
@@ -59,14 +65,20 @@ fn default_enforce_extension() {
 fn respect_enforce_extension() {
     let f = super::fixture().join("extensions");
 
+    let mut ctx = ResolveContext::default();
     let resolved = Resolver::new(ResolveOptions {
         enforce_extension: EnforceExtension::Disabled,
         extensions: vec![".ts".into(), String::new(), ".js".into()],
         ..ResolveOptions::default()
     })
-    .resolve(&f, "./foo");
+    .resolve_with_context(&f, "./foo", &mut ctx);
+
     assert_eq!(resolved.map(Resolution::into_path_buf), Ok(f.join("foo.ts")));
-    // TODO: need to match missingDependencies returned from the resolve function
+    assert_eq!(
+        ctx.file_dependencies,
+        FxHashSet::from_iter([f.join("foo.ts"), f.join("package.json")])
+    );
+    assert_eq!(ctx.missing_dependencies, FxHashSet::from_iter([f.join("foo")]));
 }
 
 #[test]

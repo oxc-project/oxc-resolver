@@ -88,7 +88,7 @@ Test cases are located in `./src/tests`, fixtures are located in `./tests`
 
 - [x] alias.test.js
 - [x] browserField.test.js
-- [ ] dependencies.test.js
+- [x] dependencies.test.js
 - [x] exportsField.test.js
 - [x] extension-alias.test.js
 - [x] extensions.test.js
@@ -97,7 +97,7 @@ Test cases are located in `./src/tests`, fixtures are located in `./tests`
 - [x] identifier.test.js (see unit test in `crates/oxc_resolver/src/request.rs`)
 - [x] importsField.test.js
 - [x] incorrect-description-file.test.js (need to add ctx.fileDependencies)
-- [ ] missing.test.js
+- [x] missing.test.js
 - [x] path.test.js (see unit test in `crates/oxc_resolver/src/path.rs`)
 - [ ] plugins.test.js
 - [ ] pnp.test.js
