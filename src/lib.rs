@@ -822,12 +822,18 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         for (alias_key_raw, specifiers) in aliases {
-            let from = alias_key_raw.strip_suffix('$');
-            let alias_key = from.unwrap_or(alias_key_raw);
-            let exact_match = from.is_some() && specifier == alias_key;
-            if !(exact_match || Self::strip_package_name(specifier, alias_key).is_some()) {
-                continue;
-            }
+            let alias_key = if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
+                if alias_key != specifier {
+                    continue;
+                }
+                alias_key
+            } else {
+                let strip_package_name = Self::strip_package_name(specifier, alias_key_raw);
+                if strip_package_name.is_none() {
+                    continue;
+                }
+                alias_key_raw
+            };
             for r in specifiers {
                 match r {
                     AliasValue::Path(alias_value) => {
@@ -883,7 +889,15 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         if request != alias_value
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
         {
-            let new_specifier = format!("{alias_value}{}", &request[alias_key.len()..]);
+            let tail = &request[alias_key.len()..];
+            // Must not append anything to alias_value if it is a file.
+            if !tail.is_empty() {
+                let alias_value_cached_path = self.cache.value(Path::new(alias_value));
+                if alias_value_cached_path.is_file(&self.cache.fs, ctx) {
+                    return Ok(None);
+                }
+            }
+            let new_specifier = format!("{alias_value}{tail}");
             ctx.with_fully_specified(false);
             return match self.require(cached_path, &new_specifier, ctx) {
                 Err(ResolveError::NotFound(_)) => Ok(None),

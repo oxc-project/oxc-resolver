@@ -55,6 +55,7 @@ fn alias() {
                 ("alias_query".into(), vec![AliasValue::Path("a?query_after".into())]),
                 ("alias_fragment".into(), vec![AliasValue::Path("a#fragment_after".into())]),
                 ("dash".into(), vec![AliasValue::Ignore]),
+                ("@scope/package-name/file$".into(), vec![AliasValue::Path("/c/dir".into())]),
             ],
             modules: vec!["/".into()],
             ..ResolveOptions::default()
@@ -97,6 +98,7 @@ fn alias() {
         ("should resolve query in alias value", "alias_query?query_before", "/a/index?query_after"),
         ("should resolve query in alias value", "alias_fragment#fragment_before", "/a/index#fragment_after"),
         ("should resolve dashed name", "dashed-name", "/dashed-name"),
+        ("should resolve scoped package name with sub dir", "@scope/package-name/file", "/c/dir/index"),
     ];
 
     for (comment, request, expected) in pass {
