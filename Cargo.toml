@@ -84,7 +84,7 @@ codspeed-criterion-compat = { version = "2.3.3", default-features = false, optio
 
 [dev-dependencies]
 vfs       = "0.10.0"                                        # for testing with in memory file system
-rayon     = { version = "1.8.0" }
+rayon     = { version = "1.8.1" }
 criterion = { version = "0.5.1", default-features = false }
 
 [features]
