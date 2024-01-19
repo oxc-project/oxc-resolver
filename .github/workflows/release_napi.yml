@@ -165,7 +165,7 @@ jobs:
           path: |
             napi/*.node
             napi/*.wasm
-        
+
   publish:
     name: Publish NAPI
     runs-on: ubuntu-latest
@@ -202,10 +202,12 @@ jobs:
       - name: Publish npm packages as latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
           cp napi/index.js npm/index.js
           cp napi/index.d.ts npm/index.d.ts
           cp napi/browser.js npm/browser.js
-          pnpm napi pre-publish -t npm --package-json-path npm/package.json
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          pnpm napi pre-publish --no-gh-release -t npm --package-json-path npm/package.json
           npm publish npm/ --tag latest --provenance --access public

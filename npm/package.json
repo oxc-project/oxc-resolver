@@ -1,6 +1,6 @@
 {
   "name": "oxc-resolver",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Oxc Resolver Node API",
   "main": "index.js",
   "browser": "browser.js",
@@ -14,6 +14,10 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oxc-project/oxc_resolver.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   },
   "napi": {
     "binaryName": "resolver",
