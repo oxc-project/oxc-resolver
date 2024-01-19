@@ -3,15 +3,33 @@
   "version": "0.0.3",
   "description": "Oxc Resolver Node API",
   "main": "index.js",
+  "browser": "browser.js",
   "files": [
     "index.d.ts",
-    "index.js"
+    "index.js",
+    "browser.js"
   ],
   "license": "MIT",
   "homepage": "https://oxc-project.github.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/oxc-project/oxc_resolver"
+    "url": "git+https://github.com/oxc-project/oxc_resolver.git"
+  },
+  "napi": {
+    "binaryName": "resolver",
+    "packageName": "@oxc-resolver/binding",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "armv7-unknown-linux-gnueabihf",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "wasm32-wasi-preview1-threads"
+    ]
   },
   "funding": {
     "url": "https://github.com/sponsors/Boshen"

@@ -13,6 +13,11 @@ repository   = "https://github.com/oxc-project/oxc_resolver"
 rust-version = "1.60"
 include      = ["/src", "/examples", "/benches"]
 
+[workspace]
+members = [
+  "napi",
+]
+
 [lib]
 doctest = false
 
