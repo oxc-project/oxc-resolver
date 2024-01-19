@@ -1,6 +1,6 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/missing.test.js
 
-use crate::{ResolveContext, Resolver};
+use crate::{AliasValue, ResolveContext, ResolveOptions, Resolver};
 
 #[test]
 fn test() {
@@ -58,6 +58,37 @@ fn test() {
                 "{specifier}: {dep:?} not in {:?}",
                 &ctx.missing_dependencies
             );
+        }
+    }
+}
+
+#[test]
+fn alias_and_extensions() {
+    let f = super::fixture();
+
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![
+            (
+                "@scope-js/package-name/dir$".into(),
+                vec![AliasValue::Path(f.join("foo/index.js").to_string_lossy().to_string())],
+            ),
+            (
+                "react-dom".into(),
+                vec![AliasValue::Path(f.join("foo/index.js").to_string_lossy().to_string())],
+            ),
+        ],
+        extensions: vec![".server.ts".into()],
+
+        ..ResolveOptions::default()
+    });
+
+    let mut ctx = ResolveContext::default();
+    let _ = resolver.resolve_with_context(&f, "@scope-js/package-name/dir/router", &mut ctx);
+    let _ = resolver.resolve_with_context(&f, "react-dom/client", &mut ctx);
+
+    for dep in ctx.missing_dependencies {
+        if let Some(path) = dep.parent() {
+            assert!(!path.is_file(), "{path:?} must not be a file");
         }
     }
 }
