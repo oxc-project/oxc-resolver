@@ -26,7 +26,6 @@ mod cache;
 mod context;
 mod error;
 mod file_system;
-mod json_comments;
 mod options;
 mod package_json;
 mod path;

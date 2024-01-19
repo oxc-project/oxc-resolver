@@ -299,6 +299,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1a46d1a171d865aa5f83f92695765caa047a9b4cbae2cbf37dbd613a793fd4c"
 
 [[package]]
+name = "json-strip-comments"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a138532317bbcfd1bb99baab0fd89f4391b4975b3c0a4e1ccb074912e940ee1"
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -362,6 +368,7 @@ dependencies = [
  "dashmap",
  "dunce",
  "indexmap",
+ "json-strip-comments",
  "once_cell",
  "rayon",
  "rustc-hash",
