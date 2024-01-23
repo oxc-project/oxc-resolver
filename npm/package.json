@@ -13,7 +13,7 @@
   "homepage": "https://oxc-project.github.io",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oxc-project/oxc_resolver.git"
+    "url": "git+https://github.com/oxc-project/oxc-resolver.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",

@@ -5,11 +5,11 @@ authors      = ["Boshen <boshenc@gmail.com>"]
 categories   = ["development-tools"]
 description  = "ESM / CJS module resolution"
 edition      = "2021"
-homepage     = "https://github.com/oxc-project/oxc_resolver"
+homepage     = "https://github.com/oxc-project/oxc-resolver"
 keywords     = ["node", "resolve", "cjs", "esm", "enhanced-resolve"]
 license      = "MIT"
 readme       = "README.md"
-repository   = "https://github.com/oxc-project/oxc_resolver"
+repository   = "https://github.com/oxc-project/oxc-resolver"
 rust-version = "1.60"
 include      = ["/src", "/examples", "/benches"]
 
