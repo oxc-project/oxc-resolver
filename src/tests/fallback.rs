@@ -48,6 +48,7 @@ fn fallback() {
                 ("/d/dir".into(), vec![AliasValue::Path("/c/dir".into())]),
                 ("/d/index.js".into(), vec![AliasValue::Path("/c/index".into())]),
                 ("ignored".into(), vec![AliasValue::Ignore]),
+                ("node:path".into(), vec![AliasValue::Ignore]),
             ],
             modules: vec!["/".into()],
             ..ResolveOptions::default()
@@ -88,7 +89,8 @@ fn fallback() {
 
     #[rustfmt::skip]
     let ignore = [
-        ("should resolve an ignore module", "ignored", ResolveError::Ignored(f.join("ignored")))
+        ("should resolve an ignore module", "ignored", ResolveError::Ignored(f.join("ignored"))),
+        ("should resolve node: builtin module", "node:path", ResolveError::Ignored(PathBuf::from("/node:path"))),
     ];
 
     for (comment, request, expected) in ignore {

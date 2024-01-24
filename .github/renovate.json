@@ -1,5 +1,20 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "ignorePaths": [
     "fixtures/**"
+  ],
+  "packageRules": [
+    {
+      "groupName": "github-actions",
+      "matchManagers": ["github-actions"],
+      "schedule": ["on monday"],
+      "assignees": ["@Boshen"]
+    },
+    {
+      "groupName": "crates",
+      "matchManagers": ["cargo"],
+      "schedule": ["on monday"],
+      "assignees": ["@Boshen"]
+    }
   ]
 }
