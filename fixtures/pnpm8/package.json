@@ -8,6 +8,7 @@
   "packageManager": "pnpm@8.10.5",
   "devDependencies": {
     "axios": "1.6.2",
-    "styled-components": "6.1.1"
+    "styled-components": "6.1.1",
+    "postcss": "8.4.33"
   }
 }

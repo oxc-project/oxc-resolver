@@ -9,7 +9,7 @@ test       = false
 doctest    = false
 
 [dependencies]
-oxc_resolver = { path = "../../oxc_resolver" }
+oxc_resolver = { path = ".." }
 napi         = { version = "2", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive  = { version = "2" }
 

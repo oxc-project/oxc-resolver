@@ -1,4 +1,6 @@
 {
+  "exports": {
+  },
   "browser": {
     "./lib/ignore.js": false,
     "./lib/replaced.js": "./lib/browser",
