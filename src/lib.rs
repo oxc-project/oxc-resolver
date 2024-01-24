@@ -722,36 +722,34 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             return Ok(None);
         };
         // 3. If the SCOPE/package.json "exports" is null or undefined, return.
-        if package_json.exports.is_empty() {
-            return self.load_browser_field(cached_path, Some(specifier), &package_json, ctx);
-        }
-        // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
-        let Some(subpath) = package_json
-            .name
-            .as_ref()
-            .and_then(|package_name| Self::strip_package_name(specifier, package_name))
-        else {
-            return Ok(None);
-        };
-        // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
-        // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-        // defined in the ESM resolver.
-        let package_url = package_json.directory();
-        // Note: The subpath is not prepended with a dot on purpose
-        // because `package_exports_resolve` matches subpath without the leading dot.
-        for exports in &package_json.exports {
-            if let Some(cached_path) = self.package_exports_resolve(
-                package_url,
-                subpath,
-                exports,
-                &self.options.condition_names,
-                ctx,
-            )? {
-                // 6. RESOLVE_ESM_MATCH(MATCH)
-                return self.resolve_esm_match(specifier, &cached_path, &package_json, ctx);
+        if !package_json.exports.is_empty() {
+            // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
+            if let Some(subpath) = package_json
+                .name
+                .as_ref()
+                .and_then(|package_name| Self::strip_package_name(specifier, package_name))
+            {
+                // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
+                // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
+                // defined in the ESM resolver.
+                let package_url = package_json.directory();
+                // Note: The subpath is not prepended with a dot on purpose
+                // because `package_exports_resolve` matches subpath without the leading dot.
+                for exports in &package_json.exports {
+                    if let Some(cached_path) = self.package_exports_resolve(
+                        package_url,
+                        subpath,
+                        exports,
+                        &self.options.condition_names,
+                        ctx,
+                    )? {
+                        // 6. RESOLVE_ESM_MATCH(MATCH)
+                        return self.resolve_esm_match(specifier, &cached_path, &package_json, ctx);
+                    }
+                }
             }
         }
-        Ok(None)
+        self.load_browser_field(cached_path, Some(specifier), &package_json, ctx)
     }
 
     /// RESOLVE_ESM_MATCH(MATCH)

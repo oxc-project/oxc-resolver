@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{ResolveOptions, Resolver};
+use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -73,4 +73,23 @@ fn axios() {
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(resolution.map(|r| r.into_path_buf()), Ok(module_path.join("dist/node/axios.cjs")));
+}
+
+#[test]
+fn postcss() {
+    let dir = dir();
+    let path = dir.join("fixtures/pnpm8");
+    let module_path = path.join("node_modules/postcss");
+    let resolver = Resolver::new(ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    });
+
+    // should ignore "path"
+    let resolution = resolver.resolve(&module_path, "path");
+    assert_eq!(resolution, Err(ResolveError::Ignored(module_path.clone())));
+
+    // should ignore "./lib/terminal-highlight"
+    let resolution = resolver.resolve(&module_path, "./lib/terminal-highlight");
+    assert_eq!(resolution, Err(ResolveError::Ignored(module_path.join("lib/terminal-highlight"))));
 }
