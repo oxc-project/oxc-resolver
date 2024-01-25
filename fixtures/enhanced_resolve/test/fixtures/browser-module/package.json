@@ -1,5 +1,6 @@
 {
   "exports": {
+    "./lib/index.js": "./lib/index.js"
   },
   "browser": {
     "./lib/ignore.js": false,
