@@ -11,13 +11,13 @@
       "assignees": ["@Boshen"]
     },
     {
-      "groupName": "crates",
+      "groupName": "rust crates",
       "matchManagers": ["cargo"],
       "schedule": ["on monday"],
       "assignees": ["@Boshen"]
     },
     {
-      "groupName": "npm",
+      "groupName": "npm packages",
       "matchManagers": ["npm"],
       "schedule": ["on monday"],
       "assignees": ["@Boshen"]
