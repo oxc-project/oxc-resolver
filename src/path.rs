@@ -108,4 +108,13 @@ fn is_invalid_exports_target() {
     for case in test_cases {
         assert!(Path::new(case).is_invalid_exports_target(), "{case}");
     }
+
+    assert!(!Path::new("C:").is_invalid_exports_target());
+    assert!(!Path::new("/").is_invalid_exports_target());
+}
+
+#[test]
+fn normalize() {
+    assert_eq!(Path::new("/foo/.././foo/").normalize(), Path::new("/foo"));
+    assert_eq!(Path::new("C://").normalize(), Path::new("C://"));
 }
