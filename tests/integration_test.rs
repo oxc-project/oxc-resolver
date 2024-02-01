@@ -35,7 +35,7 @@ fn eq() {
 #[test]
 fn package_json() {
     let resolution = resolve("./tests/package.json");
-    assert!(resolution.package_json().is_some());
+    assert!(resolution.package_json().is_some_and(|json| json.raw_json().is_object()));
 }
 
 #[test]

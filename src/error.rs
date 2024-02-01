@@ -124,7 +124,7 @@ impl PartialEq for IOError {
     }
 }
 
-impl From<IOError> for std::io::Error {
+impl From<IOError> for io::Error {
     fn from(error: IOError) -> Self {
         let io_error = error.0.as_ref();
         Self::new(io_error.kind(), io_error.to_string())
@@ -134,5 +134,22 @@ impl From<IOError> for std::io::Error {
 impl From<io::Error> for ResolveError {
     fn from(err: io::Error) -> Self {
         Self::IOError(IOError(Arc::new(err)))
+    }
+}
+
+#[test]
+fn test_into_io_error() {
+    use std::io::{self, ErrorKind};
+    let error_string = "IOError occurred";
+    let string_error = io::Error::new(ErrorKind::Interrupted, error_string.to_string());
+    let string_error2 = io::Error::new(ErrorKind::Interrupted, error_string.to_string());
+    let resolve_io_error: ResolveError = ResolveError::from(string_error2);
+
+    assert_eq!(resolve_io_error, ResolveError::from(string_error));
+    if let ResolveError::IOError(io_error) = resolve_io_error {
+        // fix for https://github.com/web-infra-dev/rspack/issues/4564
+        let std_io_error: io::Error = io_error.into();
+        assert_eq!(std_io_error.kind(), ErrorKind::Interrupted);
+        assert_eq!(std_io_error.to_string(), error_string);
     }
 }

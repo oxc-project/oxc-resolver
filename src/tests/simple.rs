@@ -2,7 +2,7 @@
 
 use std::env;
 
-use crate::Resolver;
+use crate::{ResolveOptions, Resolver};
 
 #[test]
 fn simple() {
@@ -44,4 +44,18 @@ fn dashed_name() {
         let resolved_path = resolver.resolve(&path, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{path:?} {request}");
     }
+}
+
+#[test]
+#[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
+fn no_package() {
+    use super::memory_fs::MemoryFS;
+    use crate::ResolverGeneric;
+    use std::path::Path;
+    let f = Path::new("/");
+    let file_system = MemoryFS::new(&[]);
+    let resolver =
+        ResolverGeneric::<MemoryFS>::new_with_file_system(file_system, ResolveOptions::default());
+    let resolved_path = resolver.resolve(f, "package");
+    assert!(resolved_path.is_err());
 }
