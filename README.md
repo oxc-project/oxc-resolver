@@ -30,6 +30,70 @@ Rust port of [enhanced-resolve].
 * supports in-memory file system via the `FileSystem` trait
 * contains `tracing` instrumentation
 
+## Usage
+
+The following usages apply to both Rust and Node.js; the code snippets are written in JavaScript.
+
+To handle the `exports` field in `package.json`, ESM and CJS need to be differentiated.
+
+### ESM
+
+Per [ESM Resolution algorithm](https://nodejs.org/api/esm.html#resolution-and-loading-algorithm)
+
+> defaultConditions is the conditional environment name array, ["node", "import"].
+
+This means when the caller is an ESM import (`import("module")`), resolve options should be
+
+```javascript
+{
+  "conditionNames": ["node", "import"]
+}
+```
+
+### CJS
+
+Per [CJS Resolution algorithm](https://nodejs.org/api/modules.html#all-together)
+
+> LOAD_PACKAGE_EXPORTS(X, DIR)
+> 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
+>   `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
+
+This means when the caller is a CJS require (`require("module")`), resolve options should be
+
+```javascript
+{
+  "conditionNames": ["node", "require"]
+}
+```
+
+### Cache
+
+To support both CJS and ESM with the same cache:
+
+```javascript
+const esmResolver = ResolverFactory({
+  conditionNames: ["node", "import"]
+});
+
+const cjsResolver = esmResolver.cloneWithOptions({
+  conditionNames: ["node", "import"]
+});
+```
+
+### Browser Field
+
+From this [non-standard spec](https://github.com/defunctzombie/package-browser-field-spec):
+
+> The `browser` field is provided to JavaScript bundlers or component tools when packaging modules for client side use.
+
+The option is
+
+```javascript
+{
+  "aliasFields": ["browser"]
+}
+```
+
 ## Options
 
 The options are aligned with [enhanced-resolve].
