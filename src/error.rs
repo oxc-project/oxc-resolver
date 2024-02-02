@@ -101,8 +101,8 @@ impl ResolveError {
 /// Error for [ResolveError::Specifier]
 #[derive(Debug, Clone, Eq, PartialEq, Error)]
 pub enum SpecifierError {
-    #[error("The specifiers must be a non-empty string. Received ''")]
-    Empty,
+    #[error("The specifiers must be a non-empty string. Received \"{0}\"")]
+    Empty(String),
 }
 
 /// JSON error from [serde_json::Error]
