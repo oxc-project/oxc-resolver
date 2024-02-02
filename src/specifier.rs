@@ -15,13 +15,16 @@ impl<'a> Specifier<'a> {
 
     pub fn parse(specifier: &'a str) -> Result<Specifier<'a>, SpecifierError> {
         if specifier.is_empty() {
-            return Err(SpecifierError::Empty);
+            return Err(SpecifierError::Empty(specifier.to_string()));
         }
         let offset = match specifier.as_bytes()[0] {
             b'/' | b'.' | b'#' => 1,
             _ => 0,
         };
         let (path, query, fragment) = Self::parse_query_framgment(specifier, offset);
+        if path.is_empty() {
+            return Err(SpecifierError::Empty(specifier.to_string()));
+        }
         Ok(Self { path, query, fragment })
     }
 
@@ -81,8 +84,13 @@ mod tests {
 
     #[test]
     fn empty() {
-        let specifier = "";
-        assert_eq!(Specifier::parse(specifier), Err(SpecifierError::Empty));
+        let specifiers = ["", "?"];
+        for specifier in specifiers {
+            assert_eq!(
+                Specifier::parse(specifier),
+                Err(SpecifierError::Empty(specifier.to_string()))
+            );
+        }
     }
 
     #[test]

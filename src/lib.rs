@@ -966,7 +966,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             let mut extended_tsconfig_paths = vec![];
             for tsconfig_extend_specifier in &tsconfig.extends {
                 let extended_tsconfig_path = match tsconfig_extend_specifier.as_bytes().first() {
-                    None => return Err(ResolveError::Specifier(SpecifierError::Empty)),
+                    None => {
+                        return Err(ResolveError::Specifier(SpecifierError::Empty(
+                            tsconfig_extend_specifier.to_string(),
+                        )))
+                    }
                     Some(b'/') => PathBuf::from(tsconfig_extend_specifier),
                     Some(b'.') => tsconfig.directory().normalize_with(tsconfig_extend_specifier),
                     _ => self
