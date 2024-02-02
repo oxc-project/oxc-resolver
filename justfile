@@ -56,3 +56,7 @@ codecov:
 # Run the benchmarks. See `tasks/benchmark`
 benchmark:
   cargo benchmark
+
+# Run cargo-fuzz
+fuzz:
+  cd fuzz && cargo +nightly fuzz run --sanitizer none resolver -- -only_ascii=1 -max_total_time=900
