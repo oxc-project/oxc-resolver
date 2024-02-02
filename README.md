@@ -42,7 +42,7 @@ Per [ESM Resolution algorithm](https://nodejs.org/api/esm.html#resolution-and-lo
 
 > defaultConditions is the conditional environment name array, ["node", "import"].
 
-This means when the caller is an ESM import (`import("module")`), resolve options should be
+This means when the caller is an ESM import (`import "module"`), resolve options should be
 
 ```javascript
 {
@@ -55,6 +55,7 @@ This means when the caller is an ESM import (`import("module")`), resolve option
 Per [CJS Resolution algorithm](https://nodejs.org/api/modules.html#all-together)
 
 > LOAD_PACKAGE_EXPORTS(X, DIR)
+>
 > 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
 >   `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
 
