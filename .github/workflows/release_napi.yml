@@ -1,4 +1,4 @@
-name: Release NAPI Resolver
+name: Release NAPI
 
 on:
   push:
@@ -141,13 +141,16 @@ jobs:
             }
           " >> $GITHUB_OUTPUT
           echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         if: ${{ contains(matrix.target, 'linux') }}
         with:
           platforms: all
+
       - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         if: ${{ contains(matrix.target, 'linux') }}
+
       - name: Run linux test
         uses: addnab/docker-run-action@v3
         if: ${{ contains(matrix.target, 'linux') }}
@@ -170,7 +173,6 @@ jobs:
     name: Publish NAPI
     runs-on: ubuntu-latest
     permissions:
-      contents: write # for softprops/action-gh-release@v1
       id-token: write # for `npm publish --provenance`
     needs:
       - build
