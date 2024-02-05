@@ -7,7 +7,7 @@ settings:
 devDependencies:
   '@napi-rs/cli':
     specifier: ^3.0.0-alpha.36
-    version: 3.0.0-alpha.36(emnapi@0.45.0)
+    version: 3.0.0-alpha.36(emnapi@1.0.0)
   '@napi-rs/wasm-runtime':
     specifier: ^0.1.1
     version: 0.1.1
@@ -18,8 +18,8 @@ devDependencies:
     specifier: ^6.0.1
     version: 6.0.1
   emnapi:
-    specifier: ^0.45.0
-    version: 0.45.0
+    specifier: ^1.0.0
+    version: 1.0.0
   typescript:
     specifier: ^5.3.3
     version: 5.3.3
@@ -63,7 +63,7 @@ packages:
       - supports-color
     dev: true
 
-  /@napi-rs/cli@3.0.0-alpha.36(emnapi@0.45.0):
+  /@napi-rs/cli@3.0.0-alpha.36(emnapi@1.0.0):
     resolution: {integrity: sha512-TMQNtfPCCooGAiZTa3uE9ebkv+nC3ouqfd9Z8TysLC2TwR0ygxtYrqNL0SnoD9wYrGbldgT4g4aUM2Cm99NW5g==}
     engines: {node: '>= 16'}
     hasBin: true
@@ -84,7 +84,7 @@ packages:
       clipanion: 3.2.1(typanion@3.14.0)
       colorette: 2.0.20
       debug: 4.3.4
-      emnapi: 0.45.0
+      emnapi: 1.0.0
       inquirer: 9.2.12
       js-yaml: 4.1.0
       lodash-es: 4.17.21
@@ -190,6 +190,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -199,6 +200,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -208,6 +210,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -217,6 +220,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -326,6 +330,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -335,6 +340,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -344,6 +350,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
@@ -353,6 +360,7 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
     requiresBuild: true
     dev: true
     optional: true
@@ -1000,8 +1008,8 @@ packages:
     engines: {node: '>=14.16'}
     dev: true
 
-  /emnapi@0.45.0:
-    resolution: {integrity: sha512-VfMt6cZYk5BVuN99ngFQt1EXJLfD4fUx4jmXTCDDzq5DtY3jiSqjFD6p6Ojh5v+AlN5VXVYZbFtgccoz1wvQoQ==}
+  /emnapi@1.0.0:
+    resolution: {integrity: sha512-s0NVPETvRAIr60GSDayoAEkodn/R2kY3vXZCXppYaRmfq95li/EY6WYqkSxQdGfgGBPNZ1Jr4Px8nYITw1V5zA==}
     peerDependencies:
       node-addon-api: '>= 6.1.0'
     peerDependenciesMeta:
