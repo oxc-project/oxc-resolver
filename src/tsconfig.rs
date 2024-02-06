@@ -18,8 +18,10 @@ pub struct TsConfig {
     #[serde(skip)]
     path: PathBuf,
 
-    #[serde(default, deserialize_with = "deserialize_extends")]
-    pub extends: Vec<String>,
+    /// The value of extends must be a string containing a path to another configuration file to inherit from.
+    /// https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-1.html#configuration-inheritance
+    #[serde(default)]
+    pub extends: Option<String>,
 
     #[serde(default)]
     pub references: Vec<ProjectReference>,
@@ -48,22 +50,6 @@ pub struct CompilerOptions {
     paths: Option<FxIndexMap<String, Vec<String>>>,
     #[serde(skip)]
     paths_base: PathBuf,
-}
-
-fn deserialize_extends<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    #[derive(serde::Deserialize)]
-    #[serde(untagged)]
-    enum StringOrArray {
-        String(String),
-        Array(Vec<String>),
-    }
-    Ok(match StringOrArray::deserialize(deserializer)? {
-        StringOrArray::String(s) => vec![s],
-        StringOrArray::Array(a) => a,
-    })
 }
 
 impl TsConfig {
