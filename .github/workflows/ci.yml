@@ -78,13 +78,13 @@ jobs:
 
       - name: corepack
         run: corepack enable
-  
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-  
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -211,6 +211,8 @@ jobs:
           - os: ubuntu-latest
           - os: macos-14
     runs-on: ${{ matrix.os }}
+    env:
+      RUST_BACKTRACE: 1
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/pnpm

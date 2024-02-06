@@ -244,7 +244,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
 
         match specifier.as_bytes()[0] {
             // 3. If X begins with './' or '/' or '../'
-            b'/' => self.require_absolute(cached_path, specifier, ctx),
+            b'/' | b'\\' => self.require_absolute(cached_path, specifier, ctx),
             // 3. If X begins with './' or '/' or '../'
             b'.' => self.require_relative(cached_path, specifier, ctx),
             // 4. If X begins with '#'
@@ -278,7 +278,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
-        debug_assert!(specifier.starts_with('/'));
+        debug_assert!(specifier.starts_with(|c| c == '/' || c == '\\'));
         if !self.options.prefer_relative && self.options.prefer_absolute {
             if let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx) {
                 return Ok(path);
