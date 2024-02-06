@@ -973,9 +973,9 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         self.cache.tsconfig(path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
+
             // Extend tsconfig
-            let mut extended_tsconfig_paths = vec![];
-            for tsconfig_extend_specifier in &tsconfig.extends {
+            if let Some(tsconfig_extend_specifier) = &tsconfig.extends {
                 let extended_tsconfig_path = match tsconfig_extend_specifier.as_bytes().first() {
                     None => {
                         return Err(ResolveError::Specifier(SpecifierError::Empty(
@@ -1004,13 +1004,12 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                         })?
                         .to_path_buf(),
                 };
-                extended_tsconfig_paths.push(extended_tsconfig_path);
-            }
-            for extended_tsconfig_path in extended_tsconfig_paths {
+
                 let extended_tsconfig =
                     self.load_tsconfig(&extended_tsconfig_path, &TsconfigReferences::Disabled)?;
                 tsconfig.extend_tsconfig(&extended_tsconfig);
             }
+
             // Load project references
             match references {
                 TsconfigReferences::Disabled => {
