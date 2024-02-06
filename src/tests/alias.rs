@@ -1,6 +1,9 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/alias.test.js>
 
-use crate::{AliasValue, Resolution, ResolveError, ResolveOptions, Resolver};
+use normalize_path::NormalizePath;
+use std::path::Path;
+
+use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
@@ -129,29 +132,33 @@ fn absolute_path() {
     assert_eq!(resolution, Err(ResolveError::Ignored(f.join("foo"))));
 }
 
+fn check_slash(path: &Path) {
+    let s = path.to_string_lossy().to_string();
+    #[cfg(target_os = "windows")]
+    {
+        assert!(!s.contains('/'), "{s}");
+        assert!(s.contains('\\'), "{s}");
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        assert!(s.contains('/'), "{s}");
+        assert!(!s.contains('\\'), "{s}");
+    }
+}
+
 #[test]
 fn system_path() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
         alias: vec![(
             "@app".into(),
-            vec![AliasValue::Path(f.join("alias").to_str().unwrap().to_string())],
+            vec![AliasValue::Path(f.join("alias").to_string_lossy().to_string())],
         )],
         ..ResolveOptions::default()
     });
-    let resolution = resolver.resolve(&f, "@app/files/a").map(Resolution::into_path_buf);
-    assert_eq!(resolution, Ok(f.join("alias/files/a.js")));
-    let string = resolution.unwrap().to_string_lossy().to_string();
-    #[cfg(target_os = "windows")]
-    {
-        assert!(!string.contains('/'));
-        assert!(string.contains('\\'));
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        assert!(string.contains('/'));
-        assert!(!string.contains('\\'));
-    }
+    let path = resolver.resolve(&f, "@app/files/a").map(Resolution::into_path_buf).unwrap();
+    assert_eq!(path, f.join("alias/files/a.js"));
+    check_slash(&path);
 }
 
 // Not part of enhanced-resolve
@@ -167,4 +174,44 @@ fn infinite_recursion() {
     });
     let resolution = resolver.resolve(f, "./a");
     assert_eq!(resolution, Err(ResolveError::Recursion));
+}
+
+#[test]
+fn alias_is_full_path() {
+    let f = super::fixture();
+    let dir = f.join("foo");
+    let dir_str = dir.to_string_lossy().to_string();
+
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![("@".into(), vec![AliasValue::Path(dir_str.clone())])],
+        ..ResolveOptions::default()
+    });
+
+    let mut ctx = ResolveContext::default();
+
+    let specifiers = [
+        "@/index".to_string(),
+        // specifier has multiple `/` for reasons we'll never know
+        "@////index".to_string(),
+        // specifier is a full path
+        dir_str,
+    ];
+
+    for specifier in specifiers {
+        let resolution = resolver.resolve_with_context(&f, &specifier, &mut ctx);
+        assert_eq!(resolution.map(|r| r.full_path()), Ok(dir.join("index.js")));
+    }
+
+    for path in ctx.file_dependencies {
+        assert_eq!(path, path.normalize(), "{path:?}");
+        check_slash(&path);
+    }
+
+    for path in ctx.missing_dependencies {
+        assert_eq!(path, path.normalize(), "{path:?}");
+        check_slash(&path);
+        if let Some(path) = path.parent() {
+            assert!(!path.is_file(), "{path:?} must not be a file");
+        }
+    }
 }

@@ -27,6 +27,7 @@ pub trait PathUtil {
 }
 
 impl PathUtil for Path {
+    // https://github.com/parcel-bundler/parcel/blob/e0b99c2a42e9109a9ecbd6f537844a1b33e7faf5/packages/utils/node-resolver-rs/src/path.rs#L7
     fn normalize(&self) -> PathBuf {
         let mut components = self.components().peekable();
         let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek() {
@@ -39,7 +40,7 @@ impl PathUtil for Path {
 
         for component in components {
             match component {
-                Component::Prefix(..) => unreachable!(),
+                Component::Prefix(..) => unreachable!("Path {:?}", self),
                 Component::RootDir => {
                     ret.push(component.as_os_str());
                 }
@@ -56,6 +57,7 @@ impl PathUtil for Path {
         ret
     }
 
+    // https://github.com/parcel-bundler/parcel/blob/e0b99c2a42e9109a9ecbd6f537844a1b33e7faf5/packages/utils/node-resolver-rs/src/path.rs#L37
     fn normalize_with<B: AsRef<Self>>(&self, subpath: B) -> PathBuf {
         let subpath = subpath.as_ref();
         let mut components = subpath.components().peekable();
@@ -66,7 +68,9 @@ impl PathUtil for Path {
         let mut ret = self.to_path_buf();
         for component in subpath.components() {
             match component {
-                Component::Prefix(..) | Component::RootDir => unreachable!(),
+                Component::Prefix(..) | Component::RootDir => {
+                    unreachable!("Path {:?} Subpath {:?}", self, subpath)
+                }
                 Component::CurDir => {}
                 Component::ParentDir => {
                     ret.pop();

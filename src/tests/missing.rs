@@ -1,5 +1,7 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/missing.test.js
 
+use normalize_path::NormalizePath;
+
 use crate::{AliasValue, ResolveContext, ResolveOptions, Resolver};
 
 #[test]
@@ -52,10 +54,15 @@ fn test() {
         let mut ctx = ResolveContext::default();
         let _ = resolver.resolve_with_context(&f, specifier, &mut ctx);
 
-        for dep in missing_dependencies {
+        for path in ctx.file_dependencies {
+            assert_eq!(path, path.normalize(), "{path:?}");
+        }
+
+        for path in missing_dependencies {
+            assert_eq!(path, path.normalize(), "{path:?}");
             assert!(
-                ctx.missing_dependencies.contains(&dep),
-                "{specifier}: {dep:?} not in {:?}",
+                ctx.missing_dependencies.contains(&path),
+                "{specifier}: {path:?} not in {:?}",
                 &ctx.missing_dependencies
             );
         }
@@ -86,8 +93,13 @@ fn alias_and_extensions() {
     let _ = resolver.resolve_with_context(&f, "@scope-js/package-name/dir/router", &mut ctx);
     let _ = resolver.resolve_with_context(&f, "react-dom/client", &mut ctx);
 
-    for dep in ctx.missing_dependencies {
-        if let Some(path) = dep.parent() {
+    for path in ctx.file_dependencies {
+        assert_eq!(path, path.normalize(), "{path:?}");
+    }
+
+    for path in ctx.missing_dependencies {
+        assert_eq!(path, path.normalize(), "{path:?}");
+        if let Some(path) = path.parent() {
             assert!(!path.is_file(), "{path:?} must not be a file");
         }
     }
