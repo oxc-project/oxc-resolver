@@ -244,7 +244,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
 
         match specifier.as_bytes()[0] {
             // 3. If X begins with './' or '/' or '../'
-            b'/' => self.require_absolute(cached_path, specifier, ctx),
+            b'/' | b'\\' => self.require_absolute(cached_path, specifier, ctx),
             // 3. If X begins with './' or '/' or '../'
             b'.' => self.require_relative(cached_path, specifier, ctx),
             // 4. If X begins with '#'
@@ -278,7 +278,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
-        debug_assert!(specifier.starts_with('/'));
+        debug_assert!(specifier.starts_with(|c| c == '/' || c == '\\'));
         if !self.options.prefer_relative && self.options.prefer_absolute {
             if let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx) {
                 return Ok(path);
@@ -295,9 +295,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         } else {
             for root in &self.options.roots {
                 let cached_path = self.cache.value(root);
-                if let Ok(path) =
-                    self.require_relative(&cached_path, specifier.trim_start_matches('/'), ctx)
-                {
+                if let Ok(path) = self.require_relative(
+                    &cached_path,
+                    specifier.trim_start_matches(|c| c == '/' || c == '\\'),
+                    ctx,
+                ) {
                     return Ok(path);
                 }
             }
@@ -887,16 +889,25 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
         {
             let tail = &request[alias_key.len()..];
-            // Must not append anything to alias_value if it is a file.
-            if !tail.is_empty() {
-                let alias_value_cached_path = self.cache.value(Path::new(alias_value));
+
+            let new_specifier = if tail.is_empty() {
+                Cow::Borrowed(alias_value)
+            } else {
+                let alias_value = Path::new(alias_value).normalize();
+                // Must not append anything to alias_value if it is a file.
+                let alias_value_cached_path = self.cache.value(&alias_value);
                 if alias_value_cached_path.is_file(&self.cache.fs, ctx) {
                     return Ok(None);
                 }
-            }
-            let new_specifier = format!("{alias_value}{tail}");
+
+                // Remove the leading slash so the final path is concatenated.
+                let tail = tail.trim_start_matches(|c| c == '/' || c == '\\');
+                let normalized = alias_value.normalize_with(tail);
+                Cow::Owned(normalized.to_string_lossy().to_string())
+            };
+
             ctx.with_fully_specified(false);
-            return match self.require(cached_path, &new_specifier, ctx) {
+            return match self.require(cached_path, new_specifier.as_ref(), ctx) {
                 Err(ResolveError::NotFound(_)) => Ok(None),
                 Ok(path) => return Ok(Some(path)),
                 Err(err) => return Err(err),

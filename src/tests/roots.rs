@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::{AliasValue, ResolveError, ResolveOptions, Resolver};
 
 fn dirname() -> PathBuf {
-    super::fixture_root().join("enhanced_resolve/test")
+    super::fixture_root().join("enhanced_resolve").join("test")
 }
 
 #[test]
