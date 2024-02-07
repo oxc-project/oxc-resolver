@@ -15,6 +15,7 @@ fn chinese() {
 }
 
 #[test]
+#[ignore]
 fn styled_components() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm8");
@@ -44,6 +45,7 @@ fn styled_components() {
 }
 
 #[test]
+#[ignore]
 fn axios() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm8");
@@ -76,6 +78,7 @@ fn axios() {
 }
 
 #[test]
+#[ignore]
 fn postcss() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm8");

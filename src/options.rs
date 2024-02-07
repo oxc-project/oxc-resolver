@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{fmt, path::PathBuf};
 
 /// Module Resolution Options
@@ -128,6 +129,50 @@ pub struct ResolveOptions {
     ///
     /// Default `false`
     pub builtin_modules: bool,
+}
+
+impl ResolveOptions {
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    ///
+    /// let options = ResolveOptions::default().with_condition_names(&["bar"]);
+    /// assert_eq!(options.condition_names, vec!["bar".to_string()])
+    /// ```
+    pub fn with_condition_names(mut self, names: &[&str]) -> Self {
+        self.condition_names = names.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        self
+    }
+
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    ///
+    /// let options = ResolveOptions::default().with_builtin_modules(false);
+    /// assert_eq!(options.builtin_modules, false)
+    /// ```
+    pub fn with_builtin_modules(mut self, flag: bool) -> Self {
+        self.builtin_modules = flag;
+        self
+    }
+
+    /// Adds a single root to the options
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let options = ResolveOptions::default().with_root("foo");
+    /// assert_eq!(options.roots, vec![PathBuf::from("foo")])
+    /// ```
+    pub fn with_root<P: AsRef<Path>>(mut self, root: P) -> Self {
+        self.roots.push(root.as_ref().to_path_buf());
+        self
+    }
 }
 
 /// Value for [ResolveOptions::enforce_extension]
