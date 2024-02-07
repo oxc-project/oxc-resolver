@@ -3,7 +3,9 @@
 use normalize_path::NormalizePath;
 use std::path::Path;
 
-use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
+use crate::{
+    AliasValue, DynRef, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
+};
 
 #[test]
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
@@ -31,8 +33,8 @@ fn alias() {
         ("/dashed-name", ""),
     ]);
 
-    let resolver = ResolverGeneric::<MemoryFS>::new_with_file_system(
-        file_system,
+    let resolver = ResolverGeneric::new_with_file_system(
+        DynRef::Borrowed(&file_system),
         ResolveOptions {
             alias: vec![
                 ("aliasA".into(), vec![AliasValue::Path("a".into())]),

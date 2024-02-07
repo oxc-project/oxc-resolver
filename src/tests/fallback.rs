@@ -1,5 +1,7 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/fallback.test.js
 
+use crate::DynRef;
+
 #[test]
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 fn fallback() {
@@ -27,8 +29,8 @@ fn fallback() {
         ("/e/dir/file", ""),
     ]);
 
-    let resolver = ResolverGeneric::<MemoryFS>::new_with_file_system(
-        file_system,
+    let resolver = ResolverGeneric::new_with_file_system(
+        DynRef::Borrowed(&file_system),
         ResolveOptions {
             fallback: vec![
                 ("aliasA".into(), vec![AliasValue::Path("a".into())]),

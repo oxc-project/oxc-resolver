@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use super::memory_fs::MemoryFS;
 
 use crate::{
-    ResolveError, ResolveOptions, Resolver, ResolverGeneric, TsConfig, TsconfigOptions,
+    DynRef, ResolveError, ResolveOptions, Resolver, ResolverGeneric, TsConfig, TsconfigOptions,
     TsconfigReferences,
 };
 
@@ -210,7 +210,7 @@ impl Default for OneTest {
 }
 
 impl OneTest {
-    fn resolver(&self, root: &Path) -> ResolverGeneric<MemoryFS> {
+    fn resolver(&self, root: &Path) -> ResolverGeneric {
         let mut file_system = MemoryFS::default();
 
         file_system.add_file(&root.join("tsconfig.json"), &self.tsconfig);
@@ -233,7 +233,7 @@ impl OneTest {
             options.main_fields = main_fields.clone();
         }
 
-        ResolverGeneric::<MemoryFS>::new_with_file_system(file_system, options)
+        ResolverGeneric::new_with_file_system(DynRef::Owned(Box::new(file_system)), options)
     }
 }
 

@@ -2,7 +2,7 @@
 
 use std::env;
 
-use crate::{ResolveOptions, Resolver};
+use crate::{DynRef, ResolveOptions, Resolver};
 
 #[test]
 fn simple() {
@@ -54,8 +54,10 @@ fn no_package() {
     use std::path::Path;
     let f = Path::new("/");
     let file_system = MemoryFS::new(&[]);
-    let resolver =
-        ResolverGeneric::<MemoryFS>::new_with_file_system(file_system, ResolveOptions::default());
+    let resolver = ResolverGeneric::new_with_file_system(
+        DynRef::Borrowed(&file_system),
+        ResolveOptions::default(),
+    );
     let resolved_path = resolver.resolve(f, "package");
     assert!(resolved_path.is_err());
 }

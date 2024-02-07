@@ -13,20 +13,20 @@ use dashmap::{DashMap, DashSet};
 use rustc_hash::FxHasher;
 
 use crate::{
-    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, FileMetadata,
-    FileSystem, ResolveError, ResolveOptions, TsConfig,
+    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, DynRef,
+    FileMetadata, FileSystem, ResolveError, ResolveOptions, TsConfig,
 };
 
 #[derive(Default)]
-pub struct Cache<Fs> {
-    pub(crate) fs: Fs,
+pub struct Cache {
+    // pub(crate) fs: DynRef<'a, dyn FileSystem>,
     paths: DashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     tsconfigs: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
 }
 
-impl<Fs: FileSystem + Default> Cache<Fs> {
-    pub fn new(fs: Fs) -> Self {
-        Self { fs, ..Self::default() }
+impl Cache {
+    pub fn new() -> Self {
+        Self { ..Self::default() }
     }
 
     pub fn clear(&self) {
@@ -57,11 +57,12 @@ impl<Fs: FileSystem + Default> Cache<Fs> {
         &self,
         path: &Path,
         callback: F, // callback for modifying tsconfig with `extends`
+        fs: &DynRef<dyn FileSystem>,
     ) -> Result<Arc<TsConfig>, ResolveError> {
         if let Some(tsconfig_ref) = self.tsconfigs.get(path) {
             return Ok(Arc::clone(tsconfig_ref.value()));
         }
-        let meta = self.fs.metadata(path).ok();
+        let meta = fs.metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_dir) {
@@ -71,8 +72,7 @@ impl<Fs: FileSystem + Default> Cache<Fs> {
             os_string.push(".json");
             Cow::Owned(PathBuf::from(os_string))
         };
-        let mut tsconfig_string = self
-            .fs
+        let mut tsconfig_string = fs
             .read_to_string(&tsconfig_path)
             .map_err(|_| ResolveError::TsconfigNotFound(tsconfig_path.to_path_buf()))?;
         let mut tsconfig =
@@ -165,11 +165,11 @@ impl CachedPathImpl {
         self.parent.as_ref()
     }
 
-    fn meta<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
+    fn meta(&self, fs: &DynRef<dyn FileSystem>) -> Option<FileMetadata> {
         *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
     }
 
-    pub fn is_file<Fs: FileSystem>(&self, fs: &Fs, ctx: &mut Ctx) -> bool {
+    pub fn is_file(&self, fs: &DynRef<dyn FileSystem>, ctx: &mut Ctx) -> bool {
         if let Some(meta) = self.meta(fs) {
             ctx.add_file_dependency(self.path());
             meta.is_file
@@ -179,7 +179,7 @@ impl CachedPathImpl {
         }
     }
 
-    pub fn is_dir<Fs: FileSystem>(&self, fs: &Fs, ctx: &mut Ctx) -> bool {
+    pub fn is_dir(&self, fs: &DynRef<dyn FileSystem>, ctx: &mut Ctx) -> bool {
         self.meta(fs).map_or_else(
             || {
                 ctx.add_missing_dependency(self.path());
@@ -189,7 +189,7 @@ impl CachedPathImpl {
         )
     }
 
-    fn symlink<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<Option<PathBuf>> {
+    fn symlink(&self, fs: &DynRef<dyn FileSystem>) -> io::Result<Option<PathBuf>> {
         self.symlink
             .get_or_try_init(|| {
                 if let Ok(symlink_metadata) = fs.symlink_metadata(&self.path) {
@@ -202,7 +202,7 @@ impl CachedPathImpl {
             .cloned()
     }
 
-    pub fn realpath<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<PathBuf> {
+    pub fn realpath(&self, fs: &DynRef<dyn FileSystem>) -> io::Result<PathBuf> {
         self.canonicalized
             .get_or_try_init(|| {
                 if let Some(link) = self.symlink(fs)? {
@@ -220,22 +220,26 @@ impl CachedPathImpl {
             .map(|r| r.unwrap_or_else(|| self.path.clone().to_path_buf()))
     }
 
-    pub fn module_directory<Fs: FileSystem + Default>(
+    pub fn module_directory(
         &self,
         module_name: &str,
-        cache: &Cache<Fs>,
+        cache: &Cache,
         ctx: &mut Ctx,
+        fs: &DynRef<dyn FileSystem>,
     ) -> Option<CachedPath> {
         let cached_path = cache.value(&self.path.join(module_name));
-        cached_path.is_dir(&cache.fs, ctx).then(|| cached_path)
+        cached_path.is_dir(fs, ctx).then(|| cached_path)
     }
 
-    pub fn cached_node_modules<Fs: FileSystem + Default>(
+    pub fn cached_node_modules(
         &self,
-        cache: &Cache<Fs>,
+        cache: &Cache,
         ctx: &mut Ctx,
+        fs: &DynRef<dyn FileSystem>,
     ) -> Option<CachedPath> {
-        self.node_modules.get_or_init(|| self.module_directory("node_modules", cache, ctx)).clone()
+        self.node_modules
+            .get_or_init(|| self.module_directory("node_modules", cache, ctx, fs))
+            .clone()
     }
 
     /// Find package.json of a path by traversing parent directories.
@@ -243,9 +247,9 @@ impl CachedPathImpl {
     /// # Errors
     ///
     /// * [ResolveError::JSON]
-    pub fn find_package_json<Fs: FileSystem>(
+    pub fn find_package_json(
         &self,
-        fs: &Fs,
+        fs: &DynRef<dyn FileSystem>,
         options: &ResolveOptions,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
@@ -273,9 +277,9 @@ impl CachedPathImpl {
     /// # Errors
     ///
     /// * [ResolveError::JSON]
-    pub fn package_json<Fs: FileSystem>(
+    pub fn package_json(
         &self,
-        fs: &Fs,
+        fs: &DynRef<dyn FileSystem>,
         options: &ResolveOptions,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {

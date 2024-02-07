@@ -3,7 +3,7 @@
 use rustc_hash::FxHashSet;
 use std::path::PathBuf;
 
-use crate::{ResolveContext, ResolveOptions, ResolverGeneric};
+use crate::{DynRef, ResolveContext, ResolveOptions, ResolverGeneric};
 
 use super::memory_fs::MemoryFS;
 
@@ -21,8 +21,8 @@ fn file_system() -> MemoryFS {
 fn test() {
     let file_system = file_system();
 
-    let resolver = ResolverGeneric::<MemoryFS>::new_with_file_system(
-        file_system,
+    let resolver = ResolverGeneric::new_with_file_system(
+        DynRef::Borrowed(&file_system),
         ResolveOptions {
             extensions: vec![".json".into(), ".js".into()],
             modules: vec!["/modules".into(), "node_modules".into()],

@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::{AliasValue, ResolveOptions, ResolverGeneric};
+use crate::{AliasValue, DynRef, ResolveOptions, ResolverGeneric};
 
 use super::memory_fs::MemoryFS;
 
@@ -28,8 +28,8 @@ fn file_system() -> MemoryFS {
 fn test() {
     let file_system = file_system();
 
-    let resolver = ResolverGeneric::<MemoryFS>::new_with_file_system(
-        file_system,
+    let resolver = ResolverGeneric::new_with_file_system(
+        DynRef::Borrowed(&file_system),
         ResolveOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::Path("/a/abc".into())]),
@@ -79,8 +79,8 @@ fn test() {
 fn resolve_to_context() {
     let file_system = file_system();
 
-    let resolver = ResolverGeneric::<MemoryFS>::new_with_file_system(
-        file_system,
+    let resolver = ResolverGeneric::new_with_file_system(
+        DynRef::Borrowed(&file_system),
         ResolveOptions {
             alias: vec![
                 ("alias1".into(), vec![AliasValue::Path("/a/abc".into())]),

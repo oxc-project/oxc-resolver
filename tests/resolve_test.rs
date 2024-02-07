@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
+use oxc_resolver::{FileSystemOs, ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
