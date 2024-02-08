@@ -17,7 +17,7 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! ```rust,ignore
 #![doc = include_str!("../examples/resolver.rs")]
 //! ```
 
