@@ -1,5 +1,5 @@
 [package]
-version      = "1.4.0"
+version      = "1.5.0"
 name         = "oxc_resolver"
 authors      = ["Boshen <boshenc@gmail.com>"]
 categories   = ["development-tools"]
