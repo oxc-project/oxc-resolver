@@ -38,7 +38,7 @@ impl<'a> Specifier<'a> {
         let mut prev = specifier.chars().next().unwrap();
         let mut escaped_indexes = vec![];
         for (i, c) in specifier.char_indices().skip(skip) {
-            if c == '?' {
+            if c == '?' && query_start.is_none() {
                 query_start = Some(i);
             }
             if c == '#' {
@@ -150,7 +150,10 @@ mod tests {
         let data = [
             ("a?", Some("?"), None),
             ("a?query", Some("?query"), None),
+            ("a?query1?query2", Some("?query1?query2"), None),
+            ("a?query1?query2?query3", Some("?query1?query2?query3"), None),
             ("a#", None, Some("#")),
+            ("a#b#c", None, Some("#b#c")),
             ("a#fragment", None, Some("#fragment")),
             ("a?#", Some("?"), Some("#")),
             ("a?#fragment", Some("?"), Some("#fragment")),
