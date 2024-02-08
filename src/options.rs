@@ -140,6 +140,7 @@ impl ResolveOptions {
     /// let options = ResolveOptions::default().with_condition_names(&["bar"]);
     /// assert_eq!(options.condition_names, vec!["bar".to_string()])
     /// ```
+    #[must_use]
     pub fn with_condition_names(mut self, names: &[&str]) -> Self {
         self.condition_names = names.iter().map(|s| s.to_string()).collect::<Vec<String>>();
         self
@@ -153,6 +154,7 @@ impl ResolveOptions {
     /// let options = ResolveOptions::default().with_builtin_modules(false);
     /// assert_eq!(options.builtin_modules, false)
     /// ```
+    #[must_use]
     pub fn with_builtin_modules(mut self, flag: bool) -> Self {
         self.builtin_modules = flag;
         self
@@ -169,6 +171,7 @@ impl ResolveOptions {
     /// let options = ResolveOptions::default().with_root("foo");
     /// assert_eq!(options.roots, vec![PathBuf::from("foo")])
     /// ```
+    #[must_use]
     pub fn with_root<P: AsRef<Path>>(mut self, root: P) -> Self {
         self.roots.push(root.as_ref().to_path_buf());
         self
