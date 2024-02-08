@@ -142,7 +142,7 @@ impl ResolveOptions {
     /// ```
     #[must_use]
     pub fn with_condition_names(mut self, names: &[&str]) -> Self {
-        self.condition_names = names.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        self.condition_names = names.iter().map(ToString::to_string).collect::<Vec<String>>();
         self
     }
 
