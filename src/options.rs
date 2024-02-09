@@ -35,15 +35,19 @@ pub struct ResolveOptions {
     /// Default `["package.json"]`
     pub description_files: Vec<String>,
 
-    /// If true, it will not allow extension-less files.
-    /// So by default `require('./foo')` works if `./foo` has a `.js` extension,
-    /// but with this enabled only `require('./foo.js')` will work.
+    /// Set to [EnforceExtension::Enabled] for [ESM Mandatory file extensions](https://nodejs.org/api/esm.html#mandatory-file-extensions).
     ///
-    /// Default to `true` when [ResolveOptions::extensions] contains an empty string.
-    /// Use `Some(false)` to disable the behavior.
-    /// See <https://github.com/webpack/enhanced-resolve/pull/285>
+    /// If `enforce_extension` is set to [EnforceExtension::Enabled], resolution will not allow extension-less files.
+    /// This means `require('./foo.js')` will resolve, while `require('./foo')` will not.
     ///
-    /// Default None, which is the same as `Some(false)` when the above empty rule is not applied.
+    /// The default value for `enforce_extension` is [EnforceExtension::Auto], which is changed upon initialization.
+    ///
+    /// It changes to [EnforceExtension::Enabled] if [ResolveOptions::extensions] contains an empty string;
+    /// otherwise, this value changes to [EnforceExtension::Disabled].
+    ///
+    /// Explicitly set the value to [EnforceExtension::Disabled] to disable this automatic behavior.
+    ///
+    /// For reference, this behavior is aligned with `enhanced-resolve`. See <https://github.com/webpack/enhanced-resolve/pull/285>.
     pub enforce_extension: EnforceExtension,
 
     /// A list of exports fields in description files.
