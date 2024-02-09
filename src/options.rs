@@ -51,7 +51,7 @@ pub struct ResolveOptions {
     pub enforce_extension: EnforceExtension,
 
     /// A list of exports fields in description files.
-    /// Can be a path to json object such as `["path", "to", "exports"]`.
+    /// Can be a path to a JSON object such as `["path", "to", "exports"]`.
     ///
     /// Default `[["exports"]]`.
     pub exports_fields: Vec<Vec<String>>,
@@ -178,6 +178,106 @@ impl ResolveOptions {
     #[must_use]
     pub fn with_root<P: AsRef<Path>>(mut self, root: P) -> Self {
         self.roots.push(root.as_ref().to_path_buf());
+        self
+    }
+
+    /// Adds a single extension to the list of extensions
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let options = ResolveOptions::default().with_extension("jsonc");
+    /// assert!(options.extensions.contains(&"jsonc".to_string()));
+    /// ```
+    #[must_use]
+    pub fn with_extension<S: Into<String>>(mut self, extension: S) -> Self {
+        self.extensions.push(extension.into());
+        self
+    }
+
+    /// Adds a single main field to the list of fields
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let options = ResolveOptions::default().with_main_field("something");
+    /// assert!(options.main_fields.contains(&"something".to_string()));
+    /// ```
+    #[must_use]
+    pub fn with_main_field<S: Into<String>>(mut self, field: S) -> Self {
+        self.main_fields.push(field.into());
+        self
+    }
+
+    /// Changes how the extension should be treated
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::{ResolveOptions, EnforceExtension};
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let options = ResolveOptions::default().with_force_extension(EnforceExtension::Enabled);
+    /// assert_eq!(options.enforce_extension, EnforceExtension::Enabled);
+    /// ```
+    #[must_use]
+    pub fn with_force_extension(mut self, enforce_extension: EnforceExtension) -> Self {
+        self.enforce_extension = enforce_extension;
+        self
+    }
+
+    /// Sets the value for [ResolveOptions::fully_specified]
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::{ResolveOptions};
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let options = ResolveOptions::default().with_fully_specified(true);
+    /// assert_eq!(options.fully_specified, true);
+    /// ```
+    #[must_use]
+    pub fn with_fully_specified(mut self, fully_specified: bool) -> Self {
+        self.fully_specified = fully_specified;
+        self
+    }
+    /// Sets the value for [ResolveOptions::prefer_relative]
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::{ResolveOptions};
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let options = ResolveOptions::default().with_prefer_relative(true);
+    /// assert_eq!(options.prefer_relative, true);
+    /// ```
+    #[must_use]
+    pub fn with_prefer_relative(mut self, flag: bool) -> Self {
+        self.prefer_relative = flag;
+        self
+    }
+    /// Sets the value for [ResolveOptions::prefer_absolute]
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::{ResolveOptions};
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let options = ResolveOptions::default().with_prefer_absolute(true);
+    /// assert_eq!(options.prefer_absolute, true);
+    /// ```
+    #[must_use]
+    pub fn with_prefer_absolute(mut self, flag: bool) -> Self {
+        self.prefer_absolute = flag;
         self
     }
 }
