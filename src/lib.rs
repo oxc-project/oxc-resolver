@@ -124,7 +124,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         self.cache.clear();
     }
 
-    /// Resolve `specifier` at absolute `path`
+    /// Resolve `specifier` at an absolute `path`
+    ///
+    /// A specifier is the string passed to require or import, i.e. `require("specifier")` or `import "specifier"`.
+    ///
+    /// The path must be an **absolute** path where the specifier is resolved from.
     ///
     /// # Errors
     ///
