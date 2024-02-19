@@ -18,24 +18,26 @@ fn tsconfig() {
 
     #[rustfmt::skip]
     let pass = [
-        (f.clone(), "ts-path", f.join("foo.js")),
-        (f.join("nested"), "ts-path", f.join("nested/test.js")),
-        (f.join("tsconfig/index"), "foo", f.join("node_modules/tsconfig-index/foo.js")),
+        (f.clone(), None, "ts-path", f.join("foo.js")),
+        (f.join("nested"), None, "ts-path", f.join("nested/test.js")),
+        (f.join("tsconfig/index"), None, "foo", f.join("node_modules/tsconfig-index/foo.js")),
         // This requires reading package.json.tsconfig field
         // (f.join("tsconfig/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
-        (f.join("tsconfig/exports"), "foo", f.join("node_modules/tsconfig-exports/foo.js")),
-        (f.join("tsconfig/extends-extension"), "foo", f.join("tsconfig/extends-extension/foo.js")),
-        (f.join("tsconfig/extends-extensionless"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
+        (f.join("tsconfig/exports"), None, "foo", f.join("node_modules/tsconfig-exports/foo.js")),
+        (f.join("tsconfig/extends-extension"), None, "foo", f.join("tsconfig/extends-extension/foo.js")),
+        (f.join("tsconfig/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
+        (f.join("tsconfig/extends-paths"), Some("src"), "@/index", f.join("tsconfig/extends-paths/src/index.js")),
     ];
 
-    for (path, request, expected) in pass {
+    for (dir, subdir, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
             tsconfig: Some(TsconfigOptions {
-                config_file: path.join("tsconfig.json"),
+                config_file: dir.join("tsconfig.json"),
                 references: TsconfigReferences::Auto,
             }),
             ..ResolveOptions::default()
         });
+        let path = subdir.map_or(dir.clone(), |subdir| dir.join(subdir));
         let resolved_path = resolver.resolve(&path, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {path:?}");
     }

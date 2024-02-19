@@ -87,12 +87,15 @@ impl TsConfig {
 
     pub fn extend_tsconfig(&mut self, tsconfig: &Self) {
         let compiler_options = &mut self.compiler_options;
+        if compiler_options.paths.is_none() {
+            compiler_options.paths_base = compiler_options
+                .base_url
+                .as_ref()
+                .map_or_else(|| tsconfig.compiler_options.paths_base.clone(), Clone::clone);
+            compiler_options.paths = tsconfig.compiler_options.paths.clone();
+        }
         if compiler_options.base_url.is_none() {
             compiler_options.base_url = tsconfig.compiler_options.base_url.clone();
-        }
-        if compiler_options.paths.is_none() {
-            compiler_options.paths_base = tsconfig.compiler_options.paths_base.clone();
-            compiler_options.paths = tsconfig.compiler_options.paths.clone();
         }
     }
 
