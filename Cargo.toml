@@ -87,7 +87,7 @@ json-strip-comments = { version = "1.0.2" }
 codspeed-criterion-compat = { version = "2.3.3", default-features = false, optional = true }
 
 [dev-dependencies]
-vfs            = "0.10.0"                                        # for testing with in memory file system
+vfs            = "0.11.0"                                        # for testing with in memory file system
 rayon          = { version = "1.8.1" }
 criterion      = { version = "0.5.1", default-features = false }
 normalize-path = { version = "0.2.1" }
