@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{AliasValue, ResolveOptions, Resolver, TsconfigOptions};
+use oxc_resolver::{AliasValue, ResolveOptions, Resolver};
 
 fn main() {
     // Path to directory, must be in absolute path.
