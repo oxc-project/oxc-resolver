@@ -2,7 +2,7 @@
 
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{Resolution, ResolveContext, ResolveOptions, Resolver};
+use oxc_resolver::{EnforceExtension, Resolution, ResolveContext, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -68,4 +68,18 @@ fn dependencies() {
     );
     assert!(!ctx.file_dependencies.is_empty());
     assert!(ctx.missing_dependencies.is_empty());
+}
+
+#[test]
+fn options_api() {
+    _ = ResolveOptions::default()
+        .with_condition_names(&[])
+        .with_builtin_modules(true)
+        .with_root(PathBuf::new())
+        .with_extension(".js")
+        .with_force_extension(EnforceExtension::Auto)
+        .with_main_field("asdf")
+        .with_fully_specified(true)
+        .with_prefer_relative(true)
+        .with_prefer_absolute(true);
 }

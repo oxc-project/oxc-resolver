@@ -1,7 +1,7 @@
 use crate::error::SpecifierError;
 use std::borrow::Cow;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct Specifier<'a> {
     path: Cow<'a, str>,
     pub query: Option<&'a str>,

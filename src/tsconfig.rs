@@ -106,11 +106,9 @@ impl TsConfig {
                 return paths;
             }
         }
-        for reference in &self.references {
-            if let Some(tsconfig) = &reference.tsconfig {
-                if path.starts_with(tsconfig.base_path()) {
-                    return tsconfig.resolve_path_alias(specifier);
-                }
+        for tsconfig in self.references.iter().filter_map(|reference| reference.tsconfig.as_ref()) {
+            if path.starts_with(tsconfig.base_path()) {
+                return tsconfig.resolve_path_alias(specifier);
             }
         }
         vec![]
