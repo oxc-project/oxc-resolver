@@ -52,7 +52,7 @@ use crate::{
     context::ResolveContext as Ctx,
     file_system::FileSystemOs,
     package_json::{ExportsField, ExportsKey, MatchObject},
-    path::PathUtil,
+    path::{PathUtil, SLASH_START},
     specifier::Specifier,
     tsconfig::{ProjectReference, TsConfig},
 };
@@ -282,7 +282,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
-        debug_assert!(specifier.starts_with(|c| c == '/' || c == '\\'));
         if !self.options.prefer_relative && self.options.prefer_absolute {
             if let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx) {
                 return Ok(path);
@@ -301,7 +300,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 let cached_path = self.cache.value(root);
                 if let Ok(path) = self.require_relative(
                     &cached_path,
-                    specifier.trim_start_matches(|c| c == '/' || c == '\\'),
+                    specifier.trim_start_matches(SLASH_START),
                     ctx,
                 ) {
                     return Ok(path);
@@ -905,7 +904,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 }
 
                 // Remove the leading slash so the final path is concatenated.
-                let tail = tail.trim_start_matches(|c| c == '/' || c == '\\');
+                let tail = tail.trim_start_matches(SLASH_START);
                 let normalized = alias_value.normalize_with(tail);
                 Cow::Owned(normalized.to_string_lossy().to_string())
             };
@@ -1578,6 +1577,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     fn strip_package_name<'a>(specifier: &'a str, package_name: &'a str) -> Option<&'a str> {
         specifier
             .strip_prefix(package_name)
-            .filter(|tail| tail.is_empty() || tail.starts_with('/') || tail.starts_with('\\'))
+            .filter(|tail| tail.is_empty() || tail.starts_with(SLASH_START))
     }
 }
