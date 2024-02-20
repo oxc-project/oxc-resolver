@@ -217,6 +217,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/pnpm
       - uses: ./.github/actions/rustup
-      - run: |
-          cargo test --quiet
-          cargo test --doc --quiet
+      - run: cargo test
