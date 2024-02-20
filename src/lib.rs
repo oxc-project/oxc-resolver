@@ -42,7 +42,7 @@ use std::{
     cmp::Ordering,
     ffi::OsStr,
     fmt,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
@@ -246,14 +246,24 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             return Ok(path);
         }
 
-        match specifier.as_bytes()[0] {
+        match Path::new(specifier).components().next() {
             // 3. If X begins with './' or '/' or '../'
-            b'/' | b'\\' => self.require_absolute(cached_path, specifier, ctx),
+            Some(Component::RootDir | Component::Prefix(_)) => {
+                self.require_absolute(cached_path, specifier, ctx)
+            }
             // 3. If X begins with './' or '/' or '../'
-            b'.' => self.require_relative(cached_path, specifier, ctx),
+            Some(Component::CurDir | Component::ParentDir) => {
+                self.require_relative(cached_path, specifier, ctx)
+            }
             // 4. If X begins with '#'
-            b'#' => self.require_hash(cached_path, specifier, ctx),
+            Some(Component::Normal(_)) if specifier.as_bytes()[0] == b'#' => {
+                self.require_hash(cached_path, specifier, ctx)
+            }
             _ => {
+                debug_assert!(Path::new(specifier)
+                    .components()
+                    .next()
+                    .is_some_and(|c| matches!(c, Component::Normal(_))));
                 // 1. If X is a core module,
                 //   a. return the core module
                 //   b. STOP
@@ -557,7 +567,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
 
     fn load_index(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
         for main_file in &self.options.main_files {
-            let main_path = cached_path.path().join(main_file);
+            let main_path = cached_path.path().normalize_with(main_file);
             let cached_path = self.cache.value(&main_path);
             if self.options.enforce_extension.is_disabled() {
                 if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
@@ -622,7 +632,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 // 1. Try to interpret X as a combination of NAME and SUBPATH where the name
                 //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
                 if !package_name.is_empty() {
-                    let package_path = cached_path.path().join(package_name);
+                    let package_path = cached_path.path().normalize_with(package_name);
                     let cached_path = self.cache.value(&package_path);
                     // Try foo/node_modules/package_name
                     if cached_path.is_dir(&self.cache.fs, ctx) {
@@ -1055,7 +1065,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                     continue;
                 };
                 // 2. Set parentURL to the parent folder URL of parentURL.
-                let package_path = cached_path.path().join(package_name);
+                let package_path = cached_path.path().normalize_with(package_name);
                 let cached_path = self.cache.value(&package_path);
                 // 3. If the folder at packageURL does not exist, then
                 //   1. Continue the next loop iteration.
@@ -1407,7 +1417,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                         package_url.join("package.json"),
                     ));
                 }
-                let resolved_target = package_url.join(target.as_ref()).normalize();
+                let resolved_target = package_url.normalize_with(target.as_ref());
                 // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
                 // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
                 let value = self.cache.value(&resolved_target);

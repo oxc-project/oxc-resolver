@@ -120,16 +120,19 @@ fn alias() {
     }
 }
 
+// Not part of enhanced-resolve
 #[test]
-fn absolute_path() {
+fn infinite_recursion() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
-        alias: vec![(f.join("foo").to_str().unwrap().to_string(), vec![AliasValue::Ignore])],
-        modules: vec![f.clone().to_str().unwrap().to_string()],
+        alias: vec![
+            ("./a".into(), vec![AliasValue::Path("./b".into())]),
+            ("./b".into(), vec![AliasValue::Path("./a".into())]),
+        ],
         ..ResolveOptions::default()
     });
-    let resolution = resolver.resolve(&f, "foo/index");
-    assert_eq!(resolution, Err(ResolveError::Ignored(f.join("foo"))));
+    let resolution = resolver.resolve(f, "./a");
+    assert_eq!(resolution, Err(ResolveError::Recursion));
 }
 
 fn check_slash(path: &Path) {
@@ -147,6 +150,18 @@ fn check_slash(path: &Path) {
 }
 
 #[test]
+fn absolute_path() {
+    let f = super::fixture();
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![(f.join("foo").to_str().unwrap().to_string(), vec![AliasValue::Ignore])],
+        modules: vec![f.clone().to_str().unwrap().to_string()],
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve(&f, "foo/index");
+    assert_eq!(resolution, Err(ResolveError::Ignored(f.join("foo"))));
+}
+
+#[test]
 fn system_path() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
@@ -156,24 +171,14 @@ fn system_path() {
         )],
         ..ResolveOptions::default()
     });
-    let path = resolver.resolve(&f, "@app/files/a").map(Resolution::into_path_buf).unwrap();
-    assert_eq!(path, f.join("alias/files/a.js"));
-    check_slash(&path);
-}
 
-// Not part of enhanced-resolve
-#[test]
-fn infinite_recursion() {
-    let f = super::fixture();
-    let resolver = Resolver::new(ResolveOptions {
-        alias: vec![
-            ("./a".into(), vec![AliasValue::Path("./b".into())]),
-            ("./b".into(), vec![AliasValue::Path("./a".into())]),
-        ],
-        ..ResolveOptions::default()
-    });
-    let resolution = resolver.resolve(f, "./a");
-    assert_eq!(resolution, Err(ResolveError::Recursion));
+    let specifiers = ["@app/files/a", "@app/files/a.js"];
+
+    for specifier in specifiers {
+        let path = resolver.resolve(&f, specifier).map(Resolution::into_path_buf).unwrap();
+        assert_eq!(path, f.join("alias/files/a.js"));
+        check_slash(&path);
+    }
 }
 
 #[test]
@@ -191,6 +196,7 @@ fn alias_is_full_path() {
 
     let specifiers = [
         "@/index".to_string(),
+        "@/index.js".to_string(),
         // specifier has multiple `/` for reasons we'll never know
         "@////index".to_string(),
         // specifier is a full path
