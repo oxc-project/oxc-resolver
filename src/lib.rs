@@ -260,10 +260,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 self.require_hash(cached_path, specifier, ctx)
             }
             _ => {
-                debug_assert!(Path::new(specifier)
-                    .components()
-                    .next()
-                    .is_some_and(|c| matches!(c, Component::Normal(_))));
                 // 1. If X is a core module,
                 //   a. return the core module
                 //   b. STOP
@@ -292,6 +288,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
+        // Make sure only path prefixes gets called
+        debug_assert!(Path::new(specifier)
+            .components()
+            .next()
+            .is_some_and(|c| matches!(c, Component::RootDir | Component::Prefix(_))));
         if !self.options.prefer_relative && self.options.prefer_absolute {
             if let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx) {
                 return Ok(path);
@@ -327,6 +328,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
+        // Make sure only relative or normal paths gets called
+        debug_assert!(Path::new(specifier).components().next().is_some_and(|c| matches!(
+            c,
+            Component::CurDir | Component::ParentDir | Component::Normal(_)
+        )));
         let path = cached_path.path().normalize_with(specifier);
         let cached_path = self.cache.value(&path);
         // a. LOAD_AS_FILE(Y + X)
@@ -344,6 +350,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
+        debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
         if let Some(path) = self.load_package_imports(cached_path, specifier, ctx)? {
             return Ok(path);
@@ -357,6 +364,11 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
+        // Make sure no other path prefixes gets called
+        debug_assert!(Path::new(specifier)
+            .components()
+            .next()
+            .is_some_and(|c| matches!(c, Component::Normal(_))));
         if self.options.prefer_relative {
             if let Ok(path) = self.require_relative(cached_path, specifier, ctx) {
                 return Ok(path);
