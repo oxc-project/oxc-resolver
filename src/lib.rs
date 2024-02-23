@@ -46,17 +46,8 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    builtins::BUILTINS,
-    cache::{Cache, CachedPath},
-    context::ResolveContext as Ctx,
-    file_system::FileSystemOs,
-    package_json::{ExportsField, ExportsKey, MatchObject},
-    path::{PathUtil, SLASH_START},
-    specifier::Specifier,
-    tsconfig::{ProjectReference, TsConfig},
-};
 pub use crate::{
+    builtins::NODEJS_BUILTINS,
     error::{JSONError, ResolveError, SpecifierError},
     file_system::{FileMetadata, FileSystem},
     options::{
@@ -65,6 +56,15 @@ pub use crate::{
     },
     package_json::PackageJson,
     resolution::Resolution,
+};
+use crate::{
+    cache::{Cache, CachedPath},
+    context::ResolveContext as Ctx,
+    file_system::FileSystemOs,
+    package_json::{ExportsField, ExportsKey, MatchObject},
+    path::{PathUtil, SLASH_START},
+    specifier::Specifier,
+    tsconfig::{ProjectReference, TsConfig},
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
@@ -275,7 +275,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
 
     fn require_core(&self, specifier: &str) -> Result<(), ResolveError> {
         if self.options.builtin_modules
-            && (specifier.starts_with("node:") || BUILTINS.binary_search(&specifier).is_ok())
+            && (specifier.starts_with("node:") || NODEJS_BUILTINS.binary_search(&specifier).is_ok())
         {
             return Err(ResolveError::Builtin(specifier.to_string()));
         }
