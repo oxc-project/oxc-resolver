@@ -465,7 +465,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_resolver"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "codspeed-criterion-compat",
  "criterion",
