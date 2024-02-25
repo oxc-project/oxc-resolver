@@ -73,8 +73,8 @@ name = "resolver"
 [dependencies]
 tracing = { version = "0.1" }
 dashmap = { version = "5.5.3" }
-serde = { version = "1.0.196", features = ["derive"] } # derive for Deserialize from package.json
-serde_json = { version = "1.0.113", features = [
+serde = { version = "1.0.197", features = ["derive"] } # derive for Deserialize from package.json
+serde_json = { version = "1.0.114", features = [
   "preserve_order",
 ] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
 rustc-hash = { version = "1.1.0", default-features = false, features = ["std"] }
