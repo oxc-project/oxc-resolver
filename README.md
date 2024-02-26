@@ -77,7 +77,7 @@ const esmResolver = ResolverFactory({
 });
 
 const cjsResolver = esmResolver.cloneWithOptions({
-  conditionNames: ["node", "import"]
+  conditionNames: ["node", "require"]
 });
 ```
 
