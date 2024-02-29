@@ -45,7 +45,7 @@ impl TsConfig {
 
         let data: TsConfigJson = serde_json::from_str(json)?;
 
-        let mut tsconfig = TsConfig {
+        let mut tsconfig = Self {
             path: path.to_path_buf(),
             paths_base: PathBuf::new(),
             references: data.references.as_ref().map_or_else(Vec::new, |refs| {

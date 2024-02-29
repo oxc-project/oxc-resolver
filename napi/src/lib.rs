@@ -157,6 +157,7 @@ impl ResolverFactory {
                 .unwrap_or(default.roots),
             symlinks: op.symlinks.unwrap_or(default.symlinks),
             builtin_modules: op.builtin_modules.unwrap_or(default.builtin_modules),
+            reduce_memory_usage: op.reduce_memory_usage.unwrap_or(default.reduce_memory_usage),
         }
     }
 }

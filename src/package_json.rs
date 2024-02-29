@@ -64,7 +64,7 @@ impl PackageJson {
         json: &str,
         options: &ResolveOptions,
     ) -> Result<Self, serde_json::Error> {
-        let data: BasePackageJson = serde_json::from_str(json)?;
+        let mut data: BasePackageJson = serde_json::from_str(json)?;
 
         let mut package_json = Self::default();
         package_json.main_fields.reserve_exact(options.main_fields.len());
@@ -151,6 +151,22 @@ impl PackageJson {
 
         package_json.path = path;
         package_json.realpath = realpath;
+
+        // Remove large fields that are useless for pragmatic use
+        if options.reduce_memory_usage {
+            data.scripts = None;
+            data.dependencies = None;
+            data.dependencies_meta = None;
+            data.dev_dependencies = None;
+            data.peer_dependencies = None;
+            data.peer_dependencies_meta = None;
+            data.bundle_dependencies = None;
+            data.optional_dependencies = None;
+            data.imports = None;
+            data.exports = None;
+            data.browser = None;
+        }
+
         package_json.data = data;
 
         Ok(package_json)
