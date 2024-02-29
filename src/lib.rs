@@ -62,11 +62,11 @@ use crate::{
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
     file_system::FileSystemOs,
-    package_json::{ExportsField, ExportsKey, MatchObject},
     path::{PathUtil, SLASH_START},
     specifier::Specifier,
     tsconfig::{ProjectReference, TsConfig},
 };
+use nodejs_package_json::{ImportExportField, ImportExportKey, ImportExportMap};
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
@@ -1133,17 +1133,18 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         &self,
         package_url: &Path,
         subpath: &str,
-        exports: &ExportsField,
+        exports: &ImportExportField,
         conditions: &[String],
         ctx: &mut Ctx,
     ) -> ResolveResult {
         // 1. If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
-        if let ExportsField::Map(map) = exports {
+        if let ImportExportField::Map(map) = exports {
             let mut has_dot = false;
             let mut without_dot = false;
             for key in map.keys() {
-                has_dot = has_dot || matches!(key, ExportsKey::Main | ExportsKey::Pattern(_));
-                without_dot = without_dot || matches!(key, ExportsKey::CustomCondition(_));
+                has_dot =
+                    has_dot || matches!(key, ImportExportKey::Main | ImportExportKey::Pattern(_));
+                without_dot = without_dot || matches!(key, ImportExportKey::CustomCondition(_));
                 if has_dot && without_dot {
                     return Err(ResolveError::InvalidPackageConfig(
                         package_url.join("package.json"),
@@ -1155,7 +1156,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         // Note: subpath is not prepended with a dot when passed in.
         if subpath.is_empty() {
             // enhanced-resolve appends query and fragment when resolving exports field
-            // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/lib/ExportsFieldPlugin.js#L57-L62
+            // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/lib/ImportExportFieldPlugin.js#L57-L62
             // This is only need when querying the main export, otherwise ctx is passed through.
             if ctx.query.is_some() || ctx.fragment.is_some() {
                 let query = ctx.query.clone().unwrap_or_default();
@@ -1167,18 +1168,18 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             }
             // 1. Let mainExport be undefined.
             let main_export = match exports {
-                ExportsField::None => None,
+                ImportExportField::None => None,
                 // 2. If exports is a String or Array, or an Object containing no keys starting with ".", then
-                ExportsField::String(_) | ExportsField::Array(_) => {
+                ImportExportField::String(_) | ImportExportField::Array(_) => {
                     // 1. Set mainExport to exports.
                     Some(exports)
                 }
                 // 3. Otherwise if exports is an Object containing a "." property, then
-                ExportsField::Map(map) => {
+                ImportExportField::Map(map) => {
                     // 1. Set mainExport to exports["."].
-                    map.get(&ExportsKey::Main).map_or_else(
+                    map.get(&ImportExportKey::Main).map_or_else(
                         || {
-                            if map.keys().any(|key| matches!(key, ExportsKey::Pattern(_))) {
+                            if map.keys().any(|key| matches!(key, ImportExportKey::Pattern(_))) {
                                 None
                             } else {
                                 Some(exports)
@@ -1207,7 +1208,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             }
         }
         // 3. Otherwise, if exports is an Object and all keys of exports start with ".", then
-        if let ExportsField::Map(exports) = exports {
+        if let ImportExportField::Map(exports) = exports {
             // 1. Let matchKey be the string "./" concatenated with subpath.
             // Note: `package_imports_exports_resolve` does not require the leading dot.
             let match_key = &subpath;
@@ -1275,7 +1276,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     fn package_imports_exports_resolve(
         &self,
         match_key: &str,
-        match_obj: &MatchObject,
+        match_obj: &ImportExportMap,
         package_url: &Path,
         is_imports: bool,
         conditions: &[String],
@@ -1289,7 +1290,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         // 1. If matchKey is a key of matchObj and does not contain "*", then
         if !match_key.contains('*') {
             // 1. Let target be the value of matchObj[matchKey].
-            if let Some(target) = match_obj.get(&ExportsKey::Pattern(match_key.to_string())) {
+            if let Some(target) = match_obj.get(&ImportExportKey::Pattern(match_key.to_string())) {
                 // 2. Return the result of PACKAGE_TARGET_RESOLVE(packageURL, target, null, isImports, conditions).
                 return self.package_target_resolve(
                     package_url,
@@ -1309,7 +1310,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         // 2. Let expansionKeys be the list of keys of matchObj containing only a single "*", sorted by the sorting function PATTERN_KEY_COMPARE which orders in descending order of specificity.
         // 3. For each key expansionKey in expansionKeys, do
         for (expansion_key, target) in match_obj {
-            if let ExportsKey::Pattern(expansion_key) = expansion_key {
+            if let ImportExportKey::Pattern(expansion_key) = expansion_key {
                 // 1. Let patternBase be the substring of expansionKey up to but excluding the first "*" character.
                 if let Some((pattern_base, pattern_trailer)) = expansion_key.split_once('*') {
                     // 2. If matchKey starts with but is not equal to patternBase, then
@@ -1362,7 +1363,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         &self,
         package_url: &Path,
         target_key: &str,
-        target: &ExportsField,
+        target: &ImportExportField,
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
@@ -1395,9 +1396,9 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         }
 
         match target {
-            ExportsField::None => {}
+            ImportExportField::None => {}
             // 1. If target is a String, then
-            ExportsField::String(target) => {
+            ImportExportField::String(target) => {
                 // 1. If target does not start with "./", then
                 if !target.starts_with("./") {
                     // 1. If isImports is false, or if target starts with "../" or "/", or if target is a valid URL, then
@@ -1438,14 +1439,14 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 return Ok(Some(value));
             }
             // 2. Otherwise, if target is a non-null Object, then
-            ExportsField::Map(target) => {
+            ImportExportField::Map(target) => {
                 // 1. If exports contains any index property keys, as defined in ECMA-262 6.1.7 Array Index, throw an Invalid Package Configuration error.
                 // 2. For each property p of target, in object insertion order as,
                 for (i, (key, target_value)) in target.iter().enumerate() {
                     // https://nodejs.org/api/packages.html#conditional-exports
                     // "default" - the generic fallback that always matches. Can be a CommonJS or ES module file. This condition should always come last.
                     // Note: node.js does not throw this but enhanced-resolve does.
-                    let is_default = matches!(key, ExportsKey::CustomCondition(condition) if condition == "default");
+                    let is_default = matches!(key, ImportExportKey::CustomCondition(condition) if condition == "default");
                     if i < target.len() - 1 && is_default {
                         return Err(ResolveError::InvalidPackageConfigDefault(
                             package_url.join("package.json"),
@@ -1454,7 +1455,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
 
                     // 1. If p equals "default" or conditions contains an entry for p, then
                     if is_default
-                        || matches!(key, ExportsKey::CustomCondition(condition) if conditions.contains(condition))
+                        || matches!(key, ImportExportKey::CustomCondition(condition) if conditions.contains(condition))
                     {
                         // 1. Let targetValue be the value of the p property in target.
                         // 2. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions).
@@ -1478,7 +1479,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
                 return Ok(None);
             }
             // 3. Otherwise, if target is an Array, then
-            ExportsField::Array(targets) => {
+            ImportExportField::Array(targets) => {
                 // 1. If _target.length is zero, return null.
                 if targets.is_empty() {
                     // Note: return PackagePathNotExported has the same effect as return because there are no matches.

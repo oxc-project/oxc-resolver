@@ -84,6 +84,7 @@ once_cell = "1.19.0" # Use `std::sync::OnceLock::get_or_try_init` when it is sta
 thiserror = { version = "1.0.57" }
 json-strip-comments = { version = "1.0.2" }
 typescript_tsconfig_json = { version = "0.1.1" }
+nodejs_package_json = { version = "0.1.1" }
 
 codspeed-criterion-compat = { version = "2.4.0", default-features = false, optional = true }
 

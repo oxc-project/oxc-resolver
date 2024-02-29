@@ -2,18 +2,16 @@
 //!
 //! Code related to export field are copied from [Parcel's resolver](https://github.com/parcel-bundler/parcel/blob/v2/packages/utils/node-resolver-rs/src/package_json.rs)
 use std::{
-    hash::BuildHasherDefault,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use indexmap::IndexMap;
-use rustc_hash::{FxHashMap, FxHasher};
-use serde::{Deserialize, Deserializer};
+use nodejs_package_json::{
+    BrowserField, ImportExportField, ImportExportMap, PackageJson as BasePackageJson,
+};
+use serde::Deserialize;
 
 use crate::{path::PathUtil, ResolveError, ResolveOptions};
-
-type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
 /// Deserialized package.json
 #[derive(Debug, Deserialize)]
@@ -48,13 +46,13 @@ pub struct PackageJson {
     ///
     /// <https://nodejs.org/api/packages.html#exports>
     #[serde(skip)]
-    pub(crate) exports: Vec<ExportsField>,
+    pub(crate) exports: Vec<ImportExportField>,
 
     /// In addition to the "exports" field, there is a package "imports" field to create private mappings that only apply to import specifiers from within the package itself.
     ///
     /// <https://nodejs.org/api/packages.html#subpath-imports>
     #[serde(default)]
-    pub(crate) imports: Box<MatchObject>,
+    pub(crate) imports: Box<ImportExportMap>,
 
     /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
     /// Multiple values are configured by [ResolveOptions::alias_fields].
@@ -62,58 +60,6 @@ pub struct PackageJson {
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     #[serde(skip)]
     pub(crate) browser_fields: Vec<BrowserField>,
-}
-
-/// `matchObj` defined in `PACKAGE_IMPORTS_EXPORTS_RESOLVE`
-/// This is an IndexMap provided by the `preserve_order` feature.
-pub type MatchObject = FxIndexMap<ExportsKey, ExportsField>;
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(untagged)]
-pub enum ExportsField {
-    #[default]
-    None, // For `undefined` or `null` value.
-    String(String),
-    Array(Vec<ExportsField>),
-    Map(MatchObject),
-}
-
-#[derive(Debug, Eq, PartialEq, Hash)]
-pub enum ExportsKey {
-    Main,
-    Pattern(String),
-    CustomCondition(String),
-}
-
-impl From<&str> for ExportsKey {
-    fn from(key: &str) -> Self {
-        if key == "." {
-            Self::Main
-        } else if key.starts_with("./") {
-            Self::Pattern(key.trim_start_matches('.').to_string())
-        } else if key.starts_with('#') {
-            Self::Pattern(key.to_string())
-        } else {
-            Self::CustomCondition(key.to_string())
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for ExportsKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: &'de str = Deserialize::deserialize(deserializer)?;
-        Ok(Self::from(s))
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum BrowserField {
-    String(String),
-    Map(FxHashMap<PathBuf, serde_json::Value>),
 }
 
 impl PackageJson {
@@ -125,6 +71,8 @@ impl PackageJson {
         json: &str,
         options: &ResolveOptions,
     ) -> Result<Self, serde_json::Error> {
+        // let data: BasePackageJson = serde_json::from_str(json)?;
+
         let mut package_json_value: serde_json::Value = serde_json::from_str(json)?;
         let mut package_json: Self = Self::deserialize(&package_json_value)?;
         package_json.main_fields.reserve_exact(options.main_fields.len());
@@ -172,7 +120,7 @@ impl PackageJson {
         // Dynamically create `exports`.
         for object_path in &options.exports_fields {
             if let Some(exports) = Self::get_value_by_path(&package_json_value, object_path) {
-                let exports = ExportsField::deserialize(exports)?;
+                let exports = ImportExportField::deserialize(exports)?;
                 package_json.exports.push(exports);
             }
         }

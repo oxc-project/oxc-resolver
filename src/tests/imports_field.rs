@@ -4,7 +4,7 @@
 
 use serde_json::json;
 
-use crate::{Ctx, MatchObject, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{Ctx, ImportExportMap, PathUtil, ResolveError, ResolveOptions, Resolver};
 use std::path::Path;
 
 #[test]
@@ -68,13 +68,13 @@ fn test() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    imports_field: MatchObject,
+    imports_field: ImportExportMap,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn imports_field(value: serde_json::Value) -> MatchObject {
+fn imports_field(value: serde_json::Value) -> ImportExportMap {
     let s = serde_json::to_string(&value).unwrap();
     serde_json::from_str(&s).unwrap()
 }
