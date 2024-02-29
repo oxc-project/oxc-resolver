@@ -45,6 +45,7 @@ use std::{
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
+use typescript_tsconfig_json::ExtendsField;
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
@@ -1000,7 +1001,8 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
             // Extend tsconfig
-            if let Some(tsconfig_extend_specifier) = &tsconfig.extends {
+            // TODO multiple extends
+            if let Some(ExtendsField::Single(tsconfig_extend_specifier)) = &tsconfig.data.extends {
                 let extended_tsconfig_path = match tsconfig_extend_specifier.as_bytes().first() {
                     None => {
                         return Err(ResolveError::Specifier(SpecifierError::Empty(
