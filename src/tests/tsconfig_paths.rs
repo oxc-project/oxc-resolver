@@ -12,16 +12,16 @@ fn tsconfig() {
     let f = super::fixture_root().join("parcel");
 
     #[rustfmt::skip]
-    let pass: [(PathBuf, std::option::Option<&str>, &str, PathBuf); 1] = [
-        // (f.clone(), None, "ts-path", f.join("foo.js")),
-        // (f.join("nested"), None, "ts-path", f.join("nested/test.js")),
+    let pass = [
+        (f.clone(), None, "ts-path", f.join("foo.js")),
+        (f.join("nested"), None, "ts-path", f.join("nested/test.js")),
         (f.join("tsconfig/index"), None, "foo", f.join("node_modules/tsconfig-index/foo.js")),
-        // // This requires reading package.json.tsconfig field
-        // // (f.join("tsconfig/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
-        // (f.join("tsconfig/exports"), None, "foo", f.join("node_modules/tsconfig-exports/foo.js")),
-        // (f.join("tsconfig/extends-extension"), None, "foo", f.join("tsconfig/extends-extension/foo.js")),
-        // (f.join("tsconfig/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
-        // (f.join("tsconfig/extends-paths"), Some("src"), "@/index", f.join("tsconfig/extends-paths/src/index.js")),
+        // This requires reading package.json.tsconfig field
+        // (f.join("tsconfig/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
+        (f.join("tsconfig/exports"), None, "foo", f.join("node_modules/tsconfig-exports/foo.js")),
+        (f.join("tsconfig/extends-extension"), None, "foo", f.join("tsconfig/extends-extension/foo.js")),
+        (f.join("tsconfig/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
+        (f.join("tsconfig/extends-paths"), Some("src"), "@/index", f.join("tsconfig/extends-paths/src/index.js")),
     ];
 
     for (dir, subdir, request, expected) in pass {

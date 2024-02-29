@@ -5,7 +5,7 @@ use std::{
 
 use crate::PathUtil;
 use serde::Deserialize;
-use typescript_tsconfig_json::TsConfigJson;
+use typescript_tsconfig_json::{CompilerOptions, TsConfigJson};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,22 +91,20 @@ impl TsConfig {
     }
 
     pub fn extend_tsconfig(&mut self, tsconfig: &Self) {
-        if let Some(compiler_options) = &mut self.data.compiler_options {
-            if compiler_options.paths.is_none() {
-                self.paths_base = compiler_options
+        if let Some(their_options) = &tsconfig.data.compiler_options {
+            let my_options = self.data.compiler_options.get_or_insert(CompilerOptions::default());
+
+            if my_options.paths.is_none() {
+                self.paths_base = my_options
                     .base_url
                     .as_ref()
                     .map_or_else(|| tsconfig.paths_base.clone(), Clone::clone);
 
-                if let Some(other_options) = &tsconfig.data.compiler_options {
-                    compiler_options.paths = other_options.paths.clone();
-                }
+                my_options.paths = their_options.paths.clone();
             }
 
-            if compiler_options.base_url.is_none() {
-                if let Some(other_options) = &tsconfig.data.compiler_options {
-                    compiler_options.base_url = other_options.base_url.clone();
-                }
+            if my_options.base_url.is_none() {
+                my_options.base_url = their_options.base_url.clone();
             }
         }
     }
