@@ -14,13 +14,14 @@ pub struct TsConfig {
     #[serde(skip)]
     path: PathBuf,
 
-    // Base url for compiler optin paths.
+    // Base url for compiler option paths.
     #[serde(skip)]
     paths_base: PathBuf,
 
     /// The deserialized `tsconfig.json`.
     pub data: TsConfigJson,
 
+    /// Bubbled up project references with a reference to their tsconfig.
     #[serde(default)]
     pub references: Vec<ProjectReference>,
 }
@@ -66,8 +67,6 @@ impl TsConfig {
                     compiler_options.base_url.as_ref().map_or(directory, Clone::clone);
             }
         }
-
-        dbg!(&tsconfig);
 
         Ok(tsconfig)
     }
