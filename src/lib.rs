@@ -1157,7 +1157,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         // Note: subpath is not prepended with a dot when passed in.
         if subpath.is_empty() {
             // enhanced-resolve appends query and fragment when resolving exports field
-            // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/lib/ImportExportFieldPlugin.js#L57-L62
+            // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/lib/ExportsFieldPlugin.js#L57-L62
             // This is only need when querying the main export, otherwise ctx is passed through.
             if ctx.query.is_some() || ctx.fragment.is_some() {
                 let query = ctx.query.clone().unwrap_or_default();

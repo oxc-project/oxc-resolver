@@ -1,7 +1,10 @@
 //! package.json definitions
 //!
 //! Code related to export field are copied from [Parcel's resolver](https://github.com/parcel-bundler/parcel/blob/v2/packages/utils/node-resolver-rs/src/package_json.rs)
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use nodejs_package_json::{
     BrowserField, ImportExportField, ImportExportMap, PackageJson as BasePackageJson,
@@ -17,11 +20,14 @@ use crate::{path::PathUtil, ResolveError, ResolveOptions};
 pub struct PackageJson {
     /// Path to `package.json`. Contains the `package.json` filename.
     #[serde(skip)]
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
 
     /// Realpath to `package.json`. Contains the `package.json` filename.
     #[serde(skip)]
-    pub(crate) realpath: PathBuf,
+    pub realpath: PathBuf,
+
+    #[serde(skip)]
+    pub(crate) raw_json: Arc<serde_json::Value>,
 
     /// The deserialized `package.json`.
     pub data: BasePackageJson,
@@ -64,7 +70,8 @@ impl PackageJson {
         json: &str,
         options: &ResolveOptions,
     ) -> Result<Self, serde_json::Error> {
-        let mut data: BasePackageJson = serde_json::from_str(json)?;
+        let mut raw_json: Value = serde_json::from_str(json)?;
+        let mut data: BasePackageJson = serde_json::from_value(raw_json.clone())?;
 
         let mut package_json = Self::default();
         package_json.main_fields.reserve_exact(options.main_fields.len());
@@ -153,7 +160,7 @@ impl PackageJson {
         package_json.realpath = realpath;
 
         // Remove large fields that are useless for pragmatic use
-        if options.reduce_memory_usage {
+        if options.remove_unused_fields {
             data.scripts = None;
             data.dependencies = None;
             data.dependencies_meta = None;
@@ -165,9 +172,20 @@ impl PackageJson {
             data.imports = None;
             data.exports = None;
             data.browser = None;
+
+            if let Some(raw_json) = raw_json.as_object_mut() {
+                raw_json.remove("description");
+                raw_json.remove("keywords");
+                raw_json.remove("scripts");
+                raw_json.remove("dependencies");
+                raw_json.remove("devDependencies");
+                raw_json.remove("peerDependencies");
+                raw_json.remove("optionalDependencies");
+            }
         }
 
         package_json.data = data;
+        package_json.raw_json = Arc::new(raw_json);
 
         Ok(package_json)
     }
@@ -190,6 +208,19 @@ impl PackageJson {
             }
         }
         Some(value)
+    }
+
+    /// Raw serde json value of `package.json`.
+    ///
+    /// This is currently used in Rspack for:
+    /// * getting the `sideEffects` field
+    /// * query in <https://www.rspack.dev/config/module.html#ruledescriptiondata> - search on GitHub indicates query on the `type` field.
+    ///
+    /// To reduce overall memory consumption, large fields that useless for pragmatic use are removed.
+    /// They are: `description`, `keywords`, `scripts`,
+    /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
+    pub fn raw_json(&self) -> &Arc<serde_json::Value> {
+        &self.raw_json
     }
 
     /// Directory to `package.json`
