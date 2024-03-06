@@ -2,7 +2,7 @@
 //!
 //! The huge exports field test cases are at the bottom of this file.
 
-use crate::{Ctx, ExportsField, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{Ctx, ImportExportField, PathUtil, ResolveError, ResolveOptions, Resolver};
 use serde_json::json;
 use std::path::Path;
 
@@ -276,13 +276,13 @@ fn extension_alias_throw_error() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    exports_field: ExportsField,
+    exports_field: ImportExportField,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn exports_field(value: serde_json::Value) -> ExportsField {
+fn exports_field(value: serde_json::Value) -> ImportExportField {
     let s = serde_json::to_string(&value).unwrap();
     serde_json::from_str(&s).unwrap()
 }

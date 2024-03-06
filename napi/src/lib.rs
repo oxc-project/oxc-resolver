@@ -157,6 +157,7 @@ impl ResolverFactory {
                 .unwrap_or(default.roots),
             symlinks: op.symlinks.unwrap_or(default.symlinks),
             builtin_modules: op.builtin_modules.unwrap_or(default.builtin_modules),
+            remove_unused_fields: op.remove_unused_fields.unwrap_or(default.remove_unused_fields),
         }
     }
 }
