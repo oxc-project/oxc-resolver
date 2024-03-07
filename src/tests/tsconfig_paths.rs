@@ -22,6 +22,7 @@ fn tsconfig() {
         (f.join("tsconfig/extends-extension"), None, "foo", f.join("tsconfig/extends-extension/foo.js")),
         (f.join("tsconfig/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
         (f.join("tsconfig/extends-paths"), Some("src"), "@/index", f.join("tsconfig/extends-paths/src/index.js")),
+        (f.join("tsconfig/extends-multiple"), None, "foo", f.join("tsconfig/extends-multiple/foo.js")),
     ];
 
     for (dir, subdir, request, expected) in pass {

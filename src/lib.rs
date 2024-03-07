@@ -1002,40 +1002,21 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
             // Extend tsconfig
-            // TODO multiple extends
-            if let Some(ExtendsField::Single(tsconfig_extend_specifier)) = &tsconfig.data.extends {
-                let extended_tsconfig_path = match tsconfig_extend_specifier.as_bytes().first() {
-                    None => {
-                        return Err(ResolveError::Specifier(SpecifierError::Empty(
-                            tsconfig_extend_specifier.to_string(),
-                        )))
+            if let Some(extends) = &tsconfig.data.extends {
+                let extended_tsconfig_paths = match extends {
+                    ExtendsField::Single(s) => {
+                        vec![self.get_extended_tsconfig_path(&directory, tsconfig, s)?]
                     }
-                    Some(b'/') => PathBuf::from(tsconfig_extend_specifier),
-                    Some(b'.') => tsconfig.directory().normalize_with(tsconfig_extend_specifier),
-                    _ => self
-                        .clone_with_options(ResolveOptions {
-                            description_files: vec![],
-                            extensions: vec![".json".into()],
-                            main_files: vec!["tsconfig.json".into()],
-                            ..ResolveOptions::default()
-                        })
-                        .load_package_self_or_node_modules(
-                            &directory,
-                            tsconfig_extend_specifier,
-                            &mut Ctx::default(),
-                        )
-                        .map_err(|err| match err {
-                            ResolveError::NotFound(_) => ResolveError::TsconfigNotFound(
-                                PathBuf::from(tsconfig_extend_specifier),
-                            ),
-                            _ => err,
-                        })?
-                        .to_path_buf(),
+                    ExtendsField::Multiple(specifiers) => specifiers
+                        .iter()
+                        .map(|s| self.get_extended_tsconfig_path(&directory, tsconfig, s))
+                        .collect::<Result<Vec<PathBuf>, ResolveError>>()?,
                 };
-
-                let extended_tsconfig =
-                    self.load_tsconfig(&extended_tsconfig_path, &TsconfigReferences::Disabled)?;
-                tsconfig.extend_tsconfig(&extended_tsconfig);
+                for extended_tsconfig_path in extended_tsconfig_paths {
+                    let extended_tsconfig =
+                        self.load_tsconfig(&extended_tsconfig_path, &TsconfigReferences::Disabled)?;
+                    tsconfig.extend_tsconfig(&extended_tsconfig);
+                }
             }
 
             // Load project references
@@ -1061,6 +1042,34 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             }
             Ok(())
         })
+    }
+
+    fn get_extended_tsconfig_path(
+        &self,
+        directory: &CachedPath,
+        tsconfig: &TsConfig,
+        specifier: &str,
+    ) -> Result<PathBuf, ResolveError> {
+        match specifier.as_bytes().first() {
+            None => Err(ResolveError::Specifier(SpecifierError::Empty(specifier.to_string()))),
+            Some(b'/') => Ok(PathBuf::from(specifier)),
+            Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
+            _ => self
+                .clone_with_options(ResolveOptions {
+                    description_files: vec![],
+                    extensions: vec![".json".into()],
+                    main_files: vec!["tsconfig.json".into()],
+                    ..ResolveOptions::default()
+                })
+                .load_package_self_or_node_modules(directory, specifier, &mut Ctx::default())
+                .map(|p| p.to_path_buf())
+                .map_err(|err| match err {
+                    ResolveError::NotFound(_) => {
+                        ResolveError::TsconfigNotFound(PathBuf::from(specifier))
+                    }
+                    _ => err,
+                }),
+        }
     }
 
     /// PACKAGE_RESOLVE(packageSpecifier, parentURL)
