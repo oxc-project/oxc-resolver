@@ -133,10 +133,6 @@ pub struct ResolveOptions {
     ///
     /// Default `false`
     pub builtin_modules: bool,
-
-    /// When enabled, will attempt to reduce memory usage by clearing data and fields
-    /// that are not relevant to the current process, and should not be held in memory.
-    pub remove_unused_fields: bool,
 }
 
 impl ResolveOptions {
@@ -377,7 +373,6 @@ impl Default for ResolveOptions {
             roots: vec![],
             symlinks: true,
             builtin_modules: false,
-            remove_unused_fields: true,
         }
     }
 }

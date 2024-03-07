@@ -141,10 +141,6 @@ pub struct NapiResolveOptions {
     ///
     /// Default `false`
     pub builtin_modules: Option<bool>,
-
-    /// When enabled, will attempt to reduce memory usage by clearing data and fields
-    /// that are not relevant to the current process, and should not be held in memory.
-    pub remove_unused_fields: Option<bool>,
 }
 
 #[napi]
