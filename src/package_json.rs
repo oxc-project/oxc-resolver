@@ -1,10 +1,7 @@
 //! package.json definitions
 //!
 //! Code related to export field are copied from [Parcel's resolver](https://github.com/parcel-bundler/parcel/blob/v2/packages/utils/node-resolver-rs/src/package_json.rs)
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
 
 use nodejs_package_json::{BrowserField, ImportExportField, ImportExportMap};
 use serde::Deserialize;
@@ -21,7 +18,8 @@ pub struct PackageJson {
     /// Realpath to `package.json`. Contains the `package.json` filename.
     pub realpath: PathBuf,
 
-    pub(crate) raw_json: Arc<serde_json::Value>,
+    #[cfg(feature = "package_json_raw_json_api")]
+    pub(crate) raw_json: std::sync::Arc<serde_json::Value>,
 
     /// The "name" field defines your package's name.
     /// The "name" field can be used in addition to the "exports" field to self-reference a package using its name.
@@ -72,13 +70,16 @@ impl PackageJson {
 
         if let Some(json_object) = raw_json.as_object_mut() {
             // Remove large fields that are useless for pragmatic use.
-            json_object.remove("description");
-            json_object.remove("keywords");
-            json_object.remove("scripts");
-            json_object.remove("dependencies");
-            json_object.remove("devDependencies");
-            json_object.remove("peerDependencies");
-            json_object.remove("optionalDependencies");
+            #[cfg(feature = "package_json_raw_json_api")]
+            {
+                json_object.remove("description");
+                json_object.remove("keywords");
+                json_object.remove("scripts");
+                json_object.remove("dependencies");
+                json_object.remove("devDependencies");
+                json_object.remove("peerDependencies");
+                json_object.remove("optionalDependencies");
+            }
 
             // Add name.
             package_json.name =
@@ -137,7 +138,10 @@ impl PackageJson {
 
         package_json.path = path;
         package_json.realpath = realpath;
-        package_json.raw_json = Arc::new(raw_json);
+        #[cfg(feature = "package_json_raw_json_api")]
+        {
+            package_json.raw_json = std::sync::Arc::new(raw_json);
+        }
         Ok(package_json)
     }
 
@@ -170,7 +174,8 @@ impl PackageJson {
     /// To reduce overall memory consumption, large fields that useless for pragmatic use are removed.
     /// They are: `description`, `keywords`, `scripts`,
     /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
-    pub fn raw_json(&self) -> &Arc<serde_json::Value> {
+    #[cfg(feature = "package_json_raw_json_api")]
+    pub fn raw_json(&self) -> &std::sync::Arc<serde_json::Value> {
         &self.raw_json
     }
 

@@ -94,4 +94,8 @@ criterion      = { version = "0.5.1", default-features = false }
 normalize-path = { version = "0.2.1" }
 
 [features]
+default = []
+# Enable the PackageJson::raw_json API
+package_json_raw_json_api = []
+# For codspeed benchmark
 codspeed = ["codspeed-criterion-compat"]

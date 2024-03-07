@@ -40,6 +40,18 @@ fn package_json() {
         .is_some_and(|json| json.name.as_ref().is_some_and(|name| name == "name")));
 }
 
+#[cfg(feature = "package_json_raw_json_api")]
+#[test]
+fn package_json_raw_json_api() {
+    let resolution = resolve("./tests/package.json");
+    assert!(resolution
+        .package_json()
+        .unwrap()
+        .raw_json()
+        .get("name")
+        .is_some_and(|name| name == "name"));
+}
+
 #[test]
 fn clear_cache() {
     let resolver = Resolver::new(ResolveOptions::default());
