@@ -440,7 +440,9 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             return Ok(None);
         };
         // 3. If the SCOPE/package.json "imports" is null or undefined, return.
-        if package_json.imports.is_empty() {
+        if package_json.imports.is_none()
+            || package_json.imports.as_ref().is_some_and(|imports| imports.is_empty())
+        {
             return Ok(None);
         }
         // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
@@ -753,7 +755,6 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         if !package_json.exports.is_empty() {
             // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
             if let Some(subpath) = package_json
-                .data
                 .name
                 .as_ref()
                 .and_then(|package_name| Self::strip_package_name(specifier, package_name))
@@ -1266,16 +1267,18 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
         // 2. If pjson.imports is a non-null Object, then
 
         // 1. Let resolved be the result of PACKAGE_IMPORTS_EXPORTS_RESOLVE( specifier, pjson.imports, packageURL, true, conditions).
-        if let Some(path) = self.package_imports_exports_resolve(
-            specifier,
-            &package_json.imports,
-            package_json.directory(),
-            /* is_imports */ true,
-            &self.options.condition_names,
-            ctx,
-        )? {
-            // 2. If resolved is not null or undefined, return resolved.
-            return Ok(path);
+        if let Some(imports) = &package_json.imports {
+            if let Some(path) = self.package_imports_exports_resolve(
+                specifier,
+                imports,
+                package_json.directory(),
+                /* is_imports */ true,
+                &self.options.condition_names,
+                ctx,
+            )? {
+                // 2. If resolved is not null or undefined, return resolved.
+                return Ok(path);
+            }
         }
 
         // 5. Throw a Package Import Not Defined error.

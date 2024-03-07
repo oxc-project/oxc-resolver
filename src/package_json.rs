@@ -6,31 +6,28 @@ use std::{
     sync::Arc,
 };
 
-use nodejs_package_json::{
-    BrowserField, ImportExportField, ImportExportMap, PackageJson as BasePackageJson,
-};
-use rustc_hash::FxHashMap;
+use nodejs_package_json::{BrowserField, ImportExportField, ImportExportMap};
 use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{path::PathUtil, ResolveError, ResolveOptions};
 
 /// Deserialized package.json
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default)]
 pub struct PackageJson {
     /// Path to `package.json`. Contains the `package.json` filename.
-    #[serde(skip)]
     pub path: PathBuf,
 
     /// Realpath to `package.json`. Contains the `package.json` filename.
-    #[serde(skip)]
     pub realpath: PathBuf,
 
-    #[serde(skip)]
     pub(crate) raw_json: Arc<serde_json::Value>,
 
-    /// The deserialized `package.json`.
-    pub data: BasePackageJson,
+    /// The "name" field defines your package's name.
+    /// The "name" field can be used in addition to the "exports" field to self-reference a package using its name.
+    ///
+    /// <https://nodejs.org/api/packages.html#name>
+    pub name: Option<String>,
 
     /// The "main" field defines the entry point of a package when imported by name via a node_modules lookup. Its value is a path.
     /// When a package has an "exports" field, this will take precedence over the "main" field when importing the package by name.
@@ -38,26 +35,22 @@ pub struct PackageJson {
     /// Values are dynamically added from [ResolveOptions::main_fields].
     ///
     /// <https://nodejs.org/api/packages.html#main>
-    #[serde(skip)]
     pub main_fields: Vec<String>,
 
     /// The "exports" field allows defining the entry points of a package when imported by name loaded either via a node_modules lookup or a self-reference to its own name.
     ///
     /// <https://nodejs.org/api/packages.html#exports>
-    #[serde(skip)]
     pub exports: Vec<ImportExportField>,
 
     /// In addition to the "exports" field, there is a package "imports" field to create private mappings that only apply to import specifiers from within the package itself.
     ///
     /// <https://nodejs.org/api/packages.html#subpath-imports>
-    #[serde(default)]
-    pub imports: Box<ImportExportMap>,
+    pub imports: Option<Box<ImportExportMap>>,
 
     /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
     /// Multiple values are configured by [ResolveOptions::alias_fields].
     ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
-    #[serde(skip)]
     pub browser_fields: Vec<BrowserField>,
 }
 
@@ -71,127 +64,85 @@ impl PackageJson {
         options: &ResolveOptions,
     ) -> Result<Self, serde_json::Error> {
         let mut raw_json: Value = serde_json::from_str(json)?;
-        let mut data: BasePackageJson = serde_json::from_value(raw_json.clone())?;
-
         let mut package_json = Self::default();
+
         package_json.main_fields.reserve_exact(options.main_fields.len());
-        package_json.browser_fields.reserve_exact(options.alias_fields.len());
         package_json.exports.reserve_exact(options.exports_fields.len());
+        package_json.browser_fields.reserve_exact(options.alias_fields.len());
 
-        // Dynamically create `main_fields`.
-        for main_field_key in &options.main_fields {
-            match main_field_key.as_str() {
-                "main" => {
-                    if let Some(main_field) = &data.main {
-                        package_json.main_fields.push(main_field.to_string_lossy().to_string());
-                    }
-                }
-                "module" => {
-                    if let Some(module_field) = &data.module {
-                        package_json.main_fields.push(module_field.to_string_lossy().to_string());
-                    }
-                }
-                "browser" => {
-                    if let Some(BrowserField::String(browser_field)) = &data.browser {
-                        package_json.main_fields.push(browser_field.to_owned());
-                    }
-                }
-                field => {
-                    // Using `get` + `clone` instead of remove here
-                    // because `main_fields` may contain `browser`, which is also used in `browser_fields.
-                    if let Some(Value::String(value)) = data.other_fields.get(field) {
-                        package_json.main_fields.push(value.clone());
-                    }
-                }
-            };
-        }
+        if let Some(json_object) = raw_json.as_object_mut() {
+            // Remove large fields that are useless for pragmatic use.
+            json_object.remove("description");
+            json_object.remove("keywords");
+            json_object.remove("scripts");
+            json_object.remove("dependencies");
+            json_object.remove("devDependencies");
+            json_object.remove("peerDependencies");
+            json_object.remove("optionalDependencies");
 
-        // Dynamically create `browser_fields`.
-        let dir = path.parent().unwrap();
-        for object_path in &options.alias_fields {
-            let mut browser_field = if object_path.len() == 1 && object_path[0] == "browser" {
-                if let Some(field) = &data.browser {
-                    field.to_owned()
-                } else {
-                    continue;
-                }
-            } else if let Some(field) = Self::get_value_by_path(&data.other_fields, object_path) {
-                BrowserField::deserialize(field)?
-            } else {
-                continue;
-            };
+            // Add name.
+            package_json.name =
+                json_object.get("name").and_then(|field| field.as_str()).map(ToString::to_string);
 
-            // Normalize all relative paths to make browser_field a constant value lookup
-            if let BrowserField::Map(map) = &mut browser_field {
-                let keys = map.keys().cloned().collect::<Vec<_>>();
-                for key in keys {
-                    // Normalize the key if it looks like a file "foo.js"
-                    if key.extension().is_some() {
-                        map.insert(dir.normalize_with(&key), map[&key].clone());
-                    }
-                    // Normalize the key if it is relative path "./relative"
-                    if key.starts_with(".") {
-                        if let Some(value) = map.remove(&key) {
-                            map.insert(dir.normalize_with(&key), value);
+            // Add imports.
+            package_json.imports = json_object
+                .get("imports")
+                .map(ImportExportMap::deserialize)
+                .transpose()?
+                .map(Box::new);
+
+            // Dynamically create `main_fields`.
+            for main_field_key in &options.main_fields {
+                // Using `get` + `clone` instead of remove here
+                // because `main_fields` may contain `browser`, which is also used in `browser_fields.
+                if let Some(serde_json::Value::String(value)) = json_object.get(main_field_key) {
+                    package_json.main_fields.push(value.clone());
+                }
+            }
+
+            // Dynamically create `browser_fields`.
+            let dir = path.parent().unwrap();
+            for object_path in &options.alias_fields {
+                if let Some(browser_field) = Self::get_value_by_path(json_object, object_path) {
+                    let mut browser_field = BrowserField::deserialize(browser_field)?;
+
+                    // Normalize all relative paths to make browser_field a constant value lookup
+                    if let BrowserField::Map(map) = &mut browser_field {
+                        let keys = map.keys().cloned().collect::<Vec<_>>();
+                        for key in keys {
+                            // Normalize the key if it looks like a file "foo.js"
+                            if key.extension().is_some() {
+                                map.insert(dir.normalize_with(&key), map[&key].clone());
+                            }
+                            // Normalize the key if it is relative path "./relative"
+                            if key.starts_with(".") {
+                                if let Some(value) = map.remove(&key) {
+                                    map.insert(dir.normalize_with(&key), value);
+                                }
+                            }
                         }
                     }
+                    package_json.browser_fields.push(browser_field);
                 }
             }
-            package_json.browser_fields.push(browser_field);
-        }
 
-        // Dynamically create `exports`.
-        for object_path in &options.exports_fields {
-            if object_path.len() == 1 && object_path[0] == "exports" {
-                if let Some(exports) = &data.exports {
-                    package_json.exports.push(exports.to_owned());
+            // Dynamically create `exports`.
+            for object_path in &options.exports_fields {
+                if let Some(exports) = Self::get_value_by_path(json_object, object_path) {
+                    let exports = ImportExportField::deserialize(exports)?;
+                    package_json.exports.push(exports);
                 }
-            } else if let Some(exports) = Self::get_value_by_path(&data.other_fields, object_path) {
-                package_json.exports.push(ImportExportField::deserialize(exports)?);
             }
-        }
-
-        // Bubble up `imports`
-        if let Some(imports) = &data.imports {
-            package_json.imports = Box::new(imports.to_owned());
         }
 
         package_json.path = path;
         package_json.realpath = realpath;
-
-        // Remove large fields that are useless for pragmatic use
-        if options.remove_unused_fields {
-            data.scripts = None;
-            data.dependencies = None;
-            data.dependencies_meta = None;
-            data.dev_dependencies = None;
-            data.peer_dependencies = None;
-            data.peer_dependencies_meta = None;
-            data.bundle_dependencies = None;
-            data.optional_dependencies = None;
-            data.imports = None;
-            data.exports = None;
-            data.browser = None;
-
-            if let Some(raw_json) = raw_json.as_object_mut() {
-                raw_json.remove("description");
-                raw_json.remove("keywords");
-                raw_json.remove("scripts");
-                raw_json.remove("dependencies");
-                raw_json.remove("devDependencies");
-                raw_json.remove("peerDependencies");
-                raw_json.remove("optionalDependencies");
-            }
-        }
-
-        package_json.data = data;
         package_json.raw_json = Arc::new(raw_json);
-
         Ok(package_json)
     }
 
     fn get_value_by_path<'a>(
-        fields: &'a FxHashMap<String, serde_json::Value>,
+        fields: &'a serde_json::Map<String, serde_json::Value>,
         path: &[String],
     ) -> Option<&'a serde_json::Value> {
         if path.is_empty() {
