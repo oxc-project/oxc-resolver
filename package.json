@@ -32,5 +32,8 @@
   },
   "funding": {
     "url": "https://github.com/sponsors/Boshen"
+  },
+  "dependencies": {
+    "vue": "^3.4.21"
   }
 }
