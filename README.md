@@ -95,6 +95,10 @@ The option is
 }
 ```
 
+### Errors
+
+* `Error: Package subpath '.' is not defined by "exports" in` - occurs when resolving without `conditionNames`.
+
 ## Options
 
 The options are aligned with [enhanced-resolve].
