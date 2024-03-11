@@ -36,7 +36,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.publish.outcome == 'success'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: v${{ join(fromJSON(steps.publish.outputs.published).version, '') }}
           draft: true
