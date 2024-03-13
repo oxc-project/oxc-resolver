@@ -5,7 +5,7 @@ use std::{
 
 use crate::PathUtil;
 use serde::Deserialize;
-use typescript_tsconfig_json::{CompilerOptions, TsConfigJson};
+use typescript_tsconfig_json::{CompilerOptionsPathsMap, ExtendsField};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,19 +14,35 @@ pub struct TsConfig {
     #[serde(skip)]
     path: PathBuf,
 
-    // Base url for compiler option paths.
-    #[serde(skip)]
-    paths_base: PathBuf,
+    #[serde(default)]
+    pub extends: Option<ExtendsField>,
 
-    /// The deserialized `tsconfig.json`.
-    pub data: TsConfigJson,
+    #[serde(default)]
+    pub compiler_options: CompilerOptions,
 
     /// Bubbled up project references with a reference to their tsconfig.
     #[serde(default)]
     pub references: Vec<ProjectReference>,
 }
 
+/// Compiler Options
+///
+/// <https://www.typescriptlang.org/tsconfig#compilerOptions>
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompilerOptions {
+    base_url: Option<PathBuf>,
+
+    /// Path aliases
+    paths: Option<CompilerOptionsPathsMap>,
+
+    /// The actual base for where path aliases are resolved from.
+    #[serde(skip)]
+    paths_base: PathBuf,
+}
+
 /// Project Reference
+///
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
 #[derive(Debug, Deserialize)]
 pub struct ProjectReference {
@@ -42,32 +58,16 @@ pub struct ProjectReference {
 impl TsConfig {
     pub fn parse(path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         _ = json_strip_comments::strip(json);
-
-        let data: TsConfigJson = serde_json::from_str(json)?;
-
-        let mut tsconfig = Self {
-            path: path.to_path_buf(),
-            paths_base: PathBuf::new(),
-            references: data.references.as_ref().map_or_else(Vec::new, |refs| {
-                refs.iter()
-                    .map(|pr| ProjectReference { path: pr.path.clone(), tsconfig: None })
-                    .collect()
-            }),
-            data,
-        };
+        let mut tsconfig: Self = serde_json::from_str(json)?;
+        tsconfig.path = path.to_path_buf();
         let directory = tsconfig.directory().to_path_buf();
-
-        if let Some(compiler_options) = &mut tsconfig.data.compiler_options {
-            if let Some(base_url) = &compiler_options.base_url {
-                compiler_options.base_url = Some(directory.normalize_with(base_url));
-            }
-
-            if compiler_options.paths.is_some() {
-                tsconfig.paths_base =
-                    compiler_options.base_url.as_ref().map_or(directory, Clone::clone);
-            }
+        if let Some(base_url) = tsconfig.compiler_options.base_url {
+            tsconfig.compiler_options.base_url = Some(directory.normalize_with(base_url));
         }
-
+        if tsconfig.compiler_options.paths.is_some() {
+            tsconfig.compiler_options.paths_base =
+                tsconfig.compiler_options.base_url.as_ref().map_or(directory, Clone::clone);
+        }
         Ok(tsconfig)
     }
 
@@ -82,29 +82,23 @@ impl TsConfig {
     }
 
     fn base_path(&self) -> &Path {
-        self.data
-            .compiler_options
+        self.compiler_options
+            .base_url
             .as_ref()
-            .and_then(|opt| opt.base_url.as_ref())
             .map_or_else(|| self.directory(), |path| path.as_ref())
     }
 
     pub fn extend_tsconfig(&mut self, tsconfig: &Self) {
-        if let Some(their_options) = &tsconfig.data.compiler_options {
-            let my_options = self.data.compiler_options.get_or_insert(CompilerOptions::default());
-
-            if my_options.paths.is_none() {
-                self.paths_base = my_options
-                    .base_url
-                    .as_ref()
-                    .map_or_else(|| tsconfig.paths_base.clone(), Clone::clone);
-
-                my_options.paths = their_options.paths.clone();
-            }
-
-            if my_options.base_url.is_none() {
-                my_options.base_url = their_options.base_url.clone();
-            }
+        let compiler_options = &mut self.compiler_options;
+        if compiler_options.paths.is_none() {
+            compiler_options.paths_base = compiler_options
+                .base_url
+                .as_ref()
+                .map_or_else(|| tsconfig.compiler_options.paths_base.clone(), Clone::clone);
+            compiler_options.paths = tsconfig.compiler_options.paths.clone();
+        }
+        if compiler_options.base_url.is_none() {
+            compiler_options.base_url = tsconfig.compiler_options.base_url.clone();
         }
     }
 
@@ -131,15 +125,12 @@ impl TsConfig {
         }
 
         let base_url_iter = self
-            .data
             .compiler_options
+            .base_url
             .as_ref()
-            .and_then(|opt| opt.base_url.as_ref())
             .map_or_else(Vec::new, |base_url| vec![base_url.normalize_with(specifier)]);
 
-        let Some(paths_map) =
-            self.data.compiler_options.as_ref().and_then(|opt| opt.paths.as_ref())
-        else {
+        let Some(paths_map) = &self.compiler_options.paths else {
             return base_url_iter;
         };
 
@@ -178,6 +169,10 @@ impl TsConfig {
             Clone::clone,
         );
 
-        paths.into_iter().map(|p| self.paths_base.normalize_with(p)).chain(base_url_iter).collect()
+        paths
+            .into_iter()
+            .map(|p| self.compiler_options.paths_base.normalize_with(p))
+            .chain(base_url_iter)
+            .collect()
     }
 }
