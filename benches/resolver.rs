@@ -60,7 +60,7 @@ fn data() -> Vec<(PathBuf, &'static str)> {
 
 fn oxc_resolver() -> oxc_resolver::Resolver {
     use oxc_resolver::{AliasValue, ResolveOptions, Resolver};
-    let alias_value = AliasValue::Path("./".into());
+    let alias_value = AliasValue::from("./");
     Resolver::new(ResolveOptions {
         extensions: vec![".ts".into(), ".js".into()],
         condition_names: vec!["webpack".into()],

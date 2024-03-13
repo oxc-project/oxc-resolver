@@ -86,7 +86,7 @@ impl ResolverFactory {
                             let v = v
                                 .into_iter()
                                 .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::Path(path),
+                                    Some(path) => oxc_resolver::AliasValue::from(path),
                                     None => oxc_resolver::AliasValue::Ignore,
                                 })
                                 .collect();
@@ -123,7 +123,7 @@ impl ResolverFactory {
                             let v = v
                                 .into_iter()
                                 .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::Path(path),
+                                    Some(path) => oxc_resolver::AliasValue::from(path),
                                     None => oxc_resolver::AliasValue::Ignore,
                                 })
                                 .collect();

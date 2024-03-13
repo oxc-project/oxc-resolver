@@ -35,30 +35,30 @@ fn alias() {
         file_system,
         ResolveOptions {
             alias: vec![
-                ("aliasA".into(), vec![AliasValue::Path("a".into())]),
-                ("b$".into(), vec![AliasValue::Path("a/index".into())]),
-                ("c$".into(), vec![AliasValue::Path("/a/index".into())]),
+                ("aliasA".into(), vec![AliasValue::from("a")]),
+                ("b$".into(), vec![AliasValue::from("a/index")]),
+                ("c$".into(), vec![AliasValue::from("/a/index")]),
                 (
                     "multiAlias".into(),
                     vec![
-                        AliasValue::Path("b".into()),
-                        AliasValue::Path("c".into()),
-                        AliasValue::Path("d".into()),
-                        AliasValue::Path("e".into()),
-                        AliasValue::Path("a".into()),
+                        AliasValue::from("b"),
+                        AliasValue::from("c"),
+                        AliasValue::from("d"),
+                        AliasValue::from("e"),
+                        AliasValue::from("a"),
                     ],
                 ),
-                ("recursive".into(), vec![AliasValue::Path("recursive/dir".into())]),
-                ("/d/dir".into(), vec![AliasValue::Path("/c/dir".into())]),
-                ("/d/index.js".into(), vec![AliasValue::Path("/c/index".into())]),
-                ("#".into(), vec![AliasValue::Path("/c/dir".into())]),
-                ("@".into(), vec![AliasValue::Path("/c/dir".into())]),
+                ("recursive".into(), vec![AliasValue::from("recursive/dir")]),
+                ("/d/dir".into(), vec![AliasValue::from("/c/dir")]),
+                ("/d/index.js".into(), vec![AliasValue::from("/c/index")]),
+                ("#".into(), vec![AliasValue::from("/c/dir")]),
+                ("@".into(), vec![AliasValue::from("/c/dir")]),
                 ("ignored".into(), vec![AliasValue::Ignore]),
                 // not part of enhanced-resolve, added to make sure query in alias value works
-                ("alias_query".into(), vec![AliasValue::Path("a?query_after".into())]),
-                ("alias_fragment".into(), vec![AliasValue::Path("a#fragment_after".into())]),
+                ("alias_query".into(), vec![AliasValue::from("a?query_after")]),
+                ("alias_fragment".into(), vec![AliasValue::from("a#fragment_after")]),
                 ("dash".into(), vec![AliasValue::Ignore]),
-                ("@scope/package-name/file$".into(), vec![AliasValue::Path("/c/dir".into())]),
+                ("@scope/package-name/file$".into(), vec![AliasValue::from("/c/dir")]),
             ],
             modules: vec!["/".into()],
             ..ResolveOptions::default()
@@ -126,8 +126,8 @@ fn infinite_recursion() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
         alias: vec![
-            ("./a".into(), vec![AliasValue::Path("./b".into())]),
-            ("./b".into(), vec![AliasValue::Path("./a".into())]),
+            ("./a".into(), vec![AliasValue::from("./b")]),
+            ("./b".into(), vec![AliasValue::from("./a")]),
         ],
         ..ResolveOptions::default()
     });
@@ -165,10 +165,7 @@ fn absolute_path() {
 fn system_path() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
-        alias: vec![(
-            "@app".into(),
-            vec![AliasValue::Path(f.join("alias").to_string_lossy().to_string())],
-        )],
+        alias: vec![("@app".into(), vec![AliasValue::from(f.join("alias").to_string_lossy())])],
         ..ResolveOptions::default()
     });
 
