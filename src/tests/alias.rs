@@ -165,10 +165,7 @@ fn absolute_path() {
 fn system_path() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
-        alias: vec![(
-            "@app".into(),
-            vec![AliasValue::from(f.join("alias").to_string_lossy())],
-        )],
+        alias: vec![("@app".into(), vec![AliasValue::from(f.join("alias").to_string_lossy())])],
         ..ResolveOptions::default()
     });
 
