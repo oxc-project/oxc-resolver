@@ -1003,7 +1003,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
             // Extend tsconfig
-            if let Some(extends) = &tsconfig.data.extends {
+            if let Some(extends) = &tsconfig.extends {
                 let extended_tsconfig_paths = match extends {
                     ExtendsField::Single(s) => {
                         vec![self.get_extended_tsconfig_path(&directory, tsconfig, s)?]
