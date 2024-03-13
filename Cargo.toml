@@ -24,7 +24,8 @@ name    = "resolver"
 harness = false
 
 [lints.clippy]
-all = { level = "warn" }
+all   = { level = "warn" }
+cargo = { level = "warn" }
 # restriction
 dbg_macro     = "warn"
 todo          = "warn"
