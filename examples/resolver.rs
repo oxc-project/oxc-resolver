@@ -13,7 +13,7 @@ fn main() {
 
     let options = ResolveOptions {
         alias_fields: vec![vec!["browser".into()]],
-        alias: vec![("asdf".into(), vec![AliasValue::Path("./test.js".into())])],
+        alias: vec![("asdf".into(), vec![AliasValue::from("./test.js")])],
         ..ResolveOptions::default()
     };
 

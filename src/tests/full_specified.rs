@@ -33,8 +33,8 @@ mod windows {
             file_system,
             ResolveOptions {
                 alias: vec![
-                    ("alias1".into(), vec![AliasValue::Path("/a/abc".into())]),
-                    ("alias2".into(), vec![AliasValue::Path("/a".into())]),
+                    ("alias1".into(), vec![AliasValue::from("/a/abc")]),
+                    ("alias2".into(), vec![AliasValue::from("/a")]),
                 ],
                 alias_fields: vec![vec!["browser".into()]],
                 fully_specified: true,
@@ -84,8 +84,8 @@ mod windows {
             file_system,
             ResolveOptions {
                 alias: vec![
-                    ("alias1".into(), vec![AliasValue::Path("/a/abc".into())]),
-                    ("alias2".into(), vec![AliasValue::Path("/a".into())]),
+                    ("alias1".into(), vec![AliasValue::from("/a/abc")]),
+                    ("alias2".into(), vec![AliasValue::from("/a")]),
                 ],
                 alias_fields: vec![vec!["browser".into()]],
                 fully_specified: true,

@@ -122,7 +122,7 @@ fn crypto_js() {
         alias_fields: vec![vec!["browser".into()]],
         fallback: vec![(
             "crypto".into(),
-            vec![AliasValue::Path(f.join("lib.js").to_string_lossy().to_string())],
+            vec![AliasValue::from(f.join("lib.js").to_string_lossy())],
         )],
         ..ResolveOptions::default()
     });

@@ -280,6 +280,67 @@ impl ResolveOptions {
         self.prefer_absolute = flag;
         self
     }
+
+    /// Changes the value of [ResolveOptions::symlinks]
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::{ResolveOptions};
+    ///
+    /// let options = ResolveOptions::default().with_symbolic_link(false);
+    /// assert_eq!(options.symlinks, false);
+    /// ```
+    #[must_use]
+    pub fn with_symbolic_link(mut self, flag: bool) -> Self {
+        self.symlinks = flag;
+        self
+    }
+
+    /// Adds a module to [ResolveOptions::modules]
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::{ResolveOptions};
+    ///
+    /// let options = ResolveOptions::default().with_module("module");
+    /// assert!(options.modules.contains(&"module".to_string()));
+    /// ```
+    #[must_use]
+    pub fn with_module<M: Into<String>>(mut self, module: M) -> Self {
+        self.modules.push(module.into());
+        self
+    }
+
+    /// Adds a main file to [ResolveOptions::main_files]
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::{ResolveOptions};
+    ///
+    /// let options = ResolveOptions::default().with_main_file("foo");
+    /// assert!(options.main_files.contains(&"foo".to_string()));
+    /// ```
+    #[must_use]
+    pub fn with_main_file<M: Into<String>>(mut self, module: M) -> Self {
+        self.main_files.push(module.into());
+        self
+    }
+
+    pub(crate) fn sanitize(mut self) -> Self {
+        // Set `enforceExtension` to `true` when [ResolveOptions::extensions] contains an empty string.
+        // See <https://github.com/webpack/enhanced-resolve/pull/285>
+        if self.enforce_extension == EnforceExtension::Auto {
+            if !self.extensions.is_empty() && self.extensions.iter().any(String::is_empty) {
+                self.enforce_extension = EnforceExtension::Enabled;
+            } else {
+                self.enforce_extension = EnforceExtension::Disabled;
+            }
+        }
+        self
+    }
 }
 
 /// Value for [ResolveOptions::enforce_extension]
@@ -291,16 +352,16 @@ pub enum EnforceExtension {
 }
 
 impl EnforceExtension {
-    pub fn is_auto(&self) -> bool {
-        *self == Self::Auto
+    pub const fn is_auto(&self) -> bool {
+        matches!(self, Self::Auto)
     }
 
-    pub fn is_enabled(&self) -> bool {
-        *self == Self::Enabled
+    pub const fn is_enabled(&self) -> bool {
+        matches!(self, Self::Enabled)
     }
 
-    pub fn is_disabled(&self) -> bool {
-        *self == Self::Disabled
+    pub const fn is_disabled(&self) -> bool {
+        matches!(self, Self::Disabled)
     }
 }
 
@@ -315,6 +376,15 @@ pub enum AliasValue {
 
     /// The `false` value
     Ignore,
+}
+
+impl<S> From<S> for AliasValue
+where
+    S: Into<String>,
+{
+    fn from(value: S) -> Self {
+        Self::Path(value.into())
+    }
 }
 
 /// Value for [ResolveOptions::restrictions]
@@ -374,21 +444,6 @@ impl Default for ResolveOptions {
             symlinks: true,
             builtin_modules: false,
         }
-    }
-}
-
-impl ResolveOptions {
-    pub(crate) fn sanitize(mut self) -> Self {
-        // Set `enforceExtension` to `true` when [ResolveOptions::extensions] contains an empty string.
-        // See <https://github.com/webpack/enhanced-resolve/pull/285>
-        if self.enforce_extension == EnforceExtension::Auto {
-            if !self.extensions.is_empty() && self.extensions.iter().any(String::is_empty) {
-                self.enforce_extension = EnforceExtension::Enabled;
-            } else {
-                self.enforce_extension = EnforceExtension::Disabled;
-            }
-        }
-        self
     }
 }
 
