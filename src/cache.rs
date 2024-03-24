@@ -26,7 +26,7 @@ pub struct Cache<Fs> {
 
 impl<Fs: FileSystem> Cache<Fs> {
     pub fn new(fs: Fs) -> Self {
-        Self { fs, paths: Default::default(), tsconfigs: Default::default()}
+        Self { fs, paths: DashSet::default(), tsconfigs: DashMap::default() }
     }
 
     pub fn clear(&self) {

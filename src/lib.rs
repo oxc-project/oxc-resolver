@@ -108,7 +108,7 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
 
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        Self { cache: Arc::new(Cache::new(file_system)), options: options.sanitize()}
+        Self { cache: Arc::new(Cache::new(file_system)), options: options.sanitize() }
     }
 
     /// Clone the resolver using the same underlying cache.
