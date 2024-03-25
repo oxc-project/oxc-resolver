@@ -19,5 +19,8 @@
       "groupName": "npm packages",
       "matchManagers": ["npm"]
     }
-  ]
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  }
 }
