@@ -24,9 +24,9 @@ pub struct Cache<Fs> {
     tsconfigs: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
 }
 
-impl<Fs: FileSystem + Default> Cache<Fs> {
+impl<Fs: FileSystem> Cache<Fs> {
     pub fn new(fs: Fs) -> Self {
-        Self { fs, ..Self::default() }
+        Self { fs, paths: DashSet::default(), tsconfigs: DashMap::default() }
     }
 
     pub fn clear(&self) {
@@ -220,7 +220,7 @@ impl CachedPathImpl {
             .map(|r| r.unwrap_or_else(|| self.path.clone().to_path_buf()))
     }
 
-    pub fn module_directory<Fs: FileSystem + Default>(
+    pub fn module_directory<Fs: FileSystem>(
         &self,
         module_name: &str,
         cache: &Cache<Fs>,
@@ -230,7 +230,7 @@ impl CachedPathImpl {
         cached_path.is_dir(&cache.fs, ctx).then(|| cached_path)
     }
 
-    pub fn cached_node_modules<Fs: FileSystem + Default>(
+    pub fn cached_node_modules<Fs: FileSystem>(
         &self,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
