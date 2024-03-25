@@ -90,7 +90,7 @@ codspeed-criterion-compat = { version = "2.4.0", default-features = false, optio
 
 [dev-dependencies]
 vfs            = "0.12.0"                                        # for testing with in memory file system
-rayon          = { version = "1.9.0" }
+rayon          = { version = "1.10.0" }
 criterion      = { version = "0.5.1", default-features = false }
 normalize-path = { version = "0.2.1" }
 
