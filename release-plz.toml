@@ -1,0 +1,2 @@
+[workspace]
+allow_dirty = true # The "fixtures" is being marked as dirty.
