@@ -1,2 +1,8 @@
 [workspace]
-allow_dirty = true # The "fixtures" is being marked as dirty.
+
+[[package]]
+name = "oxc_resolver"
+
+[[package]]
+name    = "oxc_napi_resolver"
+publish = false
