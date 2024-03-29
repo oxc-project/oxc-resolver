@@ -1,19 +1,39 @@
 //! # Oxc Resolver
 //!
-//! Node.js Module Resolution.
+//! Node.js [CommonJS][cjs] and [ECMAScript][esm] Module Resolution.
 //!
-//! All configuration options are aligned with [enhanced-resolve].
+//! A module resolution is the process of finding the file referenced by a module specifier in
+//! `import "specifier"` or `require("specifier")`.
+//!
+//! All [configuration options](ResolveOptions) are aligned with webpack's [enhanced-resolve].
+//!
+//! ## Terminology
+//!
+//! ### Specifier
+//!
+//! For [CommonJS modules][cjs],
+//! the specifier is the string passed to the `require` function. e.g. `"id"` in `require("id")`.
+//!
+//! For [ECMAScript modules][esm],
+//! the specifier of an `import` statement is the string after the `from` keyword,
+//! e.g. `'specifier'` in `import 'specifier'` or `import { sep } from 'specifier'`.
+//! Specifiers are also used in export from statements, and as the argument to an `import()` expression.
+//!
+//! This is also named "request" in some places.
 //!
 //! ## References:
 //!
-//! * Algorithm adapted from Node.js [CommonJS Module Resolution Algorithm] and [ECMAScript Module Resolution Algorithm]
-//! * Tests are ported from [enhanced-resolve]
-//! * Some code adapted from [parcel-resolver]
+//! * Algorithm adapted from Node.js [CommonJS Module Resolution Algorithm] and [ECMAScript Module Resolution Algorithm].
+//! * Tests are ported from [enhanced-resolve].
+//! * Some code is adapted from [parcel-resolver].
+//! * The documentation is copied from [webpack's resolve configuration](https://webpack.js.org/configuration/resolve).
 //!
 //! [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
 //! [CommonJS Module Resolution Algorithm]: https://nodejs.org/api/modules.html#all-together
 //! [ECMAScript Module Resolution Algorithm]: https://nodejs.org/api/esm.html#resolution-algorithm-specification
 //! [parcel-resolver]: https://github.com/parcel-bundler/parcel/blob/v2/packages/utils/node-resolver-rs
+//! [cjs]: https://nodejs.org/api/modules.html
+//! [esm]: https://nodejs.org/api/esm.html
 //!
 //! ## Example
 //!
@@ -70,6 +90,7 @@ use nodejs_package_json::{ImportExportField, ImportExportKey, ImportExportMap};
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
+/// Context returned from the [Resolver::resolve_with_context] API
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
     /// Files that was found on file system
@@ -127,11 +148,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         self.cache.clear();
     }
 
-    /// Resolve `specifier` at an absolute `path`
+    /// Resolve `specifier` at an absolute `path`.
     ///
     /// A specifier is the string passed to require or import, i.e. `require("specifier")` or `import "specifier"`.
     ///
-    /// The path must be an **absolute** path where the specifier is resolved from.
+    /// `path` must be an **absolute** path to a directory where the specifier is resolved against.
+    /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
+    /// For ECMAScript modules, it is the value of `import.meta.url`.
     ///
     /// # Errors
     ///

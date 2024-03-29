@@ -1,15 +1,18 @@
+///! See documentation at <https://docs.rs/oxc_resolver>
 use std::{env, path::PathBuf};
 
 use oxc_resolver::{AliasValue, ResolveOptions, Resolver};
 
 fn main() {
-    // Path to directory, must be in absolute path.
-    let path = env::args().nth(1).expect("path");
+    let path = PathBuf::from(env::args().nth(1).expect("path"));
+
+    assert!(path.is_dir(), "{path:?} must be a directory that will be resolved against.");
+    assert!(path.is_absolute(), "{path:?} must be an absolute path.",);
+
     let specifier = env::args().nth(2).expect("specifier");
-    let path = PathBuf::from(path).canonicalize().unwrap();
 
     println!("path: {path:?}");
-    println!("request: {specifier}");
+    println!("specifier: {specifier}");
 
     let options = ResolveOptions {
         alias_fields: vec![vec!["browser".into()]],
