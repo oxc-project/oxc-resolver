@@ -6,7 +6,7 @@ runs:
   using: composite
   steps:
     - name: Install pnpm
-      working-directory: fixtures/pnpm8
+      working-directory: tests/fixtures/pnpm8
       shell: bash
       run: corepack enable
 
@@ -18,6 +18,6 @@ runs:
         cache: pnpm
 
     - name: pnpm install
-      working-directory: fixtures/pnpm8
+      working-directory: tests/fixtures/pnpm8
       shell: bash
       run: pnpm install
