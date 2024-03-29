@@ -9,7 +9,7 @@ pub use codspeed_criterion_compat::*;
 use rayon::prelude::*;
 
 fn data() -> Vec<(PathBuf, &'static str)> {
-    let cwd = env::current_dir().unwrap().join("fixtures/enhanced_resolve");
+    let cwd = env::current_dir().unwrap().join("tests/fixtures/enhanced_resolve");
     let f = cwd.join("test/fixtures");
     vec![
         (cwd.clone(), "./"),
