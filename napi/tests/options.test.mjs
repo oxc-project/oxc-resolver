@@ -4,7 +4,7 @@ import * as assert from "node:assert";
 import * as path from "node:path";
 
 const fixtureDir = new URL(
-  "../../fixtures/enhanced_resolve/test/fixtures",
+  "../../tests/fixtures/enhanced_resolve/test/fixtures",
   import.meta.url
 ).pathname;
 

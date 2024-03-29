@@ -25,7 +25,7 @@ use crate::Resolver;
 use std::{env, path::PathBuf, sync::Arc, thread};
 
 pub fn fixture_root() -> PathBuf {
-    env::current_dir().unwrap().join("fixtures")
+    env::current_dir().unwrap().join("tests").join("fixtures")
 }
 
 pub fn fixture() -> PathBuf {

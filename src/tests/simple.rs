@@ -1,13 +1,13 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/simple.test.js>
 
-use std::env;
-
 use crate::Resolver;
+
+use super::fixture_root;
 
 #[test]
 fn simple() {
     // mimic `enhanced-resolve/test/simple.test.js`
-    let dirname = env::current_dir().unwrap().join("fixtures");
+    let dirname = fixture_root();
     let f = dirname.join("enhanced_resolve/test");
 
     let resolver = Resolver::default();

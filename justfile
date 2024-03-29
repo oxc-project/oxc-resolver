@@ -10,7 +10,7 @@ alias r := ready
 # or install via `cargo install cargo-binstall`
 # Initialize the project by installing all the necessary tools.
 init:
-  cd fixtures/pnpm8 && pnpm install
+  cd tests/fixtures/pnpm8 && pnpm install
   cargo binstall cargo-watch typos-cli taplo-cli cargo-llvm-cov -y
 
 # When ready, run the same CI commands
