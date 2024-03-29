@@ -14,10 +14,17 @@ pub struct ResolveOptions {
     pub tsconfig: Option<TsconfigOptions>,
 
     /// Create aliases to import or require certain modules more easily.
+    ///
+    /// An alias is used to replace a whole path or part of a path.
+    /// For example, to alias a commonly used `src/` folders: `vec![("@/src"), vec![AliasValue::Path("/path/to/src")]]`
+    ///
     /// A trailing $ can also be added to the given object's keys to signify an exact match.
+    ///
+    /// See [webpack's `resolve.alias` documentation](https://webpack.js.org/configuration/resolve/#resolvealias) for a list of use cases.
     pub alias: Alias,
 
     /// A list of alias fields in description files.
+    ///
     /// Specify a field, such as `browser`, to be parsed according to [this specification](https://github.com/defunctzombie/package-browser-field-spec).
     /// Can be a path to json object such as `["path", "to", "exports"]`.
     ///
@@ -25,6 +32,7 @@ pub struct ResolveOptions {
     pub alias_fields: Vec<Vec<String>>,
 
     /// Condition names for exports field which defines entry points of a package.
+    ///
     /// The key order in the exports field is significant. During condition matching, earlier entries have higher priority and take precedence over later entries.
     ///
     /// Default `[]`
@@ -51,6 +59,7 @@ pub struct ResolveOptions {
     pub enforce_extension: EnforceExtension,
 
     /// A list of exports fields in description files.
+    ///
     /// Can be a path to a JSON object such as `["path", "to", "exports"]`.
     ///
     /// Default `[["exports"]]`.
@@ -62,8 +71,11 @@ pub struct ResolveOptions {
     pub extension_alias: Vec<(String, Vec<String>)>,
 
     /// Attempt to resolve these extensions in order.
+    ///
     /// If multiple files share the same name but have different extensions,
     /// will resolve the one with the extension listed first in the array and skip the rest.
+    ///
+    /// All extensions must begin with a leading dot.
     ///
     /// Default `[".js", ".json", ".node"]`
     pub extensions: Vec<String>,
@@ -330,6 +342,10 @@ impl ResolveOptions {
     }
 
     pub(crate) fn sanitize(mut self) -> Self {
+        debug_assert!(
+            self.extensions.iter().filter(|e| !e.is_empty()).all(|e| e.starts_with('.')),
+            "All extensions must start with a leading dot"
+        );
         // Set `enforceExtension` to `true` when [ResolveOptions::extensions] contains an empty string.
         // See <https://github.com/webpack/enhanced-resolve/pull/285>
         if self.enforce_extension == EnforceExtension::Auto {
