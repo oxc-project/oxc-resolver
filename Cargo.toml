@@ -1,3 +1,7 @@
+[workspace]
+members = ["napi"]
+resolver = "2"
+
 [package]
 version      = "1.6.3"
 name         = "oxc_resolver"
@@ -12,9 +16,6 @@ readme       = "README.md"
 repository   = "https://github.com/oxc-project/oxc-resolver"
 rust-version = "1.60"
 include      = ["/src", "/examples", "/benches"]
-
-[workspace]
-members = ["napi"]
 
 [lib]
 doctest = false
