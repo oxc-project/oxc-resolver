@@ -17,14 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        uses: taiki-e/checkout-action@v1
 
       - name: Install Rust Toolchain
         uses: ./.github/actions/rustup
         with:
-          shared-key: 'release'
           save-cache: ${{ github.ref_name == 'main' }}
 
       - name: Run release-plz
