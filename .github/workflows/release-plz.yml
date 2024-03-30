@@ -22,7 +22,8 @@ jobs:
       - name: Install Rust Toolchain
         uses: ./.github/actions/rustup
         with:
-          save-cache: false
+          shared-key: 'release'
+          save-cache: ${{ github.ref_name == 'main' }}
 
       - name: Run release-plz
         uses: MarcoIeni/release-plz-action@v0.5
