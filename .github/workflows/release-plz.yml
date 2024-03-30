@@ -8,6 +8,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - Cargo.toml
 
 jobs:
   release-plz:
