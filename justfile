@@ -50,6 +50,10 @@ test:
 lint:
   cargo clippy -- --deny warnings
 
+# Generate doc
+doc:
+  RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
+
 # Get code coverage
 codecov:
   cargo codecov --html
