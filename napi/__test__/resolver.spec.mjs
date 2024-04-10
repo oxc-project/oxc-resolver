@@ -1,4 +1,4 @@
-import { join, sep } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import test from 'ava'
@@ -217,7 +217,7 @@ for (const [title, context, request, expected] of [
     'handle fragment escaping',
     enhancedResolveRoot,
     './no\0#fragment/\0#/\0##fragment',
-    join(enhancedResolveRoot, 'no#fragment','#', '#.js#fragment'),
+    join(enhancedResolveRoot, 'no#fragment', '#', '#.js#fragment'),
   ],
 ]) {
   test(title, (t) => {
@@ -229,3 +229,31 @@ for (const [title, context, request, expected] of [
     t.is(resolver.sync(context, request).path, expected)
   })
 }
+
+test('resolve pnpm package', (t) => {
+  const pnpmProjectPath = join(currentDir, '..', '..', 'fixtures', 'pnpm8')
+  const resolver = new ResolverFactory({
+    aliasFields: ['browser'],
+  })
+  t.deepEqual(resolver.sync(pnpmProjectPath, 'styled-components'), {
+    path: join(
+      pnpmProjectPath,
+      'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components/dist/styled-components.browser.cjs.js'
+    ),
+  })
+  t.deepEqual(
+    resolver.sync(
+      join(
+        pnpmProjectPath,
+        'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components'
+      ),
+      'react'
+    ),
+    {
+      path: join(
+        pnpmProjectPath,
+        'node_modules/.pnpm/react@18.2.0/node_modules/react/index.js'
+      ),
+    }
+  )
+})

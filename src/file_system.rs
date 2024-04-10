@@ -91,6 +91,32 @@ impl FileSystem for FileSystemOs {
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        dunce::canonicalize(path)
+        #[cfg(not(target_os = "wasi"))]
+        {
+            dunce::canonicalize(path)
+        }
+        #[cfg(target_os = "wasi")]
+        {
+            let meta = fs::symlink_metadata(path)?;
+            if meta.file_type().is_symlink() {
+                let link = fs::read_link(path)?;
+                let mut path_buf = path.to_path_buf();
+                path_buf.pop();
+                for segment in link.iter() {
+                    match segment.to_str() {
+                        Some("..") => {
+                            path_buf.pop();
+                        }
+                        Some(".") | None => {}
+                        Some(seg) => {
+                            path_buf.push(seg.trim_end_matches('\0'));
+                        }
+                    }
+                }
+                Ok(path_buf)
+            } else {
+                Ok(path.to_path_buf())
+            }
+        }
     }
 }

@@ -84,6 +84,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install fixtures dependencies
+        working-directory: fixtures/pnpm8
+        run: pnpm install --frozen-lockfile
+
       - name: Build
         run: |
           rustup target add wasm32-wasi-preview1-threads
