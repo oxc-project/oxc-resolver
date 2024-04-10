@@ -109,6 +109,7 @@ impl FileSystem for FileSystemOs {
                         }
                         Some(".") | None => {}
                         Some(seg) => {
+                            // Need to trim the extra \0 introduces by rust std rust-lang/rust#123727
                             path_buf.push(seg.trim_end_matches('\0'));
                         }
                     }
