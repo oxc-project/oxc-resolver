@@ -96,6 +96,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install fixtures dependencies
+        working-directory: fixtures/pnpm8
+        run: pnpm install --frozen-lockfile
+
       - name: Add Rust Target
         run: rustup target add ${{ matrix.target }}
 
