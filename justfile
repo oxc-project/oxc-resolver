@@ -40,7 +40,7 @@ fmt:
 
 # Run cargo check
 check:
-  cargo check
+  cargo check --all-features --all-targets
 
 # Run all the tests
 test:
@@ -68,3 +68,4 @@ fuzz:
 
 release:
   release-plz update
+  just check
