@@ -1,10 +1,7 @@
 name: Release Plz
 
-permissions:
-  pull-requests: write
-  contents: write
-
 on:
+  workflow_dispatch:
   push:
     branches:
       - main

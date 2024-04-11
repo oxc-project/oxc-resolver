@@ -1,6 +1,7 @@
 name: Release NAPI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
