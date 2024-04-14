@@ -87,7 +87,7 @@ json-strip-comments = { version = "1.0.2" }
 typescript_tsconfig_json = { version = "0.1.4" }
 nodejs_package_json = { version = "0.2.0" }
 
-codspeed-criterion-compat = { version = "2.4.0", default-features = false, optional = true }
+codspeed-criterion-compat = { version = "2.4.1", default-features = false, optional = true }
 document-features = { version = "0.2", optional = true }
 
 [dev-dependencies]
