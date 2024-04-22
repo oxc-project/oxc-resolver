@@ -436,7 +436,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_resolver"
-version = "1.6.5"
+version = "1.6.6"
 dependencies = [
  "criterion2",
  "dashmap",

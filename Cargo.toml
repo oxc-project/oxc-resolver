@@ -3,7 +3,7 @@ members = ["napi"]
 resolver = "2"
 
 [package]
-version      = "1.6.5"
+version      = "1.6.6"
 name         = "oxc_resolver"
 authors      = ["Boshen <boshenc@gmail.com>"]
 categories   = ["development-tools"]
