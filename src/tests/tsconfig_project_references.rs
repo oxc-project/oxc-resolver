@@ -4,7 +4,7 @@ use crate::{ResolveError, ResolveOptions, Resolver, TsconfigOptions, TsconfigRef
 
 #[test]
 fn auto() {
-    let f = super::fixture_root().join("tsconfig_project_references");
+    let f = super::fixture_root().join("tsconfig/cases/project_references");
 
     let resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigOptions {
@@ -35,7 +35,7 @@ fn auto() {
 
 #[test]
 fn disabled() {
-    let f = super::fixture_root().join("tsconfig_project_references");
+    let f = super::fixture_root().join("tsconfig/cases/project_references");
 
     let resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigOptions {
@@ -66,7 +66,7 @@ fn disabled() {
 
 #[test]
 fn manual() {
-    let f = super::fixture_root().join("tsconfig_project_references");
+    let f = super::fixture_root().join("tsconfig/cases/project_references");
 
     let resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigOptions {

@@ -9,20 +9,20 @@ use crate::{ResolveOptions, Resolver, TsConfig, TsconfigOptions, TsconfigReferen
 // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/lib.rs#L2303>
 #[test]
 fn tsconfig() {
-    let f = super::fixture_root().join("parcel");
+    let f = super::fixture_root().join("tsconfig");
 
     #[rustfmt::skip]
     let pass = [
         (f.clone(), None, "ts-path", f.join("foo.js")),
         (f.join("nested"), None, "ts-path", f.join("nested/test.js")),
-        (f.join("tsconfig/index"), None, "foo", f.join("node_modules/tsconfig-index/foo.js")),
+        (f.join("cases/index"), None, "foo", f.join("node_modules/tsconfig-index/foo.js")),
         // This requires reading package.json.tsconfig field
-        // (f.join("tsconfig/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
-        (f.join("tsconfig/exports"), None, "foo", f.join("node_modules/tsconfig-exports/foo.js")),
-        (f.join("tsconfig/extends-extension"), None, "foo", f.join("tsconfig/extends-extension/foo.js")),
-        (f.join("tsconfig/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
-        (f.join("tsconfig/extends-paths"), Some("src"), "@/index", f.join("tsconfig/extends-paths/src/index.js")),
-        (f.join("tsconfig/extends-multiple"), None, "foo", f.join("tsconfig/extends-multiple/foo.js")),
+        // (f.join("cases/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
+        (f.join("cases/exports"), None, "foo", f.join("node_modules/tsconfig-exports/foo.js")),
+        (f.join("cases/extends-extension"), None, "foo", f.join("cases/extends-extension/foo.js")),
+        (f.join("cases/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
+        (f.join("cases/extends-paths"), Some("src"), "@/index", f.join("cases/extends-paths/src/index.js")),
+        (f.join("cases/extends-multiple"), None, "foo", f.join("cases/extends-multiple/foo.js")),
     ];
 
     for (dir, subdir, request, expected) in pass {
@@ -58,7 +58,7 @@ fn tsconfig() {
 
 #[test]
 fn json_with_comments() {
-    let f = super::fixture_root().join("parcel/tsconfig/trailing-comma");
+    let f = super::fixture_root().join("tsconfig/cases/trailing-comma");
 
     let resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigOptions {
