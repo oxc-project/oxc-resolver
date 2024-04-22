@@ -18,22 +18,13 @@ pub struct PackageJson {
     /// Realpath to `package.json`. Contains the `package.json` filename.
     pub realpath: PathBuf,
 
-    #[cfg(feature = "package_json_raw_json_api")]
-    pub(crate) raw_json: std::sync::Arc<serde_json::Value>,
+    raw_json: std::sync::Arc<serde_json::Value>,
 
     /// The "name" field defines your package's name.
     /// The "name" field can be used in addition to the "exports" field to self-reference a package using its name.
     ///
     /// <https://nodejs.org/api/packages.html#name>
     pub name: Option<String>,
-
-    /// The "main" field defines the entry point of a package when imported by name via a node_modules lookup. Its value is a path.
-    /// When a package has an "exports" field, this will take precedence over the "main" field when importing the package by name.
-    ///
-    /// Values are dynamically added from [ResolveOptions::main_fields].
-    ///
-    /// <https://nodejs.org/api/packages.html#main>
-    pub main_fields: Vec<String>,
 
     /// The "exports" field allows defining the entry points of a package when imported by name loaded either via a node_modules lookup or a self-reference to its own name.
     ///
@@ -64,7 +55,6 @@ impl PackageJson {
         let mut raw_json: Value = serde_json::from_str(json)?;
         let mut package_json = Self::default();
 
-        package_json.main_fields.reserve_exact(options.main_fields.len());
         package_json.exports.reserve_exact(options.exports_fields.len());
         package_json.browser_fields.reserve_exact(options.alias_fields.len());
 
@@ -91,15 +81,6 @@ impl PackageJson {
                 .map(ImportExportMap::deserialize)
                 .transpose()?
                 .map(Box::new);
-
-            // Dynamically create `main_fields`.
-            for main_field_key in &options.main_fields {
-                // Using `get` + `clone` instead of remove here
-                // because `main_fields` may contain `browser`, which is also used in `browser_fields.
-                if let Some(serde_json::Value::String(value)) = json_object.get(main_field_key) {
-                    package_json.main_fields.push(value.clone());
-                }
-            }
 
             // Dynamically create `browser_fields`.
             let dir = path.parent().unwrap();
@@ -138,10 +119,7 @@ impl PackageJson {
 
         package_json.path = path;
         package_json.realpath = realpath;
-        #[cfg(feature = "package_json_raw_json_api")]
-        {
-            package_json.raw_json = std::sync::Arc::new(raw_json);
-        }
+        package_json.raw_json = std::sync::Arc::new(raw_json);
         Ok(package_json)
     }
 
@@ -187,6 +165,23 @@ impl PackageJson {
     pub fn directory(&self) -> &Path {
         debug_assert!(self.realpath.file_name().is_some_and(|x| x == "package.json"));
         self.realpath.parent().unwrap()
+    }
+
+    /// The "main" field defines the entry point of a package when imported by name via a node_modules lookup. Its value is a path.
+    ///
+    /// When a package has an "exports" field, this will take precedence over the "main" field when importing the package by name.
+    ///
+    /// Values are dynamically retrieved from [ResolveOptions::main_fields].
+    ///
+    /// <https://nodejs.org/api/packages.html#main>
+    pub(crate) fn main_fields<'a>(
+        &'a self,
+        main_fields: &'a [String],
+    ) -> impl Iterator<Item = &'a str> + '_ {
+        main_fields
+            .iter()
+            .filter_map(|main_field| self.raw_json.get(main_field))
+            .filter_map(|value| value.as_str())
     }
 
     /// Resolve the request string for this package.json by looking at the `browser` field.

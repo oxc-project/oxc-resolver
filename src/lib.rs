@@ -515,7 +515,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 cached_path.package_json(&self.cache.fs, &self.options, ctx)?
             {
                 // b. If "main" is a falsy value, GOTO 2.
-                for main_field in &package_json.main_fields {
+                for main_field in package_json.main_fields(&self.options.main_fields) {
                     // c. let M = X + (json main field)
                     let main_field_path = cached_path.path().normalize_with(main_field);
                     // d. LOAD_AS_FILE(M)
@@ -1149,7 +1149,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         // 6. Otherwise, if packageSubpath is equal to ".", then
                         if subpath == "." {
                             // 1. If pjson.main is a string, then
-                            for main_field in &package_json.main_fields {
+                            for main_field in package_json.main_fields(&self.options.main_fields) {
                                 // 1. Return the URL resolution of main in packageURL.
                                 let path = cached_path.path().normalize_with(main_field);
                                 let cached_path = self.cache.value(&path);
