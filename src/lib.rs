@@ -204,11 +204,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Result<Resolution, ResolveError> {
         let span = tracing::debug_span!("resolve", path = ?path, specifier = specifier);
         let _enter = span.enter();
-        tracing::trace!(options = ?self.options, "resolve_options");
         let r = self.resolve_impl(path, specifier, ctx);
         match &r {
-            Ok(r) => tracing::debug!(path = ?path, specifier = specifier, ret = ?r.path),
-            Err(err) => tracing::debug!(path = ?path, specifier = specifier, err = ?err),
+            Ok(r) => {
+                tracing::debug!(options = ?self.options, path = ?path, specifier = specifier, ret = ?r.path);
+            }
+            Err(err) => {
+                tracing::debug!(options = ?self.options, path = ?path, specifier = specifier, err = ?err);
+            }
         };
         r
     }
