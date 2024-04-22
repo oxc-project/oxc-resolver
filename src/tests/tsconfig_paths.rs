@@ -89,7 +89,7 @@ fn test_paths() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap();
 
     let data = [
         ("jquery", vec!["/foo/node_modules/jquery/dist/jquery"]),
@@ -119,7 +119,7 @@ fn test_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap();
 
     let data = [
         ("foo", vec!["/foo/src/foo"]),
@@ -150,7 +150,7 @@ fn test_paths_and_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap();
 
     let data = [
         ("test", vec!["/foo/src/generated/test", "/foo/src/test"]),
@@ -165,6 +165,33 @@ fn test_paths_and_base_url() {
         let paths = tsconfig.resolve_path_alias(specifier);
         let expected = expected.into_iter().map(PathBuf::from).collect::<Vec<_>>();
         assert_eq!(paths, expected, "{specifier}");
+    }
+}
+
+// Template variable ${configDir} for substitution of config files directory path
+// https://github.com/microsoft/TypeScript/pull/58042
+#[test]
+fn test_template_variable() {
+    let f = super::fixture_root().join("tsconfig");
+    let f2 = f.join("cases").join("paths_template_variable");
+
+    #[rustfmt::skip]
+    let pass = [
+        (f2.clone(), "tsconfig1.json", "foo", f2.join("foo.js")),
+        (f2.clone(), "tsconfig2.json", "foo", f2.join("foo.js")),
+        (f.clone(), "tsconfig_template_variable.json", "foo", f.join("foo.js")),
+    ];
+
+    for (dir, tsconfig, request, expected) in pass {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigOptions {
+                config_file: dir.join(tsconfig),
+                references: TsconfigReferences::Auto,
+            }),
+            ..ResolveOptions::default()
+        });
+        let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{request} {tsconfig} {dir:?}");
     }
 }
 

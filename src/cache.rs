@@ -55,6 +55,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
     pub fn tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
         &self,
+        root: bool,
         path: &Path,
         callback: F, // callback for modifying tsconfig with `extends`
     ) -> Result<Arc<TsConfig>, ResolveError> {
@@ -74,13 +75,13 @@ impl<Fs: FileSystem> Cache<Fs> {
         let mut tsconfig_string = self
             .fs
             .read_to_string(&tsconfig_path)
-            .map_err(|_| ResolveError::TsconfigNotFound(tsconfig_path.to_path_buf()))?;
+            .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
         let mut tsconfig =
-            TsConfig::parse(&tsconfig_path, &mut tsconfig_string).map_err(|error| {
+            TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
         callback(&mut tsconfig)?;
-        let tsconfig = Arc::new(tsconfig);
+        let tsconfig = Arc::new(tsconfig.build());
         self.tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)
     }

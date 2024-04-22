@@ -1013,8 +1013,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let Some(tsconfig_options) = &self.options.tsconfig else {
             return Ok(None);
         };
-        let tsconfig =
-            self.load_tsconfig(&tsconfig_options.config_file, &tsconfig_options.references)?;
+        let tsconfig = self.load_tsconfig(
+            /* root */ true,
+            &tsconfig_options.config_file,
+            &tsconfig_options.references,
+        )?;
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
             let cached_path = self.cache.value(&path);
@@ -1027,10 +1030,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_tsconfig(
         &self,
+        root: bool,
         path: &Path,
         references: &TsconfigReferences,
     ) -> Result<Arc<TsConfig>, ResolveError> {
-        self.cache.tsconfig(path, |tsconfig| {
+        self.cache.tsconfig(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
@@ -1046,8 +1050,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         .collect::<Result<Vec<PathBuf>, ResolveError>>()?,
                 };
                 for extended_tsconfig_path in extended_tsconfig_paths {
-                    let extended_tsconfig =
-                        self.load_tsconfig(&extended_tsconfig_path, &TsconfigReferences::Disabled)?;
+                    let extended_tsconfig = self.load_tsconfig(
+                        /* root */ false,
+                        &extended_tsconfig_path,
+                        &TsconfigReferences::Disabled,
+                    )?;
                     tsconfig.extend_tsconfig(&extended_tsconfig);
                 }
             }
@@ -1069,7 +1076,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let directory = tsconfig.directory().to_path_buf();
                 for reference in &mut tsconfig.references {
                     let reference_tsconfig_path = directory.normalize_with(&reference.path);
-                    let tsconfig = self.cache.tsconfig(&reference_tsconfig_path, |_| Ok(()))?;
+                    let tsconfig = self.cache.tsconfig(
+                        /* root */ true,
+                        &reference_tsconfig_path,
+                        |_| Ok(()),
+                    )?;
                     reference.tsconfig.replace(tsconfig);
                 }
             }

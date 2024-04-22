@@ -25,6 +25,11 @@ fn auto() {
         // Does not have paths alias
         (f.join("project_a"), "./index.ts", f.join("project_a/index.ts")),
         (f.join("project_c"), "./index.ts", f.join("project_c/index.ts")),
+        // Template variable
+        {
+            let dir = f.parent().unwrap().join("paths_template_variable");
+            (dir.clone(), "foo", dir.join("foo.js"))
+        }
     ];
 
     for (path, request, expected) in pass {

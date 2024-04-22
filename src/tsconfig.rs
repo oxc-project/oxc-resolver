@@ -3,13 +3,19 @@ use std::{
     sync::Arc,
 };
 
-use crate::PathUtil;
 use serde::Deserialize;
 use typescript_tsconfig_json::{CompilerOptionsPathsMap, ExtendsField};
+
+use crate::PathUtil;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
+    /// Whether this is the caller tsconfig.
+    /// Used for final template variable substitution when all configs are extended and merged.
+    #[serde(skip)]
+    root: bool,
+
     /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
     #[serde(skip)]
     path: PathBuf,
@@ -56,9 +62,10 @@ pub struct ProjectReference {
 }
 
 impl TsConfig {
-    pub fn parse(path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
+    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         _ = json_strip_comments::strip(json);
         let mut tsconfig: Self = serde_json::from_str(json)?;
+        tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         let directory = tsconfig.directory().to_path_buf();
         if let Some(base_url) = tsconfig.compiler_options.base_url {
@@ -71,21 +78,29 @@ impl TsConfig {
         Ok(tsconfig)
     }
 
-    /// Directory to `package.json`
+    pub fn build(mut self) -> Self {
+        if self.root {
+            let dir = self.directory().to_path_buf();
+            // Substitute template variable in `tsconfig.compilerOptions.paths`
+            if let Some(paths) = &mut self.compiler_options.paths {
+                for paths in paths.values_mut() {
+                    for path in paths {
+                        Self::substitute_template_variable(&dir, path);
+                    }
+                }
+            }
+        }
+        self
+    }
+
+    /// Directory to `tsconfig.json`
     ///
     /// # Panics
     ///
-    /// * When the package.json path is misconfigured.
+    /// * When the `tsconfig.json` path is misconfigured.
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
         self.path.parent().unwrap()
-    }
-
-    fn base_path(&self) -> &Path {
-        self.compiler_options
-            .base_url
-            .as_ref()
-            .map_or_else(|| self.directory(), |path| path.as_ref())
     }
 
     pub fn extend_tsconfig(&mut self, tsconfig: &Self) {
@@ -174,5 +189,24 @@ impl TsConfig {
             .map(|p| self.compiler_options.paths_base.normalize_with(p))
             .chain(base_url_iter)
             .collect()
+    }
+
+    fn base_path(&self) -> &Path {
+        self.compiler_options
+            .base_url
+            .as_ref()
+            .map_or_else(|| self.directory(), |path| path.as_ref())
+    }
+
+    /// Template variable `${configDir}` for substitution of config files directory path
+    ///
+    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so we are constrained as such.
+    ///
+    /// See <https://github.com/microsoft/TypeScript/pull/58042>
+    fn substitute_template_variable(directory: &Path, path: &mut String) {
+        const TEMPLATE_VARIABLE: &str = "${configDir}/";
+        if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
+            *path = directory.join(stripped_path).to_string_lossy().to_string();
+        }
     }
 }
