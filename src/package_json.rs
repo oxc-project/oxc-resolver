@@ -28,11 +28,6 @@ pub struct PackageJson {
     /// <https://nodejs.org/api/packages.html#name>
     pub name: Option<String>,
 
-    /// In addition to the "exports" field, there is a package "imports" field to create private mappings that only apply to import specifiers from within the package itself.
-    ///
-    /// <https://nodejs.org/api/packages.html#subpath-imports>
-    pub imports: Option<Box<ImportExportMap>>,
-
     /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
     /// Multiple values are configured by [ResolveOptions::alias_fields].
     ///
@@ -70,10 +65,6 @@ impl PackageJson {
             // Add name.
             package_json.name =
                 json_object.get("name").and_then(|field| field.as_str()).map(ToString::to_string);
-
-            // Add imports.
-            package_json.imports =
-                json_object.get("imports").and_then(|v| v.as_object()).cloned().map(Box::new);
 
             // Dynamically create `browser_fields`.
             let dir = path.parent().unwrap();
@@ -180,6 +171,21 @@ impl PackageJson {
             self.raw_json
                 .as_object()
                 .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
+        })
+    }
+
+    /// In addition to the "exports" field, there is a package "imports" field to create private mappings that only apply to import specifiers from within the package itself.
+    ///
+    /// <https://nodejs.org/api/packages.html#subpath-imports>
+    pub(crate) fn imports_fields<'a>(
+        &'a self,
+        imports_fields: &'a [Vec<String>],
+    ) -> impl Iterator<Item = &'a ImportExportMap> + '_ {
+        imports_fields.iter().filter_map(|object_path| {
+            self.raw_json
+                .as_object()
+                .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
+                .and_then(|value| value.as_object())
         })
     }
 
