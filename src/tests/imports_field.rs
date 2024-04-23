@@ -8,7 +8,7 @@ use crate::{Ctx, ImportExportMap, PathUtil, ResolveError, ResolveOptions, Resolv
 use std::path::Path;
 
 #[test]
-fn test() {
+fn test_simple() {
     let f = super::fixture().join("imports-field");
     let f2 = super::fixture().join("imports-exports-wildcard/node_modules/m/");
 
