@@ -477,7 +477,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
         if let Some(path) = self.package_imports_resolve(specifier, &package_json, ctx)? {
             // 5. RESOLVE_ESM_MATCH(MATCH).
-            return self.resolve_esm_match(specifier, &path, &package_json, ctx);
+            return self.resolve_esm_match(specifier, &path, ctx);
         }
         Ok(None)
     }
@@ -759,7 +759,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 ctx,
             )? {
                 // 6. RESOLVE_ESM_MATCH(MATCH)
-                return self.resolve_esm_match(specifier, &path, &package_json, ctx);
+                return self.resolve_esm_match(specifier, &path, ctx);
             };
         }
         Ok(None)
@@ -796,7 +796,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     self.package_exports_resolve(package_url, &format!(".{subpath}"), exports, ctx)?
                 {
                     // 6. RESOLVE_ESM_MATCH(MATCH)
-                    return self.resolve_esm_match(specifier, &cached_path, &package_json, ctx);
+                    return self.resolve_esm_match(specifier, &cached_path, ctx);
                 }
             }
         }
@@ -808,12 +808,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         specifier: &str,
         cached_path: &CachedPath,
-        package_json: &PackageJson,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        if let Some(path) = self.load_browser_field(cached_path, None, package_json, ctx)? {
-            return Ok(Some(path));
-        }
         // 1. let RESOLVED_PATH = fileURLToPath(MATCH)
         // 2. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension format. STOP
         //
