@@ -756,7 +756,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 cached_path.path(),
                 &format!(".{subpath}"),
                 exports,
-                &self.options.condition_names,
                 ctx,
             )? {
                 // 6. RESOLVE_ESM_MATCH(MATCH)
@@ -793,13 +792,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Note: The subpath is not prepended with a dot on purpose
             // because `package_exports_resolve` matches subpath without the leading dot.
             for exports in package_json.exports_fields(&self.options.exports_fields) {
-                if let Some(cached_path) = self.package_exports_resolve(
-                    package_url,
-                    &format!(".{subpath}"),
-                    exports,
-                    &self.options.condition_names,
-                    ctx,
-                )? {
+                if let Some(cached_path) =
+                    self.package_exports_resolve(package_url, &format!(".{subpath}"), exports, ctx)?
+                {
                     // 6. RESOLVE_ESM_MATCH(MATCH)
                     return self.resolve_esm_match(specifier, &cached_path, &package_json, ctx);
                 }
@@ -1143,7 +1138,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                                 cached_path.path(),
                                 &format!(".{subpath}"),
                                 exports,
-                                &self.options.condition_names,
                                 ctx,
                             )? {
                                 return Ok(Some(path));
@@ -1180,9 +1174,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         package_url: &Path,
         subpath: &str,
         exports: &JSONValue,
-        conditions: &[String],
         ctx: &mut Ctx,
     ) -> ResolveResult {
+        let conditions = &self.options.condition_names;
         // 1. If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
         if let JSONValue::Object(map) = exports {
             let mut has_dot = false;
