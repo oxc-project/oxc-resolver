@@ -31,6 +31,25 @@ fn ignore() {
 }
 
 #[test]
+fn shared_resolvers() {
+    let f = super::fixture().join("browser-module");
+
+    let resolver1 = Resolver::new(ResolveOptions {
+        alias_fields: vec![vec!["innerBrowser1".into(), "field".into(), "browser".into()]],
+        ..ResolveOptions::default()
+    });
+    let resolved_path = resolver1.resolve(&f, "./lib/main1.js").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("lib/main.js")));
+
+    let resolver2 = resolver1.clone_with_options(ResolveOptions {
+        alias_fields: vec![vec!["innerBrowser2".into(), "browser".into()]],
+        ..ResolveOptions::default()
+    });
+    let resolved_path = resolver2.resolve(&f, "./lib/main2.js").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("./lib/replaced.js")));
+}
+
+#[test]
 fn replace_file() {
     let f = super::fixture().join("browser-module");
 

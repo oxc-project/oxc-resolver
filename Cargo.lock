@@ -384,20 +384,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nodejs_package_json"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad444c78696e8b4de2de8a45468d0cc76630e2ed235c84e102c197b89d295a0b"
-dependencies = [
- "indexmap",
- "rustc-hash",
- "semver",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "normalize-path"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -443,7 +429,6 @@ dependencies = [
  "document-features",
  "dunce",
  "json-strip-comments",
- "nodejs_package_json",
  "normalize-path",
  "once_cell",
  "rayon",
@@ -583,9 +568,6 @@ name = "semver"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92d43fe69e652f3df9bdc2b85b2854a0825b86e4fb76bc44d945137d053639ca"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "serde"
