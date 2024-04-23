@@ -561,12 +561,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if ctx.fully_specified {
             return Ok(None);
         }
+        let path = path.as_os_str();
         for extension in extensions {
-            let mut path_with_extension = path.to_path_buf().into_os_string();
+            let mut path_with_extension = path.to_os_string();
             path_with_extension.reserve_exact(extension.len());
             path_with_extension.push(extension);
-            let path_with_extension = PathBuf::from(path_with_extension);
-            let cached_path = self.cache.value(&path_with_extension);
+            let cached_path = self.cache.value(Path::new(&path_with_extension));
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                 return Ok(Some(path));
             }
