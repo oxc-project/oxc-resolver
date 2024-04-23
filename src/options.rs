@@ -592,5 +592,32 @@ mod test {
 
         let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,"#;
         assert_eq!(format!("{options}"), expected);
+
+        let options = ResolveOptions {
+            alias: vec![],
+            alias_fields: vec![],
+            builtin_modules: false,
+            condition_names: vec![],
+            description_files: vec![],
+            enforce_extension: EnforceExtension::Disabled,
+            exports_fields: vec![],
+            extension_alias: vec![],
+            extensions: vec![],
+            fallback: vec![],
+            fully_specified: false,
+            imports_fields: vec![],
+            main_fields: vec![],
+            main_files: vec![],
+            modules: vec![],
+            prefer_absolute: false,
+            prefer_relative: false,
+            resolve_to_context: false,
+            restrictions: vec![],
+            roots: vec![],
+            symlinks: false,
+            tsconfig: None,
+        };
+
+        assert_eq!(format!("{options}"), "");
     }
 }
