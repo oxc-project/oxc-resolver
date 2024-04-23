@@ -183,6 +183,27 @@ fn field_name_path() {
 }
 
 #[test]
+fn shared_resolvers() {
+    let f3 = super::fixture().join("exports-field3");
+
+    let resolver1 = Resolver::new(ResolveOptions {
+        exports_fields: vec![vec!["exportsField".into(), "exports".into()]],
+        extensions: vec![".js".into()],
+        ..ResolveOptions::default()
+    });
+    let resolved_path = resolver1.resolve(&f3, "exports-field").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f3.join("node_modules/exports-field/main.js")));
+
+    let resolver2 = resolver1.clone_with_options(ResolveOptions {
+        exports_fields: vec![vec!["ex".into()]],
+        extensions: vec![".js".into()],
+        ..ResolveOptions::default()
+    });
+    let resolved_path = resolver2.resolve(&f3, "exports-field").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f3.join("node_modules/exports-field/index")));
+}
+
+#[test]
 fn extension_alias_1_2() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
