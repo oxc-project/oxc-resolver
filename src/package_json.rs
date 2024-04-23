@@ -26,11 +26,6 @@ pub struct PackageJson {
     /// <https://nodejs.org/api/packages.html#name>
     pub name: Option<String>,
 
-    /// The "exports" field allows defining the entry points of a package when imported by name loaded either via a node_modules lookup or a self-reference to its own name.
-    ///
-    /// <https://nodejs.org/api/packages.html#exports>
-    pub exports: Vec<ImportExportField>,
-
     /// In addition to the "exports" field, there is a package "imports" field to create private mappings that only apply to import specifiers from within the package itself.
     ///
     /// <https://nodejs.org/api/packages.html#subpath-imports>
@@ -55,7 +50,6 @@ impl PackageJson {
         let mut raw_json: Value = serde_json::from_str(json)?;
         let mut package_json = Self::default();
 
-        package_json.exports.reserve_exact(options.exports_fields.len());
         package_json.browser_fields.reserve_exact(options.alias_fields.len());
 
         if let Some(json_object) = raw_json.as_object_mut() {
@@ -105,14 +99,6 @@ impl PackageJson {
                         }
                     }
                     package_json.browser_fields.push(browser_field);
-                }
-            }
-
-            // Dynamically create `exports`.
-            for object_path in &options.exports_fields {
-                if let Some(exports) = Self::get_value_by_path(json_object, object_path) {
-                    let exports = ImportExportField::deserialize(exports)?;
-                    package_json.exports.push(exports);
                 }
             }
         }
@@ -182,6 +168,27 @@ impl PackageJson {
             .iter()
             .filter_map(|main_field| self.raw_json.get(main_field))
             .filter_map(|value| value.as_str())
+    }
+
+    /// The "exports" field allows defining the entry points of a package when imported by name loaded either via a node_modules lookup or a self-reference to its own name.
+    ///
+    /// <https://nodejs.org/api/packages.html#exports>
+    pub(crate) fn exports_fields<'a>(
+        &'a self,
+        exports_fields: &'a [Vec<String>],
+    ) -> impl Iterator<Item = Result<ImportExportField, ResolveError>> + '_ {
+        exports_fields
+            .iter()
+            .filter_map(|object_path| {
+                self.raw_json
+                    .as_object()
+                    .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
+            })
+            // TODO: PERF: should cache this deserialize
+            .map(|exports| {
+                ImportExportField::deserialize(exports)
+                    .map_err(|err| ResolveError::from_serde_json_error(self.path.clone(), &err))
+            })
     }
 
     /// Resolve the request string for this package.json by looking at the `browser` field.

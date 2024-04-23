@@ -749,17 +749,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         };
         // 3. Parse DIR/NAME/package.json, and look for "exports" field.
         // 4. If "exports" is null or undefined, return.
-        if package_json.exports.is_empty() {
-            return Ok(None);
-        };
         // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
         //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
         // Note: The subpath is not prepended with a dot on purpose
-        for exports in &package_json.exports {
+        for exports in package_json.exports_fields(&self.options.exports_fields) {
             if let Some(path) = self.package_exports_resolve(
                 cached_path.path(),
                 subpath,
-                exports,
+                &exports?,
                 &self.options.condition_names,
                 ctx,
             )? {
@@ -784,30 +781,28 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(None);
         };
         // 3. If the SCOPE/package.json "exports" is null or undefined, return.
-        if !package_json.exports.is_empty() {
-            // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
-            if let Some(subpath) = package_json
-                .name
-                .as_ref()
-                .and_then(|package_name| Self::strip_package_name(specifier, package_name))
-            {
-                // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
-                // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-                // defined in the ESM resolver.
-                let package_url = package_json.directory();
-                // Note: The subpath is not prepended with a dot on purpose
-                // because `package_exports_resolve` matches subpath without the leading dot.
-                for exports in &package_json.exports {
-                    if let Some(cached_path) = self.package_exports_resolve(
-                        package_url,
-                        subpath,
-                        exports,
-                        &self.options.condition_names,
-                        ctx,
-                    )? {
-                        // 6. RESOLVE_ESM_MATCH(MATCH)
-                        return self.resolve_esm_match(specifier, &cached_path, &package_json, ctx);
-                    }
+        // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
+        if let Some(subpath) = package_json
+            .name
+            .as_ref()
+            .and_then(|package_name| Self::strip_package_name(specifier, package_name))
+        {
+            // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
+            // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
+            // defined in the ESM resolver.
+            let package_url = package_json.directory();
+            // Note: The subpath is not prepended with a dot on purpose
+            // because `package_exports_resolve` matches subpath without the leading dot.
+            for exports in package_json.exports_fields(&self.options.exports_fields) {
+                if let Some(cached_path) = self.package_exports_resolve(
+                    package_url,
+                    subpath,
+                    &exports?,
+                    &self.options.condition_names,
+                    ctx,
+                )? {
+                    // 6. RESOLVE_ESM_MATCH(MATCH)
+                    return self.resolve_esm_match(specifier, &cached_path, &package_json, ctx);
                 }
             }
         }
@@ -1143,18 +1138,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         cached_path.package_json(&self.cache.fs, &self.options, ctx)?
                     {
                         // 5. If pjson is not null and pjson.exports is not null or undefined, then
-                        if !package_json.exports.is_empty() {
-                            // 1. Return the result of PACKAGE_EXPORTS_RESOLVE(packageURL, packageSubpath, pjson.exports, defaultConditions).
-                            for exports in &package_json.exports {
-                                if let Some(path) = self.package_exports_resolve(
-                                    cached_path.path(),
-                                    subpath,
-                                    exports,
-                                    &self.options.condition_names,
-                                    ctx,
-                                )? {
-                                    return Ok(Some(path));
-                                }
+                        // 1. Return the result of PACKAGE_EXPORTS_RESOLVE(packageURL, packageSubpath, pjson.exports, defaultConditions).
+                        for exports in package_json.exports_fields(&self.options.exports_fields) {
+                            if let Some(path) = self.package_exports_resolve(
+                                cached_path.path(),
+                                subpath,
+                                &exports?,
+                                &self.options.condition_names,
+                                ctx,
+                            )? {
+                                return Ok(Some(path));
                             }
                         }
                         // 6. Otherwise, if packageSubpath is equal to ".", then
