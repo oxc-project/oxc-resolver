@@ -3,11 +3,13 @@
 //! Code related to export field are copied from [Parcel's resolver](https://github.com/parcel-bundler/parcel/blob/v2/packages/utils/node-resolver-rs/src/package_json.rs)
 use std::path::{Path, PathBuf};
 
-use nodejs_package_json::{BrowserField, ImportExportField, ImportExportMap};
+use nodejs_package_json::BrowserField;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::Value as JSONValue;
 
 use crate::{path::PathUtil, ResolveError, ResolveOptions};
+
+pub type ImportExportMap = serde_json::Map<String, JSONValue>;
 
 /// Deserialized package.json
 #[derive(Debug, Default)]
@@ -18,7 +20,7 @@ pub struct PackageJson {
     /// Realpath to `package.json`. Contains the `package.json` filename.
     pub realpath: PathBuf,
 
-    raw_json: std::sync::Arc<serde_json::Value>,
+    raw_json: std::sync::Arc<JSONValue>,
 
     /// The "name" field defines your package's name.
     /// The "name" field can be used in addition to the "exports" field to self-reference a package using its name.
@@ -47,7 +49,7 @@ impl PackageJson {
         json: &str,
         options: &ResolveOptions,
     ) -> Result<Self, serde_json::Error> {
-        let mut raw_json: Value = serde_json::from_str(json)?;
+        let mut raw_json: JSONValue = serde_json::from_str(json)?;
         let mut package_json = Self::default();
 
         package_json.browser_fields.reserve_exact(options.alias_fields.len());
@@ -70,11 +72,8 @@ impl PackageJson {
                 json_object.get("name").and_then(|field| field.as_str()).map(ToString::to_string);
 
             // Add imports.
-            package_json.imports = json_object
-                .get("imports")
-                .map(ImportExportMap::deserialize)
-                .transpose()?
-                .map(Box::new);
+            package_json.imports =
+                json_object.get("imports").and_then(|v| v.as_object()).cloned().map(Box::new);
 
             // Dynamically create `browser_fields`.
             let dir = path.parent().unwrap();
@@ -110,9 +109,9 @@ impl PackageJson {
     }
 
     fn get_value_by_path<'a>(
-        fields: &'a serde_json::Map<String, serde_json::Value>,
+        fields: &'a serde_json::Map<String, JSONValue>,
         path: &[String],
-    ) -> Option<&'a serde_json::Value> {
+    ) -> Option<&'a JSONValue> {
         if path.is_empty() {
             return None;
         }
@@ -139,7 +138,7 @@ impl PackageJson {
     /// They are: `description`, `keywords`, `scripts`,
     /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
     #[cfg(feature = "package_json_raw_json_api")]
-    pub fn raw_json(&self) -> &std::sync::Arc<serde_json::Value> {
+    pub fn raw_json(&self) -> &std::sync::Arc<JSONValue> {
         &self.raw_json
     }
 
@@ -176,19 +175,12 @@ impl PackageJson {
     pub(crate) fn exports_fields<'a>(
         &'a self,
         exports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = Result<ImportExportField, ResolveError>> + '_ {
-        exports_fields
-            .iter()
-            .filter_map(|object_path| {
-                self.raw_json
-                    .as_object()
-                    .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-            })
-            // TODO: PERF: should cache this deserialize
-            .map(|exports| {
-                ImportExportField::deserialize(exports)
-                    .map_err(|err| ResolveError::from_serde_json_error(self.path.clone(), &err))
-            })
+    ) -> impl Iterator<Item = &'a JSONValue> + '_ {
+        exports_fields.iter().filter_map(|object_path| {
+            self.raw_json
+                .as_object()
+                .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
+        })
     }
 
     /// Resolve the request string for this package.json by looking at the `browser` field.
@@ -217,13 +209,10 @@ impl PackageJson {
         Ok(None)
     }
 
-    fn alias_value<'a>(
-        key: &Path,
-        value: &'a serde_json::Value,
-    ) -> Result<Option<&'a str>, ResolveError> {
+    fn alias_value<'a>(key: &Path, value: &'a JSONValue) -> Result<Option<&'a str>, ResolveError> {
         match value {
-            serde_json::Value::String(value) => Ok(Some(value.as_str())),
-            serde_json::Value::Bool(b) if !b => Err(ResolveError::Ignored(key.to_path_buf())),
+            JSONValue::String(value) => Ok(Some(value.as_str())),
+            JSONValue::Bool(b) if !b => Err(ResolveError::Ignored(key.to_path_buf())),
             _ => Ok(None),
         }
     }

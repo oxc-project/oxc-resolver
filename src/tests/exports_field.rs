@@ -2,12 +2,12 @@
 //!
 //! The huge exports field test cases are at the bottom of this file.
 
-use crate::{Ctx, ImportExportField, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{Ctx, PathUtil, ResolveError, ResolveOptions, Resolver};
 use serde_json::json;
 use std::path::Path;
 
 #[test]
-fn test() {
+fn test_simple() {
     let f = super::fixture().join("exports-field");
     let f2 = super::fixture().join("exports-field2");
     let f4 = super::fixture().join("exports-field-error");
@@ -64,8 +64,8 @@ fn test() {
         ("resolver should respect query parameters #2. Direct matching", f2.clone(), "exports-field?foo", ResolveError::PackagePathNotExported("./?foo".into(), p2.clone())),
         ("resolver should respect fragment parameters #2. Direct matching", f2, "exports-field#foo", ResolveError::PackagePathNotExported("./#foo".into(), p2.clone())),
         ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound("./node_modules/exports-field/dist/main.js".into())),
-        ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget("./lib/../../../a.js".to_string(), "/dist/".to_string(), p.clone())),
-        ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget("./../../a.js".to_string(), "/dist/a.js".to_string(), p.clone())),
+        ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget("./lib/../../../a.js".to_string(), "./dist/".to_string(), p.clone())),
+        ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget("./../../a.js".to_string(), "./dist/a.js".to_string(), p.clone())),
         ("not exported error", f.clone(), "exports-field/anything/else", ResolveError::PackagePathNotExported("./anything/else".to_string(), p.clone())),
         ("request ending with slash #1", f.clone(), "exports-field/", ResolveError::PackagePathNotExported("./".to_string(), p.clone())),
         ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolveError::PackagePathNotExported("./dist/".to_string(), p.clone())),
@@ -297,15 +297,14 @@ fn extension_alias_throw_error() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    exports_field: ImportExportField,
+    exports_field: serde_json::Value,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn exports_field(value: serde_json::Value) -> ImportExportField {
-    let s = serde_json::to_string(&value).unwrap();
-    serde_json::from_str(&s).unwrap()
+fn exports_field(value: serde_json::Value) -> serde_json::Value {
+    value
 }
 
 #[test]
@@ -2515,7 +2514,7 @@ fn test_cases() {
         let resolved = Resolver::default()
             .package_exports_resolve(
                 Path::new(""),
-                case.request.trim_start_matches('.'),
+                case.request,
                 &case.exports_field,
                 &case.condition_names.iter().map(ToString::to_string).collect::<Vec<_>>(),
                 &mut Ctx::default(),
