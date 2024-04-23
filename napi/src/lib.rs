@@ -109,6 +109,10 @@ impl ResolverFactory {
                 .exports_fields
                 .map(|o| o.into_iter().map(|x| StrOrStrList(x).into()).collect::<Vec<_>>())
                 .unwrap_or(default.exports_fields),
+            imports_fields: op
+                .imports_fields
+                .map(|o| o.into_iter().map(|x| StrOrStrList(x).into()).collect::<Vec<_>>())
+                .unwrap_or(default.imports_fields),
             extension_alias: op
                 .extension_alias
                 .map(|extension_alias| extension_alias.into_iter().collect::<Vec<_>>())

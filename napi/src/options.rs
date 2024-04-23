@@ -62,6 +62,15 @@ pub struct NapiResolveOptions {
     #[napi(ts_type = "(string | string[])[]")]
     pub exports_fields: Option<Vec<StrOrStrListType>>,
 
+    /// Fields from `package.json` which are used to provide the internal requests of a package
+    /// (requests starting with # are considered internal).
+    ///
+    /// Can be a path to a JSON object such as `["path", "to", "imports"]`.
+    ///
+    /// Default `[["imports"]]`.
+    #[napi(ts_type = "(string | string[])[]")]
+    pub imports_fields: Option<Vec<StrOrStrListType>>,
+
     /// An object which maps extension to extension aliases.
     ///
     /// Default `{}`
