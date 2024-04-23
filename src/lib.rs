@@ -88,7 +88,7 @@ use crate::{
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
     file_system::FileSystemOs,
-    package_json::ImportExportMap,
+    package_json::JSONMap,
     path::{PathUtil, SLASH_START},
     specifier::Specifier,
     tsconfig::{ProjectReference, TsConfig},
@@ -830,7 +830,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         let path = cached_path.path();
-        let Some(new_specifier) = package_json.resolve_browser_field(path, module_specifier)?
+        let Some(new_specifier) = package_json.resolve_browser_field(
+            path,
+            module_specifier,
+            &self.options.alias_fields,
+        )?
         else {
             return Ok(None);
         };
@@ -1325,7 +1329,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     fn package_imports_exports_resolve(
         &self,
         match_key: &str,
-        match_obj: &ImportExportMap,
+        match_obj: &JSONMap,
         package_url: &Path,
         is_imports: bool,
         conditions: &[String],

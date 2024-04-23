@@ -4,7 +4,7 @@
 
 use serde_json::json;
 
-use crate::{Ctx, ImportExportMap, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{Ctx, JSONMap, PathUtil, ResolveError, ResolveOptions, Resolver};
 use std::path::Path;
 
 #[test]
@@ -94,13 +94,13 @@ fn shared_resolvers() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    imports_field: ImportExportMap,
+    imports_field: JSONMap,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn imports_field(value: serde_json::Value) -> ImportExportMap {
+fn imports_field(value: serde_json::Value) -> JSONMap {
     let s = serde_json::to_string(&value).unwrap();
     serde_json::from_str(&s).unwrap()
 }
