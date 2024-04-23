@@ -27,6 +27,7 @@ Rust port of [enhanced-resolve].
   * support extending tsconfig defined in `tsconfig.extends`
   * support paths alias defined in `tsconfig.compilerOptions.paths`
   * support project references defined `tsconfig.references`
+  * support [template variable ${configDir} for substitution of config files directory path](https://github.com/microsoft/TypeScript/pull/58042)
 * supports in-memory file system via the `FileSystem` trait
 * contains `tracing` instrumentation
 
