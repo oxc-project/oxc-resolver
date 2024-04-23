@@ -474,15 +474,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(None);
         };
         // 3. If the SCOPE/package.json "imports" is null or undefined, return.
-        if package_json.imports.is_none()
-            || package_json.imports.as_ref().is_some_and(|imports| imports.is_empty())
-        {
-            return Ok(None);
-        }
         // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
-        let path = self.package_imports_resolve(specifier, &package_json, ctx)?;
-        // 5. RESOLVE_ESM_MATCH(MATCH).
-        self.resolve_esm_match(specifier, &path, &package_json, ctx)
+        if let Some(path) = self.package_imports_resolve(specifier, &package_json, ctx)? {
+            // 5. RESOLVE_ESM_MATCH(MATCH).
+            return self.resolve_esm_match(specifier, &path, &package_json, ctx);
+        }
+        Ok(None)
     }
 
     fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
@@ -1286,17 +1283,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         package_json: &PackageJson,
         ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
+    ) -> Result<Option<CachedPath>, ResolveError> {
         // 1. Assert: specifier begins with "#".
         debug_assert!(specifier.starts_with('#'), "{specifier}");
-        // 2. If specifier is exactly equal to "#" or starts with "#/", then
-        if specifier == "#" || specifier.starts_with("#/") {
-            // 1. Throw an Invalid Module Specifier error.
-            return Err(ResolveError::InvalidModuleSpecifier(
-                specifier.to_string(),
-                package_json.path.clone(),
-            ));
-        }
+        //   2. If specifier is exactly equal to "#" or starts with "#/", then
+        //   1. Throw an Invalid Module Specifier error.
         // 3. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(parentURL).
         // 4. If packageURL is not null, then
 
@@ -1304,7 +1295,18 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 2. If pjson.imports is a non-null Object, then
 
         // 1. Let resolved be the result of PACKAGE_IMPORTS_EXPORTS_RESOLVE( specifier, pjson.imports, packageURL, true, conditions).
-        if let Some(imports) = &package_json.imports {
+        let mut has_imports = false;
+        for imports in package_json.imports_fields(&self.options.imports_fields) {
+            if !has_imports {
+                has_imports = true;
+                // TODO: fill in test case for this case
+                if specifier == "#" || specifier.starts_with("#/") {
+                    return Err(ResolveError::InvalidModuleSpecifier(
+                        specifier.to_string(),
+                        package_json.path.clone(),
+                    ));
+                }
+            }
             if let Some(path) = self.package_imports_exports_resolve(
                 specifier,
                 imports,
@@ -1314,12 +1316,19 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 ctx,
             )? {
                 // 2. If resolved is not null or undefined, return resolved.
-                return Ok(path);
+                return Ok(Some(path));
             }
         }
 
         // 5. Throw a Package Import Not Defined error.
-        Err(ResolveError::PackageImportNotDefined(specifier.to_string(), package_json.path.clone()))
+        if has_imports {
+            Err(ResolveError::PackageImportNotDefined(
+                specifier.to_string(),
+                package_json.path.clone(),
+            ))
+        } else {
+            Ok(None)
+        }
     }
 
     /// PACKAGE_IMPORTS_EXPORTS_RESOLVE(matchKey, matchObj, packageURL, isImports, conditions)

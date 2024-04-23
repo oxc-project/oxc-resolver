@@ -65,6 +65,14 @@ pub struct ResolveOptions {
     /// Default `[["exports"]]`.
     pub exports_fields: Vec<Vec<String>>,
 
+    /// Fields from `package.json` which are used to provide the internal requests of a package
+    /// (requests starting with # are considered internal).
+    ///
+    /// Can be a path to a JSON object such as `["path", "to", "imports"]`.
+    ///
+    /// Default `[["imports"]]`.
+    pub imports_fields: Vec<Vec<String>>,
+
     /// An object which maps extension to extension aliases.
     ///
     /// Default `{}`
@@ -446,6 +454,7 @@ impl Default for ResolveOptions {
             enforce_extension: EnforceExtension::Auto,
             extension_alias: vec![],
             exports_fields: vec![vec!["exports".into()]],
+            imports_fields: vec![vec!["imports".into()]],
             extensions: vec![".js".into(), ".json".into(), ".node".into()],
             fallback: vec![],
             fully_specified: false,
@@ -483,6 +492,9 @@ impl fmt::Display for ResolveOptions {
         }
         if !self.exports_fields.is_empty() {
             write!(f, "exports_fields:{:?},", self.exports_fields)?;
+        }
+        if !self.imports_fields.is_empty() {
+            write!(f, "imports_fields:{:?},", self.imports_fields)?;
         }
         if !self.extension_alias.is_empty() {
             write!(f, "extension_alias:{:?},", self.extension_alias)?;
@@ -566,6 +578,7 @@ mod test {
             enforce_extension: EnforceExtension::Enabled,
             extension_alias: vec![(".js".into(), vec![".ts".into()])],
             exports_fields: vec![vec!["exports".into()]],
+            imports_fields: vec![vec!["imports".into()]],
             fallback: vec![("fallback".into(), vec![AliasValue::Ignore])],
             fully_specified: true,
             resolve_to_context: true,
@@ -577,7 +590,7 @@ mod test {
             ..ResolveOptions::default()
         };
 
-        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,"#;
+        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,"#;
         assert_eq!(format!("{options}"), expected);
     }
 }

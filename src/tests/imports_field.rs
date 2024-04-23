@@ -50,6 +50,32 @@ fn test_simple() {
     }
 }
 
+#[test]
+fn shared_resolvers() {
+    let f = super::fixture().join("imports-field");
+
+    // field name #1
+    let resolver1 = Resolver::new(ResolveOptions {
+        extensions: vec![".js".into()],
+        main_files: vec!["index.js".into()],
+        imports_fields: vec![vec!["imports".into()]],
+        condition_names: vec!["webpack".into()],
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver1.resolve(&f, "#imports-field").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("b.js")));
+
+    // field name #2
+    let resolver2 = resolver1.clone_with_options(ResolveOptions {
+        imports_fields: vec![vec!["other".into(), "imports".into()]],
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver2.resolve(&f, "#b").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("a.js")));
+}
+
 // Small script for generating the test cases from enhanced_resolve
 // for (c of testCases) {
 //  console.log("TestCase {")
