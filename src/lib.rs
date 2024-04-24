@@ -333,13 +333,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Ok(path);
             }
         }
-        // enhanced-resolve: RootsPlugin
-        for root in &self.options.roots {
-            let cached_path = self.cache.value(root);
-            let specifier = specifier.trim_start_matches(SLASH_START);
-            if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
-                return Ok(path);
-            }
+        if let Some(path) = self.load_roots(specifier, ctx) {
+            return Ok(path);
         }
         // 2. If X begins with '/'
         //   a. set Y to be the file system root
@@ -985,6 +980,26 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(Some(path));
         }
         Err(ResolveError::ExtensionAlias)
+    }
+
+    /// enhanced-resolve: RootsPlugin
+    ///
+    /// A list of directories where requests of server-relative URLs (starting with '/') are resolved,
+    /// defaults to context configuration option.
+    ///
+    /// On non-Windows systems these requests are resolved as an absolute path first.
+    fn load_roots(&self, specifier: &str, ctx: &mut Ctx) -> Option<CachedPath> {
+        if !self.options.roots.is_empty() {
+            if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
+                for root in &self.options.roots {
+                    let cached_path = self.cache.value(root);
+                    if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
+                        return Some(path);
+                    }
+                }
+            }
+        }
+        None
     }
 
     fn load_tsconfig_paths(
