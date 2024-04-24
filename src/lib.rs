@@ -333,27 +333,21 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Ok(path);
             }
         }
-        if self.options.roots.is_empty() {
-            // 2. If X begins with '/'
-            //   a. set Y to be the file system root
-            let path = self.cache.value(Path::new(specifier));
-            if let Some(path) = self.load_as_file_or_directory(&path, specifier, ctx)? {
+        // enhanced-resolve: RootsPlugin
+        for root in &self.options.roots {
+            let cached_path = self.cache.value(root);
+            let specifier = specifier.trim_start_matches(SLASH_START);
+            if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
                 return Ok(path);
             }
-            Err(ResolveError::NotFound(specifier.to_string()))
-        } else {
-            for root in &self.options.roots {
-                let cached_path = self.cache.value(root);
-                if let Ok(path) = self.require_relative(
-                    &cached_path,
-                    specifier.trim_start_matches(SLASH_START),
-                    ctx,
-                ) {
-                    return Ok(path);
-                }
-            }
-            Err(ResolveError::NotFound(specifier.to_string()))
         }
+        // 2. If X begins with '/'
+        //   a. set Y to be the file system root
+        let path = self.cache.value(Path::new(specifier));
+        if let Some(path) = self.load_as_file_or_directory(&path, specifier, ctx)? {
+            return Ok(path);
+        }
+        Err(ResolveError::NotFound(specifier.to_string()))
     }
 
     // 3. If X begins with './' or '/' or '../'
