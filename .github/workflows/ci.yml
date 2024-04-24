@@ -137,27 +137,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@v1
-
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
             src:
-              - 'Cargo.lock'
+              - '**/*.rs'
               - '**/Cargo.toml'
-
-      - name: Install cargo-machete
-        if: steps.filter.outputs.src == 'true'
-        uses: taiki-e/install-action@cargo-machete
-
-      - name: Install Rust
-        if: steps.filter.outputs.src == 'true'
-        uses: ./.github/actions/rustup
+              - 'Cargo.lock'
+      - uses: ./.github/actions/rustup
         with:
           restore-cache: false
-
-      - if: steps.filter.outputs.src == 'true'
-        run: cargo machete
+        if: steps.filter.outputs.src == 'true'
+      - uses: cargo-bins/cargo-binstall@main
+        if: steps.filter.outputs.src == 'true'
+      - run: cargo binstall --no-confirm cargo-shear
+        if: steps.filter.outputs.src == 'true'
+      - run: cargo shear
+        if: steps.filter.outputs.src == 'true'
 
   format:
     name: Format
