@@ -78,3 +78,12 @@ fn prefer_absolute() {
         assert_eq!(resolved_path, Ok(expected), "{comment} {request}");
     }
 }
+
+#[test]
+fn roots_fall_through() {
+    let f = super::fixture();
+    let absolute_path = f.join("roots_fall_through/index.js");
+    let specifier = absolute_path.to_string_lossy();
+    let resolution = Resolver::new(ResolveOptions::default().with_root(&f)).resolve(&f, &specifier);
+    assert_eq!(resolution.map(|r| r.into_path_buf()), Ok(absolute_path));
+}

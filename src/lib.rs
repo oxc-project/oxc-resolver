@@ -333,16 +333,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Ok(path);
             }
         }
-        if !self.options.roots.is_empty() {
-            for root in &self.options.roots {
-                let cached_path = self.cache.value(root);
-                if let Ok(path) = self.require_relative(
-                    &cached_path,
-                    specifier.trim_start_matches(SLASH_START),
-                    ctx,
-                ) {
-                    return Ok(path);
-                }
+        // enhanced-resolve: RootsPlugin
+        for root in &self.options.roots {
+            let cached_path = self.cache.value(root);
+            let specifier = specifier.trim_start_matches(SLASH_START);
+            if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
+                return Ok(path);
             }
         }
         // 2. If X begins with '/'
