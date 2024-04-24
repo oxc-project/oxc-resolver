@@ -8,6 +8,10 @@ on:
     paths:
       - Cargo.toml
 
+permissions:
+  pull-requests: write
+  contents: write
+
 jobs:
   release-plz:
     name: Release-plz
