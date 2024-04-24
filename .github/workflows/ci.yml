@@ -36,12 +36,12 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
 
       - name: Cargo check
-        run: cargo check --locked
+        run: cargo check --all-features --locked
 
       # Only need to build the test to create a warm cache on the main branch
       - name: Build cache by Cargo Check and Cargo Test
         if: ${{ github.ref_name == 'main' }}
-        run: cargo test --no-run
+        run: cargo test --all-features --no-run
 
   wasm:
     name: Check Wasm
@@ -217,6 +217,5 @@ jobs:
       - uses: taiki-e/checkout-action@v1
       - uses: ./.github/actions/pnpm
       - uses: ./.github/actions/rustup
-      - run: |
-          cargo test --all-features
-          cargo test --doc
+      - run: cargo test --doc
+      - run: cargo test --all-features
