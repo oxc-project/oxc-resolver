@@ -15,6 +15,16 @@ fn chinese() {
 }
 
 #[test]
+fn roots_fall_through() {
+    let dir = dir();
+    let absolute_path = dir.join("fixtures/misc/roots_fall_through/index.js");
+    let specifier = absolute_path.to_str().unwrap();
+    let resolution =
+        Resolver::new(ResolveOptions::default().with_root(&dir)).resolve(&dir, specifier);
+    assert_eq!(resolution.map(|r| r.into_path_buf()), Ok(absolute_path));
+}
+
+#[test]
 fn styled_components() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm8");
