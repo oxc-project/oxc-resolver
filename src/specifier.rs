@@ -1,7 +1,7 @@
 use crate::error::SpecifierError;
 use std::borrow::Cow;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct Specifier<'a> {
     path: Cow<'a, str>,
     pub query: Option<&'a str>,
@@ -83,13 +83,20 @@ mod tests {
     use super::{Specifier, SpecifierError};
 
     #[test]
+    fn debug() {
+        let specifier = Specifier::parse("/").unwrap();
+        assert_eq!(
+            format!("{specifier:?}"),
+            r#"Specifier { path: "/", query: None, fragment: None }"#
+        );
+    }
+
+    #[test]
     fn empty() {
         let specifiers = ["", "?"];
         for specifier in specifiers {
-            assert_eq!(
-                Specifier::parse(specifier),
-                Err(SpecifierError::Empty(specifier.to_string()))
-            );
+            let error = Specifier::parse(specifier).unwrap_err();
+            assert_eq!(error, SpecifierError::Empty(specifier.to_string()));
         }
     }
 
