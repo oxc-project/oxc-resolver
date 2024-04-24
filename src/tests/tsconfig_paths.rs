@@ -4,7 +4,9 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::{ResolveOptions, Resolver, TsConfig, TsconfigOptions, TsconfigReferences};
+use crate::{
+    ResolveError, ResolveOptions, Resolver, TsConfig, TsconfigOptions, TsconfigReferences,
+};
 
 // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/lib.rs#L2303>
 #[test]
@@ -54,6 +56,22 @@ fn tsconfig() {
         let resolution = resolver.resolve(&path, request).map(|f| f.full_path());
         assert_eq!(resolution, expected, "{path:?} {request}");
     }
+}
+
+#[test]
+fn tsconfig_fallthrough() {
+    let f = super::fixture_root().join("tsconfig");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        }),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver.resolve(&f, "/");
+    assert_eq!(resolved_path, Err(ResolveError::NotFound("/".into())));
 }
 
 #[test]
