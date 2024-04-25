@@ -95,5 +95,7 @@ fn options_api() {
         .with_main_field("asdf")
         .with_fully_specified(true)
         .with_prefer_relative(true)
-        .with_prefer_absolute(true);
+        .with_prefer_absolute(true)
+        .with_module("module")
+        .with_main_file("main");
 }
