@@ -11,6 +11,7 @@ fn ignore() {
             vec!["browser".into()],
             vec!["innerBrowser1".into()],
             vec!["innerBrowser2".into()],
+            vec![],
         ],
         ..ResolveOptions::default()
     });
