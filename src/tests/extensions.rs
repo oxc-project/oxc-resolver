@@ -114,3 +114,12 @@ fn multi_dot_extension() {
         assert_eq!(resolution, Err(error), "{comment} {request} {resolution:?}");
     }
 }
+
+#[test]
+#[should_panic = "All extensions must start with a leading dot"]
+fn without_leading_dot() {
+    Resolver::new(ResolveOptions {
+        extensions: vec!["ts".into(), "js".into()],
+        ..ResolveOptions::default()
+    });
+}

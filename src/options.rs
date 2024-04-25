@@ -83,7 +83,7 @@ pub struct ResolveOptions {
     /// If multiple files share the same name but have different extensions,
     /// will resolve the one with the extension listed first in the array and skip the rest.
     ///
-    /// All extensions must begin with a leading dot.
+    /// All extensions must have a leading dot.
     ///
     /// Default `[".js", ".json", ".node"]`
     pub extensions: Vec<String>,
