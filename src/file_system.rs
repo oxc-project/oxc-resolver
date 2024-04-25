@@ -121,3 +121,13 @@ impl FileSystem for FileSystemOs {
         }
     }
 }
+
+#[test]
+fn metadata() {
+    let meta = FileMetadata { is_file: true, is_dir: true, is_symlink: true };
+    assert_eq!(
+        format!("{meta:?}"),
+        "FileMetadata { is_file: true, is_dir: true, is_symlink: true }"
+    );
+    let _ = meta.clone();
+}
