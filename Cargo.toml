@@ -75,7 +75,7 @@ name = "resolver"
 [dependencies]
 tracing = { version = "0.1" }
 dashmap = { version = "5.5.3" }
-serde = { version = "1.0.198", features = ["derive"] } # derive for Deserialize from package.json
+serde = { version = "1.0.199", features = ["derive"] } # derive for Deserialize from package.json
 serde_json = { version = "1.0.116", features = [
   "preserve_order",
 ] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
