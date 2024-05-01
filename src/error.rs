@@ -146,10 +146,15 @@ fn test_into_io_error() {
     let resolve_io_error: ResolveError = ResolveError::from(string_error2);
 
     assert_eq!(resolve_io_error, ResolveError::from(string_error));
+    assert_eq!(resolve_io_error.clone(), resolve_io_error);
     if let ResolveError::IOError(io_error) = resolve_io_error {
         // fix for https://github.com/web-infra-dev/rspack/issues/4564
         let std_io_error: io::Error = io_error.into();
         assert_eq!(std_io_error.kind(), ErrorKind::Interrupted);
         assert_eq!(std_io_error.to_string(), error_string);
+        assert_eq!(
+            format!("{std_io_error:?}"),
+            r#"Custom { kind: Interrupted, error: "IOError occurred" }"#
+        );
     }
 }
