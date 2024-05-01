@@ -87,15 +87,16 @@ fn dependencies() {
 #[test]
 fn options_api() {
     _ = ResolveOptions::default()
-        .with_condition_names(&[])
         .with_builtin_modules(true)
-        .with_root(PathBuf::new())
+        .with_condition_names(&[])
         .with_extension(".js")
         .with_force_extension(EnforceExtension::Auto)
-        .with_main_field("asdf")
         .with_fully_specified(true)
-        .with_prefer_relative(true)
-        .with_prefer_absolute(true)
+        .with_main_field("asdf")
+        .with_main_file("main")
         .with_module("module")
-        .with_main_file("main");
+        .with_prefer_absolute(true)
+        .with_prefer_relative(true)
+        .with_root(PathBuf::new())
+        .with_symbolic_link(true);
 }
