@@ -5,7 +5,22 @@
   "ignorePaths": [
     "fixtures/**"
   ],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
   "assignees": ["@Boshen"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^rust-toolchain\\.toml?$"],
+      "matchStrings": [
+        "channel\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+(\\.\\d+)?)\""
+      ],
+      "depNameTemplate": "rust",
+      "lookupNameTemplate": "rust-lang/rust",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
   "packageRules": [
     {
       "groupName": "github-actions",
@@ -18,9 +33,11 @@
     {
       "groupName": "npm packages",
       "matchManagers": ["npm"]
+    },
+    {
+      "groupName": "rust toolchain",
+      "matchManagers": ["regex"],
+      "matchDepNames": ["rust"]
     }
-  ],
-  "lockFileMaintenance": {
-    "enabled": true
-  }
+  ]
 }
