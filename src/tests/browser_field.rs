@@ -125,12 +125,13 @@ fn broken() {
     #[rustfmt::skip]
     let data = [
         // The browser field string value should be ignored
-        (f.clone(), "browser-module-broken", f.join("node_modules/browser-module-broken/main.js")),
+        (f.clone(), "browser-module-broken", Ok(f.join("node_modules/browser-module-broken/main.js"))),
+        (f.join("browser-module"), "./number", Err(ResolveError::NotFound("./number".into()))),
     ];
 
     for (path, request, expected) in data {
         let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(expected), "{path:?} {request}");
+        assert_eq!(resolved_path, expected, "{path:?} {request}");
     }
 }
 
