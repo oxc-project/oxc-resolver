@@ -21,5 +21,5 @@ fn restriction1() {
     });
 
     let resolution = resolver.resolve(&f, "pck2");
-    assert_eq!(resolution, Err(ResolveError::Restriction(fixture.join("c.js"), f.clone())));
+    assert_eq!(resolution, Err(ResolveError::Restriction(fixture.join("c.js"), f)));
 }

@@ -22,7 +22,7 @@ fn clone() {
 #[test]
 fn debug() {
     let resolution = resolve("./tests/package.json");
-    let s = format!("{:?}", resolution);
+    let s = format!("{resolution:?}");
     assert!(!s.is_empty());
 }
 

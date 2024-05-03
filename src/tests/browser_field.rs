@@ -104,7 +104,7 @@ fn recurse_fail() {
     let data = [
         ("recurse non existent", f.clone(), "./lib/non-existent.js", ResolveError::NotFound("./lib/non-existent.js".into())),
         ("path partial match 1", f.clone(), "./xyz.js", ResolveError::NotFound("./xyz.js".into())),
-        ("path partial match 2", f.clone(), "./lib/xyz.js", ResolveError::NotFound("./lib/xyz.js".into())),
+        ("path partial match 2", f, "./lib/xyz.js", ResolveError::NotFound("./lib/xyz.js".into())),
     ];
 
     for (comment, path, request, expected) in data {
@@ -166,7 +166,7 @@ fn recursive() {
         ("should handle recursive file 1", f.clone(), "recursive-file/a"),
         ("should handle recursive file 2", f.clone(), "recursive-file/b"),
         ("should handle recursive file 3", f.clone(), "recursive-file/c"),
-        ("should handle recursive file 4", f.clone(), "recursive-file/d"),
+        ("should handle recursive file 4", f, "recursive-file/d"),
     ];
 
     for (comment, path, request) in data {
