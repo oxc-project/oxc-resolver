@@ -78,7 +78,7 @@ jobs:
             target: aarch64-apple-darwin
 
           - os: ubuntu-latest
-            target: wasm32-wasi-preview1-threads
+            target: wasm32-wasip1-threads
 
     name: Package ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -122,7 +122,7 @@ jobs:
         run: pnpm build --target ${{ matrix.target }}
 
       - name: Test
-        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-apple-darwin' || matrix.target == 'wasm32-wasi-preview1-threads'
+        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-apple-darwin' || matrix.target == 'wasm32-wasip1-threads'
         run: pnpm test
 
       - name: Output docker params

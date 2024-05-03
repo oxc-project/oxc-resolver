@@ -114,6 +114,6 @@ fn resolve_to_context() {
 fn resolve_hash_as_module() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions::default());
-    let resolution = resolver.resolve(&f, "#a");
+    let resolution = resolver.resolve(f, "#a");
     assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
 }

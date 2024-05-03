@@ -110,10 +110,10 @@ impl TsConfig {
                 .base_url
                 .as_ref()
                 .map_or_else(|| tsconfig.compiler_options.paths_base.clone(), Clone::clone);
-            compiler_options.paths = tsconfig.compiler_options.paths.clone();
+            compiler_options.paths.clone_from(&tsconfig.compiler_options.paths);
         }
         if compiler_options.base_url.is_none() {
-            compiler_options.base_url = tsconfig.compiler_options.base_url.clone();
+            compiler_options.base_url.clone_from(&tsconfig.compiler_options.base_url);
         }
     }
 

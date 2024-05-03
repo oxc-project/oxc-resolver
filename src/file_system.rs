@@ -129,5 +129,5 @@ fn metadata() {
         format!("{meta:?}"),
         "FileMetadata { is_file: true, is_dir: true, is_symlink: true }"
     );
-    let _ = meta.clone();
+    let _ = meta;
 }

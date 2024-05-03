@@ -283,7 +283,7 @@ mod windows_test {
                 ..ResolveOptions::default()
             };
             if let Some(main_fields) = &self.main_fields {
-                options.main_fields = main_fields.clone();
+                options.main_fields.clone_from(main_fields);
             }
 
             ResolverGeneric::<MemoryFS>::new_with_file_system(file_system, options)

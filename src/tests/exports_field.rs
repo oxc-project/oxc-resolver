@@ -62,17 +62,17 @@ fn test_simple() {
     let fail = [
         // ("throw error if extension not provided", f2.clone(), "exports-field/dist/main", ResolveError::NotFound(f2.join("node_modules/exports-field/lib/lib2/main"))),
         ("resolver should respect query parameters #2. Direct matching", f2.clone(), "exports-field?foo", ResolveError::PackagePathNotExported("./?foo".into(), p2.clone())),
-        ("resolver should respect fragment parameters #2. Direct matching", f2, "exports-field#foo", ResolveError::PackagePathNotExported("./#foo".into(), p2.clone())),
+        ("resolver should respect fragment parameters #2. Direct matching", f2, "exports-field#foo", ResolveError::PackagePathNotExported("./#foo".into(), p2)),
         ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound("./node_modules/exports-field/dist/main.js".into())),
         ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget("./lib/../../../a.js".to_string(), "./dist/".to_string(), p.clone())),
         ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget("./../../a.js".to_string(), "./dist/a.js".to_string(), p.clone())),
         ("not exported error", f.clone(), "exports-field/anything/else", ResolveError::PackagePathNotExported("./anything/else".to_string(), p.clone())),
         ("request ending with slash #1", f.clone(), "exports-field/", ResolveError::PackagePathNotExported("./".to_string(), p.clone())),
         ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolveError::PackagePathNotExported("./dist/".to_string(), p.clone())),
-        ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolveError::PackagePathNotExported("./lib/".to_string(), p.clone())),
-        ("should throw error if target is invalid", f4, "exports-field", ResolveError::InvalidPackageTarget("./a/../b/../../pack1/index.js".to_string(), ".".to_string(), p4.clone())),
+        ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolveError::PackagePathNotExported("./lib/".to_string(), p)),
+        ("should throw error if target is invalid", f4, "exports-field", ResolveError::InvalidPackageTarget("./a/../b/../../pack1/index.js".to_string(), ".".to_string(), p4)),
         ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolveError::InvalidPackageConfig(f.join("node_modules/invalid-exports-field/package.json"))),
-        ("should throw error if target is 'null'", f5, "m/features/internal/file.js", ResolveError::PackagePathNotExported("./features/internal/file.js".to_string(), p5.clone())),
+        ("should throw error if target is 'null'", f5, "m/features/internal/file.js", ResolveError::PackagePathNotExported("./features/internal/file.js".to_string(), p5)),
     ];
 
     for (comment, path, request, error) in fail {

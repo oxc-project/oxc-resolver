@@ -128,5 +128,5 @@ fn normalize() {
     assert_eq!(Path::new("/foo/.././foo/").normalize(), Path::new("/foo"));
     assert_eq!(Path::new("C://").normalize(), Path::new("C://"));
     assert_eq!(Path::new("C:").normalize(), Path::new("C:"));
-    assert_eq!(Path::new(r#"\\server\share"#).normalize(), Path::new(r#"\\server\share"#));
+    assert_eq!(Path::new(r"\\server\share").normalize(), Path::new(r"\\server\share"));
 }

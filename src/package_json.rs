@@ -69,9 +69,7 @@ impl PackageJson {
         if path.is_empty() {
             return None;
         }
-        let Some(mut value) = fields.get(&path[0]) else {
-            return None;
-        };
+        let mut value = fields.get(&path[0])?;
         for key in path.iter().skip(1) {
             if let Some(inner_value) = value.as_object().and_then(|o| o.get(key)) {
                 value = inner_value;

@@ -32,7 +32,7 @@
       "armv7-unknown-linux-gnueabihf",
       "x86_64-apple-darwin",
       "aarch64-apple-darwin",
-      "wasm32-wasi-preview1-threads"
+      "wasm32-wasip1-threads"
     ]
   },
   "funding": {

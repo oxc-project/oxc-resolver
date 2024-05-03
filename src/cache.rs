@@ -228,7 +228,7 @@ impl CachedPathImpl {
         ctx: &mut Ctx,
     ) -> Option<CachedPath> {
         let cached_path = cache.value(&self.path.join(module_name));
-        cached_path.is_dir(&cache.fs, ctx).then(|| cached_path)
+        cached_path.is_dir(&cache.fs, ctx).then_some(cached_path)
     }
 
     pub fn cached_node_modules<Fs: FileSystem>(

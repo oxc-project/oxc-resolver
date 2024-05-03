@@ -90,8 +90,8 @@ jobs:
 
       - name: Build
         run: |
-          rustup target add wasm32-wasi-preview1-threads
-          pnpm build --target wasm32-wasi-preview1-threads
+          rustup target add wasm32-wasip1-threads
+          pnpm build --target wasm32-wasip1-threads
 
       - name: Test
         run: pnpm test
