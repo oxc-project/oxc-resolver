@@ -1,31 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "timezone": "Asia/Shanghai",
-  "schedule": ["before 8am on monday"],
+  "extends": ["github>Boshen/renovate"],
   "ignorePaths": [
     "fixtures/**"
   ],
-  "lockFileMaintenance": {
-    "enabled": true
-  },
-  "assignees": ["@Boshen"],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "fileMatch": ["^rust-toolchain\\.toml?$"],
-      "matchStrings": [
-        "channel\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+(\\.\\d+)?)\""
-      ],
-      "depNameTemplate": "rust",
-      "lookupNameTemplate": "rust-lang/rust",
-      "datasourceTemplate": "github-releases"
-    }
-  ],
   "packageRules": [
-    {
-      "groupName": "github-actions",
-      "matchManagers": ["github-actions"]
-    },
     {
       "groupName": "rust crates",
       "matchManagers": ["cargo"]
@@ -33,11 +12,6 @@
     {
       "groupName": "npm packages",
       "matchManagers": ["npm"]
-    },
-    {
-      "groupName": "rust toolchain",
-      "matchManagers": ["regex"],
-      "matchDepNames": ["rust"]
     }
   ]
 }
