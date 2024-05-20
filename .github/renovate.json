@@ -1,17 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>Boshen/renovate"],
-  "ignorePaths": [
-    "fixtures/**"
-  ],
-  "packageRules": [
-    {
-      "groupName": "rust crates",
-      "matchManagers": ["cargo"]
-    },
-    {
-      "groupName": "npm packages",
-      "matchManagers": ["npm"]
-    }
-  ]
+  "ignorePaths": ["fixtures/**"]
 }
