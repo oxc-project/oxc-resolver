@@ -14,8 +14,7 @@ fn builtins_off() {
 fn builtins() {
     let f = Path::new("/");
 
-    let resolver =
-        Resolver::new(ResolveOptions { builtin_modules: true, ..ResolveOptions::default() });
+    let resolver = Resolver::new(ResolveOptions::default().with_builtin_modules(true));
 
     let pass = [
         "_http_agent",
@@ -86,13 +85,37 @@ fn builtins() {
     ];
 
     for request in pass {
-        let resolved_path = resolver.resolve(f, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Err(ResolveError::Builtin(request.to_string())), "{request}");
+        let prefixed_request = format!("node:{request}");
+        for request in [prefixed_request.clone(), request.to_string()] {
+            let resolved_path = resolver.resolve(f, &request).map(|r| r.full_path());
+            let err = ResolveError::Builtin(prefixed_request.clone());
+            assert_eq!(resolved_path, Err(err), "{request}");
+        }
     }
+}
 
-    for request in pass {
-        let request = format!("node:{request}");
-        let resolved_path = resolver.resolve(f, &request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Err(ResolveError::Builtin(request.to_string())), "{request}");
+#[test]
+fn fail() {
+    let f = Path::new("/");
+    let resolver = Resolver::new(ResolveOptions::default().with_builtin_modules(true));
+    let request = "xxx";
+    let resolved_path = resolver.resolve(f, request);
+    let err = ResolveError::NotFound(request.to_string());
+    assert_eq!(resolved_path, Err(err), "{request}");
+}
+
+#[test]
+fn imports() {
+    let f = super::fixture().join("builtins");
+    let resolver = Resolver::new(ResolveOptions {
+        builtin_modules: true,
+        condition_names: vec!["node".into()],
+        ..ResolveOptions::default()
+    });
+
+    for request in ["#fs", "#http"] {
+        let resolved_path = resolver.resolve(f.clone(), request).map(|r| r.full_path());
+        let err = ResolveError::Builtin(format!("node:{}", request.trim_start_matches('#')));
+        assert_eq!(resolved_path, Err(err));
     }
 }

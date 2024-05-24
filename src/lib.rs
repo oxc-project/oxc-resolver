@@ -308,11 +308,19 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
     }
 
+    // PACKAGE_RESOLVE(packageSpecifier, parentURL)
+    // 3. If packageSpecifier is a Node.js builtin module name, then
+    //   1. Return the string "node:" concatenated with packageSpecifier.
     fn require_core(&self, specifier: &str) -> Result<(), ResolveError> {
-        if self.options.builtin_modules
-            && (specifier.starts_with("node:") || NODEJS_BUILTINS.binary_search(&specifier).is_ok())
-        {
-            return Err(ResolveError::Builtin(specifier.to_string()));
+        if self.options.builtin_modules {
+            let starts_with_node = specifier.starts_with("node:");
+            if starts_with_node || NODEJS_BUILTINS.binary_search(&specifier).is_ok() {
+                let mut specifier = specifier.to_string();
+                if !starts_with_node {
+                    specifier = format!("node:{specifier}");
+                }
+                return Err(ResolveError::Builtin(specifier));
+            }
         }
         Ok(())
     }
@@ -1133,6 +1141,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
+
+        // 3. If packageSpecifier is a Node.js builtin module name, then
+        //   1. Return the string "node:" concatenated with packageSpecifier.
+        self.require_core(package_name)?;
+
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {
             for cached_path in std::iter::successors(Some(cached_path), |p| p.parent()) {
