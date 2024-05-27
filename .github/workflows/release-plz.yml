@@ -21,10 +21,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust Toolchain
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
           save-cache: ${{ github.ref_name == 'main' }}
+          cache-key: warm
 
       - name: Run release-plz
         uses: MarcoIeni/release-plz-action@v0.5

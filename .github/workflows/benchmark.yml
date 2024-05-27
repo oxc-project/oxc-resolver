@@ -24,15 +24,11 @@ jobs:
       - name: Checkout Branch
         uses: taiki-e/checkout-action@v1
 
-      - name: Install Rust
-        uses: moonrepo/setup-rust@v1
+      - uses: Boshen/setup-rust@main
         with:
-          cache-base: main
-
-      - name: Install codspeed
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-codspeed
+          cache-key: benchmark
+          save-cache: ${{ github.ref_name == 'main' }}
+          tools: cargo-codspeed
 
       - name: Build Benchmark
         run: cargo codspeed build --features codspeed

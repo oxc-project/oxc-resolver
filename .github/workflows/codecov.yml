@@ -27,20 +27,14 @@ jobs:
       - name: Pnpm
         uses: ./.github/actions/pnpm
 
-      - name: Install Rust Toolchain
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
-          shared-key: 'codecov'
+          cache-key: codecov
           save-cache: ${{ github.ref_name == 'main' }}
+          tools: cargo-llvm-cov
+          components: llvm-tools-preview
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Install llvm-tools-preview for llvm-cov
-        run: rustup component add llvm-tools-preview
-
-      - name: Run
-        run: cargo llvm-cov --lcov --output-path lcov.info
+      - run: cargo llvm-cov --lcov --output-path lcov.info
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
