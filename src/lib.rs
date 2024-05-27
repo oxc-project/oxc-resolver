@@ -1512,19 +1512,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             JSONValue::Object(target) => {
                 // 1. If exports contains any index property keys, as defined in ECMA-262 6.1.7 Array Index, throw an Invalid Package Configuration error.
                 // 2. For each property p of target, in object insertion order as,
-                for (i, (key, target_value)) in target.iter().enumerate() {
-                    // https://nodejs.org/api/packages.html#conditional-exports
-                    // "default" - the generic fallback that always matches. Can be a CommonJS or ES module file. This condition should always come last.
-                    // Note: node.js does not throw this but enhanced-resolve does.
-                    let is_default = key == "default";
-                    if i < target.len() - 1 && is_default {
-                        return Err(ResolveError::InvalidPackageConfigDefault(
-                            package_url.join("package.json"),
-                        ));
-                    }
-
+                for (key, target_value) in target {
                     // 1. If p equals "default" or conditions contains an entry for p, then
-                    if is_default || conditions.contains(key) {
+                    if key == "default" || conditions.contains(key) {
                         // 1. Let targetValue be the value of the p property in target.
                         // 2. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions).
                         let resolved = self.package_target_resolve(

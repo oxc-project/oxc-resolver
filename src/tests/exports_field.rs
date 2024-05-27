@@ -814,7 +814,7 @@ fn test_cases() {
         },
         TestCase {
             name: "Direct mapping #7",
-            expect: None,
+            expect: Some(vec!["./src/index.js"]), // `enhanced_resolve` is `None`
             exports_field: exports_field(json!({
                 ".": {
                     "default": "./src/index.js",
