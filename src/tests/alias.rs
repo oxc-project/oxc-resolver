@@ -218,3 +218,18 @@ fn alias_is_full_path() {
         }
     }
 }
+
+// For the `should_stop` variable in `load_alias`
+#[test]
+fn all_alias_values_are_not_found() {
+    let f = super::fixture();
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![(
+            "m1".to_string(),
+            vec![AliasValue::Path(f.join("node_modules").join("m2").to_string_lossy().to_string())],
+        )],
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve(&f, "m1/a.js");
+    assert_eq!(resolution, Err(ResolveError::NotFound("m1/a.js".to_string())));
+}

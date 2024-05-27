@@ -871,6 +871,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 }
                 alias_key_raw
             };
+            // It should stop resolving when all of the tried alias values
+            // failed to resolve.
+            // <https://github.com/webpack/enhanced-resolve/blob/570337b969eee46120a18b62b72809a3246147da/lib/AliasPlugin.js#L65>
+            let mut should_stop = false;
             for r in specifiers {
                 match r {
                     AliasValue::Path(alias_value) => {
@@ -885,6 +889,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                                 alias_value, // pass in original alias value, not parsed
                                 specifier,
                                 ctx,
+                                &mut should_stop,
                             )? {
                                 return Ok(Some(path));
                             }
@@ -900,6 +905,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                             new_specifier.path(), // pass in parsed alias value
                             specifier,
                             ctx,
+                            &mut should_stop,
                         )? {
                             return Ok(Some(path));
                         }
@@ -910,6 +916,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         return Err(ResolveError::Ignored(path));
                     }
                 }
+            }
+            if should_stop {
+                return Err(ResolveError::NotFound(specifier.to_string()));
             }
         }
         Ok(None)
@@ -922,6 +931,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         alias_value: &str,
         request: &str,
         ctx: &mut Ctx,
+        should_stop: &mut bool,
     ) -> ResolveResult {
         if request != alias_value
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
@@ -944,6 +954,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 Cow::Owned(normalized.to_string_lossy().to_string())
             };
 
+            *should_stop = true;
             ctx.with_fully_specified(false);
             return match self.require(cached_path, new_specifier.as_ref(), ctx) {
                 Err(ResolveError::NotFound(_)) => Ok(None),
