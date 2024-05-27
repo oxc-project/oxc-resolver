@@ -880,22 +880,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     AliasValue::Path(alias_value) => {
                         let new_specifier =
                             Specifier::parse(alias_value).map_err(ResolveError::Specifier)?;
-
-                        // `#` can be a fragment or a path, try fragment as path first
-                        if new_specifier.query.is_none() && new_specifier.fragment.is_some() {
-                            if let Some(path) = self.load_alias_value(
-                                cached_path,
-                                alias_key,
-                                alias_value, // pass in original alias value, not parsed
-                                specifier,
-                                ctx,
-                                &mut should_stop,
-                            )? {
-                                return Ok(Some(path));
-                            }
-                        }
-
-                        // Then try path without query and fragment
+                        // Resolve path without query and fragment
                         let old_query = ctx.query.clone();
                         let old_fragment = ctx.fragment.clone();
                         ctx.with_query_fragment(new_specifier.query, new_specifier.fragment);

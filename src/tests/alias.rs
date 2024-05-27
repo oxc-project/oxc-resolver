@@ -233,3 +233,34 @@ fn all_alias_values_are_not_found() {
     let resolution = resolver.resolve(&f, "m1/a.js");
     assert_eq!(resolution, Err(ResolveError::NotFound("m1/a.js".to_string())));
 }
+
+#[test]
+fn alias_fragment() {
+    let f = super::fixture();
+
+    let data = [
+        // enhanced-resolve has `#` prepended with a `\0`, they are removed from the
+        // following 3 expected test results.
+        // See https://github.com/webpack/enhanced-resolve#escaping
+        (
+            "handle fragment edge case (no fragment)",
+            "./no#fragment/#/#",
+            f.join("no#fragment/#/#.js"),
+        ),
+        ("handle fragment edge case (fragment)", "./no#fragment/#/", f.join("no.js#fragment/#/")),
+        (
+            "handle fragment escaping",
+            "./no\0#fragment/\0#/\0##fragment",
+            f.join("no#fragment/#/#.js#fragment"),
+        ),
+    ];
+
+    for (comment, request, expected) in data {
+        let resolver = Resolver::new(ResolveOptions {
+            alias: vec![("foo".to_string(), vec![AliasValue::Path(request.to_string())])],
+            ..ResolveOptions::default()
+        });
+        let resolved_path = resolver.resolve(&f, "foo").map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {request}");
+    }
+}
