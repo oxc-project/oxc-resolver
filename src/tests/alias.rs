@@ -219,8 +219,9 @@ fn alias_is_full_path() {
     }
 }
 
+// For the `should_stop` variable in `load_alias`
 #[test]
-fn alias_not_found() {
+fn all_alias_values_are_not_found() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
         alias: vec![(

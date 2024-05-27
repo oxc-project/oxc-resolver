@@ -871,6 +871,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 }
                 alias_key_raw
             };
+            // It should stop resolving when all of the tried alias values
+            // failed to resolve.
+            // <https://github.com/webpack/enhanced-resolve/blob/570337b969eee46120a18b62b72809a3246147da/lib/AliasPlugin.js#L65>
             let mut should_stop = false;
             for r in specifiers {
                 match r {
@@ -914,7 +917,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     }
                 }
             }
-            // Don't allow other aliasing or raw request
             if should_stop {
                 return Err(ResolveError::NotFound(specifier.to_string()));
             }
