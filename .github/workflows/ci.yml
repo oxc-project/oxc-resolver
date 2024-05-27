@@ -6,16 +6,22 @@ on:
     types: [opened, synchronize]
     paths-ignore:
       - '**/*.md'
+      - '!.github/workflows/ci.yml'
   push:
     branches:
       - main
       - "renovate/**"
     paths-ignore:
       - '**/*.md'
+      - '!.github/workflows/ci.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.ref_name != 'main' }}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   cache: # Warm cache factory for all other CI jobs
@@ -31,13 +37,12 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: Install Rust Toolchain
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
           save-cache: ${{ github.ref_name == 'main' }}
+          cache-key: warm
 
-      - name: Cargo check
-        run: cargo check --all-features --locked
+      - run: cargo check --all-features --locked
 
       # Only need to build the test to create a warm cache on the main branch
       - name: Build cache by Cargo Check and Cargo Test
@@ -50,10 +55,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: Install Rust Toolchain
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
-          shared-key: 'wasm'
+          cache-key: wasm
           save-cache: ${{ github.ref_name == 'main' }}
 
       - name: Check
@@ -67,10 +71,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: Install Rust Toolchain
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
-          shared-key: 'wasi'
+          cache-key: wasi
           save-cache: ${{ github.ref_name == 'main' }}
 
       - name: corepack
@@ -122,13 +125,10 @@ jobs:
             src:
               - 'Cargo.lock'
 
-      - name: Install cargo-deny
-        if: steps.filter.outputs.src == 'true'
-        uses: taiki-e/install-action@cargo-deny
-
-      - uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
           restore-cache: false
+          tools: cargo-deny
 
       - if: steps.filter.outputs.src == 'true'
         run: cargo deny check
@@ -146,7 +146,7 @@ jobs:
               - '**/*.rs'
               - '**/Cargo.toml'
               - 'Cargo.lock'
-      - uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
           restore-cache: false
         if: steps.filter.outputs.src == 'true'
@@ -163,10 +163,9 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: Install Rust
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
-          fmt: true
+          components: rustfmt
           restore-cache: false
 
       - run: cargo fmt --all -- --check
@@ -177,13 +176,11 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: Install Rust
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
-          clippy: true
+          components: clippy
 
-      - name: Run Clippy
-        run: cargo clippy -- -D warnings
+      - run: cargo clippy -- -D warnings
 
   doc:
     name: Doc
@@ -191,13 +188,11 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: Install Rust
-        uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
         with:
-          docs: true
+          components: rust-docs
 
-      - name: Run doc
-        run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
+      - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
 
   test:
     name: Test
@@ -214,6 +209,8 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - uses: ./.github/actions/pnpm
-      - uses: ./.github/actions/rustup
+      - uses: Boshen/setup-rust@main
+        with:
+          cache-key: warm
       - run: cargo test --doc
       - run: cargo test --all-features
