@@ -313,7 +313,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Err(err);
             }
             // enhanced-resolve: try fallback
-            self.load_alias(&cached_path, specifier, &self.options.fallback, ctx)
+            self.load_alias(cached_path, specifier, &self.options.fallback, ctx)
                 .and_then(|value| value.ok_or(err))
         })
     }
