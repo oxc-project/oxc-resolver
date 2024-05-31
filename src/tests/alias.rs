@@ -264,3 +264,17 @@ fn alias_fragment() {
         assert_eq!(resolved_path, Ok(expected), "{comment} {request}");
     }
 }
+
+#[test]
+fn alias_try_fragment_as_path() {
+    let f = super::fixture();
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![(
+            "#".to_string(),
+            vec![AliasValue::Path(f.join("#").to_string_lossy().to_string())],
+        )],
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve(&f, "#/a").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("#").join("a.js")));
+}

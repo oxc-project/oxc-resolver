@@ -174,3 +174,16 @@ fn recursive() {
         assert_eq!(resolved_path, Err(ResolveError::Recursion), "{comment} {path:?} {request}");
     }
 }
+
+#[test]
+fn with_query() {
+    let f = super::fixture().join("browser-module");
+
+    let resolver = Resolver::new(ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver.resolve(&f, "./foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("lib").join("browser.js?query")));
+}
