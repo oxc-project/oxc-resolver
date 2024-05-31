@@ -15,7 +15,8 @@
     "./xyz.js": "./lib/xyz.js",
     "./lib/non-existent.js": "./lib/non-existent.js",
     ".": false,
-    "./number": 1
+    "./number": 1,
+    "./foo": "./lib/replaced.js?query"
   },
   "innerBrowser1": {
     "field": {
