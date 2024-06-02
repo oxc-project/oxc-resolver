@@ -118,9 +118,9 @@ dependencies = [
 
 [[package]]
 name = "criterion2"
-version = "0.8.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43b57a5b1bf6ed08b671717cf7ce07d3dea4efa30f54d0b64abce48d8299818f"
+checksum = "f22174bed309c964c1720148dfe793f285cc02fd8b13c91205d485f73468d94d"
 dependencies = [
  "anes",
  "bpaf",
@@ -128,13 +128,10 @@ dependencies = [
  "ciborium",
  "codspeed",
  "colored",
- "itertools",
  "num-traits",
  "oorandom",
  "serde",
- "serde_derive",
  "serde_json",
- "tinytemplate",
  "walkdir",
 ]
 
@@ -256,15 +253,6 @@ dependencies = [
  "equivalent",
  "hashbrown",
  "serde",
-]
-
-[[package]]
-name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
 ]
 
 [[package]]
@@ -461,9 +449,9 @@ checksum = "bda66fc9667c18cb2758a2ac84d1167245054bcf85d5d1aaa6923f45801bdd02"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.84"
+version = "1.0.85"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec96c6a92621310b51366f1e28d05ef11489516e93be030060e5fc12024a49d6"
+checksum = "22244ce15aa966053a896d1accb3a6e68469b97c7f33f284b99f0d576879fc23"
 dependencies = [
  "unicode-ident",
 ]
@@ -644,16 +632,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "tinytemplate"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be4d6b5f19ff7664e8c98d03e2139cb510db9b0a60b55f8e8709b689d939b6bc"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]
