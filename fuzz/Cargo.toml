@@ -19,5 +19,5 @@ doc = false
 bench = false
 
 [dependencies]
-libfuzzer-sys = "0.4.7"
+libfuzzer-sys = "0.4"
 oxc_resolver = { path = ".." }

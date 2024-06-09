@@ -73,20 +73,20 @@ missing_const_for_fn = "allow"
 name = "resolver"
 
 [dependencies]
-tracing = { version = "0.1.40" }
+tracing = { version = "0.1" }
 dashmap = { version = "5.5.3" }
-serde = { version = "1.0.203", features = ["derive"] } # derive for Deserialize from package.json
-serde_json = { version = "1.0.117", features = [
+serde = { version = "1.0.199", features = ["derive"] } # derive for Deserialize from package.json
+serde_json = { version = "1.0.116", features = [
   "preserve_order",
 ] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
 rustc-hash = { version = "1.1.0", default-features = false, features = ["std"] }
 dunce = "1.0.4" # Normalize Windows paths to the most compatible format, avoiding UNC where possible
 once_cell = "1.19.0" # Use `std::sync::OnceLock::get_or_try_init` when it is stable.
-thiserror = { version = "1.0.61" }
+thiserror = { version = "1.0.59" }
 json-strip-comments = { version = "1.0.2" }
 typescript_tsconfig_json = { version = "0.1.4" }
 
-document-features = { version = "0.2.8", optional = true }
+document-features = { version = "0.2", optional = true }
 
 [dev-dependencies]
 vfs            = "0.12.0"                                         # for testing with in memory file system
