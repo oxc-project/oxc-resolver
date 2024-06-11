@@ -283,7 +283,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
 
         let result = match Path::new(specifier).components().next() {
-            // 3. If X begins with './' or '/' or '../'
+            // 2. If X begins with '/'
             Some(Component::RootDir | Component::Prefix(_)) => {
                 self.require_absolute(cached_path, specifier, ctx)
             }
