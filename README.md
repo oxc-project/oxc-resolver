@@ -153,14 +153,30 @@ The options are aligned with [enhanced-resolve].
 
 ## Debugging
 
+The following environment variable emits tracing information for the `oxc_resolver::resolve` function.
+
+e.g.
+
+```
+2024-06-11T07:12:20.003537Z DEBUG oxc_resolver: options: ResolveOptions { ... }, path: "...", specifier: "...", ret: "..."
+    at /path/to/oxc_resolver-1.8.1/src/lib.rs:212
+    in oxc_resolver::resolve with path: "...", specifier: "..."
+```
+
+The input values are `options`, `path` and `specifier`, the returned value is `ret`.
+
+### Rolldown
+
+```bash
+RD_LOG='oxc_resolver' rolldown build
+```
+
 ### Rspack
 
-The following environment variable will emit tracing information.
 
 ```bash
 RSPACK_PROFILE='TRACE=filter=oxc_resolver=trace&layer=logger' rspack build
 ```
-
 
 ## Test
 
