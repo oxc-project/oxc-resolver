@@ -16,9 +16,6 @@
     "emnapi": "^1.0.0",
     "typescript": "^5.3.3"
   },
-  "engines": {
-    "node": ">=20.14.0"
-  },
   "ava": {
     "files": [
       "napi/__test__/*.spec.mjs"
