@@ -13,7 +13,7 @@ impl<'a> Specifier<'a> {
         self.path.as_ref()
     }
 
-    pub fn parse(specifier: &'a str) -> Result<Specifier<'a>, SpecifierError> {
+    pub fn parse(specifier: &'a str) -> Result<Self, SpecifierError> {
         if specifier.is_empty() {
             return Err(SpecifierError::Empty(specifier.to_string()));
         }
