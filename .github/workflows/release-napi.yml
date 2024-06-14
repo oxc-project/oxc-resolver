@@ -85,21 +85,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: corepack
-        run: corepack enable
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install fixtures dependencies
-        working-directory: fixtures/pnpm8
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/pnpm
 
       - name: Add Rust Target
         run: rustup target add ${{ matrix.target }}

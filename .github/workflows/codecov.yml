@@ -24,8 +24,7 @@ jobs:
       - name: Checkout
         uses: taiki-e/checkout-action@v1
 
-      - name: Pnpm
-        uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/pnpm
 
       - uses: Boshen/setup-rust@main
         with:
