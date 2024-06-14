@@ -231,28 +231,29 @@ for (const [title, context, request, expected] of [
 }
 
 test('resolve pnpm package', (t) => {
-  const pnpmProjectPath = join(currentDir, '..', '..', 'fixtures', 'pnpm8')
+  const rootDir = join(currentDir, '..', '..');
+  const pnpmProjectPath = join(rootDir, 'fixtures', 'pnpm')
   const resolver = new ResolverFactory({
     aliasFields: ['browser'],
   })
   t.deepEqual(resolver.sync(pnpmProjectPath, 'styled-components'), {
     path: join(
-      pnpmProjectPath,
-      'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components/dist/styled-components.browser.cjs.js'
+      rootDir,
+      'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components/dist/styled-components.browser.cjs.js'
     ),
   })
   t.deepEqual(
     resolver.sync(
       join(
-        pnpmProjectPath,
-        'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components'
+        rootDir,
+        'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components'
       ),
       'react'
     ),
     {
       path: join(
-        pnpmProjectPath,
-        'node_modules/.pnpm/react@18.2.0/node_modules/react/index.js'
+        rootDir,
+        'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js'
       ),
     }
   )

@@ -76,21 +76,7 @@ jobs:
           cache-key: wasi
           save-cache: ${{ github.ref_name == 'main' }}
 
-      - name: corepack
-        run: corepack enable
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install fixtures dependencies
-        working-directory: fixtures/pnpm8
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/pnpm
 
       - name: Build
         run: |

@@ -20,8 +20,8 @@ fn chinese() {
 #[test]
 fn styled_components() {
     let dir = dir();
-    let path = dir.join("fixtures/pnpm8");
-    let module_path = path.join("node_modules/.pnpm/styled-components@6.1.1_react-dom@18.2.0_react@18.2.0/node_modules/styled-components");
+    let path = dir.join("fixtures/pnpm");
+    let module_path = dir.join("node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components");
     let specifier = "styled-components";
 
     // cjs
@@ -49,8 +49,8 @@ fn styled_components() {
 #[test]
 fn axios() {
     let dir = dir();
-    let path = dir.join("fixtures/pnpm8");
-    let module_path = path.join("node_modules/.pnpm/axios@1.6.2/node_modules/axios");
+    let path = dir.join("fixtures/pnpm");
+    let module_path = dir.join("node_modules/.pnpm/axios@1.6.2/node_modules/axios");
     let specifier = "axios";
 
     // default
@@ -87,7 +87,7 @@ fn axios() {
 #[test]
 fn postcss() {
     let dir = dir();
-    let path = dir.join("fixtures/pnpm8");
+    let path = dir.join("fixtures/pnpm");
     let module_path = path.join("node_modules/postcss");
     let resolver = Resolver::new(ResolveOptions {
         alias_fields: vec![vec!["browser".into()]],

@@ -5,19 +5,12 @@ description: Install pnpm
 runs:
   using: composite
   steps:
-    - name: Install pnpm
-      working-directory: fixtures/pnpm8
-      shell: bash
-      run: corepack enable
+    - uses: pnpm/action-setup@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - uses: actions/setup-node@v4
       with:
         node-version-file: .node-version
-        cache-dependency-path: ./fixtures/pnpm8/package.json
         cache: pnpm
 
-    - name: pnpm install
-      working-directory: fixtures/pnpm8
+    - run: pnpm install
       shell: bash
-      run: pnpm install
