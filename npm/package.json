@@ -10,7 +10,7 @@
     "browser.js"
   ],
   "license": "MIT",
-  "homepage": "https://oxc-project.github.io",
+  "homepage": "https://oxc.rs",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oxc-project/oxc-resolver.git"
