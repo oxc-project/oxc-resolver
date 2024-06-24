@@ -1,4 +1,4 @@
-include = ["*.toml"]
+include = ["Cargo.toml", "napi/Cargo.toml"]
 
 [formatting]
 align_entries = true
