@@ -71,7 +71,6 @@ use std::{
 
 use rustc_hash::FxHashSet;
 use serde_json::Value as JSONValue;
-use typescript_tsconfig_json::ExtendsField;
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
@@ -91,6 +90,7 @@ use crate::{
     package_json::JSONMap,
     path::{PathUtil, SLASH_START},
     specifier::Specifier,
+    tsconfig::ExtendsField,
     tsconfig::{ProjectReference, TsConfig},
 };
 

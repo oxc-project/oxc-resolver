@@ -1,12 +1,23 @@
 use std::{
+    hash::BuildHasherDefault,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
+use indexmap::IndexMap;
+use rustc_hash::FxHasher;
 use serde::Deserialize;
-use typescript_tsconfig_json::{CompilerOptionsPathsMap, ExtendsField};
 
 use crate::PathUtil;
+
+pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum ExtendsField {
+    Single(String),
+    Multiple(Vec<String>),
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
