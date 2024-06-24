@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2](https://github.com/oxc-project/oxc_resolver/compare/oxc_resolver-v1.8.1...oxc_resolver-v1.9.0) - 2024-06-24
+
+### Added
+- *(napi)* add async API ([#191](https://github.com/oxc-project/oxc_resolver/pull/191))
+
 ## [1.8.1](https://github.com/oxc-project/oxc_resolver/compare/oxc_resolver-v1.8.0...oxc_resolver-v1.8.1) - 2024-05-31
 
 ### Fixed

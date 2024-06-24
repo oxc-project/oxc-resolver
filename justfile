@@ -67,6 +67,6 @@ fuzz:
   cd fuzz && cargo +nightly fuzz run --sanitizer none resolver -- -only_ascii=1 -max_total_time=900
 
 release:
-  cargo binstall release-plz
+  cargo binstall -y release-plz
   release-plz update
   just check
