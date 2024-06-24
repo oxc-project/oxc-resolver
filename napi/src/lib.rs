@@ -2,7 +2,10 @@ extern crate napi;
 extern crate napi_derive;
 extern crate oxc_resolver;
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use napi_derive::napi;
 use oxc_resolver::{ResolveOptions, Resolver};
@@ -37,26 +40,28 @@ pub fn sync(path: String, request: String) -> ResolveResult {
 
 #[napi]
 pub struct ResolverFactory {
-    resolver: Resolver,
+    resolver: Arc<Resolver>,
 }
 
 #[napi]
 impl ResolverFactory {
     #[napi(constructor)]
     pub fn new(options: NapiResolveOptions) -> Self {
-        Self { resolver: Resolver::new(Self::normalize_options(options)) }
+        Self { resolver: Arc::new(Resolver::new(Self::normalize_options(options))) }
     }
 
     #[napi]
     pub fn default() -> Self {
         let default_options = ResolveOptions::default();
-        Self { resolver: Resolver::new(default_options) }
+        Self { resolver: Arc::new(Resolver::new(default_options)) }
     }
 
     /// Clone the resolver using the same underlying cache.
     #[napi]
     pub fn clone_with_options(&self, options: NapiResolveOptions) -> Self {
-        Self { resolver: self.resolver.clone_with_options(Self::normalize_options(options)) }
+        Self {
+            resolver: Arc::new(self.resolver.clone_with_options(Self::normalize_options(options))),
+        }
     }
 
     /// Clear the underlying cache.
@@ -70,6 +75,14 @@ impl ResolverFactory {
     pub fn sync(&self, path: String, request: String) -> ResolveResult {
         let path = PathBuf::from(path);
         resolve(&self.resolver, &path, &request)
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi(js_name = "async")]
+    pub async fn resolve_async(&self, path: String, request: String) -> ResolveResult {
+        let path = PathBuf::from(path);
+        let resolver = self.resolver.clone();
+        tokio::spawn(async move { resolve(&resolver, &path, &request) }).await.unwrap()
     }
 
     fn normalize_options(op: NapiResolveOptions) -> ResolveOptions {

@@ -1,7 +1,9 @@
 [package]
-name    = "oxc_napi_resolver"
-version = "0.0.0"
-publish = false
+name         = "oxc_napi_resolver"
+version      = "0.0.0"
+publish      = false
+edition      = "2021"
+rust-version = "1.71"
 
 [lib]
 crate-type = ["cdylib"]
@@ -10,8 +12,9 @@ doctest    = false
 
 [dependencies]
 oxc_resolver = { path = ".." }
-napi         = { version = "2.16.6", default-features = false, features = ["napi3", "serde-json"] }
+napi         = { version = "2.16.6", default-features = false, features = ["napi3", "serde-json", "async"] }
 napi-derive  = { version = "2.16.5" }
+tokio        = "1.38.0"
 
 [build-dependencies]
 napi-build = "2.1.3"
