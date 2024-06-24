@@ -77,8 +77,8 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
 
-          - os: ubuntu-latest
-            target: wasm32-wasip1-threads
+          # - os: ubuntu-latest
+            # target: wasm32-wasip1-threads
 
     name: Package ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
