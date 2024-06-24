@@ -23,6 +23,7 @@
 
 Rust port of [enhanced-resolve].
 
+* released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://www.npmjs.com/package/oxc-resolver).
 * built-in [tsconfig-paths-webpack-plugin]
   * support extending tsconfig defined in `tsconfig.extends`
   * support paths alias defined in `tsconfig.compilerOptions.paths`

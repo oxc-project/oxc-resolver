@@ -1,6 +1,9 @@
-# The JavaScript Oxidation Compiler
+# Oxc Resolver Napi Binding
 
-See index.d.ts for `resolveSync` and `ResolverFactory` API.
+See
+
+* index.d.ts for `resolveSync` and `ResolverFactory` API.
+* [README.md](https://github.com/oxc-project/oxc-resolver?tab=readme-ov-file#oxc-resolver) for options.
 
 ## ESM
 
