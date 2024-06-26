@@ -12,8 +12,8 @@ doctest    = false
 
 [dependencies]
 oxc_resolver = { path = ".." }
-napi         = { version = "2.16.6", default-features = false, features = ["napi3", "serde-json", "async"] }
-napi-derive  = { version = "2.16.5" }
+napi         = { version = "2.16.7", default-features = false, features = ["napi3", "serde-json", "async"] }
+napi-derive  = { version = "2.16.6" }
 tokio        = "1.38.0"
 
 [build-dependencies]

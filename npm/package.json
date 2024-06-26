@@ -22,6 +22,11 @@
   "napi": {
     "binaryName": "resolver",
     "packageName": "@oxc-resolver/binding",
+    "wasm": {
+      "browser": {
+        "fs": true
+      }
+    },
     "targets": [
       "x86_64-pc-windows-msvc",
       "aarch64-pc-windows-msvc",
