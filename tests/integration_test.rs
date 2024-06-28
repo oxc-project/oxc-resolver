@@ -35,9 +35,10 @@ fn eq() {
 #[test]
 fn package_json() {
     let resolution = resolve("./tests/package.json");
-    assert!(resolution
-        .package_json()
-        .is_some_and(|json| json.name.as_ref().is_some_and(|name| name == "name")));
+    let package_json = resolution.package_json().unwrap();
+    assert_eq!(package_json.name.as_ref().unwrap(), "name");
+    assert_eq!(package_json.r#type.as_ref().unwrap().as_str(), "module".into());
+    assert!(package_json.side_effects.as_ref().unwrap().is_object());
 }
 
 #[cfg(feature = "package_json_raw_json_api")]

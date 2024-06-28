@@ -24,6 +24,16 @@ pub struct PackageJson {
     /// <https://nodejs.org/api/packages.html#name>
     pub name: Option<String>,
 
+    /// The "type" field.
+    ///
+    /// <https://nodejs.org/api/packages.html#type>
+    pub r#type: Option<JSONValue>,
+
+    /// The "sideEffects" field.
+    ///
+    /// <https://webpack.js.org/guides/tree-shaking>
+    pub side_effects: Option<JSONValue>,
+
     raw_json: std::sync::Arc<JSONValue>,
 }
 
@@ -51,9 +61,11 @@ impl PackageJson {
                 json_object.remove("optionalDependencies");
             }
 
-            // Add name.
+            // Add name, type and sideEffects.
             package_json.name =
                 json_object.get("name").and_then(|field| field.as_str()).map(ToString::to_string);
+            package_json.r#type = json_object.get("type").cloned();
+            package_json.side_effects = json_object.get("sideEffects").cloned();
         }
 
         package_json.path = path;
