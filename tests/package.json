@@ -1,3 +1,5 @@
 {
-  "name": "name"
+  "name": "name",
+  "type": "module",
+  "sideEffects": {}
 }
