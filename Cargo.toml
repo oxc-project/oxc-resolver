@@ -20,10 +20,6 @@ include      = ["/src", "/examples", "/benches"]
 [lib]
 doctest = false
 
-[profile.release]
-strip = true
-lto = true
-
 [[bench]]
 name    = "resolver"
 harness = false
@@ -109,3 +105,14 @@ codspeed = ["criterion2/codspeed"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+# For napi
+[profile.release]
+# Configurations explicitly listed here for clarity.
+# Using the best options for performance.
+opt-level     = 3
+lto           = "fat"
+codegen-units = 1
+strip         = "symbols" # set to `false` for debug information
+debug         = false     # set to `true` for debug information
+panic         = "abort"   # Let it crash and force ourselves to write safe Rust.
