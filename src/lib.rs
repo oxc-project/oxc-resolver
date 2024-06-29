@@ -742,10 +742,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         module_name: &str,
         ctx: &mut Ctx,
     ) -> Option<CachedPath> {
-        if cached_path.path().ends_with(module_name) {
-            Some(cached_path.clone())
-        } else if module_name == "node_modules" {
+        if module_name == "node_modules" {
             cached_path.cached_node_modules(&self.cache, ctx)
+        } else if cached_path.path().components().next_back()
+            == Some(Component::Normal(OsStr::new(module_name)))
+        {
+            Some(cached_path.clone())
         } else {
             cached_path.module_directory(module_name, &self.cache, ctx)
         }
