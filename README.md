@@ -8,14 +8,15 @@
 <div align="center">
 
 [![Crates.io][crates-badge]][crates-url]
-[![Docs.rs][docs-badge]][docs-url]
+[![npmjs.com][npm-badge]][npm-url]
 
-[![MIT licensed][license-badge]][license-url]
+[![Docs.rs][docs-badge]][docs-url]
 [![Build Status][ci-badge]][ci-url]
 [![Code Coverage][code-coverage-badge]][code-coverage-url]
 [![CodSpeed Badge][codspeed-badge]][codspeed-url]
 [![Sponsors][sponsors-badge]][sponsors-url]
 [![Discord chat][discord-badge]][discord-url]
+[![MIT licensed][license-badge]][license-url]
 
 </div>
 
@@ -258,4 +259,6 @@ Oxc partially copies code from the following projects.
 [crates-badge]: https://img.shields.io/crates/d/oxc_resolver?label=crates.io
 [crates-url]: https://crates.io/crates/oxc_resolver
 [docs-badge]: https://img.shields.io/docsrs/oxc_resolver
-[docs-url]: https://docs.rs/oxc_resolver/latest/oxc_resolver/
+[docs-url]: https://docs.rs/oxc_resolver/latest/oxc_resolver
+[npm-badge]: https://img.shields.io/npm/dw/oxc-resolver?label=npm
+[npm-url]: https://www.npmjs.com/package/oxc-resolver
