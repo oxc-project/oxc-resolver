@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1](https://github.com/oxc-project/oxc_resolver/compare/oxc_resolver-v1.9.0...oxc_resolver-v1.9.1) - 2024-06-29
+
+### Added
+- strip symbols and enable LTO ([#197](https://github.com/oxc-project/oxc_resolver/pull/197))
+
+### Other
+- improve call to `Path::ends_with` ([#199](https://github.com/oxc-project/oxc_resolver/pull/199))
+- list [profile.release] explicitly ([#198](https://github.com/oxc-project/oxc_resolver/pull/198))
+
 ## [1.9.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v1.8.4...oxc_resolver-v1.9.0) - 2024-06-28
 
 ### Added
