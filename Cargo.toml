@@ -20,6 +20,10 @@ include      = ["/src", "/examples", "/benches"]
 [lib]
 doctest = false
 
+[profile.release]
+strip = true
+lto = true
+
 [[bench]]
 name    = "resolver"
 harness = false
