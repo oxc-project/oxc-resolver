@@ -147,14 +147,28 @@ fn test_into_io_error() {
 
     assert_eq!(resolve_io_error, ResolveError::from(string_error));
     assert_eq!(resolve_io_error.clone(), resolve_io_error);
-    if let ResolveError::IOError(io_error) = resolve_io_error {
-        // fix for https://github.com/web-infra-dev/rspack/issues/4564
-        let std_io_error: io::Error = io_error.into();
-        assert_eq!(std_io_error.kind(), ErrorKind::Interrupted);
-        assert_eq!(std_io_error.to_string(), error_string);
-        assert_eq!(
-            format!("{std_io_error:?}"),
-            r#"Custom { kind: Interrupted, error: "IOError occurred" }"#
-        );
-    }
+    let ResolveError::IOError(io_error) = resolve_io_error else { unreachable!() };
+    assert_eq!(
+        format!("{io_error:?}"),
+        r#"IOError(Custom { kind: Interrupted, error: "IOError occurred" })"#
+    );
+    // fix for https://github.com/web-infra-dev/rspack/issues/4564
+    let std_io_error: io::Error = io_error.into();
+    assert_eq!(std_io_error.kind(), ErrorKind::Interrupted);
+    assert_eq!(std_io_error.to_string(), error_string);
+    assert_eq!(
+        format!("{std_io_error:?}"),
+        r#"Custom { kind: Interrupted, error: "IOError occurred" }"#
+    );
+}
+
+#[test]
+fn test_coverage() {
+    let error = ResolveError::NotFound("x".into());
+    assert_eq!(format!("{error:?}"), r#"NotFound("x")"#);
+    assert_eq!(error.clone(), error);
+
+    let error = ResolveError::Specifier(SpecifierError::Empty("x".into()));
+    assert_eq!(format!("{error:?}"), r#"Specifier(Empty("x"))"#);
+    assert_eq!(error.clone(), error);
 }
