@@ -981,6 +981,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ///
     /// * [ResolveError::ExtensionAlias]: When all of the aliased extensions are not found
     fn load_extension_alias(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
+        if self.options.extension_alias.is_empty() {
+            return Ok(None);
+        }
         let Some(path_extension) = cached_path.path().extension() else {
             return Ok(None);
         };
@@ -1007,13 +1010,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ///
     /// On non-Windows systems these requests are resolved as an absolute path first.
     fn load_roots(&self, specifier: &str, ctx: &mut Ctx) -> Option<CachedPath> {
-        if !self.options.roots.is_empty() {
-            if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
-                for root in &self.options.roots {
-                    let cached_path = self.cache.value(root);
-                    if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
-                        return Some(path);
-                    }
+        if self.options.roots.is_empty() {
+            return None;
+        }
+        if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
+            for root in &self.options.roots {
+                let cached_path = self.cache.value(root);
+                if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
+                    return Some(path);
                 }
             }
         }
