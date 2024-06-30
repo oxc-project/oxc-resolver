@@ -10,9 +10,13 @@ use std::{
 use napi_derive::napi;
 use oxc_resolver::{ResolveOptions, Resolver};
 
-use self::options::{NapiResolveOptions, StrOrStrList};
+use self::{
+    options::{NapiResolveOptions, StrOrStrList},
+    tracing::init_tracing,
+};
 
 mod options;
+mod tracing;
 
 #[napi(object)]
 pub struct ResolveResult {
@@ -47,6 +51,7 @@ pub struct ResolverFactory {
 impl ResolverFactory {
     #[napi(constructor)]
     pub fn new(options: NapiResolveOptions) -> Self {
+        init_tracing();
         Self { resolver: Arc::new(Resolver::new(Self::normalize_options(options))) }
     }
 

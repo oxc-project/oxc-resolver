@@ -167,6 +167,12 @@ e.g.
 
 The input values are `options`, `path` and `specifier`, the returned value is `ret`.
 
+### NAPI
+
+```
+OXC_LOG=DEBUG your_program
+```
+
 ### Rolldown
 
 ```bash
