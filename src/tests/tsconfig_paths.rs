@@ -5,7 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    ResolveError, ResolveOptions, Resolver, TsConfig, TsconfigOptions, TsconfigReferences,
+    JSONError, ResolveError, ResolveOptions, Resolver, TsConfig, TsconfigOptions,
+    TsconfigReferences,
 };
 
 // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/lib.rs#L2303>
@@ -88,6 +89,28 @@ fn json_with_comments() {
 
     let resolved_path = resolver.resolve(&f, "foo").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("bar.js")));
+}
+
+#[test]
+fn broken() {
+    let f = super::fixture_root().join("tsconfig");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigOptions {
+            config_file: f.join("tsconfig_broken.json"),
+            references: TsconfigReferences::Auto,
+        }),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver.resolve(&f, "/");
+    let error = ResolveError::JSON(JSONError {
+        path: f.join("tsconfig_broken.json"),
+        message: String::from("EOF while parsing an object at line 2 column 0"),
+        line: 2,
+        column: 0,
+    });
+    assert_eq!(resolved_path, Err(error));
 }
 
 // <https://github.com/parcel-bundler/parcel/blob/c8f5c97a01f643b4d5c333c02d019ef2618b44a5/packages/utils/node-resolver-rs/src/tsconfig.rs#L193C12-L193C12>
