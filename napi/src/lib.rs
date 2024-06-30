@@ -75,17 +75,19 @@ impl ResolverFactory {
         self.resolver.clear_cache();
     }
 
+    /// Synchronously resolve `specifier` at an absolute path to a `directory`.
     #[allow(clippy::needless_pass_by_value)]
     #[napi]
-    pub fn sync(&self, path: String, request: String) -> ResolveResult {
-        let path = PathBuf::from(path);
+    pub fn sync(&self, directory: String, request: String) -> ResolveResult {
+        let path = PathBuf::from(directory);
         resolve(&self.resolver, &path, &request)
     }
 
+    /// Asynchronously resolve `specifier` at an absolute path to a `directory`.
     #[allow(clippy::needless_pass_by_value)]
     #[napi(js_name = "async")]
-    pub async fn resolve_async(&self, path: String, request: String) -> ResolveResult {
-        let path = PathBuf::from(path);
+    pub async fn resolve_async(&self, directory: String, request: String) -> ResolveResult {
+        let path = PathBuf::from(directory);
         let resolver = self.resolver.clone();
         tokio::spawn(async move { resolve(&resolver, &path, &request) }).await.unwrap()
     }

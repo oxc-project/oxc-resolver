@@ -156,11 +156,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         self.cache.clear();
     }
 
-    /// Resolve `specifier` at an absolute `path`.
+    /// Resolve `specifier` at an absolute path to a `directory`.
     ///
     /// A specifier is the string passed to require or import, i.e. `require("specifier")` or `import "specifier"`.
     ///
-    /// `path` must be an **absolute** path to a directory where the specifier is resolved against.
+    /// `directory` must be an **absolute** path to a directory where the specifier is resolved against.
     /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
     /// For ECMAScript modules, it is the value of `import.meta.url`.
     ///
@@ -169,11 +169,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// * See [ResolveError]
     pub fn resolve<P: AsRef<Path>>(
         &self,
-        path: P,
+        directory: P,
         specifier: &str,
     ) -> Result<Resolution, ResolveError> {
         let mut ctx = Ctx::default();
-        self.resolve_tracing(path.as_ref(), specifier, &mut ctx)
+        self.resolve_tracing(directory.as_ref(), specifier, &mut ctx)
     }
 
     /// Resolve `specifier` at absolute `path` with [ResolveContext]
@@ -183,13 +183,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// * See [ResolveError]
     pub fn resolve_with_context<P: AsRef<Path>>(
         &self,
-        path: P,
+        directory: P,
         specifier: &str,
         resolve_context: &mut ResolveContext,
     ) -> Result<Resolution, ResolveError> {
         let mut ctx = Ctx::default();
         ctx.init_file_dependencies();
-        let result = self.resolve_tracing(path.as_ref(), specifier, &mut ctx);
+        let result = self.resolve_tracing(directory.as_ref(), specifier, &mut ctx);
         if let Some(deps) = &mut ctx.file_dependencies {
             resolve_context.file_dependencies.extend(deps.drain(..));
         }
@@ -202,19 +202,19 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// Wrap `resolve_impl` with `tracing` information
     fn resolve_tracing(
         &self,
-        path: &Path,
+        directory: &Path,
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<Resolution, ResolveError> {
-        let span = tracing::debug_span!("resolve", path = ?path, specifier = specifier);
+        let span = tracing::debug_span!("resolve", path = ?directory, specifier = specifier);
         let _enter = span.enter();
-        let r = self.resolve_impl(path, specifier, ctx);
+        let r = self.resolve_impl(directory, specifier, ctx);
         match &r {
             Ok(r) => {
-                tracing::debug!(options = ?self.options, path = ?path, specifier = specifier, ret = ?r.path);
+                tracing::debug!(options = ?self.options, path = ?directory, specifier = specifier, ret = ?r.path);
             }
             Err(err) => {
-                tracing::debug!(options = ?self.options, path = ?path, specifier = specifier, err = ?err);
+                tracing::debug!(options = ?self.options, path = ?directory, specifier = specifier, err = ?err);
             }
         };
         r
