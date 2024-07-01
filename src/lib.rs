@@ -1096,6 +1096,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let directory = tsconfig.directory().to_path_buf();
                 for reference in &mut tsconfig.references {
                     let reference_tsconfig_path = directory.normalize_with(&reference.path);
+                    if reference_tsconfig_path == path {
+                        // skip current working path to avoid setting cache as a invalid value
+                        continue;
+                    }
                     let tsconfig = self.cache.tsconfig(
                         /* root */ true,
                         &reference_tsconfig_path,
