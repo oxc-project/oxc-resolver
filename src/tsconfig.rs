@@ -29,7 +29,7 @@ pub struct TsConfig {
 
     /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
     #[serde(skip)]
-    path: PathBuf,
+    pub path: PathBuf,
 
     #[serde(default)]
     pub extends: Option<ExtendsField>,

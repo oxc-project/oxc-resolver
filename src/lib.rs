@@ -1099,7 +1099,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     let tsconfig = self.cache.tsconfig(
                         /* root */ true,
                         &reference_tsconfig_path,
-                        |_| Ok(()),
+                        |reference_tsconfig| {
+                            if reference_tsconfig.path == tsconfig.path {
+                                return Err(ResolveError::TsconfigSelfReference(
+                                    reference_tsconfig.path.clone(),
+                                ));
+                            }
+                            Ok(())
+                        },
                     )?;
                     reference.tsconfig.replace(tsconfig);
                 }

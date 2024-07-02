@@ -99,3 +99,34 @@ fn manual() {
         assert_eq!(resolved_path, expected, "{request} {path:?}");
     }
 }
+
+#[test]
+fn self_reference() {
+    let f = super::fixture_root().join("tsconfig/cases/project_references");
+
+    #[rustfmt::skip]
+    let pass = [
+        (f.join("app"), vec!["./tsconfig.json".into()]),
+        (f.join("app/tsconfig.json"), vec!["./tsconfig.json".into()]),
+        (f.join("app"), vec![f.join("app")]),
+        (f.join("app/tsconfig.json"), vec![f.join("app")]),
+        (f.join("app/tsconfig.json"), vec![f.join("project_b"), f.join("app")]),
+    ];
+
+    for (config_file, reference_paths) in pass {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigOptions {
+                config_file: config_file.clone(),
+                references: TsconfigReferences::Paths(reference_paths.clone()),
+            }),
+            ..ResolveOptions::default()
+        });
+        let path = f.join("app");
+        let resolved_path = resolver.resolve(&path, "@/index.ts").map(|f| f.full_path());
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::TsconfigSelfReference(f.join("app/tsconfig.json"))),
+            "{config_file:?} {reference_paths:?}"
+        );
+    }
+}

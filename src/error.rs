@@ -81,6 +81,9 @@ pub enum ResolveError {
     /// Occurs when alias paths reference each other.
     #[error("Recursion in resolving")]
     Recursion,
+
+    #[error("{0} contains self-reference")]
+    TsconfigSelfReference(PathBuf),
 }
 
 impl ResolveError {
