@@ -28,6 +28,10 @@ pub enum ResolveError {
     #[error("Tsconfig not found {0}")]
     TsconfigNotFound(PathBuf),
 
+    /// Tsconfig's project reference path points to it self
+    #[error("Tsconfig's project reference path points to this tsconfig {0}")]
+    TsconfigSelfReference(PathBuf),
+
     #[error("{0}")]
     IOError(IOError),
 
