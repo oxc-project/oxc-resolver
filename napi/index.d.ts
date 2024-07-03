@@ -7,8 +7,10 @@ export class ResolverFactory {
   cloneWithOptions(options: NapiResolveOptions): ResolverFactory
   /** Clear the underlying cache. */
   clearCache(): void
-  sync(path: string, request: string): ResolveResult
-  async(path: string, request: string): Promise<ResolveResult>
+  /** Synchronously resolve `specifier` at an absolute path to a `directory`. */
+  sync(directory: string, request: string): ResolveResult
+  /** Asynchronously resolve `specifier` at an absolute path to a `directory`. */
+  async(directory: string, request: string): Promise<ResolveResult>
 }
 
 export const enum EnforceExtension {
