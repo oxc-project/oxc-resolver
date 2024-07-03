@@ -11,10 +11,13 @@ test       = false
 doctest    = false
 
 [dependencies]
-oxc_resolver       = { path = ".." }
-napi               = { version = "2.16.7", default-features = false, features = ["napi3", "serde-json"] }
-napi-derive        = { version = "2.16.6" }
-tracing-subscriber = { version = "0.3.18", features = [] }                                                         # Omit the `regex` feature
+oxc_resolver = { path = ".." }
+napi = { version = "2.16.7", default-features = false, features = ["napi3", "serde-json"] }
+napi-derive = { version = "2.16.6" }
+tracing-subscriber = { version = "0.3.18", default-features = false, features = [
+  "std",
+  "fmt",
+] } # Omit the `regex` feature
 
 [build-dependencies]
 napi-build = "2.1.3"
