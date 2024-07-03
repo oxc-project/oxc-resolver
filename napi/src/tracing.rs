@@ -1,6 +1,8 @@
 use std::sync::OnceLock;
 
-use tracing_subscriber::{filter::Targets, prelude::*};
+use tracing_subscriber::filter::Targets;
+use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 /// To debug `oxc_resolver`:
 /// `OXC_LOG=DEBUG your program`
