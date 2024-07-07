@@ -19,8 +19,11 @@
 [![MIT licensed][license-badge]][license-url]
 
 </div>
+ 
+# Rspack Resolver
 
-# Oxc Resolver
+> [!NOTE]  
+>  This is a fork of [oxc-resolver]https://github.com/oxc-project/oxc-resolver, and will be used in Rspack cause 100% compatible with enhanced-resolve it the non-goal of oxc-resolver itself, we may add enhanced-resolve specific features like [`pnp support`](https://github.com/web-infra-dev/rspack/issues/2236) and [`alternative support`](https://github.com/web-infra-dev/rspack/issues/5052) in the future.
 
 Rust port of [enhanced-resolve].
 
