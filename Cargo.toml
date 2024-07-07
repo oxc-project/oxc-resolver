@@ -3,17 +3,17 @@ members  = ["napi"]
 resolver = "2"
 
 [package]
-version      = "1.9.3"
-name         = "oxc_resolver"
-authors      = ["Boshen <boshenc@gmail.com>"]
+version      = "0.1.0"
+name         = "rspack_resolver"
+authors      = ["Rspack"]
 categories   = ["development-tools"]
 description  = "ESM / CJS module resolution"
 edition      = "2021"
-homepage     = "https://github.com/oxc-project/oxc-resolver"
+homepage     = "https://github.com/web-infra-dev/rspack-resolver"
 keywords     = ["node", "resolve", "cjs", "esm", "enhanced-resolve"]
 license      = "MIT"
 readme       = "README.md"
-repository   = "https://github.com/oxc-project/oxc-resolver"
+repository   = "https://github.com/web-infra-dev/rspack-resolver"
 rust-version = "1.70"
 include      = ["/src", "/examples", "/benches"]
 

@@ -2,7 +2,7 @@
 
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{EnforceExtension, Resolution, ResolveContext, ResolveOptions, Resolver};
+use rspack_resolver::{EnforceExtension, Resolution, ResolveContext, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()

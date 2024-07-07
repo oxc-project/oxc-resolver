@@ -1,5 +1,5 @@
 [package]
-name         = "oxc_napi_resolver"
+name         = "rspack_napi_resolver"
 version      = "0.0.0"
 publish      = false
 edition      = "2021"
@@ -11,7 +11,7 @@ test       = false
 doctest    = false
 
 [dependencies]
-oxc_resolver = { path = ".." }
+oxc_resolver = { path = "..", package = "rspack_resolver"}
 napi = { version = "2.16.7", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "2.16.6" }
 tracing-subscriber = { version = "0.3.18", default-features = false, features = [
