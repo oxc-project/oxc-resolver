@@ -91,18 +91,18 @@ impl FileSystem for FileSystemOs {
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        #[cfg(not(target_os = "wasi"))]
+        #[cfg(target_os = "windows")]
         {
             dunce::canonicalize(path)
         }
-        #[cfg(target_os = "wasi")]
+        #[cfg(not(target_os = "windows"))]
         {
             let meta = fs::symlink_metadata(path)?;
             if meta.file_type().is_symlink() {
                 let link = fs::read_link(path)?;
                 let mut path_buf = path.to_path_buf();
                 path_buf.pop();
-                for segment in link.iter() {
+                for segment in &link {
                     match segment.to_str() {
                         Some("..") => {
                             path_buf.pop();
