@@ -678,6 +678,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult {
+        if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
+            return Ok(Some(resolved_path));
+        }
+
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
@@ -735,6 +739,44 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         }
         Ok(None)
+    }
+
+    fn load_pnp(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        ctx: &mut Ctx,
+    ) -> Result<Option<CachedPath>, ResolveError> {
+        let Some(pnp_manifest) = &self.options.pnp_manifest else { return Ok(None) };
+        let resolution =
+            pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, cached_path.path());
+        match resolution {
+            Ok(pnp::Resolution::Resolved(path, subpath)) => {
+                let cached_path = self.cache.value(&path);
+                let export_resolution = self.load_package_exports(
+                    specifier,
+                    &subpath.unwrap_or_default(),
+                    &cached_path,
+                    ctx,
+                )?;
+                if export_resolution.is_some() {
+                    return Ok(export_resolution);
+                }
+                let file_or_directory_resolution =
+                    self.load_as_file_or_directory(&cached_path, specifier, ctx)?;
+                if file_or_directory_resolution.is_some() {
+                    return Ok(file_or_directory_resolution);
+                }
+                Err(ResolveError::NotFound(specifier.to_string()))
+            }
+
+            Ok(pnp::Resolution::Skipped) => Ok(None),
+
+            Err(_) => {
+                // Todo: Add a ResolveError::Pnp variant?
+                Err(ResolveError::NotFound(specifier.to_string()))
+            }
+        }
     }
 
     fn get_module_directory(

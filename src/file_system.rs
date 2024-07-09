@@ -3,6 +3,8 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
+
 /// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem: Send + Sync {
     /// See [std::fs::read_to_string]
@@ -67,6 +69,12 @@ impl FileMetadata {
     }
 }
 
+impl From<pnp::fs::FileType> for FileMetadata {
+    fn from(value: pnp::fs::FileType) -> Self {
+        Self::new(value == pnp::fs::FileType::File, value == pnp::fs::FileType::Directory, false)
+    }
+}
+
 impl From<fs::Metadata> for FileMetadata {
     fn from(metadata: fs::Metadata) -> Self {
         Self::new(metadata.is_file(), metadata.is_dir(), metadata.is_symlink())
@@ -74,16 +82,36 @@ impl From<fs::Metadata> for FileMetadata {
 }
 
 /// Operating System
-#[derive(Default)]
-pub struct FileSystemOs;
+pub struct FileSystemOs {
+    pub pnp_lru: LruZipCache<Vec<u8>>,
+}
+
+impl Default for FileSystemOs {
+    fn default() -> Self {
+        Self { pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p) }
+    }
+}
 
 impl FileSystem for FileSystemOs {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        fs::read_to_string(path)
+        match VPath::from(path)? {
+            VPath::Zip(info) => {
+                self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+            }
+            VPath::Virtual(info) => fs::read_to_string(info.physical_base_path()),
+            VPath::Native(path) => fs::read_to_string(path),
+        }
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        fs::metadata(path).map(FileMetadata::from)
+        match VPath::from(path)? {
+            VPath::Zip(info) => self
+                .pnp_lru
+                .file_type(info.physical_base_path(), info.zip_path)
+                .map(FileMetadata::from),
+            VPath::Virtual(info) => fs::metadata(info.physical_base_path()).map(FileMetadata::from),
+            VPath::Native(path) => fs::metadata(path).map(FileMetadata::from),
+        }
     }
 
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
@@ -93,7 +121,13 @@ impl FileSystem for FileSystemOs {
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
         #[cfg(target_os = "windows")]
         {
-            dunce::canonicalize(path)
+            match VPath::from(path)? {
+                VPath::Zip(info) => {
+                    dunce::canonicalize(info.physical_base_path().join(info.zip_path))
+                }
+                VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
+                VPath::Native(path) => dunce::canonicalize(path),
+            }
         }
         #[cfg(not(target_os = "windows"))]
         {
