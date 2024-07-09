@@ -42,28 +42,28 @@ jobs:
           path: lcov.info
 
   # codecov often fails, use another workflow for retry
-  # upload-codecov:
-  #   name: Upload coverage file
-  #   runs-on: ubuntu-latest
-  #   needs: coverage
-  #   # Check if the event is not triggered by a fork by checking whether CODECOV_TOKEN is set
-  #   env:
-  #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  #   steps:
-  #     - name: Checkout
-  #       if: env.CODECOV_TOKEN
-  #       uses: taiki-e/checkout-action@v1
+  upload-codecov:
+    name: Upload coverage file
+    runs-on: ubuntu-latest
+    needs: coverage
+    # Check if the event is not triggered by a fork by checking whether CODECOV_TOKEN is set
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - name: Checkout
+        if: env.CODECOV_TOKEN
+        uses: taiki-e/checkout-action@v1
 
-  #     - name: Download coverage file
-  #       if: env.CODECOV_TOKEN
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: codecov
+      - name: Download coverage file
+        if: env.CODECOV_TOKEN
+        uses: actions/download-artifact@v4
+        with:
+          name: codecov
 
-  #     - name: Upload to codecov.io
-  #       if: env.CODECOV_TOKEN
-  #       uses: codecov/codecov-action@v4
-  #       with:
-  #         token: ${{ secrets.CODECOV_TOKEN }}
-  #         fail_ci_if_error: true
-  #         files: lcov.info
+      - name: Upload to codecov.io
+        if: env.CODECOV_TOKEN
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          files: lcov.info
