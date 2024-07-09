@@ -33,9 +33,9 @@ jobs:
       - name: Build Benchmark
         run: cargo codspeed build --features codspeed
 
-      # - name: Run benchmark
-      #   uses: CodSpeedHQ/action@v2
-      #   timeout-minutes: 30
-      #   with:
-      #     run: cargo codspeed run
-      #     token: ${{ secrets.CODSPEED_TOKEN }}
+      - name: Run benchmark
+        uses: CodSpeedHQ/action@v2
+        timeout-minutes: 30
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}
