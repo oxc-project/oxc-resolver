@@ -134,7 +134,6 @@ pub struct CachedPathImpl {
     path: Box<Path>,
     parent: Option<CachedPath>,
     meta: OnceLock<Option<FileMetadata>>,
-    symlink: OnceLock<Option<PathBuf>>,
     canonicalized: OnceLock<Option<PathBuf>>,
     node_modules: OnceLock<Option<CachedPath>>,
     package_json: OnceLock<Option<Arc<PackageJson>>>,
@@ -147,7 +146,6 @@ impl CachedPathImpl {
             path,
             parent,
             meta: OnceLock::new(),
-            symlink: OnceLock::new(),
             canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
@@ -190,24 +188,11 @@ impl CachedPathImpl {
         )
     }
 
-    fn symlink<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<Option<PathBuf>> {
-        self.symlink
-            .get_or_try_init(|| {
-                if let Ok(symlink_metadata) = fs.symlink_metadata(&self.path) {
-                    if symlink_metadata.is_symlink {
-                        return fs.canonicalize(self.path()).map(Some);
-                    }
-                }
-                Ok(None)
-            })
-            .cloned()
-    }
-
     pub fn realpath<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<PathBuf> {
         self.canonicalized
             .get_or_try_init(|| {
-                if let Some(link) = self.symlink(fs)? {
-                    return Ok(Some(link));
+                if fs.symlink_metadata(&self.path).is_ok_and(|m| m.is_symlink) {
+                    return fs.canonicalize(&self.path).map(Some);
                 }
                 if let Some(parent) = self.parent() {
                     let parent_path = parent.realpath(fs)?;
