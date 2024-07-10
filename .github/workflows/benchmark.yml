@@ -29,7 +29,7 @@ jobs:
           cache-key: benchmark
           save-cache: ${{ github.ref_name == 'main' }}
           tools: cargo-codspeed
-
+      - uses: ./.github/actions/pnpm
       - name: Build Benchmark
         run: cargo codspeed build --features codspeed
 
