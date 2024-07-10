@@ -118,15 +118,7 @@ impl FileSystem for FileSystemOs {
                             }
                         }
                         Component::RootDir => {
-                            #[cfg(target_os = "windows")]
-                            {
-                                path_buf.push("\\");
-                            }
-                            #[cfg(not(target_os = "windows"))]
-                            {
-                                #[allow(clippy::path_buf_push_overwrite)]
-                                path_buf.push("/");
-                            }
+                            path_buf = PathBuf::from("/");
                         }
                         Component::CurDir | Component::Prefix(_) => {}
                     }
