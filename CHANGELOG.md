@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.9.4](https://github.com/oxc-project/oxc_resolver/compare/oxc_resolver-v1.9.3...oxc_resolver-v1.9.4) - 2024-07-10
 
 ### Other
-- use custom canonicalize impl to avoid usless syscall ([#220](https://github.com/oxc-project/oxc_resolver/pull/220))
+- use custom canonicalize impl to avoid useless syscall ([#220](https://github.com/oxc-project/oxc_resolver/pull/220))
 - add symlink fixtures ([#219](https://github.com/oxc-project/oxc_resolver/pull/219))
 
 ## [1.9.3](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v1.9.2...oxc_resolver-v1.9.3) - 2024-07-03
