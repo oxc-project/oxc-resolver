@@ -405,7 +405,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_resolver"
-version = "1.9.4"
+version = "1.10.0"
 dependencies = [
  "criterion2",
  "dashmap",
