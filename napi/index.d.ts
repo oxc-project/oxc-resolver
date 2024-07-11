@@ -188,6 +188,8 @@ export interface NapiResolveOptions {
 export interface ResolveResult {
   path?: string
   error?: string
+  /** "type" field in the package.json file */
+  moduleType?: string
 }
 
 /**
@@ -199,7 +201,7 @@ export interface Restriction {
   regex?: string
 }
 
-export function sync(path: string, request: string): ResolveResult
+export declare function sync(path: string, request: string): ResolveResult
 
 /**
  * Tsconfig Options
