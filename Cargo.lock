@@ -670,6 +670,7 @@ dependencies = [
 name = "oxc_resolver"
 version = "1.10.2"
 dependencies = [
+ "cfg-if",
  "criterion2",
  "dashmap",
  "document-features",

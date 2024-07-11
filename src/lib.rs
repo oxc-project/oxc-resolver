@@ -678,8 +678,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
-            return Ok(Some(resolved_path));
+        #[cfg(feature = "yarn_pnp")]
+        {
+            if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
+                return Ok(Some(resolved_path));
+            }
         }
 
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
@@ -741,6 +744,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
+    #[cfg(feature = "yarn_pnp")]
     fn load_pnp(
         &self,
         cached_path: &CachedPath,

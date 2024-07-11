@@ -10,8 +10,11 @@ alias r := ready
 # or install via `cargo install cargo-binstall`
 # Initialize the project by installing all the necessary tools.
 init:
-  pnpm install
   cargo binstall cargo-watch typos-cli taplo-cli cargo-llvm-cov -y
+
+install:
+  pnpm install
+  cd fixtures/pnp && yarn
 
 # When ready, run the same CI commands
 ready:
@@ -44,7 +47,7 @@ check:
 
 # Run all the tests
 test:
-  cargo test
+  cargo test --all-features
 
 # Lint the whole project
 lint:

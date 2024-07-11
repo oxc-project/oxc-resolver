@@ -118,6 +118,7 @@ pub struct ResolveOptions {
     /// A manifest loaded from pnp::load_pnp_manifest.
     ///
     /// Default `None`
+    #[cfg(feature = "yarn_pnp")]
     pub pnp_manifest: Option<pnp::Manifest>,
 
     /// Resolve to a context instead of a file.
@@ -466,6 +467,7 @@ impl Default for ResolveOptions {
             main_fields: vec!["main".into()],
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
+            #[cfg(feature = "yarn_pnp")]
             pnp_manifest: None,
             resolve_to_context: false,
             prefer_relative: false,
@@ -615,6 +617,7 @@ mod test {
             main_fields: vec![],
             main_files: vec![],
             modules: vec![],
+            #[cfg(feature = "yarn_pnp")]
             pnp_manifest: None,
             prefer_absolute: false,
             prefer_relative: false,

@@ -1,8 +1,10 @@
+use cfg_if::cfg_if;
 use std::{
     fs, io,
     path::{Component, Path, PathBuf},
 };
 
+#[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
 /// File System abstraction used for `ResolverGeneric`
@@ -69,6 +71,7 @@ impl FileMetadata {
     }
 }
 
+#[cfg(feature = "yarn_pnp")]
 impl From<pnp::fs::FileType> for FileMetadata {
     fn from(value: pnp::fs::FileType) -> Self {
         Self::new(value == pnp::fs::FileType::File, value == pnp::fs::FileType::Directory, false)
@@ -82,35 +85,59 @@ impl From<fs::Metadata> for FileMetadata {
 }
 
 /// Operating System
+#[cfg(feature = "yarn_pnp")]
 pub struct FileSystemOs {
-    pub pnp_lru: LruZipCache<Vec<u8>>,
+    pnp_lru: LruZipCache<Vec<u8>>,
 }
+
+#[cfg(not(feature = "yarn_pnp"))]
+pub struct FileSystemOs;
 
 impl Default for FileSystemOs {
     fn default() -> Self {
-        Self { pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p) }
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                Self { pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p) }
+            } else {
+                Self
+            }
+        }
     }
 }
 
 impl FileSystem for FileSystemOs {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        match VPath::from(path)? {
-            VPath::Zip(info) => {
-                self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                match VPath::from(path)? {
+                    VPath::Zip(info) => {
+                        self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                    }
+                    VPath::Virtual(info) => fs::read_to_string(info.physical_base_path()),
+                    VPath::Native(path) => fs::read_to_string(path),
+                }
+            } else {
+                fs::read_to_string(path)
             }
-            VPath::Virtual(info) => fs::read_to_string(info.physical_base_path()),
-            VPath::Native(path) => fs::read_to_string(path),
         }
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        match VPath::from(path)? {
-            VPath::Zip(info) => self
-                .pnp_lru
-                .file_type(info.physical_base_path(), info.zip_path)
-                .map(FileMetadata::from),
-            VPath::Virtual(info) => fs::metadata(info.physical_base_path()).map(FileMetadata::from),
-            VPath::Native(path) => fs::metadata(path).map(FileMetadata::from),
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                match VPath::from(path)? {
+                    VPath::Zip(info) => self
+                        .pnp_lru
+                        .file_type(info.physical_base_path(), info.zip_path)
+                        .map(FileMetadata::from),
+                    VPath::Virtual(info) => {
+                        fs::metadata(info.physical_base_path()).map(FileMetadata::from)
+                    }
+                    VPath::Native(path) => fs::metadata(path).map(FileMetadata::from),
+                }
+            } else {
+                fs::metadata(path).map(FileMetadata::from)
+            }
         }
     }
 
@@ -119,49 +146,50 @@ impl FileSystem for FileSystemOs {
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        #[cfg(target_os = "windows")]
-        {
-            match VPath::from(path)? {
-                VPath::Zip(info) => {
-                    dunce::canonicalize(info.physical_base_path().join(info.zip_path))
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                match VPath::from(path)? {
+                    VPath::Zip(info) => {
+                        dunce::canonicalize(info.physical_base_path().join(info.zip_path))
+                    }
+                    VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
+                    VPath::Native(path) => dunce::canonicalize(path),
                 }
-                VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
-                VPath::Native(path) => dunce::canonicalize(path),
-            }
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            let mut path_buf = path.to_path_buf();
-            loop {
-                let link = fs::read_link(&path_buf)?;
-                path_buf.pop();
-                for component in link.components() {
-                    match component {
-                        Component::ParentDir => {
-                            path_buf.pop();
-                        }
-                        Component::Normal(seg) => {
-                            #[cfg(target_family = "wasm")]
-                            // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
-                            {
-                                path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
+            } else if #[cfg(windows)] {
+                dunce::canonicalize(path)
+            } else {
+                let mut path_buf = path.to_path_buf();
+                loop {
+                    let link = fs::read_link(&path_buf)?;
+                    path_buf.pop();
+                    for component in link.components() {
+                        match component {
+                            Component::ParentDir => {
+                                path_buf.pop();
                             }
-                            #[cfg(not(target_family = "wasm"))]
-                            {
-                                path_buf.push(seg);
+                            Component::Normal(seg) => {
+                                #[cfg(target_family = "wasm")]
+                                // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                                {
+                                    path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
+                                }
+                                #[cfg(not(target_family = "wasm"))]
+                                {
+                                    path_buf.push(seg);
+                                }
                             }
+                            Component::RootDir => {
+                                path_buf = PathBuf::from("/");
+                            }
+                            Component::CurDir | Component::Prefix(_) => {}
                         }
-                        Component::RootDir => {
-                            path_buf = PathBuf::from("/");
-                        }
-                        Component::CurDir | Component::Prefix(_) => {}
+                    }
+                    if !fs::symlink_metadata(&path_buf)?.is_symlink() {
+                        break;
                     }
                 }
-                if !fs::symlink_metadata(&path_buf)?.is_symlink() {
-                    break;
-                }
+                Ok(path_buf)
             }
-            Ok(path_buf)
         }
     }
 }
