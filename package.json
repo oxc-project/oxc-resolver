@@ -9,7 +9,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.0.0-alpha.57",
+    "@napi-rs/cli": "3.0.0-alpha.58",
     "@napi-rs/wasm-runtime": "^0.2.4",
     "@types/node": "^20.14.10",
     "ava": "^6.1.3",
