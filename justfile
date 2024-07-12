@@ -48,7 +48,7 @@ test:
 
 # Lint the whole project
 lint:
-  cargo clippy -- --deny warnings
+  cargo clippy --all-features -- --deny warnings
 
 # Generate doc
 doc:
