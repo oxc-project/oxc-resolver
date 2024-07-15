@@ -4,7 +4,8 @@
   "private": true,
   "devDependencies": {
     "axios": "1.6.2",
-    "styled-components": "6.1.1",
-    "postcss": "8.4.33"
+    "ipaddr.js": "2.2.0",
+    "postcss": "8.4.33",
+    "styled-components": "6.1.1"
   }
 }

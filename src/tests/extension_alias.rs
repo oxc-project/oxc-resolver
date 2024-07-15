@@ -31,12 +31,16 @@ fn extension_alias() {
 
     #[rustfmt::skip]
     let fail = [
-        ("should not allow to fallback to the original extension or add extensions", f, "./index.mjs"),
+        ("should not allow to fallback to the original extension or add extensions", f.clone(), "./index.mjs"),
     ];
 
     for (comment, path, request) in fail {
         let resolution = resolver.resolve(&path, request);
-        assert_eq!(resolution, Err(ResolveError::ExtensionAlias), "{comment} {path:?} {request}");
+        assert_eq!(
+            resolution,
+            Err(ResolveError::ExtensionAlias(f.join(request))),
+            "{comment} {path:?} {request}"
+        );
     }
 }
 

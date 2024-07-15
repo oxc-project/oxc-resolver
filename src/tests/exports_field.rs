@@ -269,7 +269,7 @@ fn extension_alias_throw_error() {
     let fail = [
         // enhanced-resolve has two test cases that are exactly the same here
         // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/test/exportsField.test.js#L2976-L3024
-        ("should throw error with the `extensionAlias` option", f, "pkg/string.js", ResolveError::ExtensionAlias),
+        ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::ExtensionAlias(f.join("node_modules/pkg/dist/string.js"))),
         // TODO: The error is PackagePathNotExported in enhanced-resolve
         // ("should throw error with the `extensionAlias` option", f.clone(), "pkg/string.js", ResolveError::PackagePathNotExported("node_modules/pkg/dist/string.ts".to_string())),
     ];

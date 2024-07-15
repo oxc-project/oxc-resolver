@@ -510,9 +510,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 2. If X.js is a file, load X.js as JavaScript text. STOP
         // 3. If X.json is a file, parse X.json to a JavaScript Object. STOP
         // 4. If X.node is a file, load X.node as binary addon. STOP
-        if let Some(path) =
-            self.load_extensions(cached_path.path(), &self.options.extensions, ctx)?
-        {
+        if let Some(path) = self.load_extensions(cached_path, &self.options.extensions, ctx)? {
             return Ok(Some(path));
         }
         Ok(None)
@@ -571,11 +569,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
-    fn load_extensions(&self, path: &Path, extensions: &[String], ctx: &mut Ctx) -> ResolveResult {
+    fn load_extensions(
+        &self,
+        path: &CachedPath,
+        extensions: &[String],
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
         if ctx.fully_specified {
             return Ok(None);
         }
-        let path = path.as_os_str();
+        let path = path.path().as_os_str();
         for extension in extensions {
             let mut path_with_extension = path.to_os_string();
             path_with_extension.reserve_exact(extension.len());
@@ -637,9 +640,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // 1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
             // 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
             // 3. If X/index.node is a file, load X/index.node as binary addon. STOP
-            if let Some(path) =
-                self.load_extensions(cached_path.path(), &self.options.extensions, ctx)?
-            {
+            if let Some(path) = self.load_extensions(&cached_path, &self.options.extensions, ctx)? {
                 return Ok(Some(path));
             }
         }
@@ -972,7 +973,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
-    /// Given an extension alias map `{".js": [".ts", "js"]}`,
+    /// Given an extension alias map `{".js": [".ts", ".js"]}`,
     /// load the mapping instead of the provided extension
     ///
     /// This is an enhanced-resolve feature
@@ -996,11 +997,24 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(None);
         };
         let path = cached_path.path().with_extension("");
-        ctx.with_fully_specified(false);
-        if let Some(path) = self.load_extensions(&path, extensions, ctx)? {
-            return Ok(Some(path));
+        let path = path.as_os_str();
+        ctx.with_fully_specified(true);
+        for extension in extensions {
+            let mut path_with_extension = path.to_os_string();
+            path_with_extension.reserve_exact(extension.len());
+            path_with_extension.push(extension);
+            let cached_path = self.cache.value(Path::new(&path_with_extension));
+            // Bail if path is module directory such as `ipaddr.js`
+            if cached_path.is_dir(&self.cache.fs, ctx) {
+                ctx.with_fully_specified(false);
+                return Ok(None);
+            }
+            if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
+                ctx.with_fully_specified(false);
+                return Ok(Some(path));
+            }
         }
-        Err(ResolveError::ExtensionAlias)
+        Err(ResolveError::ExtensionAlias(cached_path.to_path_buf()))
     }
 
     /// enhanced-resolve: RootsPlugin

@@ -32,6 +32,9 @@ importers:
       axios:
         specifier: 1.6.2
         version: 1.6.2
+      ipaddr.js:
+        specifier: 2.2.0
+        version: 2.2.0
       postcss:
         specifier: 8.4.33
         version: 8.4.33
@@ -894,6 +897,10 @@ packages:
   inquirer@10.0.1:
     resolution: {integrity: sha512-XgthhRIn0Ci9JdGJpUo2EtpPfaczbooZbGTN+FTzSCyUb7YHJcPPnuSXfeG5903bJMy3OyEoVTQMnvO4Ly5tFg==}
     engines: {node: '>=18'}
+
+  ipaddr.js@2.2.0:
+    resolution: {integrity: sha512-Ag3wB2o37wslZS19hZqorUnrnzSkpOVy+IiiDEiTqNubEYpYuHWIf6K4psgN2ZWKExS4xhVCrRVfb/wfW8fWJA==}
+    engines: {node: '>= 10'}
 
   irregular-plurals@3.5.0:
     resolution: {integrity: sha512-1ANGLZ+Nkv1ptFb2pa8oG8Lem4krflKuX/gINiHJHjJUKaJHk/SXk5x6K3J+39/p0h1RQ2saROclJJ+QLvETCQ==}
@@ -2194,6 +2201,8 @@ snapshots:
       mute-stream: 1.0.0
       run-async: 3.0.0
       rxjs: 7.8.1
+
+  ipaddr.js@2.2.0: {}
 
   irregular-plurals@3.5.0: {}
 
