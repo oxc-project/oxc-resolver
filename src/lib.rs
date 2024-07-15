@@ -498,8 +498,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
         // enhanced-resolve feature: extension_alias
-        if let Some(path) = self.load_extension_alias(cached_path, ctx)? {
-            return Ok(Some(path));
+        match self.load_extension_alias(cached_path, ctx) {
+            Ok(Some(path)) => {
+                return Ok(Some(path));
+            }
+            Err(err) => {
+                if !ctx.resolve_in_node_modules {
+                    return Err(err);
+                }
+            }
+            _ => {}
         }
         if self.options.enforce_extension.is_disabled() {
             // 1. If X is a file, load X as its file extension format. STOP
@@ -728,7 +736,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // c. LOAD_AS_DIRECTORY(DIR/X)
                 let node_module_file = cached_path.path().normalize_with(specifier);
                 let cached_path = self.cache.value(&node_module_file);
+                ctx.with_resolve_in_node_modules(true);
                 if let Some(path) = self.load_as_file_or_directory(&cached_path, specifier, ctx)? {
+                    ctx.with_resolve_in_node_modules(false);
                     return Ok(Some(path));
                 }
             }

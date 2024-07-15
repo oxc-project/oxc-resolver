@@ -102,3 +102,18 @@ fn postcss() {
     let resolution = resolver.resolve(&module_path, "./lib/terminal-highlight");
     assert_eq!(resolution, Err(ResolveError::Ignored(module_path.join("lib/terminal-highlight"))));
 }
+
+#[test]
+fn resolve_package_name_with_dot_js() {
+    let dir = dir();
+    let path = dir.join("fixtures/pnpm");
+    let module_path =
+        dir.join("node_modules/.pnpm/ipaddr.js@2.2.0/node_modules/ipaddr.js/lib/ipaddr.js");
+    let resolver = Resolver::new(ResolveOptions {
+        extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
+        ..ResolveOptions::default()
+    });
+    let resolution: Result<oxc_resolver::Resolution, ResolveError> =
+        resolver.resolve(path, "ipaddr.js");
+    assert_eq!(resolution.map(oxc_resolver::Resolution::into_path_buf), Ok(module_path));
+}
