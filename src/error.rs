@@ -43,8 +43,8 @@ pub enum ResolveError {
     Builtin(String),
 
     /// All of the aliased extension are not found
-    #[error("All of the aliased extension are not found")]
-    ExtensionAlias,
+    #[error("All of the aliased extensions are not found for {0}")]
+    ExtensionAlias(PathBuf),
 
     /// The provided path specifier cannot be parsed
     #[error("{0}")]
