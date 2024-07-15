@@ -25,10 +25,10 @@ pub struct ResolveContextImpl {
     /// The current resolving alias for bailing recursion alias.
     pub resolving_alias: Option<String>,
 
-    /// Resolve files in node_modules.
-    /// If extension alias is enabled and all of the aliased extension are not found:
-    ///   1. if in node_modules, we can fallback to the original extension.
-    ///   2. if not in node_modules, should not allow to fallback to the original extension or add extensions.
+    /// Resolve files in `node_modules` folder.
+    /// If the extension alias is enabled and all of the aliased extensions are not found if:
+    ///   1. in `node_modules`, we can fallback to the original extension;
+    ///   2. not in `node_modules`, it should not allow to fallback to the original extension or add new extensions.
     pub resolve_in_node_modules: bool,
 
     /// For avoiding infinite recursion, which will cause stack overflow.
