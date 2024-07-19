@@ -19,5 +19,8 @@ runs:
         corepack enable
         yarn install
 
-    - run: pnpm install
+    - name: pnpm
       shell: bash
+      run: |
+        corepack enable
+        pnpm install
