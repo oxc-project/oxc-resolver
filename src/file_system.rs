@@ -1,6 +1,6 @@
 use std::{
     fs, io,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 /// File System abstraction used for `ResolverGeneric`
@@ -91,33 +91,43 @@ impl FileSystem for FileSystemOs {
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        #[cfg(not(target_os = "wasi"))]
+        #[cfg(target_os = "windows")]
         {
             dunce::canonicalize(path)
         }
-        #[cfg(target_os = "wasi")]
+        #[cfg(not(target_os = "windows"))]
         {
-            let meta = fs::symlink_metadata(path)?;
-            if meta.file_type().is_symlink() {
-                let link = fs::read_link(path)?;
-                let mut path_buf = path.to_path_buf();
+            let mut path_buf = path.to_path_buf();
+            loop {
+                let link = fs::read_link(&path_buf)?;
                 path_buf.pop();
-                for segment in link.iter() {
-                    match segment.to_str() {
-                        Some("..") => {
+                for component in link.components() {
+                    match component {
+                        Component::ParentDir => {
                             path_buf.pop();
                         }
-                        Some(".") | None => {}
-                        Some(seg) => {
-                            // Need to trim the extra \0 introduces by rust std rust-lang/rust#123727
-                            path_buf.push(seg.trim_end_matches('\0'));
+                        Component::Normal(seg) => {
+                            #[cfg(target_family = "wasm")]
+                            // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                            {
+                                path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
+                            }
+                            #[cfg(not(target_family = "wasm"))]
+                            {
+                                path_buf.push(seg);
+                            }
                         }
+                        Component::RootDir => {
+                            path_buf = PathBuf::from("/");
+                        }
+                        Component::CurDir | Component::Prefix(_) => {}
                     }
                 }
-                Ok(path_buf)
-            } else {
-                Ok(path.to_path_buf())
+                if !fs::symlink_metadata(&path_buf)?.is_symlink() {
+                    break;
+                }
             }
+            Ok(path_buf)
         }
     }
 }

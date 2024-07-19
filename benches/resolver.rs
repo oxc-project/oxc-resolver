@@ -1,4 +1,8 @@
-use std::{env, path::PathBuf};
+use std::{
+    env, fs,
+    io::{self, Write},
+    path::{Path, PathBuf},
+};
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use rayon::prelude::*;
@@ -53,12 +57,47 @@ fn data() -> Vec<(PathBuf, &'static str)> {
     ]
 }
 
+fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(original: P, link: Q) -> io::Result<()> {
+    #[cfg(target_family = "unix")]
+    {
+        std::os::unix::fs::symlink(original, link)
+    }
+
+    #[cfg(target_family = "windows")]
+    {
+        std::os::windows::fs::symlink_file(original, link)
+    }
+}
+
+fn create_symlinks() -> io::Result<PathBuf> {
+    let root = env::current_dir()?.join("fixtures/enhanced_resolve");
+    let dirname = root.join("test");
+    let temp_path = dirname.join("temp_symlinks");
+    let create_symlink_fixtures = || -> io::Result<()> {
+        fs::create_dir(&temp_path)?;
+        let mut index = fs::File::create(temp_path.join("index.js"))?;
+        index.write_all(b"console.log('Hello, World!')")?;
+        // create 10000 symlink files pointing to the index.js
+        for i in 0..10000 {
+            symlink(temp_path.join("index.js"), temp_path.join(format!("file{i}.js")))?;
+        }
+        Ok(())
+    };
+    if !temp_path.exists() {
+        if let Err(err) = create_symlink_fixtures() {
+            let _ = fs::remove_dir_all(&temp_path);
+            return Err(err);
+        }
+    }
+    Ok(temp_path)
+}
+
 fn oxc_resolver() -> rspack_resolver::Resolver {
     use rspack_resolver::{AliasValue, ResolveOptions, Resolver};
     let alias_value = AliasValue::from("./");
     Resolver::new(ResolveOptions {
         extensions: vec![".ts".into(), ".js".into()],
-        condition_names: vec!["webpack".into()],
+        condition_names: vec!["webpack".into(), "require".into()],
         alias_fields: vec![vec!["browser".into()]],
         extension_alias: vec![
             (".js".into(), vec![".ts".into(), ".js".into()]),
@@ -103,6 +142,17 @@ fn bench_resolver(c: &mut Criterion) {
         assert!(oxc_resolver().resolve(path, request).is_ok(), "{path:?} {request}");
     }
 
+    let symlink_test_dir = create_symlinks().expect("Create symlink fixtures failed");
+
+    let symlinks_range = 0u32..10000;
+
+    for i in symlinks_range.clone() {
+        assert!(
+            oxc_resolver().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
+            "file{i}.js"
+        );
+    }
+
     let mut group = c.benchmark_group("resolver");
 
     group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &data, |b, data| {
@@ -122,6 +172,22 @@ fn bench_resolver(c: &mut Criterion) {
             });
         });
     });
+
+    group.bench_with_input(
+        BenchmarkId::from_parameter("resolve from symlinks"),
+        &symlinks_range,
+        |b, data| {
+            let oxc_resolver = oxc_resolver();
+            b.iter(|| {
+                for i in data.clone() {
+                    assert!(
+                        oxc_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
+                        "file{i}.js"
+                    );
+                }
+            });
+        },
+    );
 }
 
 criterion_group!(resolver, bench_resolver);
