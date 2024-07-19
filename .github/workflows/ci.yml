@@ -188,8 +188,8 @@ jobs:
       RUST_BACKTRACE: 1
     steps:
       - uses: taiki-e/checkout-action@v1
+      - run: cd fixtures/pnp && corepack enable && yarn install
       - uses: ./.github/actions/pnpm
-      - run: cd fixtures/pnp && yarn
       - uses: Boshen/setup-rust@main
         with:
           cache-key: warm
