@@ -7,17 +7,17 @@ runs:
   steps:
     - uses: pnpm/action-setup@v4
 
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .node-version
+        cache: pnpm
+
     - name: yarn
       shell: bash
       run: |
         cd fixtures/pnp
         corepack enable
         yarn install
-
-    - uses: actions/setup-node@v4
-      with:
-        node-version-file: .node-version
-        cache: pnpm
 
     - run: pnpm install
       shell: bash
