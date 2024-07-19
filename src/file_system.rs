@@ -1,7 +1,7 @@
 use cfg_if::cfg_if;
 use std::{
     fs, io,
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
 };
 
 #[cfg(feature = "yarn_pnp")]
