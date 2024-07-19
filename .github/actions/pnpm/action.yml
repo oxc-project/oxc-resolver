@@ -12,5 +12,15 @@ runs:
         node-version-file: .node-version
         cache: pnpm
 
-    - run: pnpm install
+    - name: yarn
       shell: bash
+      run: |
+        cd fixtures/pnp
+        corepack enable
+        yarn install
+
+    - name: pnpm
+      shell: bash
+      run: |
+        corepack enable
+        pnpm install

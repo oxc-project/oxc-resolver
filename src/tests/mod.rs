@@ -12,6 +12,8 @@ mod incorrect_description_file;
 mod main_field;
 mod memory_fs;
 mod missing;
+#[cfg(feature = "yarn_pnp")]
+mod pnp;
 mod resolve;
 mod restrictions;
 mod roots;
