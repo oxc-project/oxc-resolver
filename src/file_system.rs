@@ -158,6 +158,7 @@ impl FileSystem for FileSystemOs {
             } else if #[cfg(windows)] {
                 dunce::canonicalize(path)
             } else {
+                use std::path::Component;
                 let mut path_buf = path.to_path_buf();
                 loop {
                     let link = fs::read_link(&path_buf)?;
