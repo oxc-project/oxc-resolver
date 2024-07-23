@@ -102,3 +102,31 @@ fn postcss() {
     let resolution = resolver.resolve(&module_path, "./lib/terminal-highlight");
     assert_eq!(resolution, Err(ResolveError::Ignored(module_path.join("lib/terminal-highlight"))));
 }
+
+#[test]
+fn ipaddr_js() {
+    let dir = dir();
+    let path = dir.join("fixtures/pnpm");
+    let module_path =
+        dir.join("node_modules/.pnpm/ipaddr.js@2.2.0/node_modules/ipaddr.js/lib/ipaddr.js");
+
+    let resolvers = [
+        // with `extension_alias`
+        Resolver::new(ResolveOptions {
+            extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
+            ..ResolveOptions::default()
+        }),
+        // with `extensions` should still resolve to module main
+        Resolver::new(ResolveOptions {
+            extensions: vec![(".ts".into())],
+            ..ResolveOptions::default()
+        }),
+        // default
+        Resolver::default(),
+    ];
+
+    for resolver in resolvers {
+        let resolution = resolver.resolve(&path, "ipaddr.js").map(|r| r.full_path());
+        assert_eq!(resolution, Ok(module_path.clone()));
+    }
+}
