@@ -94,7 +94,7 @@ document-features = { version = "0.2.8", optional = true }
 [dev-dependencies]
 vfs            = "0.12.0"                                         # for testing with in memory file system
 rayon          = { version = "1.10.0" }
-criterion2     = { version = "0.11.0", default-features = false }
+criterion2     = { version = "1.0.0", default-features = false }
 normalize-path = { version = "0.2.1" }
 
 [features]
