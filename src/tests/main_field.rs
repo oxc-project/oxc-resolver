@@ -22,3 +22,17 @@ fn test() {
     let resolution = resolver2.resolve(&f, "pck2").map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("node_modules/pck2/module.js")));
 }
+
+#[test]
+fn test_fallback() {
+    let f = super::fixture_root().join("invalid");
+
+    let resolver1 = Resolver::new(ResolveOptions {
+        main_fields: vec!["module".into(), "main".into()],
+        extension_alias: vec![(".js".into(), vec![".ts".into(), ".js".into()])],
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver1.resolve(&f, "main_field_fallback").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("node_modules/main_field_fallback/exist.js")));
+}

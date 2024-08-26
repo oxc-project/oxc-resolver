@@ -531,7 +531,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     let main_field_path = cached_path.path().normalize_with(main_field);
                     // d. LOAD_AS_FILE(M)
                     let cached_path = self.cache.value(&main_field_path);
-                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                    if let Ok(Some(path)) = self.load_as_file(&cached_path, ctx) {
                         return Ok(Some(path));
                     }
                     // e. LOAD_INDEX(M)
