@@ -105,6 +105,20 @@ impl Default for FileSystemOs {
     }
 }
 
+fn read_to_string(path: &Path) -> io::Result<String> {
+    // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
+    let bytes = std::fs::read(path)?;
+    if simdutf8::basic::from_utf8(&bytes).is_err() {
+        // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "stream did not contain valid UTF-8",
+        ));
+    }
+    // SAFETY: `simdutf8` has ensured it's a valid UTF-8 string
+    Ok(unsafe { String::from_utf8_unchecked(bytes) })
+}
+
 impl FileSystem for FileSystemOs {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         cfg_if! {
@@ -113,11 +127,11 @@ impl FileSystem for FileSystemOs {
                     VPath::Zip(info) => {
                         self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
                     }
-                    VPath::Virtual(info) => fs::read_to_string(info.physical_base_path()),
-                    VPath::Native(path) => fs::read_to_string(path),
+                    VPath::Virtual(info) => read_to_string(&info.physical_base_path()),
+                    VPath::Native(path) => read_to_string(&path),
                 }
             } else {
-                fs::read_to_string(path)
+                read_to_string(path)
             }
         }
     }
