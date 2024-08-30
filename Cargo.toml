@@ -3,7 +3,7 @@ members  = ["napi"]
 resolver = "2"
 
 [package]
-version      = "0.3.0"
+version      = "0.3.1"
 name         = "rspack_resolver"
 authors      = ["Rspack"]
 categories   = ["development-tools"]
