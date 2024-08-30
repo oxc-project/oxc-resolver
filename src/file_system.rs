@@ -155,7 +155,7 @@ impl FileSystem for FileSystemOs {
                     VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
                     VPath::Native(path) => dunce::canonicalize(path),
                 }
-            } else if #[cfg(windows)] {
+            } else if #[cfg(not(target_os = "wasi"))]{
                 dunce::canonicalize(path)
             } else {
                 use std::path::Component;

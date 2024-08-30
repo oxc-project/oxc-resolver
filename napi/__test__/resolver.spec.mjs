@@ -231,7 +231,7 @@ for (const [title, context, request, expected] of [
 }
 
 test('resolve pnpm package', (t) => {
-  const rootDir = join(currentDir, '..', '..');
+  const rootDir = join(currentDir, '..', '..')
   const pnpmProjectPath = join(rootDir, 'fixtures', 'pnpm')
   const resolver = new ResolverFactory({
     aliasFields: ['browser'],
@@ -254,6 +254,25 @@ test('resolve pnpm package', (t) => {
       path: join(
         rootDir,
         'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js'
+      ),
+    }
+  )
+})
+
+test('resolve recursive symbol link', (t) => {
+  const rootDir = join(currentDir, '..', '..')
+  const workspaceProjectPath = join(rootDir, 'fixtures', 'pnpm-workspace')
+  const resolver = new ResolverFactory({})
+
+  t.deepEqual(
+    resolver.sync(
+      join(workspaceProjectPath, './packages/app'),
+      './node_modules/@monorepo/lib/node_modules/react/package.json'
+    ),
+    {
+      path: join(
+        rootDir,
+        'node_modules/.pnpm/react@18.3.1/node_modules/react/package.json'
       ),
     }
   )

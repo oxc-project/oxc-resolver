@@ -2,3 +2,4 @@ packages:
   - 'npm'
   - 'napi'
   - 'fixtures/pnpm'
+  - 'fixtures/pnpm-workspace/**'

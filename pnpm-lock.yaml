@@ -42,6 +42,27 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
+  fixtures/pnpm-workspace:
+    dependencies:
+      enhanced-resolve:
+        specifier: ^5.17.1
+        version: 5.17.1
+      oxc-resolver:
+        specifier: latest
+        version: 1.11.0
+
+  fixtures/pnpm-workspace/packages/app:
+    dependencies:
+      '@monorepo/lib':
+        specifier: workspace:*
+        version: link:../lib
+
+  fixtures/pnpm-workspace/packages/lib:
+    dependencies:
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+
   npm: {}
 
 packages:
@@ -478,6 +499,61 @@ packages:
   '@octokit/types@13.5.0':
     resolution: {integrity: sha512-HdqWTf5Z3qwDVlzCrP8UJquMwunpDiMPt5er+QjGzL4hqr/vBVY/MauQgS1xWxCDT1oMx1EULyqxncdCY/NVSQ==}
 
+  '@oxc-resolver/binding-darwin-arm64@1.11.0':
+    resolution: {integrity: sha512-jjhTgaTMhJ5lpE/OiqF5eX7Nhy5gPZBjZNqwmZstbHmqujfVs1MGiTEXHWgKUrcFdLnENWtuoIR3Kmdp3/vuqw==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@oxc-resolver/binding-darwin-x64@1.11.0':
+    resolution: {integrity: sha512-w/svTRKnuRinojYAVsWRozVoPar7XUPlJhpfnsYlReRjls6A53/ziTzHfpmcKjdBrP/AXPcDVJDnM4pOSsvWvA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@oxc-resolver/binding-freebsd-x64@1.11.0':
+    resolution: {integrity: sha512-thGp8g8maYUx7vYJqD0vSsuUO95vWNJwKS2AXchq212J5dQ0Dybq4gjt2O2N9iU+lxj1QzmIDXGw7q5HCagOiw==}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@oxc-resolver/binding-linux-arm-gnueabihf@1.11.0':
+    resolution: {integrity: sha512-8G99bs4cnwpJRjRK2cEJXiJVyLogzPJq4JgLlcMEKSGhdkoMV1Ia0dghLk9lAFog33U4lWIwKmPgqQzTO6JM8g==}
+    cpu: [arm]
+    os: [linux]
+
+  '@oxc-resolver/binding-linux-arm64-gnu@1.11.0':
+    resolution: {integrity: sha512-hNcB/wbuCFbsspg4h9+Nz5gSL8PbRW7zG/eVvmEpzGhmVubzDFuNmlYtmaUaZ6b9jzOrrqTkYCt9t7Q2TDHnBA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@oxc-resolver/binding-linux-arm64-musl@1.11.0':
+    resolution: {integrity: sha512-H9rjqCcNQT9aip1VLrtsiyj9So0DEKUoutMNu1oL9UuD3H5lWIaxhDlHTAFsobWeUHCnuaCbizhGb9wyLRHSuA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@oxc-resolver/binding-linux-x64-gnu@1.11.0':
+    resolution: {integrity: sha512-6hdv/kmaGysK3/hUaGTYG07yX+nvk6hGoWombmOuc0vBnGLRtSjqvvgDBdAs9/iIcOSQI2YNUEiJvTyy6eb5GA==}
+    cpu: [x64]
+    os: [linux]
+
+  '@oxc-resolver/binding-linux-x64-musl@1.11.0':
+    resolution: {integrity: sha512-AYUvI4VwQkBq0rcYI3Z7a9+BpllbllbxQCD30ZRgHghvqXvDECWfP8r98iynz7u0oKGO8ZPf15d/l9VrkRtiuQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@oxc-resolver/binding-wasm32-wasi@1.11.0':
+    resolution: {integrity: sha512-vhXnOs34q8p7QhqQ04bIGy7ZzLEHBaBTsqh2wpAzSBCmjL7MmTpM8KWwXFPFB+Wj0P7/parjGDHzbZG20pEePg==}
+    engines: {node: '>=14.0.0'}
+    cpu: [wasm32]
+
+  '@oxc-resolver/binding-win32-arm64-msvc@1.11.0':
+    resolution: {integrity: sha512-5XMm8EELDkAVQoMGv4QKqi+SjWnhcU1aq5B9q59iqiXIBNAs72f0d3LAldLrqE2XomP2QweorpsoxuGuIk2Cnw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@oxc-resolver/binding-win32-x64-msvc@1.11.0':
+    resolution: {integrity: sha512-rVKiZSTgao4SBWyqWvStxDhKmwbKEN/E8+H3CJzIP4FcsL7MQtWH2HT86bmoefkyRe1yO+m2/mG7j3TfADh/Fg==}
+    cpu: [x64]
+    os: [win32]
+
   '@rollup/pluginutils@4.2.1':
     resolution: {integrity: sha512-iKnFXr7NkdZAIHiIWE+BX5ULi/ucVFYWD6TbAV+rZctiRTY2PL6tsIKhoIOaoskiWAkgu+VsbXgUVDNLHf+InQ==}
     engines: {node: '>= 8.0.0'}
@@ -761,6 +837,10 @@ packages:
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
+
+  enhanced-resolve@5.17.1:
+    resolution: {integrity: sha512-LMHl3dXhTcfv8gM4kEzIUeTQ+7fpdA0l2tUf34BddXPkz2A5xJ5L/Pchd5BL6rdccM9QGvu0sWZzK1Z1t4wwyg==}
+    engines: {node: '>=10.13.0'}
 
   escalade@3.1.2:
     resolution: {integrity: sha512-ErCHMCae19vR8vQGe50xIsVomy19rg6gFu3+r3jkEO46suLMWBksvVyoGgQV+jOfl84ZSOSlmv6Gxa89PmTGmA==}
@@ -1077,6 +1157,9 @@ packages:
     resolution: {integrity: sha512-D2FR03Vir7FIu45XBY20mTb+/ZSWB00sjU9jdQXt83gDrI4Ztz5Fs7/yy74g2N5SVQY4xY1qDr4rNddwYRVX0g==}
     engines: {node: '>=0.10.0'}
 
+  oxc-resolver@1.11.0:
+    resolution: {integrity: sha512-N3qMse2AM7uST8PaiUMXZkcACyGAMN073tomyvzHTICSzaOqKHvVS0IZ3vj/OqoE140QP4CyOiWmgC1Hw5Urmg==}
+
   p-map@7.0.2:
     resolution: {integrity: sha512-z4cYYMMdKHzw4O5UkWJImbZynVIo0lSGTXc7bzB1e/rrDqkgGUNysK/o4bTr+0+xKvvLoTyGqYC4Fgljy9qe1Q==}
     engines: {node: '>=18'}
@@ -1259,6 +1342,10 @@ packages:
   supertap@3.0.1:
     resolution: {integrity: sha512-u1ZpIBCawJnO+0QePsEiOknOfCRq0yERxiAchT0i4li0WHNUJbf0evXXSXOcCAR4M8iMDoajXYmstm/qO81Isw==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  tapable@2.2.1:
+    resolution: {integrity: sha512-GNzQvQTOIP6RyTfE2Qxb8ZVlNmw0n88vp1szwWRimP02mnTsx3Wtn5qRdqY9w2XduFNUgvOwhNnQsjwCp+kqaQ==}
+    engines: {node: '>=6'}
 
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
@@ -1791,6 +1878,41 @@ snapshots:
     dependencies:
       '@octokit/openapi-types': 22.2.0
 
+  '@oxc-resolver/binding-darwin-arm64@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-darwin-x64@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-freebsd-x64@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-linux-arm-gnueabihf@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-linux-arm64-gnu@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-linux-arm64-musl@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-linux-x64-gnu@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-linux-x64-musl@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-wasm32-wasi@1.11.0':
+    dependencies:
+      '@napi-rs/wasm-runtime': 0.2.4
+    optional: true
+
+  '@oxc-resolver/binding-win32-arm64-msvc@1.11.0':
+    optional: true
+
+  '@oxc-resolver/binding-win32-x64-msvc@1.11.0':
+    optional: true
+
   '@rollup/pluginutils@4.2.1':
     dependencies:
       estree-walker: 2.0.2
@@ -2076,6 +2198,11 @@ snapshots:
 
   emoji-regex@8.0.0: {}
 
+  enhanced-resolve@5.17.1:
+    dependencies:
+      graceful-fs: 4.2.11
+      tapable: 2.2.1
+
   escalade@3.1.2: {}
 
   escape-string-regexp@2.0.0: {}
@@ -2340,6 +2467,20 @@ snapshots:
 
   os-tmpdir@1.0.2: {}
 
+  oxc-resolver@1.11.0:
+    optionalDependencies:
+      '@oxc-resolver/binding-darwin-arm64': 1.11.0
+      '@oxc-resolver/binding-darwin-x64': 1.11.0
+      '@oxc-resolver/binding-freebsd-x64': 1.11.0
+      '@oxc-resolver/binding-linux-arm-gnueabihf': 1.11.0
+      '@oxc-resolver/binding-linux-arm64-gnu': 1.11.0
+      '@oxc-resolver/binding-linux-arm64-musl': 1.11.0
+      '@oxc-resolver/binding-linux-x64-gnu': 1.11.0
+      '@oxc-resolver/binding-linux-x64-musl': 1.11.0
+      '@oxc-resolver/binding-wasm32-wasi': 1.11.0
+      '@oxc-resolver/binding-win32-arm64-msvc': 1.11.0
+      '@oxc-resolver/binding-win32-x64-msvc': 1.11.0
+
   p-map@7.0.2: {}
 
   package-config@5.0.0:
@@ -2504,6 +2645,8 @@ snapshots:
       js-yaml: 3.14.1
       serialize-error: 7.0.1
       strip-ansi: 7.1.0
+
+  tapable@2.2.1: {}
 
   tar@6.2.1:
     dependencies:

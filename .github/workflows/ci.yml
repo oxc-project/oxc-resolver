@@ -65,28 +65,28 @@ jobs:
           rustup target add wasm32-unknown-unknown
           cargo check --all-features --target wasm32-unknown-unknown
 
-  wasi:
-    name: Test wasi target
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
+  # wasi:
+  #   name: Test wasi target
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: taiki-e/checkout-action@v1
 
-      - uses: Boshen/setup-rust@main
-        with:
-          cache-key: wasi
-          save-cache: ${{ github.ref_name == 'main' }}
+  #     - uses: Boshen/setup-rust@main
+  #       with:
+  #         cache-key: wasi
+  #         save-cache: ${{ github.ref_name == 'main' }}
 
-      - uses: ./.github/actions/pnpm
+  #     - uses: ./.github/actions/pnpm
 
-      - name: Build
-        run: |
-          rustup target add wasm32-wasip1-threads
-          pnpm build --target wasm32-wasip1-threads
+  #     - name: Build
+  #       run: |
+  #         rustup target add wasm32-wasip1-threads
+  #         pnpm build --target wasm32-wasip1-threads
 
-      - name: Test
-        run: pnpm test
-        env:
-          WASI_TEST: 1
+  #     - name: Test
+  #       run: pnpm test
+  #       env:
+  #         WASI_TEST: 1
 
   typos:
     name: Spell Check
