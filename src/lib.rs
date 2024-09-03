@@ -972,7 +972,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 }
             }
             if should_stop {
-                return Err(ResolveError::NotFound(specifier.to_string()));
+                return Err(ResolveError::MatchedAliasNotFound(
+                    specifier.to_string(),
+                    alias_key.to_string(),
+                ));
             }
         }
         Ok(None)
@@ -1011,7 +1014,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             *should_stop = true;
             ctx.with_fully_specified(false);
             return match self.require(cached_path, new_specifier.as_ref(), ctx) {
-                Err(ResolveError::NotFound(_)) => Ok(None),
+                Err(ResolveError::NotFound(_) | ResolveError::MatchedAliasNotFound(_, _)) => {
+                    Ok(None)
+                }
                 Ok(path) => return Ok(Some(path)),
                 Err(err) => return Err(err),
             };
