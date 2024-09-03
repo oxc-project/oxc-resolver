@@ -24,6 +24,10 @@ pub enum ResolveError {
     #[error("Cannot find module '{0}'")]
     NotFound(/* specifier */ String),
 
+    /// Matched alias value  not found
+    #[error("Cannot find module '{0}' for matched aliased key '{1}'")]
+    MatchedAliasNotFound(/* specifier */ String, /* alias key */ String),
+
     /// Tsconfig not found
     #[error("Tsconfig not found {0}")]
     TsconfigNotFound(PathBuf),
