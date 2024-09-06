@@ -164,6 +164,16 @@ jobs:
           components: clippy
       - run: cargo clippy --all-features -- -D warnings
 
+  semver:
+    name: Semver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - uses: Boshen/setup-rust@main
+        with:
+          restore-cache: false
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+
   doc:
     name: Doc
     runs-on: ubuntu-latest
