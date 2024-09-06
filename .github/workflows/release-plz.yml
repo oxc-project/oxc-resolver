@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - Cargo.toml
 
 permissions:
   pull-requests: write
@@ -27,9 +25,30 @@ jobs:
           cache-key: warm
 
       - name: Run release-plz
+        id: release-plz
         uses: MarcoIeni/release-plz-action@v0.5
-        with:
-          command: release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Bump package.json
+        if: ${{ steps.release-plz.outputs.prs_created }}
+        env:
+          RELEASES: ${{ steps.release-plz.outputs.releases }}
+          PR: ${{ steps.release-plz.outputs.pr }
+        run: |
+          set -e
+
+          pr_number=${{ fromJSON(steps.release-plz.outputs.pr).number }}
+          if [[ -n "$pr_number" ]]; then
+            version=$(echo "$RELEASES" | jq -r '.[0].version')
+            echo "version: $version"
+
+            jq --arg version "${version}" '.version = ($version)' npm/package.json > tmp
+            mv tmp npm/package.json
+
+            gh pr checkout $pr_number
+            git add .
+            git commit -m "Update package.json"
+            git push
+          fi
