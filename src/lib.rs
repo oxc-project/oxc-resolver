@@ -1288,8 +1288,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let mut has_dot = false;
             let mut without_dot = false;
             for key in map.keys() {
-                has_dot = has_dot || key.starts_with(|s| s == '.' || s == '#');
-                without_dot = without_dot || !key.starts_with(|s| s == '.' || s == '#');
+                let starts_with_dot_or_hash = key.starts_with(['.', '#']);
+                has_dot = has_dot || starts_with_dot_or_hash;
+                without_dot = without_dot || !starts_with_dot_or_hash;
                 if has_dot && without_dot {
                     return Err(ResolveError::InvalidPackageConfig(
                         package_url.join("package.json"),
