@@ -9,7 +9,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.0.0-alpha.58",
+    "@napi-rs/cli": "3.0.0-alpha.62",
     "@napi-rs/wasm-runtime": "^0.2.4",
     "@types/node": "^22.0.0",
     "ava": "^6.1.3",
@@ -22,7 +22,7 @@
     ],
     "cache": false
   },
-  "packageManager": "pnpm@9.5.0",
+  "packageManager": "pnpm@9.9.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oxc-project/oxc-resolver.git"
