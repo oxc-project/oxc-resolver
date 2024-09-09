@@ -8,7 +8,7 @@ use std::{
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
 /// File System abstraction used for `ResolverGeneric`
-pub trait FileSystem: Send + Sync {
+pub trait FileSystem {
     /// See [std::fs::read_to_string]
     ///
     /// # Errors
