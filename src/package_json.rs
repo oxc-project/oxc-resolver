@@ -4,8 +4,9 @@
 use std::path::{Path, PathBuf};
 
 use serde_json::Value as JSONValue;
-
-use crate::{path::PathUtil, ResolveError};
+use std::collections::HashMap;
+use std::sync::Arc;
+use crate::{path::PathUtil, PackageFacts, ResolveError};
 
 pub type JSONMap = serde_json::Map<String, JSONValue>;
 
@@ -33,7 +34,8 @@ pub struct PackageJson {
     ///
     /// <https://webpack.js.org/guides/tree-shaking>
     pub side_effects: Option<JSONValue>,
-
+    pub main_fields_and_values: Option<HashMap<String, String>>,
+    pub exports_fields_and_values: Option<HashMap<String, JSONValue>>,
     raw_json: std::sync::Arc<JSONValue>,
 }
 
@@ -71,6 +73,30 @@ impl PackageJson {
         package_json.path = path;
         package_json.realpath = realpath;
         package_json.raw_json = std::sync::Arc::new(raw_json);
+        Ok(package_json)
+    }
+
+    pub(crate) fn set_package_facts(package_json_path: String, package_facts: &PackageFacts) -> Result<Self, serde_json::Error> {
+        let mut package_json = PackageJson::default();
+        package_json.path = Path::new(&package_json_path).to_path_buf();
+        package_json.realpath = Path::new(&package_json_path).to_path_buf();
+        package_json.name = Some(package_facts.name.clone());
+
+        if let Some(exports_field_and_values) = &package_facts.exports_fields_and_values {
+            let exports_fields_and_values = exports_field_and_values.iter()
+                .filter_map(|(field_name, export_json_string)| {
+                    serde_json::from_str::<JSONValue>(export_json_string)
+                        .ok()
+                        .map(|parsed_value| (field_name.clone(), parsed_value))
+                })
+                .collect::<HashMap<String, JSONValue>>();
+            package_json.exports_fields_and_values = Some(exports_fields_and_values);
+        }
+
+        if let Some(main_fields_and_values) = &package_facts.main_fields_and_values {
+            package_json.main_fields_and_values = Some(main_fields_and_values.clone());
+        }
+
         Ok(package_json)
     }
 
@@ -129,8 +155,15 @@ impl PackageJson {
     ) -> impl Iterator<Item = &'a str> + '_ {
         main_fields
             .iter()
-            .filter_map(|main_field| self.raw_json.get(main_field))
-            .filter_map(|value| value.as_str())
+            .filter_map(|main_field| {
+                if let Some(main_fields_and_values) = &self.main_fields_and_values {
+                    if let Some(main_field_value) = main_fields_and_values.get(main_field) {
+                        return Some(main_field_value.as_str());
+                    }
+                }
+                let value = self.raw_json.get(main_field)?.as_str();
+                return value;
+            })
     }
 
     /// The "exports" field allows defining the entry points of a package when imported by name loaded either via a node_modules lookup or a self-reference to its own name.
@@ -141,6 +174,15 @@ impl PackageJson {
         exports_fields: &'a [Vec<String>],
     ) -> impl Iterator<Item = &'a JSONValue> + '_ {
         exports_fields.iter().filter_map(|object_path| {
+            // if exports is already stored using ResolveOptions.facts then use it
+            let field_name = &object_path[0];
+
+            if let Some(exports_fields_and_values) = &self.exports_fields_and_values {
+                if let Some(exports) = exports_fields_and_values.get(field_name) {
+                    return Some(exports);
+                }
+            }
+            
             self.raw_json
                 .as_object()
                 .and_then(|json_object| Self::get_value_by_path(json_object, object_path))

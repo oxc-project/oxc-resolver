@@ -62,6 +62,7 @@ mod tsconfig;
 #[cfg(test)]
 mod tests;
 
+use std::collections::{HashSet, HashMap};
 use std::{
     borrow::Cow,
     cmp::Ordering,
@@ -70,7 +71,6 @@ use std::{
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
-
 use rustc_hash::FxHashSet;
 use serde_json::Value as JSONValue;
 
@@ -95,6 +95,22 @@ use crate::{
     tsconfig::ExtendsField,
     tsconfig::{ProjectReference, TsConfig},
 };
+
+#[derive(Debug, Clone)]
+pub struct PackageFacts {
+    pub path: String,
+    pub main_fields_and_values: Option<HashMap<String, String>>,
+    pub exports_fields_and_values: Option<HashMap<String, String>>,
+    pub side_effects: Option<String>,
+    pub name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct Facts {
+    pub packages_name_to_facts: HashMap<String, PackageFacts>,
+    pub packages_path_to_name: HashMap<String, String>,
+    pub all_files: HashSet<String>
+}
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
@@ -131,13 +147,21 @@ impl<Fs: FileSystem + Default> Default for ResolverGeneric<Fs> {
 
 impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     pub fn new(options: ResolveOptions) -> Self {
-        Self { options: options.sanitize(), cache: Arc::new(Cache::new(Fs::default())) }
+        let mut all_files: Option<HashSet<String>> = None;
+        if let Some(facts) = &options.facts {
+            all_files = Some(facts.all_files.clone());
+        }
+        Self { options: options.sanitize(), cache: Arc::new(Cache::new(Fs::default(), all_files)) }
     }
 }
 
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        Self { cache: Arc::new(Cache::new(file_system)), options: options.sanitize() }
+        let mut all_files: Option<HashSet<String>> = None;
+        if let Some(facts) = &options.facts {
+            all_files = Some(facts.all_files.clone());
+        }
+        Self { cache: Arc::new(Cache::new(file_system, all_files)), options: options.sanitize() }
     }
 
     /// Clone the resolver using the same underlying cache.
@@ -377,7 +401,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             c,
             Component::CurDir | Component::ParentDir | Component::Normal(_)
         )));
+
         let path = cached_path.path().normalize_with(specifier);
+
+        // if path.(js|jsx|ts|tsx) exists in facts.all_files or path/index.(js|jsx|ts|tsx) exists in facts.all_files, return
+        if let Some(path) = self.load_relative_path_from_facts(&path)? {
+            return Ok(path);
+        }
+
         let cached_path = self.cache.value(&path);
         // a. LOAD_AS_FILE(Y + X)
         // b. LOAD_AS_DIRECTORY(Y + X)
@@ -418,6 +449,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Ok(path);
             }
         }
+
         self.load_package_self_or_node_modules(cached_path, specifier, ctx)
     }
 
@@ -451,6 +483,96 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok((parsed, None))
     }
 
+    fn load_package_facts_from_facts(&self, specifier: &str) -> Option<&PackageFacts> {
+        if let Some(facts) = &self.options.facts {
+            let (package_name, _) = Self::parse_package_specifier(specifier);
+            if let Some(package_facts) = facts.packages_name_to_facts.get(package_name) {
+                return Some(package_facts);
+            }
+        }
+        return None;   
+    }
+
+    fn load_relative_path_from_facts(&self, path: &PathBuf) -> ResolveResult {
+        if let Some(facts) = &self.options.facts {
+            let all_files = &facts.all_files;
+            let path_str = &path.to_string_lossy();
+
+
+            for extension in &self.options.extensions {
+                let path_with_extension = format!("{}{}", path_str, extension);
+
+                if all_files.contains(&path_with_extension) {
+                    let resolved_path = Path::new(&path_with_extension);
+                    let cached_path = self.cache.value(resolved_path);
+                    return Ok(Some(cached_path));
+                }
+            }
+
+            // main files handling
+            for main_file in &self.options.main_files {
+                for extension in &self.options.extensions {
+                    let main_file_path_with_extension = format!("{}/{}{}", path_str, main_file, extension);
+                    if all_files.contains(&main_file_path_with_extension) {
+                        let resolved_path = self.cache.value(Path::new(&main_file_path_with_extension));
+                        return Ok(Some(resolved_path));
+                    }  
+                }
+            }
+        }
+
+        return Ok(None);
+    }
+
+    fn load_workspace_path_from_facts(&self, specifier: &str, ctx: &mut Ctx) -> ResolveResult {
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
+
+        if !package_name.is_empty() {
+            if let Some(package_facts) = self.load_package_facts_from_facts(package_name) {
+                if let Some(package_path_dir) = Path::new(&package_facts.path).parent() {
+                    let package_root_cached_path = self.cache.value(package_path_dir);
+                    if let Some(path) =
+                        self.load_package_exports(specifier, subpath, &package_root_cached_path, ctx)? {
+                            if path.is_file(&self.cache.fs, ctx) {
+                                return Ok(Some(path));
+                            } else {
+                                return Ok(None);
+                            }
+                    } else {
+                        let cached_path: CachedPath;
+                        if subpath.len() > 0 {
+                            let subpath_without_leading_slash = subpath.trim_start_matches("/");
+                            let full_path = package_root_cached_path.path().normalize_with(subpath_without_leading_slash);
+                            cached_path = self.cache.value(&full_path.as_path());
+
+                        } else {
+                            cached_path = package_root_cached_path;
+                        }
+
+                        // main and main files
+                        if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
+                            if path.is_file(&self.cache.fs, ctx) {
+                                return Ok(Some(path));
+                            } else {
+                                return Ok(None);
+                            }
+                        }
+
+                        // resolve path as a file
+                        if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                            if path.is_file(&self.cache.fs, ctx) {
+                                return Ok(Some(path));
+                            } else {
+                                return Ok(None);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return Ok(None);
+    }
+
     fn load_package_self_or_node_modules(
         &self,
         cached_path: &CachedPath,
@@ -461,15 +583,22 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if subpath.is_empty() {
             ctx.with_fully_specified(false);
         }
-        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
+
+        // 5. LOAD from self.options.facts
+        if let Some(path) = self.load_workspace_path_from_facts(specifier, ctx)? {
+            return Ok(path);
+        }
+
+        // 6. LOAD_PACKAGE_SELF(X, dirname(Y))
         if let Some(path) = self.load_package_self(cached_path, specifier, ctx)? {
             return Ok(path);
         }
-        // 6. LOAD_NODE_MODULES(X, dirname(Y))
+
+        // 7. LOAD_NODE_MODULES(X, dirname(Y))
         if let Some(path) = self.load_node_modules(cached_path, specifier, ctx)? {
             return Ok(path);
         }
-        // 7. THROW "not found"
+        // 8. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
@@ -583,6 +712,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let mut path_with_extension = path.to_os_string();
             path_with_extension.reserve_exact(extension.len());
             path_with_extension.push(extension);
+
             let cached_path = self.cache.value(Path::new(&path_with_extension));
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                 return Ok(Some(path));
@@ -666,6 +796,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         {
             return Ok(Some(path));
         }
+
         if cached_path.is_file(&self.cache.fs, ctx) {
             return Ok(Some(cached_path.clone()));
         }
@@ -686,6 +817,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
 
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
+
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
         for module_name in &self.options.modules {
@@ -972,10 +1104,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 }
             }
             if should_stop {
-                return Err(ResolveError::MatchedAliasNotFound(
-                    specifier.to_string(),
-                    alias_key.to_string(),
-                ));
+                return Err(ResolveError::NotFound(specifier.to_string()));
             }
         }
         Ok(None)
@@ -1014,9 +1143,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             *should_stop = true;
             ctx.with_fully_specified(false);
             return match self.require(cached_path, new_specifier.as_ref(), ctx) {
-                Err(ResolveError::NotFound(_) | ResolveError::MatchedAliasNotFound(_, _)) => {
-                    Ok(None)
-                }
+                Err(ResolveError::NotFound(_)) => Ok(None),
                 Ok(path) => return Ok(Some(path)),
                 Err(err) => return Err(err),
             };
@@ -1288,9 +1415,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let mut has_dot = false;
             let mut without_dot = false;
             for key in map.keys() {
-                let starts_with_dot_or_hash = key.starts_with(['.', '#']);
-                has_dot = has_dot || starts_with_dot_or_hash;
-                without_dot = without_dot || !starts_with_dot_or_hash;
+                has_dot = has_dot || key.starts_with(|s| s == '.' || s == '#');
+                without_dot = without_dot || !key.starts_with(|s| s == '.' || s == '#');
                 if has_dot && without_dot {
                     return Err(ResolveError::InvalidPackageConfig(
                         package_url.join("package.json"),
