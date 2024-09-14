@@ -60,9 +60,9 @@ pub trait FileSystem {
 /// Metadata information about a file
 #[derive(Debug, Clone, Copy)]
 pub struct FileMetadata {
-    pub(crate) is_file: bool,
-    pub(crate) is_dir: bool,
-    pub(crate) is_symlink: bool,
+    pub is_file: bool,
+    pub is_dir: bool,
+    pub is_symlink: bool,
 }
 
 impl FileMetadata {
