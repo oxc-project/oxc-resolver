@@ -1,3 +1,3 @@
 [workspace]
-semver_check = true
+semver_check = false
 allow_dirty = true # The "fixtures" is being marked as dirty.
