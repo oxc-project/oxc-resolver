@@ -68,3 +68,10 @@ benchmark:
 # Run cargo-fuzz
 fuzz:
   cd fuzz && cargo +nightly fuzz run --sanitizer none resolver -- -only_ascii=1 -max_total_time=900
+
+# Manual Release
+release:
+  cargo binstall -y release-plz
+  release-plz update
+  just check
+  # NOTE: make sure to update version in npm/package.json
