@@ -10,7 +10,7 @@ const cwd = process.cwd();
 assert.deepStrictEqual(resolve.sync(cwd, "./index.js").path, path.join(cwd, 'index.js'));
 
 // `ResolverFactory`
-const resolver = ResolverFactory.default();
+const resolver = new ResolverFactory();
 assert.deepStrictEqual(resolver.sync(cwd, "./index.js").path, path.join(cwd, 'index.js'));
 
 assert.strict(resolver.sync(cwd, "./ts").error.length > 0);

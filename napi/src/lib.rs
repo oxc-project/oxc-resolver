@@ -78,9 +78,10 @@ pub struct ResolverFactory {
 #[napi]
 impl ResolverFactory {
     #[napi(constructor)]
-    pub fn new(options: NapiResolveOptions) -> Self {
+    pub fn new(options: Option<NapiResolveOptions>) -> Self {
         init_tracing();
-        Self { resolver: Arc::new(Resolver::new(Self::normalize_options(options))) }
+        let options = options.map_or_else(|| ResolveOptions::default(), Self::normalize_options);
+        Self { resolver: Arc::new(Resolver::new(options)) }
     }
 
     #[napi]
