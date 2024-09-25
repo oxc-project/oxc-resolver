@@ -1047,11 +1047,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         else {
             return Ok(None);
         };
-        let path = cached_path.path().with_extension("");
-        let path = path.as_os_str();
+        let path = cached_path.path();
+        let Some(filename) = path.file_name() else { return Ok(None) };
+        let path_without_extension = path.with_extension("");
         ctx.with_fully_specified(true);
         for extension in extensions {
-            let mut path_with_extension = path.to_os_string();
+            let mut path_with_extension = path_without_extension.clone().into_os_string();
             path_with_extension.reserve_exact(extension.len());
             path_with_extension.push(extension);
             let cached_path = self.cache.value(Path::new(&path_with_extension));
@@ -1065,7 +1066,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Ok(Some(path));
             }
         }
-        Err(ResolveError::ExtensionAlias(cached_path.to_path_buf()))
+        // Create a meaningful error message.
+        let dir = path.parent().unwrap().to_path_buf();
+        let filename_without_extension = Path::new(filename).with_extension("");
+        let filename_without_extension = filename_without_extension.to_string_lossy();
+        let files = extensions
+            .iter()
+            .map(|ext| format!("{filename_without_extension}{ext}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        Err(ResolveError::ExtensionAlias(filename.to_string_lossy().to_string(), files, dir))
     }
 
     /// enhanced-resolve: RootsPlugin
