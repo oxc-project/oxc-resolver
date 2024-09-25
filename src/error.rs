@@ -5,6 +5,7 @@ use thiserror::Error;
 ///
 /// `thiserror` is used to display meaningful error messages.
 #[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
 pub enum ResolveError {
     /// Ignored path
     ///
