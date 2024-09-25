@@ -6,6 +6,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v1.11.0...oxc_resolver-v2.0.0) - 2024-09-25
+
+### Added
+
+- [**breaking**] mark `ResolveError` #[non_exhaustive] ([#252](https://github.com/oxc-project/oxc-resolver/pull/252))
+- show tried extension aliases in `ResolveError::ExtensionAlias` ([#251](https://github.com/oxc-project/oxc-resolver/pull/251))
+- give a specific error for matched alias not found ([#238](https://github.com/oxc-project/oxc-resolver/pull/238))
+
+### Fixed
+
+- fix .github/workflows/release-plz.yml
+
+### Other
+
+- turn off `cargo-semver-checks` for release-plz
+- *(deps)* update rust crates
+- *(deps)* update pnpm to v9.11.0
+- *(deps)* update crate-ci/typos action to v1.24.6
+- *(deps)* update npm packages
+- *(deps)* update npm packages
+- *(deps)* update npm packages
+- set `GH_TOKEN` for "Bump package.json" in release-plz.yml
+- update package.json in release-plz.yml ([#242](https://github.com/oxc-project/oxc-resolver/pull/242))
+- apply `semver_check` to release-plz ([#241](https://github.com/oxc-project/oxc-resolver/pull/241))
+- *(deps)* update dependency rust to v1.81.0 ([#239](https://github.com/oxc-project/oxc-resolver/pull/239))
+- *(deps)* update crate-ci/typos action to v1.24.5
+- *(deps)* update crate-ci/typos action to v1.24.4
+- *(deps)* update crate-ci/typos action to v1.24.3
+- add esm / cjs `condition_names` to examples
+
 ## [1.11.0](https://github.com/oxc-project/oxc_resolver/compare/oxc_resolver-v1.10.2...oxc_resolver-v1.11.0) - 2024-08-26
 
 ### Added
