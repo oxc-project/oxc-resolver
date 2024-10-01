@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v1.12.0...oxc_resolver-v1.12.1) - 2024-10-01
+
+### Other
+
+- *(deps)* update crate-ci/typos action to v1.25.0
+- *(deps)* update dependency @types/node to v22.7.4
+- *(deps)* update rust crates
+- update README
+
 ## [1.12.0](https://github.com/oxc-project/oxc_resolver/compare/oxc_resolver-v1.11.0...oxc_resolver-v1.12.0) - 2024-09-25
 
 ### Added
