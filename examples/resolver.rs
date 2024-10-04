@@ -1,7 +1,7 @@
 ///! See documentation at <https://docs.rs/oxc_resolver>
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{AliasValue, ResolveOptions, Resolver};
+use oxc_resolver::{AliasValue, ResolveOptions, Resolver, TsconfigOptions, TsconfigReferences};
 
 fn main() {
     let path = PathBuf::from(env::args().nth(1).expect("path"));
@@ -23,6 +23,10 @@ fn main() {
         condition_names: vec!["node".into(), "import".into()],
         // CJS
         // condition_names: vec!["node".into(), "require".into()],
+        tsconfig: Some(TsconfigOptions {
+            config_file: PathBuf::from("/Users/boshen/oxc/oxc-resolver/fixtures/tsconfig/cases/extends-package-tsconfig/tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        }),
         ..ResolveOptions::default()
     };
 

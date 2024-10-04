@@ -1113,6 +1113,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             &tsconfig_options.config_file,
             &tsconfig_options.references,
         )?;
+        dbg!(&tsconfig);
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
             let cached_path = self.cache.value(&path);
