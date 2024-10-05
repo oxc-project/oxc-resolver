@@ -75,7 +75,7 @@ This means when the caller is a CJS require (`require("module")`), resolve optio
 To support both CJS and ESM with the same cache:
 
 ```javascript
-const esmResolver = ResolverFactory({
+const esmResolver = new ResolverFactory({
   conditionNames: ["node", "import"]
 });
 
