@@ -1050,21 +1050,22 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let path = cached_path.path();
         let Some(filename) = path.file_name() else { return Ok(None) };
         let path_without_extension = path.with_extension("");
+
         ctx.with_fully_specified(true);
         for extension in extensions {
             let mut path_with_extension = path_without_extension.clone().into_os_string();
             path_with_extension.reserve_exact(extension.len());
             path_with_extension.push(extension);
             let cached_path = self.cache.value(Path::new(&path_with_extension));
-            // Bail if path is module directory such as `ipaddr.js`
-            if cached_path.is_dir(&self.cache.fs, ctx) {
-                ctx.with_fully_specified(false);
-                return Ok(None);
-            }
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                 ctx.with_fully_specified(false);
                 return Ok(Some(path));
             }
+        }
+        // Bail if path is module directory such as `ipaddr.js`
+        if !cached_path.is_file(&self.cache.fs, ctx) {
+            ctx.with_fully_specified(false);
+            return Ok(None);
         }
         // Create a meaningful error message.
         let dir = path.parent().unwrap().to_path_buf();
