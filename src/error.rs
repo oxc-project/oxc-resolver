@@ -40,12 +40,12 @@ pub enum ResolveError {
     #[error("{0}")]
     IOError(IOError),
 
-    /// Node.js builtin modules
+    /// Node.js builtin module when `Options::builtin_modules` is enabled.
     ///
-    /// This is an error due to not being a Node.js runtime.
-    /// The `alias` option can be used to resolve a builtin module to a polyfill.
-    /// User could get specifier before adding `node:` by `prefixed_with_node_colon`, using
-    /// boolean to avoid allocation
+    /// `prefixed_with_node_colon` can be used to determine whether the request
+    /// was prefixed `node:` or not.
+    ///
+    /// `resolved` is always prefixed with "node:" in compliance with the ESM specification.
     #[error("Builtin module {resolved}")]
     Builtin { resolved: String, prefixed_with_node_colon: bool },
 
