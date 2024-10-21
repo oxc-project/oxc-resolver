@@ -1,11 +1,13 @@
 use std::path::Path;
 use std::{fmt, path::PathBuf};
+use crate::Facts;
 
 /// Module Resolution Options
 ///
 /// Options are directly ported from [enhanced-resolve](https://github.com/webpack/enhanced-resolve#resolver-options).
 ///
 /// See [webpack resolve](https://webpack.js.org/configuration/resolve/) for information and examples
+/// 
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
     /// Path to TypeScript configuration file.
@@ -159,6 +161,7 @@ pub struct ResolveOptions {
     ///
     /// Default `false`
     pub builtin_modules: bool,
+    pub facts: Option<Facts>,
 }
 
 impl ResolveOptions {
@@ -476,6 +479,7 @@ impl Default for ResolveOptions {
             roots: vec![],
             symlinks: true,
             builtin_modules: false,
+            facts: None
         }
     }
 }
@@ -626,6 +630,7 @@ mod test {
             roots: vec![],
             symlinks: false,
             tsconfig: None,
+            facts: None
         };
 
         assert_eq!(format!("{options}"), "");
