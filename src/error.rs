@@ -5,6 +5,7 @@ use thiserror::Error;
 ///
 /// `thiserror` is used to display meaningful error messages.
 #[derive(Debug, Clone, PartialEq, Error)]
+#[non_exhaustive]
 pub enum ResolveError {
     /// Ignored path
     ///
@@ -23,6 +24,10 @@ pub enum ResolveError {
     /// Module not found
     #[error("Cannot find module '{0}'")]
     NotFound(/* specifier */ String),
+
+    /// Matched alias value  not found
+    #[error("Cannot find module '{0}' for matched aliased key '{1}'")]
+    MatchedAliasNotFound(/* specifier */ String, /* alias key */ String),
 
     /// Tsconfig not found
     #[error("Tsconfig not found {0}")]
@@ -43,8 +48,14 @@ pub enum ResolveError {
     Builtin(String),
 
     /// All of the aliased extension are not found
-    #[error("All of the aliased extensions are not found for {0}")]
-    ExtensionAlias(PathBuf),
+    ///
+    /// Displays `Cannot resolve 'index.mjs' with extension aliases 'index.mts' in ...`
+    #[error("Cannot resolve '{0}' for extension aliases '{1}' in '{2}'")]
+    ExtensionAlias(
+        /* File name */ String,
+        /* Tried file names */ String,
+        /* Path to dir */ PathBuf,
+    ),
 
     /// The provided path specifier cannot be parsed
     #[error("{0}")]

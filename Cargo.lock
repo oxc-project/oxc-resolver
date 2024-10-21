@@ -217,9 +217,9 @@ checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
 
 [[package]]
 name = "criterion2"
-version = "0.11.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7258985df1aa8b33359ee2392cbc3b7802875242cdacdda91a17a602132c24a9"
+checksum = "d6c2be2af5816b76f45745ccfb9959a9efd1322ae4c88fc3c9b2d6bcdabe5554"
 dependencies = [
  "anes",
  "bpaf",
@@ -518,7 +518,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e310b3a6b5907f99202fcdb4960ff45b93735d7c7d96b760fcff8db2dc0e103d"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -840,6 +840,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "simdutf8",
  "thiserror",
  "tracing",
  "vfs",
@@ -949,6 +950,12 @@ checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
 ]
+
+[[package]]
+name = "simdutf8"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "smallvec"

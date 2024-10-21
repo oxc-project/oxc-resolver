@@ -146,7 +146,7 @@ impl TsConfig {
     // Copied from parcel
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
     pub fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
-        if specifier.starts_with(|s| s == '/' || s == '.') {
+        if specifier.starts_with(['/', '.']) {
             return vec![];
         }
 

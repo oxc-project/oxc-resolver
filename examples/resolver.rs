@@ -19,6 +19,10 @@ fn main() {
         alias: vec![("asdf".into(), vec![AliasValue::from("./test.js")])],
         extensions: vec![".js".into(), ".ts".into()],
         extension_alias: vec![(".js".into(), vec![".ts".into(), ".js".into()])],
+        // ESM
+        condition_names: vec!["node".into(), "import".into()],
+        // CJS
+        // condition_names: vec!["node".into(), "require".into()],
         ..ResolveOptions::default()
     };
 

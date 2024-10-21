@@ -29,19 +29,10 @@ fn extension_alias() {
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
     }
 
-    #[rustfmt::skip]
-    let fail = [
-        ("should not allow to fallback to the original extension or add extensions", f.clone(), "./index.mjs"),
-    ];
-
-    for (comment, path, request) in fail {
-        let resolution = resolver.resolve(&path, request);
-        assert_eq!(
-            resolution,
-            Err(ResolveError::ExtensionAlias(f.join(request))),
-            "{comment} {path:?} {request}"
-        );
-    }
+    // should not allow to fallback to the original extension or add extensions
+    let resolution = resolver.resolve(&f, "./index.mjs").unwrap_err();
+    let expected = ResolveError::ExtensionAlias("index.mjs".into(), "index.mts".into(), f);
+    assert_eq!(resolution, expected);
 }
 
 // should not apply extension alias to extensions or mainFiles field
