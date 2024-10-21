@@ -132,11 +132,11 @@ fn ipaddr_js() {
 }
 
 #[test]
-fn mathjs() {
+fn decimal_js() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
     let module_path =
-        dir.join("node_modules/.pnpm/mathjs@13.2.0/node_modules/mathjs/lib/esm/index.js");
+        dir.join("node_modules/.pnpm/decimal.js@10.4.3/node_modules/decimal.js/decimal.mjs");
 
     let resolvers = [
         // with `extension_alias`
@@ -153,14 +153,14 @@ fn mathjs() {
     ];
 
     for resolver in resolvers {
-        let resolution = resolver.resolve(&path, "mathjs").map(|r| r.full_path());
+        let resolution = resolver.resolve(&path, "decimal.js").map(|r| r.full_path());
         assert_eq!(resolution, Ok(module_path.clone()));
     }
 }
 
 // resolve decimal.js
 #[test]
-fn decimal_js() {
+fn decimal_js_from_mathjs() {
     let dir = dir();
     let path = dir.join("node_modules/.pnpm/mathjs@13.2.0/node_modules/mathjs/lib/esm");
     let module_path =

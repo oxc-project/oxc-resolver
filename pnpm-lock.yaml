@@ -32,6 +32,9 @@ importers:
       axios:
         specifier: 1.6.2
         version: 1.6.2
+      decimal.js:
+        specifier: 10.4.3
+        version: 10.4.3
       ipaddr.js:
         specifier: 2.2.0
         version: 2.2.0
