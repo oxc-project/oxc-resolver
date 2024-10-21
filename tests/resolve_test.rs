@@ -158,7 +158,6 @@ fn decimal_js() {
     }
 }
 
-// resolve decimal.js
 #[test]
 fn decimal_js_from_mathjs() {
     let dir = dir();
