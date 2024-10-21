@@ -130,3 +130,57 @@ fn ipaddr_js() {
         assert_eq!(resolution, Ok(module_path.clone()));
     }
 }
+
+#[test]
+fn decimal_js() {
+    let dir = dir();
+    let path = dir.join("fixtures/pnpm");
+    let module_path =
+        dir.join("node_modules/.pnpm/decimal.js@10.4.3/node_modules/decimal.js/decimal.mjs");
+
+    let resolvers = [
+        // with `extension_alias`
+        Resolver::new(ResolveOptions {
+            extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+        // default
+        Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+    ];
+
+    for resolver in resolvers {
+        let resolution = resolver.resolve(&path, "decimal.js").map(|r| r.full_path());
+        assert_eq!(resolution, Ok(module_path.clone()));
+    }
+}
+
+#[test]
+fn decimal_js_from_mathjs() {
+    let dir = dir();
+    let path = dir.join("node_modules/.pnpm/mathjs@13.2.0/node_modules/mathjs/lib/esm");
+    let module_path =
+        dir.join("node_modules/.pnpm/decimal.js@10.4.3/node_modules/decimal.js/decimal.mjs");
+
+    let resolvers = [
+        // with `extension_alias`
+        Resolver::new(ResolveOptions {
+            extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+        // default
+        Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into()],
+            ..ResolveOptions::default()
+        }),
+    ];
+
+    for resolver in resolvers {
+        let resolution = resolver.resolve(&path, "decimal.js").map(|r| r.full_path());
+        assert_eq!(resolution, Ok(module_path.clone()));
+    }
+}
