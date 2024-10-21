@@ -87,8 +87,12 @@ fn builtins() {
     for request in pass {
         let prefixed_request = format!("node:{request}");
         for request in [prefixed_request.clone(), request.to_string()] {
+            let starts_with_node = request.starts_with("node:");
             let resolved_path = resolver.resolve(f, &request).map(|r| r.full_path());
-            let err = ResolveError::Builtin(prefixed_request.clone());
+            let err = ResolveError::Builtin {
+                resolved: prefixed_request.clone(),
+                prefixed_with_node_colon: !starts_with_node,
+            };
             assert_eq!(resolved_path, Err(err), "{request}");
         }
     }
@@ -114,8 +118,12 @@ fn imports() {
     });
 
     for request in ["#fs", "#http"] {
+        let prefixed_with_node_colon = request == "#fs";
         let resolved_path = resolver.resolve(f.clone(), request).map(|r| r.full_path());
-        let err = ResolveError::Builtin(format!("node:{}", request.trim_start_matches('#')));
+        let err = ResolveError::Builtin {
+            resolved: (format!("node:{}", request.trim_start_matches('#'))),
+            prefixed_with_node_colon,
+        };
         assert_eq!(resolved_path, Err(err));
     }
 }

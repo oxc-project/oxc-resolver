@@ -331,7 +331,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if !starts_with_node {
                     specifier = format!("node:{specifier}");
                 }
-                return Err(ResolveError::Builtin(specifier));
+                return Err(ResolveError::Builtin {
+                    resolved: specifier,
+                    prefixed_with_node_colon: !starts_with_node,
+                });
             }
         }
         Ok(())
