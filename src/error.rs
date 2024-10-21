@@ -44,8 +44,10 @@ pub enum ResolveError {
     ///
     /// This is an error due to not being a Node.js runtime.
     /// The `alias` option can be used to resolve a builtin module to a polyfill.
-    #[error("Builtin module {0}")]
-    Builtin(String),
+    /// User could get specifier before adding `node:` by `prefixed_with_node_colon`, using
+    /// boolean to avoid allocation
+    #[error("Builtin module {resolved}")]
+    Builtin { resolved: String, prefixed_with_node_colon: bool },
 
     /// All of the aliased extension are not found
     ///
