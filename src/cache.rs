@@ -11,10 +11,10 @@ use std::{
 
 use dashmap::{DashMap, DashSet};
 use rustc_hash::FxHasher;
+use std::collections::HashSet;
 
 use crate::{
-    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, FileMetadata,
-    FileSystem, ResolveError, ResolveOptions, TsConfig,
+    context::ResolveContext as Ctx, package_json::{PackageJson}, path::PathUtil, FileMetadata, FileSystem, ResolveError, ResolveOptions, TsConfig
 };
 
 #[derive(Default)]
@@ -22,11 +22,12 @@ pub struct Cache<Fs> {
     pub(crate) fs: Fs,
     paths: DashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     tsconfigs: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    all_files: Option<HashSet<String>>,
 }
 
 impl<Fs: FileSystem> Cache<Fs> {
-    pub fn new(fs: Fs) -> Self {
-        Self { fs, paths: DashSet::default(), tsconfigs: DashMap::default() }
+    pub fn new(fs: Fs, all_files: Option<HashSet<String>>) -> Self {
+        Self { fs, paths: DashSet::default(), tsconfigs: DashMap::default(), all_files}
     }
 
     pub fn clear(&self) {
@@ -44,10 +45,28 @@ impl<Fs: FileSystem> Cache<Fs> {
             return cache_entry.clone();
         }
         let parent = path.parent().map(|p| self.value(p));
+        let mut does_file_exist = None;
+        let mut real_file_path : Option<String> = None;
+
+        if let (Some(all_files), Some(path_str)) = (&self.all_files, path.to_str()) {
+            if path.extension()
+                .and_then(|ext| ext.to_str())
+                .filter(|ext| !ext.is_empty())
+                .is_some() && all_files.contains(path_str) {
+                does_file_exist = Some(true);
+                real_file_path = Some(path_str.to_string());
+            } else {
+                // it's a directory, so does_file_exist set to false
+                does_file_exist = Some(false);
+            }
+        }
+        
         let data = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
             parent,
+            does_file_exist,
+            real_file_path
         )));
         self.paths.insert(data.clone());
         data
@@ -137,10 +156,12 @@ pub struct CachedPathImpl {
     canonicalized: OnceLock<Option<PathBuf>>,
     node_modules: OnceLock<Option<CachedPath>>,
     package_json: OnceLock<Option<Arc<PackageJson>>>,
+    does_file_exist: Option<bool>,
+    real_file_path: Option<String>
 }
 
 impl CachedPathImpl {
-    fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>) -> Self {
+    fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>, does_file_exist: Option<bool>, real_file_path: Option<String>) -> Self {
         Self {
             hash,
             path,
@@ -149,6 +170,8 @@ impl CachedPathImpl {
             canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
+            does_file_exist,
+            real_file_path
         }
     }
 
@@ -169,6 +192,15 @@ impl CachedPathImpl {
     }
 
     pub fn is_file<Fs: FileSystem>(&self, fs: &Fs, ctx: &mut Ctx) -> bool {
+        if let Some(does_file_exist) = self.does_file_exist {
+            if does_file_exist == true {
+                ctx.add_file_dependency(self.path());
+                return does_file_exist;
+            } else if does_file_exist == false {
+                ctx.add_missing_dependency(self.path());
+                return does_file_exist;
+            }
+        }
         if let Some(meta) = self.meta(fs) {
             ctx.add_file_dependency(self.path());
             meta.is_file
@@ -191,6 +223,10 @@ impl CachedPathImpl {
     pub fn realpath<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<PathBuf> {
         self.canonicalized
             .get_or_try_init(|| {
+                if let Some(real_file_path) = &self.real_file_path {
+                    return Ok(Some(Path::new(real_file_path).to_path_buf()));
+                }
+
                 if fs.symlink_metadata(&self.path).is_ok_and(|m| m.is_symlink) {
                     return fs.canonicalize(&self.path).map(Some);
                 }
@@ -244,7 +280,9 @@ impl CachedPathImpl {
                 break;
             }
         }
+
         let mut cache_value = Some(cache_value);
+
         while let Some(cv) = cache_value {
             if let Some(package_json) = cv.package_json(fs, options, ctx)? {
                 return Ok(Some(Arc::clone(&package_json)));
@@ -259,17 +297,51 @@ impl CachedPathImpl {
     /// # Errors
     ///
     /// * [ResolveError::JSON]
+    pub fn find_package_json_from_facts(&self, options: &ResolveOptions, package_json_path: &PathBuf) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+        if let Some(facts) = &options.facts {
+            if let Some(package_json_path) = package_json_path.to_str() {
+                if let Some(package_name) = facts.packages_path_to_name.get(package_json_path) {
+                    if let Some(package_facts) = facts.packages_name_to_facts.get(package_name) {
+                        return PackageJson::set_package_facts(package_json_path.to_string(), package_facts)
+                            .map(Arc::new)
+                            .map(Some)
+                            .map_err(|error| ResolveError::from_serde_json_error(Path::new(package_json_path).to_path_buf(), &error));
+                    }
+                }
+            }
+        }
+
+        return Ok(None);
+    }
+
+    /// Get package.json of the given path.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::JSON]
     pub fn package_json<Fs: FileSystem>(
         &self,
         fs: &Fs,
         options: &ResolveOptions,
-        ctx: &mut Ctx,
+        ctx: &mut Ctx
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
         let result = self
             .package_json
             .get_or_try_init(|| {
                 let package_json_path = self.path.join("package.json");
+
+                match self.find_package_json_from_facts(options, &package_json_path) {
+                    Ok(package_json) => {
+                        if let Some(package_json) = package_json {
+                            return Ok(Some(package_json));
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Could not parse package_json from options.facts.package_facts. Failed with error: {}", e);
+                    }
+                }
+
                 let Ok(package_json_string) = fs.read_to_string(&package_json_path) else {
                     return Ok(None);
                 };
@@ -278,6 +350,7 @@ impl CachedPathImpl {
                 } else {
                     package_json_path.clone()
                 };
+                
                 PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
                     .map(Arc::new)
                     .map(Some)
