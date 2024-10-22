@@ -1,9 +1,9 @@
-use cfg_if::cfg_if;
 use std::{
     fs, io,
     path::{Path, PathBuf},
 };
 
+use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 

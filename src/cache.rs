@@ -1,4 +1,3 @@
-use once_cell::sync::OnceCell as OnceLock;
 use std::{
     borrow::{Borrow, Cow},
     convert::AsRef,
@@ -10,6 +9,7 @@ use std::{
 };
 
 use dashmap::{DashMap, DashSet};
+use once_cell::sync::OnceCell as OnceLock;
 use rustc_hash::FxHasher;
 
 use crate::{
@@ -345,9 +345,11 @@ impl Hasher for IdentityHasher {
     fn write(&mut self, _: &[u8]) {
         unreachable!("Invalid use of IdentityHasher")
     }
+
     fn write_u64(&mut self, n: u64) {
         self.0 = n;
     }
+
     fn finish(&self) -> u64 {
         self.0
     }

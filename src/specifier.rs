@@ -1,5 +1,6 @@
-use crate::error::SpecifierError;
 use std::borrow::Cow;
+
+use crate::error::SpecifierError;
 
 #[derive(Debug)]
 pub struct Specifier<'a> {

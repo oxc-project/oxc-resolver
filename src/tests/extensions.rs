@@ -1,7 +1,8 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/extensions.test.js>
 
-use crate::{EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 use rustc_hash::FxHashSet;
+
+use crate::{EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn extensions() {

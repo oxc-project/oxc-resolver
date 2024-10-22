@@ -1,5 +1,7 @@
-use std::path::Path;
-use std::{fmt, path::PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 /// Module Resolution Options
 ///
@@ -275,6 +277,7 @@ impl ResolveOptions {
         self.fully_specified = fully_specified;
         self
     }
+
     /// Sets the value for [ResolveOptions::prefer_relative]
     ///
     /// ## Examples
@@ -291,6 +294,7 @@ impl ResolveOptions {
         self.prefer_relative = flag;
         self
     }
+
     /// Sets the value for [ResolveOptions::prefer_absolute]
     ///
     /// ## Examples
@@ -556,11 +560,12 @@ impl fmt::Display for ResolveOptions {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
     use super::{
         AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
         TsconfigReferences,
     };
-    use std::path::PathBuf;
 
     #[test]
     fn enforce_extension() {

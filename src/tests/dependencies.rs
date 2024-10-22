@@ -2,12 +2,12 @@
 
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows {
-    use rustc_hash::FxHashSet;
     use std::path::PathBuf;
 
-    use crate::{ResolveContext, ResolveOptions, ResolverGeneric};
+    use rustc_hash::FxHashSet;
 
     use super::super::memory_fs::MemoryFS;
+    use crate::{ResolveContext, ResolveOptions, ResolverGeneric};
 
     fn file_system() -> MemoryFS {
         MemoryFS::new(&[
