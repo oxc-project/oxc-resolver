@@ -119,7 +119,7 @@ fn multi_dot_extension() {
 #[test]
 #[should_panic = "All extensions must start with a leading dot"]
 fn without_leading_dot() {
-    Resolver::new(ResolveOptions {
+    let _ = Resolver::new(ResolveOptions {
         extensions: vec!["ts".into(), "js".into()],
         ..ResolveOptions::default()
     });
