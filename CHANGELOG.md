@@ -10,26 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- [**breaking**] add `ResolveError::Builtin::prefixed_with_node_colon` ([#272](https://github.com/oxc-project/oxc-resolver/pull/272))
+- [**breaking**] add `add ResolveError::Builtin::is_runtime_module` ([#272](https://github.com/oxc-project/oxc-resolver/pull/272))
 
 ### Fixed
 
 - use `fs::canonicalize` to cover symlink edge cases ([#284](https://github.com/oxc-project/oxc-resolver/pull/284))
 - extensionAlias cannot resolve mathjs ([#273](https://github.com/oxc-project/oxc-resolver/pull/273))
-
-### Other
-
-- fix test warning
-- relax versions for downstream use
-- use default features for `rustc-hash`
-- apply latest `cargo +nightly fmt` ([#281](https://github.com/oxc-project/oxc-resolver/pull/281))
-- add more clippy fixes ([#279](https://github.com/oxc-project/oxc-resolver/pull/279))
-- clean up elided lifetimes ([#277](https://github.com/oxc-project/oxc-resolver/pull/277))
-- *(deps)* update rust crate serde_json to v1.0.132
-- *(deps)* update rust crates ([#266](https://github.com/oxc-project/oxc-resolver/pull/266))
-- *(README)* should be `new ResolverFactory`
-- *(deps)* update rust crates
-- update README
 
 ## [1.12.0](https://github.com/oxc-project/oxc_resolver/compare/oxc_resolver-v1.11.0...oxc_resolver-v1.12.0) - 2024-09-25
 
