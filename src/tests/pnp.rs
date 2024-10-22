@@ -25,7 +25,7 @@ fn pnp1() {
     assert_eq!(
         resolver
             .resolve(
-                &fixture.join(
+                fixture.join(
                     ".yarn/cache/is-even-npm-1.0.0-9f726520dc-2728cc2f39.zip/node_modules/is-even"
                 ),
                 "is-odd"

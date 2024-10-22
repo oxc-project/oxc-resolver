@@ -39,31 +39,37 @@ impl Eq for Resolution {}
 
 impl Resolution {
     /// Returns the path without query and fragment
+    #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Returns the path without query and fragment
+    #[must_use]
     pub fn into_path_buf(self) -> PathBuf {
         self.path
     }
 
     /// Returns the path query `?query`, contains the leading `?`
+    #[must_use]
     pub fn query(&self) -> Option<&str> {
         self.query.as_deref()
     }
 
     /// Returns the path fragment `#fragment`, contains the leading `#`
+    #[must_use]
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
     }
 
     /// Returns serialized package_json
-    pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
+    #[must_use]
+    pub const fn package_json(&self) -> Option<&Arc<PackageJson>> {
         self.package_json.as_ref()
     }
 
     /// Returns the full path with query and fragment
+    #[must_use]
     pub fn full_path(&self) -> PathBuf {
         let mut path = self.path.clone().into_os_string();
         if let Some(query) = &self.query {

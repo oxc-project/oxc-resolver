@@ -140,7 +140,7 @@ pub struct CachedPathImpl {
 }
 
 impl CachedPathImpl {
-    fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>) -> Self {
+    const fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>) -> Self {
         Self {
             hash,
             path,
@@ -152,7 +152,7 @@ impl CachedPathImpl {
         }
     }
 
-    pub fn path(&self) -> &Path {
+    pub const fn path(&self) -> &Path {
         &self.path
     }
 
@@ -160,7 +160,7 @@ impl CachedPathImpl {
         self.path.to_path_buf()
     }
 
-    pub fn parent(&self) -> Option<&CachedPath> {
+    pub const fn parent(&self) -> Option<&CachedPath> {
         self.parent.as_ref()
     }
 

@@ -1,4 +1,5 @@
-///! See documentation at <https://docs.rs/oxc_resolver>
+// See documentation at <https://docs.rs/oxc_resolver>
+
 use std::{env, path::PathBuf};
 
 use oxc_resolver::{AliasValue, ResolveOptions, Resolver};

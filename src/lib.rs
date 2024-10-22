@@ -130,6 +130,7 @@ impl<Fs: FileSystem + Default> Default for ResolverGeneric<Fs> {
 }
 
 impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
+    #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
         Self { options: options.sanitize(), cache: Arc::new(Cache::new(Fs::default())) }
     }
@@ -147,7 +148,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     /// Returns the options.
-    pub fn options(&self) -> &ResolveOptions {
+    #[must_use]
+    pub const fn options(&self) -> &ResolveOptions {
         &self.options
     }
 

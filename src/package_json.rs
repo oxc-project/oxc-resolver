@@ -102,7 +102,8 @@ impl PackageJson {
     /// They are: `description`, `keywords`, `scripts`,
     /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
     #[cfg(feature = "package_json_raw_json_api")]
-    pub fn raw_json(&self) -> &std::sync::Arc<JSONValue> {
+    #[must_use]
+    pub const fn raw_json(&self) -> &std::sync::Arc<JSONValue> {
         &self.raw_json
     }
 
@@ -111,6 +112,7 @@ impl PackageJson {
     /// # Panics
     ///
     /// * When the package.json path is misconfigured.
+    #[must_use]
     pub fn directory(&self) -> &Path {
         debug_assert!(self.realpath.file_name().is_some_and(|x| x == "package.json"));
         self.realpath.parent().unwrap()
