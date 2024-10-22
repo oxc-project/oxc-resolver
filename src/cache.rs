@@ -324,7 +324,7 @@ impl PartialEq for dyn CacheKey + '_ {
 
 impl Eq for dyn CacheKey + '_ {}
 
-impl<'a> CacheKey for (u64, &'a Path) {
+impl CacheKey for (u64, &Path) {
     fn tuple(&self) -> (u64, &Path) {
         (self.0, self.1)
     }
