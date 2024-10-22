@@ -172,7 +172,7 @@ impl FileSystem for FileSystemOs {
                 }
             } else if #[cfg(windows)] {
                 dunce::canonicalize(path)
-            } else {
+            } else if #[cfg(target_family = "wasm")] {
                 use std::path::Component;
                 let mut path_buf = path.to_path_buf();
                 loop {
@@ -184,15 +184,8 @@ impl FileSystem for FileSystemOs {
                                 path_buf.pop();
                             }
                             Component::Normal(seg) => {
-                                #[cfg(target_family = "wasm")]
                                 // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
-                                {
-                                    path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
-                                }
-                                #[cfg(not(target_family = "wasm"))]
-                                {
-                                    path_buf.push(seg);
-                                }
+                                path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
                             }
                             Component::RootDir => {
                                 path_buf = PathBuf::from("/");
@@ -205,6 +198,8 @@ impl FileSystem for FileSystemOs {
                     }
                 }
                 Ok(path_buf)
+            } else {
+                fs::canonicalize(path)
             }
         }
     }
