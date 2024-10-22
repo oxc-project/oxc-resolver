@@ -12,8 +12,8 @@ doctest    = false
 
 [dependencies]
 oxc_resolver = { path = ".." }
-napi = { version = "3.0.0-alpha", default-features = false, features = ["napi3", "serde-json"] }
-napi-derive = { version = "3.0.0-alpha" }
+napi = { version = "3.0.0-alpha.11", default-features = false, features = ["napi3", "serde-json"] }
+napi-derive = { version = "3.0.0-alpha.11" }
 tracing-subscriber = { version = "0.3.18", default-features = false, features = [
   "std",
   "fmt",
