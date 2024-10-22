@@ -42,12 +42,12 @@ pub enum ResolveError {
 
     /// Node.js builtin module when `Options::builtin_modules` is enabled.
     ///
-    /// `prefixed_with_node_colon` can be used to determine whether the request
-    /// was prefixed `node:` or not.
+    /// `is_runtime_module` can be used to determine whether the request
+    /// was prefixed with `node:` or not.
     ///
     /// `resolved` is always prefixed with "node:" in compliance with the ESM specification.
     #[error("Builtin module {resolved}")]
-    Builtin { resolved: String, prefixed_with_node_colon: bool },
+    Builtin { resolved: String, is_runtime_module: bool },
 
     /// All of the aliased extension are not found
     ///

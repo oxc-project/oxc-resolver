@@ -91,7 +91,7 @@ fn builtins() {
             let resolved_path = resolver.resolve(f, &request).map(|r| r.full_path());
             let err = ResolveError::Builtin {
                 resolved: prefixed_request.clone(),
-                prefixed_with_node_colon: !starts_with_node,
+                is_runtime_module: starts_with_node,
             };
             assert_eq!(resolved_path, Err(err), "{request}");
         }
@@ -117,12 +117,11 @@ fn imports() {
         ..ResolveOptions::default()
     });
 
-    for request in ["#fs", "#http"] {
-        let prefixed_with_node_colon = request == "#fs";
+    for (request, is_runtime_module) in [("#fs", false), ("#http", true)] {
         let resolved_path = resolver.resolve(f.clone(), request).map(|r| r.full_path());
         let err = ResolveError::Builtin {
             resolved: (format!("node:{}", request.trim_start_matches('#'))),
-            prefixed_with_node_colon,
+            is_runtime_module,
         };
         assert_eq!(resolved_path, Err(err));
     }
