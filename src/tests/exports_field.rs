@@ -303,7 +303,7 @@ struct TestCase {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn exports_field(value: serde_json::Value) -> serde_json::Value {
+const fn exports_field(value: serde_json::Value) -> serde_json::Value {
     value
 }
 

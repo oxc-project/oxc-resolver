@@ -66,7 +66,8 @@ pub struct FileMetadata {
 }
 
 impl FileMetadata {
-    pub fn new(is_file: bool, is_dir: bool, is_symlink: bool) -> Self {
+    #[must_use]
+    pub const fn new(is_file: bool, is_dir: bool, is_symlink: bool) -> Self {
         Self { is_file, is_dir, is_symlink }
     }
 }

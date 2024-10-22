@@ -101,7 +101,8 @@ pub enum ResolveError {
 }
 
 impl ResolveError {
-    pub fn is_ignore(&self) -> bool {
+    #[must_use]
+    pub const fn is_ignore(&self) -> bool {
         matches!(self, Self::Ignored(_))
     }
 
