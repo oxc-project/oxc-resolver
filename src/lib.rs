@@ -325,13 +325,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     //   1. Return the string "node:" concatenated with packageSpecifier.
     fn require_core(&self, specifier: &str) -> Result<(), ResolveError> {
         if self.options.builtin_modules {
-            let starts_with_node = specifier.starts_with("node:");
-            if starts_with_node || NODEJS_BUILTINS.binary_search(&specifier).is_ok() {
-                let mut specifier = specifier.to_string();
-                if !starts_with_node {
-                    specifier = format!("node:{specifier}");
-                }
-                return Err(ResolveError::Builtin(specifier));
+            let is_runtime_module = specifier.starts_with("node:");
+            if is_runtime_module || NODEJS_BUILTINS.binary_search(&specifier).is_ok() {
+                let resolved = if is_runtime_module {
+                    specifier.to_string()
+                } else {
+                    format!("node:{specifier}")
+                };
+                return Err(ResolveError::Builtin { resolved, is_runtime_module });
             }
         }
         Ok(())
