@@ -92,8 +92,7 @@ use crate::{
     package_json::JSONMap,
     path::{PathUtil, SLASH_START},
     specifier::Specifier,
-    tsconfig::ExtendsField,
-    tsconfig::{ProjectReference, TsConfig},
+    tsconfig::{ExtendsField, ProjectReference, TsConfig},
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
@@ -624,7 +623,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     }
                 }
                 Restriction::RegExp(_) => {
-                    return Err(ResolveError::Unimplemented("Restriction with regex"))
+                    return Err(ResolveError::Unimplemented("Restriction with regex"));
                 }
             }
         }

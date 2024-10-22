@@ -4,3 +4,10 @@ use_small_heuristics = "Max"
 
 # Use field initialize shorthand if possible
 use_field_init_shorthand = true
+
+# For `cargo +nightly fmt`
+# unstable_features = true
+# style_edition = '2024'
+# reorder_impl_items = true
+# group_imports = "StdExternalCrate"
+# imports_granularity = "Crate"

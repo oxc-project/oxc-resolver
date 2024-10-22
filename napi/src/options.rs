@@ -1,8 +1,7 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use napi::Either;
 use napi_derive::napi;
-use std::collections::HashMap;
 
 /// Module Resolution Options
 ///

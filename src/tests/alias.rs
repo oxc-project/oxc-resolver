@@ -1,16 +1,18 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/alias.test.js>
 
-use normalize_path::NormalizePath;
 use std::path::Path;
+
+use normalize_path::NormalizePath;
 
 use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 fn alias() {
+    use std::path::{Path, PathBuf};
+
     use super::memory_fs::MemoryFS;
     use crate::ResolverGeneric;
-    use std::path::{Path, PathBuf};
 
     let f = Path::new("/");
 

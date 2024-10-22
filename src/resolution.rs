@@ -1,9 +1,10 @@
-use crate::package_json::PackageJson;
 use std::{
     fmt,
     path::{Path, PathBuf},
     sync::Arc,
 };
+
+use crate::package_json::PackageJson;
 
 /// The final path resolution with optional `?query` and `#fragment`
 #[derive(Clone)]

@@ -23,8 +23,9 @@ mod symlink;
 mod tsconfig_paths;
 mod tsconfig_project_references;
 
-use crate::Resolver;
 use std::{env, path::PathBuf, sync::Arc, thread};
+
+use crate::Resolver;
 
 pub fn fixture_root() -> PathBuf {
     env::current_dir().unwrap().join("fixtures")

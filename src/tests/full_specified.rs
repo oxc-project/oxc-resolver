@@ -4,9 +4,8 @@
 mod windows {
     use std::path::PathBuf;
 
-    use crate::{AliasValue, ResolveOptions, ResolverGeneric};
-
     use super::super::memory_fs::MemoryFS;
+    use crate::{AliasValue, ResolveOptions, ResolverGeneric};
 
     fn file_system() -> MemoryFS {
         MemoryFS::new(&[

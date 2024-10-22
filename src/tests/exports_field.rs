@@ -2,9 +2,11 @@
 //!
 //! The huge exports field test cases are at the bottom of this file.
 
-use crate::{Ctx, PathUtil, ResolveError, ResolveOptions, Resolver};
-use serde_json::json;
 use std::path::Path;
+
+use serde_json::json;
+
+use crate::{Ctx, PathUtil, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn test_simple() {

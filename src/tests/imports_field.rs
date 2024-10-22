@@ -2,10 +2,11 @@
 //!
 //! The huge imports field test cases are at the bottom of this file.
 
+use std::path::Path;
+
 use serde_json::json;
 
 use crate::{Ctx, JSONMap, PathUtil, ResolveError, ResolveOptions, Resolver};
-use std::path::Path;
 
 #[test]
 fn test_simple() {

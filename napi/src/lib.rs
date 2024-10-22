@@ -58,8 +58,8 @@ pub struct ResolveTask {
 
 #[napi]
 impl Task for ResolveTask {
-    type Output = ResolveResult;
     type JsValue = ResolveResult;
+    type Output = ResolveResult;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         Ok(resolve(&self.resolver, &self.directory, &self.request))
