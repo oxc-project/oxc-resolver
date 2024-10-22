@@ -31,7 +31,7 @@ impl<'a> Specifier<'a> {
     fn parse_query_framgment(
         specifier: &'a str,
         skip: usize,
-    ) -> (Cow<'a, str>, Option<&str>, Option<&str>) {
+    ) -> (Cow<'a, str>, Option<&'a str>, Option<&'a str>) {
         let mut query_start: Option<usize> = None;
         let mut fragment_start: Option<usize> = None;
 
