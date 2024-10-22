@@ -10,7 +10,7 @@ alias r := ready
 # or install via `cargo install cargo-binstall`
 # Initialize the project by installing all the necessary tools.
 init:
-  cargo binstall cargo-watch typos-cli taplo-cli cargo-llvm-cov -y
+  cargo binstall bacon typos-cli taplo-cli cargo-llvm-cov -y
 
 install:
   pnpm install
@@ -26,15 +26,12 @@ ready:
   just lint
   git status
 
-# --no-vcs-ignores: cargo-watch has a bug loading all .gitignores, including the ones listed in .gitignore
-# use .ignore file getting the ignore list
-# Run `cargo watch`
-watch command:
-  cargo watch -x '{{command}}'
+watch:
+  bacon
 
 # Run the example in `parser`, `formatter`, `linter`
 example *args='':
-  just watch 'run --example resolver -- {{args}}'
+  bacon example -- {{args}}
 
 # Format all files
 fmt:

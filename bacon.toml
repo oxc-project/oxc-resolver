@@ -1,0 +1,4 @@
+[jobs.example]
+command = ["cargo", "run", "--color", "always", "--example", "resolver"]
+allow_warnings = true
+need_stdout = true
