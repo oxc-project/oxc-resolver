@@ -106,6 +106,12 @@ fn fail() {
     let resolved_path = resolver.resolve(f, request);
     let err = ResolveError::NotFound(request.to_string());
     assert_eq!(resolved_path, Err(err), "{request}");
+
+    // `node:not-builtin` should failed since `not-builtin` is not a node builtin module
+    let request = "node:not-builtin";
+    let resolved_path = resolver.resolve(f, request);
+    let err = ResolveError::NotFound(request.to_string());
+    assert_eq!(resolved_path, Err(err), "{request}");
 }
 
 #[test]
