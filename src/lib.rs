@@ -327,7 +327,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     fn require_core(&self, specifier: &str) -> Result<(), ResolveError> {
         if self.options.builtin_modules {
             let is_runtime_module = specifier.starts_with("node:");
-            if is_runtime_module || NODEJS_BUILTINS.binary_search(&specifier).is_ok() {
+            let specifier_without_runtime_prefix =
+                if is_runtime_module { &specifier[5..] } else { specifier };
+            if NODEJS_BUILTINS.binary_search(&specifier_without_runtime_prefix).is_ok() {
                 let resolved = if is_runtime_module {
                     specifier.to_string()
                 } else {
