@@ -94,7 +94,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - uses: crate-ci/typos@v1.27.1
+      - uses: crate-ci/typos@v1.27.2
         with:
           files: .
 
