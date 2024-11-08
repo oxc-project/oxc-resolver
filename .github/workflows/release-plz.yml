@@ -50,6 +50,6 @@ jobs:
 
             gh pr checkout $pr_number
             git add .
-            git commit -m "Update package.json"
-            git push
+            git commit --amend --no-edit
+            git push --force-with-lease
           fi
