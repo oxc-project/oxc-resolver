@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.0.0...oxc_resolver-v2.0.1) - 2024-11-08
+
+### Other
+
+- `cargo upgrade` && `pnpm upgrade`
+- bring back the symlink optimization ([#298](https://github.com/oxc-project/oxc-resolver/pull/298))
+- *(deps)* update rust crate criterion2 to v2
+
 ## [2.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v1.12.0...oxc_resolver-v2.0.0) - 2024-10-22
 
 ### Added
