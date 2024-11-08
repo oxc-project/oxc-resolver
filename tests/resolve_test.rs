@@ -184,3 +184,24 @@ fn decimal_js_from_mathjs() {
         assert_eq!(resolution, Ok(module_path.clone()));
     }
 }
+
+#[test]
+// regression: https://github.com/NicholasLYang/oxc-repro
+fn nested_symlinks() {
+    let dir = dir();
+    let dir = dir.join("fixtures/nested-symlink");
+    assert_eq!(
+        Resolver::new(ResolveOptions::default())
+            // ./apps/web/nm/@repo/typescript-config is a symlink
+            .resolve(&dir, "./apps/web/nm/@repo/typescript-config/index.js")
+            .map(oxc_resolver::Resolution::into_path_buf),
+        Ok(dir.join("nm/index.js"))
+    );
+    assert_eq!(
+        Resolver::new(ResolveOptions::default())
+            // ./apps/tooling is a symlink
+            .resolve(&dir, "./apps/tooling/typescript-config/index.js")
+            .map(oxc_resolver::Resolution::into_path_buf),
+        Ok(dir.join("nm/index.js"))
+    );
+}
