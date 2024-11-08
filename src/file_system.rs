@@ -172,25 +172,40 @@ impl FileSystem for FileSystemOs {
                 }
             } else if #[cfg(windows)] {
                 dunce::canonicalize(path)
-            } else if #[cfg(target_family = "wasm")] {
+            } else {
                 use std::path::Component;
                 let mut path_buf = path.to_path_buf();
                 loop {
                     let link = fs::read_link(&path_buf)?;
                     path_buf.pop();
+                    if fs::symlink_metadata(&path_buf)?.is_symlink()
+                    {
+                      path_buf = self.canonicalize(path_buf.as_path())?;
+                    }
                     for component in link.components() {
                         match component {
                             Component::ParentDir => {
                                 path_buf.pop();
                             }
                             Component::Normal(seg) => {
-                                // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
-                                path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
+                                #[cfg(target_family = "wasm")]
+                                {
+                                  // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                                  path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
+                                }
+                                #[cfg(not(target_family = "wasm"))]
+                                {
+                                  path_buf.push(seg);
+                                }
                             }
                             Component::RootDir => {
                                 path_buf = PathBuf::from("/");
                             }
                             Component::CurDir | Component::Prefix(_) => {}
+                        }
+                        if fs::symlink_metadata(&path_buf)?.is_symlink()
+                        {
+                          path_buf = self.canonicalize(path_buf.as_path())?;
                         }
                     }
                     if !fs::symlink_metadata(&path_buf)?.is_symlink() {
@@ -198,8 +213,6 @@ impl FileSystem for FileSystemOs {
                     }
                 }
                 Ok(path_buf)
-            } else {
-                fs::canonicalize(path)
             }
         }
     }
