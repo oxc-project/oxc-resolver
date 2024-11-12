@@ -8,9 +8,9 @@ use cfg_if::cfg_if;
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
 #[cfg(windows)]
-const UNC_PATH_PREFIX: &str = "\\\\?\\UNC\\";
+const UNC_PATH_PREFIX: &[u8] = b"\\\\?\\UNC\\";
 #[cfg(windows)]
-const LONG_PATH_PREFIX: &str = "\\\\?\\";
+const LONG_PATH_PREFIX: &[u8] = b"\\\\?\\";
 
 /// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem: Send + Sync {
@@ -169,55 +169,12 @@ impl FileSystem for FileSystemOs {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 match VPath::from(path)? {
-                    VPath::Zip(info) => {
-                        node_compatible_raw_canonicalize(info.physical_base_path().join(info.zip_path))
-                    }
-                    VPath::Virtual(info) => node_compatible_raw_canonicalize(info.physical_base_path()),
-                    VPath::Native(path) => node_compatible_raw_canonicalize(path),
+                    VPath::Zip(info) => fast_canonicalize(info.physical_base_path().join(info.zip_path)),
+                    VPath::Virtual(info) => fast_canonicalize(info.physical_base_path()),
+                    VPath::Native(path) => fast_canonicalize(path),
                 }
-            } else if #[cfg(windows)] {
-                node_compatible_raw_canonicalize(path)
             } else {
-                use std::path::Component;
-                let mut path_buf = path.to_path_buf();
-                loop {
-                    let link = fs::read_link(&path_buf)?;
-                    path_buf.pop();
-                    if fs::symlink_metadata(&path_buf)?.is_symlink()
-                    {
-                      path_buf = self.canonicalize(path_buf.as_path())?;
-                    }
-                    for component in link.components() {
-                        match component {
-                            Component::ParentDir => {
-                                path_buf.pop();
-                            }
-                            Component::Normal(seg) => {
-                                #[cfg(target_family = "wasm")]
-                                {
-                                  // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
-                                  path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
-                                }
-                                #[cfg(not(target_family = "wasm"))]
-                                {
-                                  path_buf.push(seg);
-                                }
-                            }
-                            Component::RootDir => {
-                                path_buf = PathBuf::from("/");
-                            }
-                            Component::CurDir | Component::Prefix(_) => {}
-                        }
-                        if fs::symlink_metadata(&path_buf)?.is_symlink()
-                        {
-                          path_buf = self.canonicalize(path_buf.as_path())?;
-                        }
-                    }
-                    if !fs::symlink_metadata(&path_buf)?.is_symlink() {
-                        break;
-                    }
-                }
-                Ok(path_buf)
+                fast_canonicalize(path)
             }
         }
     }
@@ -233,31 +190,81 @@ fn metadata() {
     let _ = meta;
 }
 
-fn node_compatible_raw_canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
-    cfg_if! {
-        if #[cfg(windows)] {
-            use std::path::{Component, Prefix};
-            // same logic with https://github.com/libuv/libuv/blob/d4ab6fbba4669935a6bc23645372dfe4ac29ab39/src/win/fs.c#L2774-L2784
-            let canonicalized = fs::canonicalize(path)?;
-            let first_component = canonicalized.components().next();
-            match first_component {
-                Some(Component::Prefix(prefix)) => {
-                    match prefix.kind() {
-                        Prefix::VerbatimUNC(_, _) => {
-                            Ok(canonicalized.to_str().and_then(|s| s.get(UNC_PATH_PREFIX.len()..)).map(PathBuf::from).unwrap_or(canonicalized))
-                        }
-                        Prefix::VerbatimDisk(_) => {
-                            Ok(canonicalized.to_str().and_then(|s| s.get(LONG_PATH_PREFIX.len()..)).map(PathBuf::from).unwrap_or(canonicalized))
-                        }
-                        _ => {
-                            Ok(canonicalized)
-                        }
+#[inline]
+// This is A faster fs::canonicalize implementation by reducing the number of syscalls
+fn fast_canonicalize(path: &Path) -> io::Result<PathBuf> {
+    use std::path::Component;
+    let mut path_buf = path.to_path_buf();
+
+    loop {
+        let link = {
+            #[cfg(windows)]
+            {
+                node_compatible_raw_canonicalize(fs::read_link(&path_buf)?)
+            }
+            #[cfg(not(windows))]
+            {
+                fs::read_link(&path_buf)?
+            }
+        };
+        path_buf.pop();
+        if fs::symlink_metadata(&path_buf)?.is_symlink() {
+            path_buf = fast_canonicalize(path_buf.as_path())?;
+        }
+        for component in link.components() {
+            match component {
+                Component::ParentDir => {
+                    path_buf.pop();
+                }
+                Component::Normal(seg) => {
+                    #[cfg(target_family = "wasm")]
+                    {
+                        // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                        path_buf.push(seg.to_string_lossy().trim_end_matches('\0'));
+                    }
+                    #[cfg(not(target_family = "wasm"))]
+                    {
+                        path_buf.push(seg);
                     }
                 }
-                _ => Ok(canonicalized),
+                Component::RootDir => {
+                    #[cfg(not(windows))]
+                    {
+                        path_buf = PathBuf::from("/");
+                    }
+                    #[cfg(windows)]
+                    {
+                        path_buf.push("");
+                    }
+                }
+                Component::Prefix(prefix) => {
+                    path_buf = PathBuf::from(prefix.as_os_str());
+                }
+                Component::CurDir => {}
             }
-        } else {
-            fs::canonicalize(path)
+
+            if fs::symlink_metadata(&path_buf)?.is_symlink() {
+                path_buf = fast_canonicalize(path_buf.as_path())?;
+            }
+        }
+        if !fs::symlink_metadata(&path_buf)?.is_symlink() {
+            break;
         }
     }
+    Ok(path_buf)
+}
+
+#[cfg(windows)]
+fn node_compatible_raw_canonicalize<P: AsRef<Path>>(path: P) -> PathBuf {
+    let path_bytes = path.as_ref().as_os_str().as_encoded_bytes();
+    path_bytes
+        .strip_prefix(UNC_PATH_PREFIX)
+        .or_else(|| path_bytes.strip_prefix(LONG_PATH_PREFIX))
+        .map_or_else(
+            || path.as_ref().to_path_buf(),
+            |p| {
+                // SAFETY: `as_encoded_bytes` ensures `p` is valid path bytes
+                unsafe { PathBuf::from(std::ffi::OsStr::from_encoded_bytes_unchecked(p)) }
+            },
+        )
 }
