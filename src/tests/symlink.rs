@@ -82,7 +82,9 @@ fn test() -> io::Result<()> {
     #[rustfmt::skip]
     let pass = [
         ("with a symlink to a file", temp_path.clone(), "./index.js"),
+        #[cfg(not (windows))] // https://github.com/oxc-project/oxc-resolver/issues/308
         ("with a relative symlink to a file", temp_path.clone(), "./node.relative.js"),
+        #[cfg(not (windows))] // https://github.com/oxc-project/oxc-resolver/issues/308
         ("with a relative symlink to a symlink to a file", temp_path.clone(), "./node.relative.sym.js"),
         ("with a symlink to a directory 1", temp_path.clone(), "./lib/index.js"),
         ("with a symlink to a directory 2", temp_path.clone(), "./this/lib/index.js"),
