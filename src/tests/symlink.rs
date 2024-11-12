@@ -50,9 +50,9 @@ fn create_symlinks(dirname: &Path, temp_path: &Path) -> io::Result<()> {
     symlink(dirname.join("../lib").canonicalize().unwrap(), temp_path.join("lib"), FileType::Dir)?;
     symlink(dirname.join("..").canonicalize().unwrap(), temp_path.join("this"), FileType::Dir)?;
     symlink(temp_path.join("this"), temp_path.join("that"), FileType::Dir)?;
-    symlink(Path::new("../../lib/index.js").normalize(), temp_path.join("node.relative.js"), FileType::File)?;
+    symlink(Path::new("../../lib/index.js"), temp_path.join("node.relative.js"), FileType::File)?;
     symlink(
-        Path::new("./node.relative.js").normalize(),
+        Path::new("./node.relative.js"),
         temp_path.join("node.relative.sym.js"),
         FileType::File,
     )?;
