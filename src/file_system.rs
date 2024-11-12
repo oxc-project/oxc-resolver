@@ -1,11 +1,16 @@
 use std::{
     fs, io,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf, Prefix},
 };
 
 use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
+
+#[cfg(windows)]
+const UNC_PATH_PREFIX: &str = "\\\\?\\UNC\\";
+#[cfg(windows)]
+const LONG_PATH_PREFIX: &str = "\\\\?\\";
 
 /// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem: Send + Sync {
@@ -165,13 +170,13 @@ impl FileSystem for FileSystemOs {
             if #[cfg(feature = "yarn_pnp")] {
                 match VPath::from(path)? {
                     VPath::Zip(info) => {
-                        dunce::canonicalize(info.physical_base_path().join(info.zip_path))
+                        node_compatible_raw_canonicalize(info.physical_base_path().join(info.zip_path))
                     }
-                    VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
-                    VPath::Native(path) => dunce::canonicalize(path),
+                    VPath::Virtual(info) => node_compatible_raw_canonicalize(info.physical_base_path()),
+                    VPath::Native(path) => node_compatible_raw_canonicalize(path),
                 }
             } else if #[cfg(windows)] {
-                dunce::canonicalize(path)
+                node_compatible_raw_canonicalize(path)
             } else {
                 use std::path::Component;
                 let mut path_buf = path.to_path_buf();
@@ -226,4 +231,32 @@ fn metadata() {
         "FileMetadata { is_file: true, is_dir: true, is_symlink: true }"
     );
     let _ = meta;
+}
+
+fn node_compatible_raw_canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
+    cfg_if! {
+        if #[cfg(windows)] {
+            // same logic with https://github.com/libuv/libuv/blob/d4ab6fbba4669935a6bc23645372dfe4ac29ab39/src/win/fs.c#L2774-L2784
+            let canonicalized = fs::canonicalize(path)?;
+            let first_component = canonicalized.components().next();
+            match first_component {
+                Some(Component::Prefix(prefix)) => {
+                    match prefix.kind() {
+                        Prefix::VerbatimUNC(_, _) => {
+                            Ok(canonicalized.to_str().and_then(|s| s.get(UNC_PATH_PREFIX.len()..)).map(PathBuf::from).unwrap_or(canonicalized))
+                        }
+                        Prefix::VerbatimDisk(_) => {
+                            Ok(canonicalized.to_str().and_then(|s| s.get(LONG_PATH_PREFIX.len()..)).map(PathBuf::from).unwrap_or(canonicalized))
+                        }
+                        _ => {
+                            Ok(canonicalized)
+                        }
+                    }
+                }
+                _ => Ok(canonicalized),
+            }
+        } else {
+            fs::canonicalize(path)
+        }
+    }
 }
