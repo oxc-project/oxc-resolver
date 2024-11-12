@@ -33,9 +33,7 @@ fn init(dirname: &Path, temp_path: &Path) -> io::Result<()> {
     fs::create_dir(temp_path)?;
     symlink(dirname.join("../lib/index.js"), temp_path.join("test"), FileType::File)?;
     symlink(dirname.join("../lib"), temp_path.join("test2"), FileType::Dir)?;
-    fs::remove_file(temp_path.join("test"))?;
-    fs::remove_file(temp_path.join("test2"))?;
-    fs::remove_dir(temp_path)
+    fs::remove_dir_all(temp_path)
 }
 
 fn create_symlinks(dirname: &Path, temp_path: &Path) -> io::Result<()> {
