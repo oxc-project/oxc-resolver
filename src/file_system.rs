@@ -1,6 +1,6 @@
 use std::{
     fs, io,
-    path::{Component, Path, PathBuf, Prefix},
+    path::{Path, PathBuf},
 };
 
 use cfg_if::cfg_if;
@@ -236,6 +236,7 @@ fn metadata() {
 fn node_compatible_raw_canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     cfg_if! {
         if #[cfg(windows)] {
+            use std::path::{Component, Prefix};
             // same logic with https://github.com/libuv/libuv/blob/d4ab6fbba4669935a6bc23645372dfe4ac29ab39/src/win/fs.c#L2774-L2784
             let canonicalized = fs::canonicalize(path)?;
             let first_component = canonicalized.components().next();
