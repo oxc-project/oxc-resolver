@@ -1,5 +1,7 @@
 use std::{fs, io, path::Path};
 
+use normalize_path::NormalizePath;
+
 use crate::{ResolveOptions, Resolver};
 
 #[derive(Debug, Clone, Copy)]
@@ -21,8 +23,10 @@ fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(
 
     #[cfg(target_family = "windows")]
     match file_type {
-        FileType::File => std::os::windows::fs::symlink_file(original, link),
-        FileType::Dir => std::os::windows::fs::symlink_dir(original, link),
+        // NOTE: original path should use `\` instead of `/` for relative paths
+        //       otherwise the symlink will be broken and the test will fail with InvalidFilename error
+        FileType::File => std::os::windows::fs::symlink_file(original.as_ref().normalize(), link),
+        FileType::Dir => std::os::windows::fs::symlink_dir(original.as_ref().normalize(), link),
     }
 }
 
@@ -46,9 +50,9 @@ fn create_symlinks(dirname: &Path, temp_path: &Path) -> io::Result<()> {
     symlink(dirname.join("../lib").canonicalize().unwrap(), temp_path.join("lib"), FileType::Dir)?;
     symlink(dirname.join("..").canonicalize().unwrap(), temp_path.join("this"), FileType::Dir)?;
     symlink(temp_path.join("this"), temp_path.join("that"), FileType::Dir)?;
-    symlink(Path::new("../../lib/index.js"), temp_path.join("node.relative.js"), FileType::File)?;
+    symlink(Path::new("../../lib/index.js").normalize(), temp_path.join("node.relative.js"), FileType::File)?;
     symlink(
-        Path::new("./node.relative.js"),
+        Path::new("./node.relative.js").normalize(),
         temp_path.join("node.relative.sym.js"),
         FileType::File,
     )?;
@@ -82,9 +86,7 @@ fn test() -> io::Result<()> {
     #[rustfmt::skip]
     let pass = [
         ("with a symlink to a file", temp_path.clone(), "./index.js"),
-        #[cfg(not (windows))] // https://github.com/oxc-project/oxc-resolver/issues/308
         ("with a relative symlink to a file", temp_path.clone(), "./node.relative.js"),
-        #[cfg(not (windows))] // https://github.com/oxc-project/oxc-resolver/issues/308
         ("with a relative symlink to a symlink to a file", temp_path.clone(), "./node.relative.sym.js"),
         ("with a symlink to a directory 1", temp_path.clone(), "./lib/index.js"),
         ("with a symlink to a directory 2", temp_path.clone(), "./this/lib/index.js"),
