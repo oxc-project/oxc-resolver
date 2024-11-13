@@ -58,9 +58,9 @@ doc:
 codecov:
   cargo codecov --html
 
-# Run the benchmarks. See `tasks/benchmark`
+# Run the benchmarks.
 benchmark:
-  cargo benchmark
+  cargo bench
 
 # Run cargo-fuzz
 fuzz:
