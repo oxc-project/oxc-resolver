@@ -205,3 +205,13 @@ fn nested_symlinks() {
         Ok(dir.join("nm/index.js"))
     );
 }
+
+#[test]
+fn windows_symlinked_longfilename() {
+    let dir = dir();
+    let path = dir.join("fixtures/pnpm");
+    let module_path = dir.join("node_modules/.pnpm/@oxc-resolver+test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_m464apeldykmdsyzlfhtrggk24/node_modules/@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/index.js");
+
+    let resolution = Resolver::new(ResolveOptions::default()).resolve(&path, "@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(module_path));
+}
