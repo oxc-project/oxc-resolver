@@ -211,16 +211,7 @@ fn fast_canonicalize_non_windows(path: PathBuf) -> io::Result<PathBuf> {
     let mut path_buf = path;
 
     loop {
-        let link = {
-            #[cfg(windows)]
-            {
-                node_compatible_raw_canonicalize(fs::read_link(&path_buf)?)
-            }
-            #[cfg(not(windows))]
-            {
-                fs::read_link(&path_buf)?
-            }
-        };
+        let link = fs::read_link(&path_buf)?;
         path_buf.pop();
         if fs::symlink_metadata(&path_buf)?.is_symlink() {
             path_buf = fast_canonicalize(path_buf)?;
@@ -242,19 +233,9 @@ fn fast_canonicalize_non_windows(path: PathBuf) -> io::Result<PathBuf> {
                     }
                 }
                 Component::RootDir => {
-                    #[cfg(not(windows))]
-                    {
-                        path_buf = PathBuf::from("/");
-                    }
-                    #[cfg(windows)]
-                    {
-                        path_buf.push("\\");
-                    }
+                    path_buf = PathBuf::from("/");
                 }
-                Component::Prefix(prefix) => {
-                    path_buf = PathBuf::from(prefix.as_os_str());
-                }
-                Component::CurDir => {}
+                Component::CurDir | Component::Prefix(_) => {}
             }
 
             if fs::symlink_metadata(&path_buf)?.is_symlink() {
