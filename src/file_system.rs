@@ -174,7 +174,7 @@ impl FileSystem for FileSystemOs {
                     VPath::Native(path) => fast_canonicalize(path),
                 }
             } else {
-                fast_canonicalize(path.to_path_buf())
+                fast_canonicalize(path)
             }
         }
     }
@@ -191,8 +191,22 @@ fn metadata() {
 }
 
 #[inline]
+fn fast_canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
+    #[cfg(windows)]
+    {
+        // fs::canonicalize was faster on Windows (https://github.com/oxc-project/oxc-resolver/pull/306)
+        Ok(node_compatible_raw_canonicalize(fs::canonicalize(path)?))
+    }
+    #[cfg(not(windows))]
+    {
+        fast_canonicalize_non_windows(path.as_ref().to_path_buf())
+    }
+}
+
+#[inline]
+#[cfg(not(windows))]
 // This is A faster fs::canonicalize implementation by reducing the number of syscalls
-fn fast_canonicalize(path: PathBuf) -> io::Result<PathBuf> {
+fn fast_canonicalize_non_windows(path: PathBuf) -> io::Result<PathBuf> {
     use std::path::Component;
     let mut path_buf = path;
 
