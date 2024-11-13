@@ -171,10 +171,10 @@ impl FileSystem for FileSystemOs {
                 match VPath::from(path)? {
                     VPath::Zip(info) => fast_canonicalize(info.physical_base_path().join(info.zip_path)),
                     VPath::Virtual(info) => fast_canonicalize(info.physical_base_path()),
-                    VPath::Native(path) => fast_canonicalize(path),
+                    VPath::Native(path) => fast_canonicalize(path.to_path_buf()),
                 }
             } else {
-                fast_canonicalize(path)
+                fast_canonicalize(path.to_path_buf())
             }
         }
     }
@@ -192,9 +192,9 @@ fn metadata() {
 
 #[inline]
 // This is A faster fs::canonicalize implementation by reducing the number of syscalls
-fn fast_canonicalize(path: &Path) -> io::Result<PathBuf> {
+fn fast_canonicalize(path: PathBuf) -> io::Result<PathBuf> {
     use std::path::Component;
-    let mut path_buf = path.to_path_buf();
+    let mut path_buf = path;
 
     loop {
         let link = {
@@ -209,7 +209,7 @@ fn fast_canonicalize(path: &Path) -> io::Result<PathBuf> {
         };
         path_buf.pop();
         if fs::symlink_metadata(&path_buf)?.is_symlink() {
-            path_buf = fast_canonicalize(path_buf.as_path())?;
+            path_buf = fast_canonicalize(path_buf)?;
         }
         for component in link.components() {
             match component {
@@ -244,7 +244,7 @@ fn fast_canonicalize(path: &Path) -> io::Result<PathBuf> {
             }
 
             if fs::symlink_metadata(&path_buf)?.is_symlink() {
-                path_buf = fast_canonicalize(path_buf.as_path())?;
+                path_buf = fast_canonicalize(path_buf)?;
             }
         }
         if !fs::symlink_metadata(&path_buf)?.is_symlink() {
