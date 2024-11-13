@@ -171,7 +171,7 @@ impl FileSystem for FileSystemOs {
                 match VPath::from(path)? {
                     VPath::Zip(info) => fast_canonicalize(info.physical_base_path().join(info.zip_path)),
                     VPath::Virtual(info) => fast_canonicalize(info.physical_base_path()),
-                    VPath::Native(path) => fast_canonicalize(path.to_path_buf()),
+                    VPath::Native(path) => fast_canonicalize(path),
                 }
             } else {
                 fast_canonicalize(path.to_path_buf())
