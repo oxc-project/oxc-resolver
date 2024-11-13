@@ -234,7 +234,7 @@ fn fast_canonicalize(path: PathBuf) -> io::Result<PathBuf> {
                     }
                     #[cfg(windows)]
                     {
-                        path_buf.push("");
+                        path_buf.push("\\");
                     }
                 }
                 Component::Prefix(prefix) => {
