@@ -92,32 +92,32 @@ fn roots_fall_through() {
 }
 
 #[test]
-fn should_not_panic_with_slash() {
-    let f = super::fixture();
-    let resolver =
-        Resolver::new(ResolveOptions { roots: vec![f.clone()], ..ResolveOptions::default() });
-    let resolution = resolver.resolve(f, "/");
-    assert_eq!(resolution, Err(ResolveError::NotFound("/".into())));
-}
-
-#[test]
-fn should_not_resolve_slash_if_importer_is_not_root() {
+fn should_resolve_slash() {
     let f = super::fixture();
     let dir_with_index = super::fixture_root().join("./misc/dir-with-index");
-    let resolver =
-        Resolver::new(ResolveOptions { roots: vec![dir_with_index], ..ResolveOptions::default() });
-    let resolution = resolver.resolve(f, "/").map(|r| r.full_path());
-    assert_eq!(resolution, Err(ResolveError::NotFound("/".into())));
-}
 
-#[test]
-fn should_resolve_slash_to_index() {
-    let dir_with_index = super::fixture_root().join("./misc/dir-with-index");
-    let resolver = Resolver::new(ResolveOptions {
-        roots: vec![dir_with_index.clone()],
-        ..ResolveOptions::default()
-    });
-    let resolution = resolver.resolve(dir_with_index.clone(), "/").map(|r| r.full_path());
-    let expected = dir_with_index.join("index.js");
-    assert_eq!(resolution, Ok(expected));
+    #[rustfmt::skip]
+    let pass = [
+        ("should resolve if importer is root", vec![dir_with_index.clone()], &dir_with_index, dir_with_index.join("index.js")),
+    ];
+
+    for (comment, roots, directory, expected) in pass {
+        let resolver =
+            Resolver::new(ResolveOptions { roots: roots.clone(), ..ResolveOptions::default() });
+        let resolved_path = resolver.resolve(directory, "/").map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {roots:?}");
+    }
+
+    #[rustfmt::skip]
+    let fail = [
+        ("should not resolve if not found", vec![f.clone()], &f),
+        ("should not resolve if importer is not root", vec![dir_with_index], &f)
+    ];
+
+    for (comment, roots, directory) in fail {
+        let resolver =
+            Resolver::new(ResolveOptions { roots: roots.clone(), ..ResolveOptions::default() });
+        let resolution = resolver.resolve(directory, "/");
+        assert_eq!(resolution, Err(ResolveError::NotFound("/".into())), "{comment} {roots:?}");
+    }
 }
