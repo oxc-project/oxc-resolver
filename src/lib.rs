@@ -355,7 +355,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Ok(path);
             }
         }
-        if let Some(path) = self.load_roots(specifier, ctx) {
+        if let Some(path) = self.load_roots(cached_path, specifier, ctx) {
             return Ok(path);
         }
         // 2. If X begins with '/'
@@ -1086,16 +1086,28 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// defaults to context configuration option.
     ///
     /// On non-Windows systems these requests are resolved as an absolute path first.
-    fn load_roots(&self, specifier: &str, ctx: &mut Ctx) -> Option<CachedPath> {
+    fn load_roots(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        ctx: &mut Ctx,
+    ) -> Option<CachedPath> {
         if self.options.roots.is_empty() {
             return None;
         }
         if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
-            let specifier = if specifier.is_empty() { "./" } else { specifier };
-            for root in &self.options.roots {
-                let cached_path = self.cache.value(root);
-                if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
-                    return Some(path);
+            if specifier.is_empty() {
+                if self.options.roots.iter().any(|root| root.as_path() == cached_path.path()) {
+                    if let Ok(path) = self.require_relative(cached_path, "./", ctx) {
+                        return Some(path);
+                    }
+                }
+            } else {
+                for root in &self.options.roots {
+                    let cached_path = self.cache.value(root);
+                    if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
+                        return Some(path);
+                    }
                 }
             }
         }
