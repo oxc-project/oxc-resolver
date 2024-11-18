@@ -90,3 +90,25 @@ fn roots_fall_through() {
         Ok(absolute_path)
     );
 }
+
+#[test]
+fn should_not_error_with_slash() {
+    let f = super::fixture();
+    let resolver =
+        Resolver::new(ResolveOptions { roots: vec![f.clone()], ..ResolveOptions::default() });
+    let resolution = resolver.resolve(f, "/");
+    assert_eq!(resolution, Err(ResolveError::NotFound("/".into())));
+}
+
+#[test]
+fn should_resolve_slash_to_index() {
+    let f = super::fixture();
+    let dir_with_index = super::fixture_root().join("./misc/dir-with-index");
+    let resolver = Resolver::new(ResolveOptions {
+        roots: vec![dir_with_index.clone()],
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve(f, "/").map(|r| r.full_path());
+    let expected = dir_with_index.join("index.js");
+    assert_eq!(resolution, Ok(expected));
+}

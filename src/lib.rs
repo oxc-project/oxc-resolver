@@ -375,7 +375,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         // Make sure only relative or normal paths gets called
-        debug_assert!(Path::new(specifier).components().next().map_or(true, |c| matches!(
+        debug_assert!(Path::new(specifier).components().next().is_some_and(|c| matches!(
             c,
             Component::CurDir | Component::ParentDir | Component::Normal(_)
         )));
@@ -1091,6 +1091,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return None;
         }
         if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
+            let specifier = if specifier.is_empty() { "./" } else { specifier };
             for root in &self.options.roots {
                 let cached_path = self.cache.value(root);
                 if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
