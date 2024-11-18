@@ -117,3 +117,12 @@ fn resolve_hash_as_module() {
     let resolution = resolver.resolve(f, "#a");
     assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
 }
+
+#[test]
+fn resolve_root() {
+    let f = super::fixture();
+    let resolver =
+        Resolver::new(ResolveOptions { roots: vec![f.clone()], ..ResolveOptions::default() });
+    let resolution = resolver.resolve(f, "/");
+    assert_eq!(resolution, Err(ResolveError::NotFound("/".into())));
+}

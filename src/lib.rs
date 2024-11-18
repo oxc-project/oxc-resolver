@@ -375,7 +375,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         // Make sure only relative or normal paths gets called
-        debug_assert!(Path::new(specifier).components().next().is_some_and(|c| matches!(
+        debug_assert!(Path::new(specifier).components().next().map_or(true, |c| matches!(
             c,
             Component::CurDir | Component::ParentDir | Component::Normal(_)
         )));
