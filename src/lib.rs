@@ -177,6 +177,22 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         self.resolve_tracing(directory.as_ref(), specifier, &mut ctx)
     }
 
+    /// Resolve `tsconfig`.
+    ///
+    /// The path can be:
+    ///
+    /// * Path to a file with `.json` extension.
+    /// * Path to a file without `.json` extension, `.json` will be appended to filename.
+    /// * Path to a directory, where the filename is defaulted to `tsconfig.json`
+    ///
+    /// # Errors
+    ///
+    /// * See [ResolveError]
+    pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
+        let path = path.as_ref();
+        self.load_tsconfig(true, path, &TsconfigReferences::Auto)
+    }
+
     /// Resolve `specifier` at absolute `path` with [ResolveContext]
     ///
     /// # Errors
@@ -1114,30 +1130,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         None
     }
 
-    fn load_tsconfig_paths(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        ctx: &mut Ctx,
-    ) -> ResolveResult {
-        let Some(tsconfig_options) = &self.options.tsconfig else {
-            return Ok(None);
-        };
-        let tsconfig = self.load_tsconfig(
-            /* root */ true,
-            &tsconfig_options.config_file,
-            &tsconfig_options.references,
-        )?;
-        let paths = tsconfig.resolve(cached_path.path(), specifier);
-        for path in paths {
-            let cached_path = self.cache.value(&path);
-            if let Ok(path) = self.require_relative(&cached_path, ".", ctx) {
-                return Ok(Some(path));
-            }
-        }
-        Ok(None)
-    }
-
     fn load_tsconfig(
         &self,
         root: bool,
@@ -1203,6 +1195,30 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             Ok(())
         })
+    }
+
+    fn load_tsconfig_paths(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
+        let Some(tsconfig_options) = &self.options.tsconfig else {
+            return Ok(None);
+        };
+        let tsconfig = self.load_tsconfig(
+            /* root */ true,
+            &tsconfig_options.config_file,
+            &tsconfig_options.references,
+        )?;
+        let paths = tsconfig.resolve(cached_path.path(), specifier);
+        for path in paths {
+            let cached_path = self.cache.value(&path);
+            if let Ok(path) = self.require_relative(&cached_path, ".", ctx) {
+                return Ok(Some(path));
+            }
+        }
+        Ok(None)
     }
 
     fn get_extended_tsconfig_path(

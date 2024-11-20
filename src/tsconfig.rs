@@ -25,11 +25,11 @@ pub struct TsConfig {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
     #[serde(skip)]
-    root: bool,
+    pub root: bool,
 
     /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
     #[serde(skip)]
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
 
     #[serde(default)]
     pub extends: Option<ExtendsField>,
@@ -48,10 +48,10 @@ pub struct TsConfig {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
-    base_url: Option<PathBuf>,
+    pub base_url: Option<PathBuf>,
 
     /// Path aliases
-    paths: Option<CompilerOptionsPathsMap>,
+    pub paths: Option<CompilerOptionsPathsMap>,
 
     /// The actual base for where path aliases are resolved from.
     #[serde(skip)]
@@ -73,7 +73,21 @@ pub struct ProjectReference {
 }
 
 impl TsConfig {
-    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
+    /// Directory to `tsconfig.json`
+    ///
+    /// # Panics
+    ///
+    /// * When the `tsconfig.json` path is misconfigured.
+    pub fn directory(&self) -> &Path {
+        debug_assert!(self.path.file_name().is_some());
+        self.path.parent().unwrap()
+    }
+
+    pub(crate) fn parse(
+        root: bool,
+        path: &Path,
+        json: &mut str,
+    ) -> Result<Self, serde_json::Error> {
         _ = json_strip_comments::strip(json);
         let mut tsconfig: Self = serde_json::from_str(json)?;
         tsconfig.root = root;
@@ -89,7 +103,7 @@ impl TsConfig {
         Ok(tsconfig)
     }
 
-    pub fn build(mut self) -> Self {
+    pub(crate) fn build(mut self) -> Self {
         if self.root {
             let dir = self.directory().to_path_buf();
             // Substitute template variable in `tsconfig.compilerOptions.paths`
@@ -104,17 +118,7 @@ impl TsConfig {
         self
     }
 
-    /// Directory to `tsconfig.json`
-    ///
-    /// # Panics
-    ///
-    /// * When the `tsconfig.json` path is misconfigured.
-    pub fn directory(&self) -> &Path {
-        debug_assert!(self.path.file_name().is_some());
-        self.path.parent().unwrap()
-    }
-
-    pub fn extend_tsconfig(&mut self, tsconfig: &Self) {
+    pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
         let compiler_options = &mut self.compiler_options;
         if compiler_options.paths.is_none() {
             compiler_options.paths_base = compiler_options
@@ -128,7 +132,7 @@ impl TsConfig {
         }
     }
 
-    pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
+    pub(crate) fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
         if path.starts_with(self.base_path()) {
             let paths = self.resolve_path_alias(specifier);
             if !paths.is_empty() {
@@ -145,7 +149,7 @@ impl TsConfig {
 
     // Copied from parcel
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
-    pub fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
+    pub(crate) fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
         if specifier.starts_with(['/', '.']) {
             return vec![];
         }

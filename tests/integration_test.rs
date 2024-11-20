@@ -41,6 +41,14 @@ fn package_json() {
     assert!(package_json.side_effects.as_ref().unwrap().is_object());
 }
 
+#[test]
+fn tsconfig() {
+    let resolver = Resolver::new(ResolveOptions::default());
+    let tsconfig = resolver.resolve_tsconfig("./tests").unwrap();
+    assert!(tsconfig.root);
+    assert_eq!(tsconfig.path, PathBuf::from("./tests/tsconfig.json"));
+}
+
 #[cfg(feature = "package_json_raw_json_api")]
 #[test]
 fn package_json_raw_json_api() {
