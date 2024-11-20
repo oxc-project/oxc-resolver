@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.0.1...oxc_resolver-v2.1.0) - 2024-11-20
+
+### Added
+
+- add `Resolver::resolve_tsconfig` API ([#312](https://github.com/oxc-project/oxc-resolver/pull/312))
+
+### Fixed
+
+- don't panic when resolving `/` with `roots` ([#310](https://github.com/oxc-project/oxc-resolver/pull/310))
+- use same UNC path normalization logic with libuv ([#306](https://github.com/oxc-project/oxc-resolver/pull/306))
+
+### Other
+
+- *(deps)* update rust crates to v1.0.215
+- fix symlink test init on windows ([#307](https://github.com/oxc-project/oxc-resolver/pull/307))
+
 ## [2.0.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.0.0...oxc_resolver-v2.0.1) - 2024-11-08
 
 ### Other
