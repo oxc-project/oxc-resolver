@@ -10,7 +10,7 @@ alias r := ready
 # or install via `cargo install cargo-binstall`
 # Initialize the project by installing all the necessary tools.
 init:
-  cargo binstall bacon typos-cli taplo-cli cargo-llvm-cov -y
+  cargo binstall watchexec-cli typos-cli taplo-cli cargo-llvm-cov -y
 
 install:
   pnpm install
@@ -26,12 +26,15 @@ ready:
   just lint
   git status
 
-watch:
-  bacon
+watch *args='':
+  watchexec {{args}}
+
+watch-check:
+  just watch "'cargo check; cargo clippy'"
 
 # Run the example in `parser`, `formatter`, `linter`
 example *args='':
-  bacon example -- {{args}}
+  cargo run --example resolver -- {{args}}
 
 # Format all files
 fmt:
