@@ -395,8 +395,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             c,
             Component::CurDir | Component::ParentDir | Component::Normal(_)
         )));
-        let path = cached_path.path().normalize_with(specifier);
-        let cached_path = self.cache.value(&path);
+        let cached_path = cached_path.normalize_with(specifier, &self.cache);
         // a. LOAD_AS_FILE(Y + X)
         // b. LOAD_AS_DIRECTORY(Y + X)
         if let Some(path) = self.load_as_file_or_directory(&cached_path, specifier, ctx)? {
@@ -546,9 +545,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // b. If "main" is a falsy value, GOTO 2.
                 for main_field in package_json.main_fields(&self.options.main_fields) {
                     // c. let M = X + (json main field)
-                    let main_field_path = cached_path.path().normalize_with(main_field);
+                    let cached_path = cached_path.normalize_with(main_field, &self.cache);
                     // d. LOAD_AS_FILE(M)
-                    let cached_path = self.cache.value(&main_field_path);
                     if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                         return Ok(Some(path));
                     }
@@ -596,12 +594,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if ctx.fully_specified {
             return Ok(None);
         }
-        let path = path.path().as_os_str();
         for extension in extensions {
-            let mut path_with_extension = path.to_os_string();
-            path_with_extension.reserve_exact(extension.len());
-            path_with_extension.push(extension);
-            let cached_path = self.cache.value(Path::new(&path_with_extension));
+            let cached_path = path.add_extension(extension, &self.cache);
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                 return Ok(Some(path));
             }
@@ -648,8 +642,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_index(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
         for main_file in &self.options.main_files {
-            let main_path = cached_path.path().normalize_with(main_file);
-            let cached_path = self.cache.value(&main_path);
+            let cached_path = cached_path.normalize_with(main_file, &self.cache);
             if self.options.enforce_extension.is_disabled() {
                 if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                     return Ok(Some(path));
@@ -722,8 +715,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // 1. Try to interpret X as a combination of NAME and SUBPATH where the name
                 //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
                 if !package_name.is_empty() {
-                    let package_path = cached_path.path().normalize_with(package_name);
-                    let cached_path = self.cache.value(&package_path);
+                    let cached_path = cached_path.normalize_with(package_name, &self.cache);
                     // Try foo/node_modules/package_name
                     if cached_path.is_dir(&self.cache.fs, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -752,8 +744,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // Try as file or directory for all other cases
                 // b. LOAD_AS_FILE(DIR/X)
                 // c. LOAD_AS_DIRECTORY(DIR/X)
-                let node_module_file = cached_path.path().normalize_with(specifier);
-                let cached_path = self.cache.value(&node_module_file);
+                let cached_path = cached_path.normalize_with(specifier, &self.cache);
                 if let Some(path) = self.load_as_file_or_directory(&cached_path, specifier, ctx)? {
                     return Ok(Some(path));
                 }
@@ -984,8 +975,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         }
                     }
                     AliasValue::Ignore => {
-                        let path = cached_path.path().normalize_with(alias_key);
-                        return Err(ResolveError::Ignored(path));
+                        let cached_path = cached_path.normalize_with(alias_key, &self.cache);
+                        return Err(ResolveError::Ignored(cached_path.to_path_buf()));
                     }
                 }
             }
@@ -1025,8 +1016,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
                 // Remove the leading slash so the final path is concatenated.
                 let tail = tail.trim_start_matches(SLASH_START);
-                let normalized = alias_value.normalize_with(tail);
-                Cow::Owned(normalized.to_string_lossy().to_string())
+                let normalized = alias_value_cached_path.normalize_with(tail, &self.cache);
+                Cow::Owned(normalized.path().to_string_lossy().to_string())
             };
 
             *should_stop = true;
@@ -1067,13 +1058,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         };
         let path = cached_path.path();
         let Some(filename) = path.file_name() else { return Ok(None) };
-        let path_without_extension = path.with_extension("");
         ctx.with_fully_specified(true);
         for extension in extensions {
-            let mut path_with_extension = path_without_extension.clone().into_os_string();
-            path_with_extension.reserve_exact(extension.len());
-            path_with_extension.push(extension);
-            let cached_path = self.cache.value(Path::new(&path_with_extension));
+            let cached_path = cached_path.replace_extension(extension, &self.cache);
             if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
                 ctx.with_fully_specified(false);
                 return Ok(Some(path));
@@ -1271,8 +1258,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     continue;
                 };
                 // 2. Set parentURL to the parent folder URL of parentURL.
-                let package_path = cached_path.path().normalize_with(package_name);
-                let cached_path = self.cache.value(&package_path);
+                let cached_path = cached_path.normalize_with(package_name, &self.cache);
                 // 3. If the folder at packageURL does not exist, then
                 //   1. Continue the next loop iteration.
                 if cached_path.is_dir(&self.cache.fs, ctx) {
@@ -1297,8 +1283,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                             // 1. If pjson.main is a string, then
                             for main_field in package_json.main_fields(&self.options.main_fields) {
                                 // 1. Return the URL resolution of main in packageURL.
-                                let path = cached_path.path().normalize_with(main_field);
-                                let cached_path = self.cache.value(&path);
+                                let cached_path =
+                                    cached_path.normalize_with(main_field, &self.cache);
                                 if cached_path.is_file(&self.cache.fs, ctx) {
                                     return Ok(Some(cached_path));
                                 }

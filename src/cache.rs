@@ -1,10 +1,11 @@
 use std::{
     borrow::{Borrow, Cow},
+    cell::UnsafeCell,
     convert::AsRef,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
     ops::Deref,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
@@ -16,6 +17,12 @@ use crate::{
     context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, FileMetadata,
     FileSystem, ResolveError, ResolveOptions, TsConfig,
 };
+
+thread_local! {
+    /// Per-thread pre-allocated path that is used to perform operations on paths more quickly.
+    /// Learned from parcel <https://github.com/parcel-bundler/parcel/blob/a53f8f3ba1025c7ea8653e9719e0a61ef9717079/crates/parcel-resolver/src/cache.rs#L394>
+  pub static SCRATCH_PATH: UnsafeCell<PathBuf> = UnsafeCell::new(PathBuf::with_capacity(256));
+}
 
 #[derive(Default)]
 pub struct Cache<Fs> {
@@ -302,6 +309,72 @@ impl CachedPathImpl {
             }
         }
         result
+    }
+
+    pub fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> CachedPath {
+        SCRATCH_PATH.with(|path| {
+            // SAFETY: ???
+            let path = unsafe { &mut *path.get() };
+            path.clear();
+            let s = path.as_mut_os_string();
+            s.push(self.path.as_os_str());
+            s.push(ext);
+            cache.value(path)
+        })
+    }
+
+    pub fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> CachedPath {
+        SCRATCH_PATH.with(|path| {
+            // SAFETY: ???
+            let path = unsafe { &mut *path.get() };
+            path.clear();
+            let s = path.as_mut_os_string();
+            let self_len = self.path.as_os_str().len();
+            let self_bytes = self.path.as_os_str().as_encoded_bytes();
+            let slice_to_copy = self.path.extension().map_or(self_bytes, |previous_extension| {
+                &self_bytes[..self_len - previous_extension.len() - 1]
+            });
+            // SAFETY: ???
+            s.push(unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(slice_to_copy) });
+            s.push(ext);
+            cache.value(path)
+        })
+    }
+
+    /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
+    pub fn normalize_with<P, Fs>(&self, subpath: P, cache: &Cache<Fs>) -> CachedPath
+    where
+        P: AsRef<Path>,
+        Fs: FileSystem,
+    {
+        let subpath = subpath.as_ref();
+        let mut components = subpath.components();
+        let Some(head) = components.next() else { return cache.value(subpath) };
+        if matches!(head, Component::Prefix(..) | Component::RootDir) {
+            return cache.value(subpath);
+        }
+        SCRATCH_PATH.with(|path| {
+            // SAFETY: ???
+            let path = unsafe { &mut *path.get() };
+            path.clear();
+            path.push(&self.path);
+            for component in std::iter::once(head).chain(components) {
+                match component {
+                    Component::CurDir => {}
+                    Component::ParentDir => {
+                        path.pop();
+                    }
+                    Component::Normal(c) => {
+                        path.push(c);
+                    }
+                    Component::Prefix(..) | Component::RootDir => {
+                        unreachable!("Path {:?} Subpath {:?}", self.path, subpath)
+                    }
+                }
+            }
+
+            cache.value(path)
+        })
     }
 }
 
