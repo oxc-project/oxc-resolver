@@ -1296,11 +1296,13 @@ fn test_cases() {
     ];
 
     for case in test_cases {
-        let resolved = Resolver::default()
+        let resolver = Resolver::default();
+        let cached_path = resolver.cache.value(Path::new(""));
+        let resolved = resolver
             .package_imports_exports_resolve(
                 case.request,
                 &case.imports_field,
-                Path::new(""),
+                &cached_path,
                 true,
                 &case.condition_names.iter().map(ToString::to_string).collect::<Vec<_>>(),
                 &mut Ctx::default(),
