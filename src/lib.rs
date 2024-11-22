@@ -250,7 +250,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // enhanced-resolve: restrictions
         self.check_restrictions(&path)?;
         let package_json = cached_path.find_package_json(&self.options, &self.cache, ctx)?;
-        if let Some(package_json) = &package_json {
+        if let Some((_, package_json)) = &package_json {
             // path must be inside the package.
             debug_assert!(path.starts_with(package_json.directory()));
         }
@@ -258,7 +258,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
-            package_json,
+            package_json: package_json.map(|(_, p)| p),
         })
     }
 
@@ -499,7 +499,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
-        let Some(package_json) = cached_path.find_package_json(&self.options, &self.cache, ctx)?
+        let Some((_, package_json)) =
+            cached_path.find_package_json(&self.options, &self.cache, ctx)?
         else {
             return Ok(None);
         };
@@ -538,7 +539,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 1. If X/package.json is a file,
         if !self.options.description_files.is_empty() {
             // a. Parse X/package.json, and look for "main" field.
-            if let Some(package_json) = cached_path.package_json(&self.options, &self.cache, ctx)? {
+            if let Some((_, package_json)) =
+                cached_path.package_json(&self.options, &self.cache, ctx)?
+            {
                 // b. If "main" is a falsy value, GOTO 2.
                 for main_field in package_json.main_fields(&self.options.main_fields) {
                     // c. let M = X + (json main field)
@@ -657,11 +660,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_alias_or_file(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
         if !self.options.alias_fields.is_empty() {
-            if let Some(package_json) =
+            if let Some((package_url, package_json)) =
                 cached_path.find_package_json(&self.options, &self.cache, ctx)?
             {
                 if let Some(path) =
-                    self.load_browser_field(cached_path, None, &package_json, ctx)?
+                    self.load_browser_field(cached_path, None, &package_url, &package_json, ctx)?
                 {
                     return Ok(Some(path));
                 }
@@ -815,7 +818,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         // 2. If X does not match this pattern or DIR/NAME/package.json is not a file,
         //    return.
-        let Some(package_json) = cached_path.package_json(&self.options, &self.cache, ctx)? else {
+        let Some((_, package_json)) = cached_path.package_json(&self.options, &self.cache, ctx)?
+        else {
             return Ok(None);
         };
         // 3. Parse DIR/NAME/package.json, and look for "exports" field.
@@ -842,7 +846,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
-        let Some(package_json) = cached_path.find_package_json(&self.options, &self.cache, ctx)?
+        let Some((package_url, package_json)) =
+            cached_path.find_package_json(&self.options, &self.cache, ctx)?
         else {
             return Ok(None);
         };
@@ -856,7 +861,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
             // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
             // defined in the ESM resolver.
-            let package_url = self.cache.value(package_json.directory());
             // Note: The subpath is not prepended with a dot on purpose
             // because `package_exports_resolve` matches subpath without the leading dot.
             for exports in package_json.exports_fields(&self.options.exports_fields) {
@@ -871,7 +875,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 }
             }
         }
-        self.load_browser_field(cached_path, Some(specifier), &package_json, ctx)
+        self.load_browser_field(cached_path, Some(specifier), &package_url, &package_json, ctx)
     }
 
     /// RESOLVE_ESM_MATCH(MATCH)
@@ -897,6 +901,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         cached_path: &CachedPath,
         module_specifier: Option<&str>,
+        package_url: &CachedPath,
         package_json: &PackageJson,
         ctx: &mut Ctx,
     ) -> ResolveResult {
@@ -926,8 +931,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         ctx.with_resolving_alias(new_specifier.to_string());
         ctx.with_fully_specified(false);
-        let cached_path = self.cache.value(package_json.directory());
-        self.require(&cached_path, new_specifier, ctx).map(Some)
+        self.require(package_url, new_specifier, ctx).map(Some)
     }
 
     /// enhanced-resolve: AliasPlugin for [ResolveOptions::alias] and [ResolveOptions::fallback].
@@ -1258,7 +1262,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 //   1. Continue the next loop iteration.
                 if cached_path.is_dir(&self.cache.fs, ctx) {
                     // 4. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
-                    if let Some(package_json) =
+                    if let Some((_, package_json)) =
                         cached_path.package_json(&self.options, &self.cache, ctx)?
                     {
                         // 5. If pjson is not null and pjson.exports is not null or undefined, then
