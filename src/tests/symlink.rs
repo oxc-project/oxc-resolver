@@ -1,5 +1,6 @@
 use std::{fs, io, path::Path};
 
+#[cfg(target_family = "windows")]
 use normalize_path::NormalizePath;
 
 use crate::{ResolveOptions, Resolver};
