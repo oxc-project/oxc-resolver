@@ -210,7 +210,7 @@ impl ResolveOptions {
         self
     }
 
-    /// Adds a single extension to the list of extensions
+    /// Adds a single extension to the list of extensions. Extension must start with a `.`
     ///
     /// ## Examples
     ///
@@ -218,8 +218,8 @@ impl ResolveOptions {
     /// use oxc_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
     ///
-    /// let options = ResolveOptions::default().with_extension("jsonc");
-    /// assert!(options.extensions.contains(&"jsonc".to_string()));
+    /// let options = ResolveOptions::default().with_extension(".jsonc");
+    /// assert!(options.extensions.contains(&".jsonc".to_string()));
     /// ```
     #[must_use]
     pub fn with_extension<S: Into<String>>(mut self, extension: S) -> Self {
