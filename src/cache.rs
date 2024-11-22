@@ -97,6 +97,30 @@ impl<Fs: FileSystem> Cache<Fs> {
 #[derive(Clone)]
 pub struct CachedPath(Arc<CachedPathImpl>);
 
+pub struct CachedPathImpl {
+    hash: u64,
+    path: Box<Path>,
+    parent: Option<CachedPath>,
+    meta: OnceLock<Option<FileMetadata>>,
+    canonicalized: OnceLock<Option<CachedPath>>,
+    node_modules: OnceLock<Option<CachedPath>>,
+    package_json: OnceLock<Option<(CachedPath, Arc<PackageJson>)>>,
+}
+
+impl CachedPathImpl {
+    const fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>) -> Self {
+        Self {
+            hash,
+            path,
+            parent,
+            meta: OnceLock::new(),
+            canonicalized: OnceLock::new(),
+            node_modules: OnceLock::new(),
+            package_json: OnceLock::new(),
+        }
+    }
+}
+
 impl Hash for CachedPath {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.hash.hash(state);
@@ -220,7 +244,7 @@ impl CachedPath {
         options: &ResolveOptions,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+    ) -> Result<Option<(Self, Arc<PackageJson>)>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
         let result = self
             .package_json
@@ -235,14 +259,13 @@ impl CachedPath {
                     package_json_path.clone()
                 };
                 PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
-                    .map(Arc::new)
-                    .map(Some)
+                    .map(|package_json| Some((self.clone(), (Arc::new(package_json)))))
                     .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
             })
             .cloned();
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
         match &result {
-            Ok(Some(package_json)) => {
+            Ok(Some((_, package_json))) => {
                 ctx.add_file_dependency(&package_json.path);
             }
             Ok(None) => {
@@ -270,7 +293,7 @@ impl CachedPath {
         options: &ResolveOptions,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+    ) -> Result<Option<(Self, Arc<PackageJson>)>, ResolveError> {
         let mut cache_value = self;
         // Go up directories when the querying path is not a directory
         while !cache_value.is_dir(&cache.fs, ctx) {
@@ -283,7 +306,7 @@ impl CachedPath {
         let mut cache_value = Some(cache_value);
         while let Some(cv) = cache_value {
             if let Some(package_json) = cv.package_json(options, cache, ctx)? {
-                return Ok(Some(Arc::clone(&package_json)));
+                return Ok(Some(package_json));
             }
             cache_value = cv.parent.as_ref();
         }
@@ -354,30 +377,6 @@ impl CachedPath {
 
             cache.value(path)
         })
-    }
-}
-
-pub struct CachedPathImpl {
-    hash: u64,
-    path: Box<Path>,
-    parent: Option<CachedPath>,
-    meta: OnceLock<Option<FileMetadata>>,
-    canonicalized: OnceLock<Option<CachedPath>>,
-    node_modules: OnceLock<Option<CachedPath>>,
-    package_json: OnceLock<Option<Arc<PackageJson>>>,
-}
-
-impl CachedPathImpl {
-    const fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>) -> Self {
-        Self {
-            hash,
-            path,
-            parent,
-            meta: OnceLock::new(),
-            canonicalized: OnceLock::new(),
-            node_modules: OnceLock::new(),
-            package_json: OnceLock::new(),
-        }
     }
 }
 
