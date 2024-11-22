@@ -14,8 +14,8 @@ use once_cell::sync::OnceCell as OnceLock;
 use rustc_hash::FxHasher;
 
 use crate::{
-    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, FileMetadata,
-    FileSystem, ResolveError, ResolveOptions, TsConfig,
+    context::ResolveContext as Ctx, package_json::PackageJson, FileMetadata, FileSystem,
+    ResolveError, ResolveOptions, TsConfig,
 };
 
 thread_local! {
@@ -136,39 +136,17 @@ impl CacheKey for CachedPath {
     }
 }
 
-pub struct CachedPathImpl {
-    hash: u64,
-    path: Box<Path>,
-    parent: Option<CachedPath>,
-    meta: OnceLock<Option<FileMetadata>>,
-    canonicalized: OnceLock<Option<PathBuf>>,
-    node_modules: OnceLock<Option<CachedPath>>,
-    package_json: OnceLock<Option<Arc<PackageJson>>>,
-}
-
-impl CachedPathImpl {
-    const fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>) -> Self {
-        Self {
-            hash,
-            path,
-            parent,
-            meta: OnceLock::new(),
-            canonicalized: OnceLock::new(),
-            node_modules: OnceLock::new(),
-            package_json: OnceLock::new(),
-        }
-    }
-
-    pub const fn path(&self) -> &Path {
-        &self.path
+impl CachedPath {
+    pub fn path(&self) -> &Path {
+        &self.0.path
     }
 
     pub fn to_path_buf(&self) -> PathBuf {
         self.path.to_path_buf()
     }
 
-    pub const fn parent(&self) -> Option<&CachedPath> {
-        self.parent.as_ref()
+    pub fn parent(&self) -> Option<&Self> {
+        self.0.parent.as_ref()
     }
 
     fn meta<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
@@ -195,22 +173,23 @@ impl CachedPathImpl {
         )
     }
 
-    pub fn realpath<Fs: FileSystem>(&self, fs: &Fs) -> io::Result<PathBuf> {
+    pub fn realpath<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> io::Result<Self> {
         self.canonicalized
             .get_or_try_init(|| {
-                if fs.symlink_metadata(&self.path).is_ok_and(|m| m.is_symlink) {
-                    return fs.canonicalize(&self.path).map(Some);
+                if cache.fs.symlink_metadata(&self.path).is_ok_and(|m| m.is_symlink) {
+                    let canonicalized = cache.fs.canonicalize(&self.path)?;
+                    return Ok(Some(cache.value(&canonicalized)));
                 }
                 if let Some(parent) = self.parent() {
-                    let parent_path = parent.realpath(fs)?;
-                    return Ok(Some(
-                        parent_path.normalize_with(self.path.strip_prefix(&parent.path).unwrap()),
-                    ));
+                    let parent_path = parent.realpath(cache)?;
+                    let normalized = parent_path
+                        .normalize_with(self.path.strip_prefix(&parent.path).unwrap(), cache);
+                    return Ok(Some(normalized));
                 };
                 Ok(None)
             })
             .cloned()
-            .map(|r| r.unwrap_or_else(|| self.path.clone().to_path_buf()))
+            .map(|r| r.unwrap_or_else(|| self.clone()))
     }
 
     pub fn module_directory<Fs: FileSystem>(
@@ -218,7 +197,7 @@ impl CachedPathImpl {
         module_name: &str,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
-    ) -> Option<CachedPath> {
+    ) -> Option<Self> {
         let cached_path = cache.value(&self.path.join(module_name));
         cached_path.is_dir(&cache.fs, ctx).then_some(cached_path)
     }
@@ -227,38 +206,8 @@ impl CachedPathImpl {
         &self,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
-    ) -> Option<CachedPath> {
+    ) -> Option<Self> {
         self.node_modules.get_or_init(|| self.module_directory("node_modules", cache, ctx)).clone()
-    }
-
-    /// Find package.json of a path by traversing parent directories.
-    ///
-    /// # Errors
-    ///
-    /// * [ResolveError::JSON]
-    pub fn find_package_json<Fs: FileSystem>(
-        &self,
-        fs: &Fs,
-        options: &ResolveOptions,
-        ctx: &mut Ctx,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
-        let mut cache_value = self;
-        // Go up directories when the querying path is not a directory
-        while !cache_value.is_dir(fs, ctx) {
-            if let Some(cv) = &cache_value.parent {
-                cache_value = cv.as_ref();
-            } else {
-                break;
-            }
-        }
-        let mut cache_value = Some(cache_value);
-        while let Some(cv) = cache_value {
-            if let Some(package_json) = cv.package_json(fs, options, ctx)? {
-                return Ok(Some(Arc::clone(&package_json)));
-            }
-            cache_value = cv.parent.as_deref();
-        }
-        Ok(None)
     }
 
     /// Get package.json of the given path.
@@ -268,8 +217,8 @@ impl CachedPathImpl {
     /// * [ResolveError::JSON]
     pub fn package_json<Fs: FileSystem>(
         &self,
-        fs: &Fs,
         options: &ResolveOptions,
+        cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
@@ -277,11 +226,11 @@ impl CachedPathImpl {
             .package_json
             .get_or_try_init(|| {
                 let package_json_path = self.path.join("package.json");
-                let Ok(package_json_string) = fs.read_to_string(&package_json_path) else {
+                let Ok(package_json_string) = cache.fs.read_to_string(&package_json_path) else {
                     return Ok(None);
                 };
                 let real_path = if options.symlinks {
-                    self.realpath(fs)?.join("package.json")
+                    self.realpath(cache)?.path().join("package.json")
                 } else {
                     package_json_path.clone()
                 };
@@ -311,7 +260,37 @@ impl CachedPathImpl {
         result
     }
 
-    pub fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> CachedPath {
+    /// Find package.json of a path by traversing parent directories.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::JSON]
+    pub fn find_package_json<Fs: FileSystem>(
+        &self,
+        options: &ResolveOptions,
+        cache: &Cache<Fs>,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+        let mut cache_value = self;
+        // Go up directories when the querying path is not a directory
+        while !cache_value.is_dir(&cache.fs, ctx) {
+            if let Some(cv) = &cache_value.parent {
+                cache_value = cv;
+            } else {
+                break;
+            }
+        }
+        let mut cache_value = Some(cache_value);
+        while let Some(cv) = cache_value {
+            if let Some(package_json) = cv.package_json(options, cache, ctx)? {
+                return Ok(Some(Arc::clone(&package_json)));
+            }
+            cache_value = cv.parent.as_ref();
+        }
+        Ok(None)
+    }
+
+    pub fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
         SCRATCH_PATH.with(|path| {
             // SAFETY: ???
             let path = unsafe { &mut *path.get() };
@@ -323,7 +302,7 @@ impl CachedPathImpl {
         })
     }
 
-    pub fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> CachedPath {
+    pub fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
         SCRATCH_PATH.with(|path| {
             // SAFETY: ???
             let path = unsafe { &mut *path.get() };
@@ -342,7 +321,7 @@ impl CachedPathImpl {
     }
 
     /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
-    pub fn normalize_with<P, Fs>(&self, subpath: P, cache: &Cache<Fs>) -> CachedPath
+    pub fn normalize_with<P, Fs>(&self, subpath: P, cache: &Cache<Fs>) -> Self
     where
         P: AsRef<Path>,
         Fs: FileSystem,
@@ -375,6 +354,30 @@ impl CachedPathImpl {
 
             cache.value(path)
         })
+    }
+}
+
+pub struct CachedPathImpl {
+    hash: u64,
+    path: Box<Path>,
+    parent: Option<CachedPath>,
+    meta: OnceLock<Option<FileMetadata>>,
+    canonicalized: OnceLock<Option<CachedPath>>,
+    node_modules: OnceLock<Option<CachedPath>>,
+    package_json: OnceLock<Option<Arc<PackageJson>>>,
+}
+
+impl CachedPathImpl {
+    const fn new(hash: u64, path: Box<Path>, parent: Option<CachedPath>) -> Self {
+        Self {
+            hash,
+            path,
+            parent,
+            meta: OnceLock::new(),
+            canonicalized: OnceLock::new(),
+            node_modules: OnceLock::new(),
+            package_json: OnceLock::new(),
+        }
     }
 }
 
