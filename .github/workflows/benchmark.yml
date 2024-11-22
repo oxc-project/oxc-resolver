@@ -21,20 +21,21 @@ jobs:
     name: Benchmark
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Branch
-        uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@v1
 
       - uses: Boshen/setup-rust@main
         with:
           cache-key: benchmark
           save-cache: ${{ github.ref_name == 'main' }}
           tools: cargo-codspeed
-      - uses: ./.github/actions/pnpm
-      - name: Build Benchmark
-        run: cargo codspeed build --features codspeed
 
-      - name: Run benchmark
-        uses: CodSpeedHQ/action@v3
+      - uses: ./.github/actions/pnpm
+
+      - run: cargo codspeed build --features codspeed
+        env:
+          RUSTFLAGS: "-C debuginfo=1 -C strip=none"
+
+      - uses: CodSpeedHQ/action@v3
         timeout-minutes: 30
         with:
           run: cargo codspeed run
