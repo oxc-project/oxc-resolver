@@ -828,12 +828,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
         // Note: The subpath is not prepended with a dot on purpose
         for exports in package_json.exports_fields(&self.options.exports_fields) {
-            if let Some(path) = self.package_exports_resolve(
-                cached_path.path(),
-                &format!(".{subpath}"),
-                exports,
-                ctx,
-            )? {
+            if let Some(path) =
+                self.package_exports_resolve(cached_path, &format!(".{subpath}"), exports, ctx)?
+            {
                 // 6. RESOLVE_ESM_MATCH(MATCH)
                 return self.resolve_esm_match(specifier, &path, ctx);
             };
@@ -864,13 +861,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
             // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
             // defined in the ESM resolver.
-            let package_url = package_json.directory();
+            let package_url = self.cache.value(package_json.directory());
             // Note: The subpath is not prepended with a dot on purpose
             // because `package_exports_resolve` matches subpath without the leading dot.
             for exports in package_json.exports_fields(&self.options.exports_fields) {
-                if let Some(cached_path) =
-                    self.package_exports_resolve(package_url, &format!(".{subpath}"), exports, ctx)?
-                {
+                if let Some(cached_path) = self.package_exports_resolve(
+                    &package_url,
+                    &format!(".{subpath}"),
+                    exports,
+                    ctx,
+                )? {
                     // 6. RESOLVE_ESM_MATCH(MATCH)
                     return self.resolve_esm_match(specifier, &cached_path, ctx);
                 }
@@ -1270,7 +1270,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         // 1. Return the result of PACKAGE_EXPORTS_RESOLVE(packageURL, packageSubpath, pjson.exports, defaultConditions).
                         for exports in package_json.exports_fields(&self.options.exports_fields) {
                             if let Some(path) = self.package_exports_resolve(
-                                cached_path.path(),
+                                &cached_path,
                                 &format!(".{subpath}"),
                                 exports,
                                 ctx,
@@ -1304,7 +1304,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// PACKAGE_EXPORTS_RESOLVE(packageURL, subpath, exports, conditions)
     fn package_exports_resolve(
         &self,
-        package_url: &Path,
+        package_url: &CachedPath,
         subpath: &str,
         exports: &JSONValue,
         ctx: &mut Ctx,
@@ -1320,7 +1320,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 without_dot = without_dot || !starts_with_dot_or_hash;
                 if has_dot && without_dot {
                     return Err(ResolveError::InvalidPackageConfig(
-                        package_url.join("package.json"),
+                        package_url.path().join("package.json"),
                     ));
                 }
             }
@@ -1336,7 +1336,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let fragment = ctx.fragment.clone().unwrap_or_default();
                 return Err(ResolveError::PackagePathNotExported(
                     format!("./{}{query}{fragment}", subpath.trim_start_matches('.')),
-                    package_url.join("package.json"),
+                    package_url.path().join("package.json"),
                 ));
             }
             // 1. Let mainExport be undefined.
@@ -1401,7 +1401,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 4. Throw a Package Path Not Exported error.
         Err(ResolveError::PackagePathNotExported(
             subpath.to_string(),
-            package_url.join("package.json"),
+            package_url.path().join("package.json"),
         ))
     }
 
@@ -1438,7 +1438,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             if let Some(path) = self.package_imports_exports_resolve(
                 specifier,
                 imports,
-                package_json.directory(),
+                &self.cache.value(package_json.directory()),
                 /* is_imports */ true,
                 &self.options.condition_names,
                 ctx,
@@ -1464,7 +1464,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         match_key: &str,
         match_obj: &JSONMap,
-        package_url: &Path,
+        package_url: &CachedPath,
         is_imports: bool,
         conditions: &[String],
         ctx: &mut Ctx,
@@ -1548,7 +1548,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     #[allow(clippy::too_many_arguments)]
     fn package_target_resolve(
         &self,
-        package_url: &Path,
+        package_url: &CachedPath,
         target_key: &str,
         target: &JSONValue,
         pattern_match: Option<&str>,
@@ -1560,7 +1560,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             target_key: &'a str,
             target: &'a str,
             pattern_match: Option<&'a str>,
-            package_url: &Path,
+            package_url: &CachedPath,
         ) -> Result<Cow<'a, str>, ResolveError> {
             let target = if let Some(pattern_match) = pattern_match {
                 if !target_key.contains('*') && !target.contains('*') {
@@ -1570,7 +1570,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         Cow::Owned(format!("{target}{pattern_match}"))
                     } else {
                         return Err(ResolveError::InvalidPackageConfigDirectory(
-                            package_url.join("package.json"),
+                            package_url.path().join("package.json"),
                         ));
                     }
                 } else {
@@ -1593,16 +1593,15 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         return Err(ResolveError::InvalidPackageTarget(
                             target.to_string(),
                             target_key.to_string(),
-                            package_url.join("package.json"),
+                            package_url.path().join("package.json"),
                         ));
                     }
                     // 2. If patternMatch is a String, then
                     //   1. Return PACKAGE_RESOLVE(target with every instance of "*" replaced by patternMatch, packageURL + "/").
                     let target =
                         normalize_string_target(target_key, target, pattern_match, package_url)?;
-                    let package_url = self.cache.value(package_url);
                     // // 3. Return PACKAGE_RESOLVE(target, packageURL + "/").
-                    return self.package_resolve(&package_url, &target, ctx);
+                    return self.package_resolve(package_url, &target, ctx);
                 }
 
                 // 2. If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after the first "." segment, case insensitive and including percent encoded variants, throw an Invalid Package Target error.
@@ -1615,14 +1614,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     return Err(ResolveError::InvalidPackageTarget(
                         target.to_string(),
                         target_key.to_string(),
-                        package_url.join("package.json"),
+                        package_url.path().join("package.json"),
                     ));
                 }
-                let resolved_target = package_url.normalize_with(target.as_ref());
                 // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
                 // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
-                let value = self.cache.value(&resolved_target);
-                return Ok(Some(value));
+                return Ok(Some(package_url.normalize_with(target.as_ref(), &self.cache)));
             }
             // 2. Otherwise, if target is a non-null Object, then
             JSONValue::Object(target) => {
@@ -1659,7 +1656,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     // Note: return PackagePathNotExported has the same effect as return because there are no matches.
                     return Err(ResolveError::PackagePathNotExported(
                         pattern_match.unwrap_or(".").to_string(),
-                        package_url.join("package.json"),
+                        package_url.path().join("package.json"),
                     ));
                 }
                 // 2. For each item targetValue in target, do

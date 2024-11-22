@@ -2513,21 +2513,23 @@ fn test_cases() {
     ];
 
     for case in test_cases {
-        let resolved = Resolver::new(ResolveOptions {
+        let resolver = Resolver::new(ResolveOptions {
             condition_names: case
                 .condition_names
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
             ..ResolveOptions::default()
-        })
-        .package_exports_resolve(
-            Path::new(""),
-            case.request,
-            &case.exports_field,
-            &mut Ctx::default(),
-        )
-        .map(|p| p.map(|p| p.to_path_buf()));
+        });
+        let cached_path = resolver.cache.value(Path::new(""));
+        let resolved = resolver
+            .package_exports_resolve(
+                &cached_path,
+                case.request,
+                &case.exports_field,
+                &mut Ctx::default(),
+            )
+            .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(
