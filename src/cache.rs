@@ -44,7 +44,7 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn value(&self, path: &Path) -> CachedPath {
         let hash = {
             let mut hasher = FxHasher::default();
-            path.as_os_str().hash(&mut hasher);
+            path.hash(&mut hasher);
             hasher.finish()
         };
         if let Some(cache_entry) = self.paths.get((hash, path).borrow() as &dyn CacheKey) {
