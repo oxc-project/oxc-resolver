@@ -121,8 +121,10 @@ fn resolve_hash_as_module() {
 #[cfg(windows)]
 #[test]
 fn resolve_normalized_on_windows() {
+    use normalize_path::NormalizePath;
+
     let f = super::fixture();
-    let absolute = f.join("./foo/index.js");
+    let absolute = f.join("./foo/index.js").normalize();
     let absolute_str = absolute.to_str().unwrap();
     let normalized_absolute = absolute_str.replace('\\', "/");
     let resolver = Resolver::new(ResolveOptions::default());
