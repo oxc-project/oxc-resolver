@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.1.1...oxc_resolver-v2.2.0) - 2024-12-05
+
+### Added
+
+- faster and stable path hash for the cache ([#328](https://github.com/oxc-project/oxc-resolver/pull/328))
+
+### Other
+
+- increase hash size ([#329](https://github.com/oxc-project/oxc-resolver/pull/329))
+- add dprint ([#326](https://github.com/oxc-project/oxc-resolver/pull/326))
+- update dependencies
+- *(deps)* update rust crates
+- update README logo
+
 ## [2.1.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.1.0...oxc_resolver-v2.1.1) - 2024-11-22
 
 ### Performance
