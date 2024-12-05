@@ -98,41 +98,6 @@ jobs:
         with:
           files: .
 
-  unused-deps:
-    name: Check Unused Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            src:
-              - '**/*.rs'
-              - '**/Cargo.toml'
-              - 'Cargo.lock'
-      - uses: Boshen/setup-rust@main
-        with:
-          restore-cache: false
-        if: steps.filter.outputs.src == 'true'
-      - uses: cargo-bins/cargo-binstall@main
-        if: steps.filter.outputs.src == 'true'
-      - run: cargo binstall --no-confirm cargo-shear@1
-        if: steps.filter.outputs.src == 'true'
-      - run: cargo shear
-        if: steps.filter.outputs.src == 'true'
-
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: Boshen/setup-rust@main
-        with:
-          components: rustfmt
-          restore-cache: false
-      - run: cargo fmt --all -- --check
-
   lint:
     name: Clippy
     runs-on: ubuntu-latest

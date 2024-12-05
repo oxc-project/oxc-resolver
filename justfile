@@ -38,7 +38,8 @@ example *args='':
 
 # Format all files
 fmt:
-  cargo fmt
+  cargo shear --fix # remove all unused dependencies
+  cargo fmt --all
   taplo format
 
 # Run cargo check
