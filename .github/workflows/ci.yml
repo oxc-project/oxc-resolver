@@ -5,15 +5,15 @@ on:
   pull_request:
     types: [opened, synchronize]
     paths-ignore:
-      - '**/*.md'
-      - '!.github/workflows/ci.yml'
+      - "**/*.md"
+      - "!.github/workflows/ci.yml"
   push:
     branches:
       - main
       - "renovate/**"
     paths-ignore:
-      - '**/*.md'
-      - '!.github/workflows/ci.yml'
+      - "**/*.md"
+      - "!.github/workflows/ci.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

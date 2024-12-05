@@ -9,7 +9,7 @@ on:
       - npm/package.json # Please only commit this file, so we don't need to wait for test CI to pass.
 
 env:
-  DEBUG: 'napi:*'
+  DEBUG: "napi:*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -175,10 +175,10 @@ jobs:
           RUSTUP_IO_THREADS: 1
         with:
           operating_system: freebsd
-          version: '14.0'
+          version: "14.0"
           memory: 8G
           cpu_count: 3
-          environment_variables: 'DEBUG RUSTUP_IO_THREADS'
+          environment_variables: "DEBUG RUSTUP_IO_THREADS"
           shell: bash
           run: |
             sudo pkg install -y -f curl node libnghttp2 npm
