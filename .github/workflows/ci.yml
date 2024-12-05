@@ -98,27 +98,6 @@ jobs:
         with:
           files: .
 
-  deny:
-    name: Cargo Deny
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            src:
-              - 'Cargo.lock'
-
-      - uses: Boshen/setup-rust@main
-        with:
-          restore-cache: false
-          tools: cargo-deny
-
-      - if: steps.filter.outputs.src == 'true'
-        run: cargo deny check
-
   unused-deps:
     name: Check Unused Dependencies
     runs-on: ubuntu-latest
