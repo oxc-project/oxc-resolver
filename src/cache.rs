@@ -42,9 +42,20 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub fn value(&self, path: &Path) -> CachedPath {
+        // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
+        // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
         let hash = {
             let mut hasher = FxHasher::default();
-            path.as_os_str().hash(&mut hasher);
+            for b in path
+                .as_os_str()
+                .as_encoded_bytes()
+                .iter()
+                .rev()
+                .filter(|&&b| b != b'/' && b != b'\\')
+                .take(10)
+            {
+                b.hash(&mut hasher);
+            }
             hasher.finish()
         };
         if let Some(cache_entry) = self.paths.get((hash, path).borrow() as &dyn CacheKey) {
