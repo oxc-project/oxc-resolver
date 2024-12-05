@@ -24,8 +24,8 @@ defaults:
     shell: bash
 
 jobs:
-  cache: # Warm cache factory for all other CI jobs
-    name: Check and Build
+  test:
+    name: Test
     strategy:
       fail-fast: true
       matrix:
@@ -36,18 +36,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: taiki-e/checkout-action@v1
-
       - uses: Boshen/setup-rust@main
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
-
+      - uses: ./.github/actions/pnpm
       - run: cargo check --all-features --locked
-
-      # Only need to build the test to create a warm cache on the main branch
-      - name: Build cache by Cargo Check and Cargo Test
-        if: ${{ github.ref_name == 'main' }}
-        run: cargo test --all-features --no-run
+      - run: cargo test --doc
+      - run: cargo test --all-features
 
   wasm:
     name: Check Wasm
@@ -117,24 +113,3 @@ jobs:
         with:
           components: rust-docs
       - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
-
-  test:
-    name: Test
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - os: windows-latest
-          - os: ubuntu-latest
-          - os: macos-14
-    runs-on: ${{ matrix.os }}
-    env:
-      RUST_BACKTRACE: 1
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: ./.github/actions/pnpm
-      - uses: Boshen/setup-rust@main
-        with:
-          cache-key: warm
-      - run: cargo test --doc
-      - run: cargo test --all-features
