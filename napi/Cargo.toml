@@ -1,23 +1,20 @@
 [package]
-name         = "oxc_napi_resolver"
-version      = "0.0.0"
-publish      = false
-edition      = "2021"
+name = "oxc_napi_resolver"
+version = "0.0.0"
+edition = "2021"
+publish = false
 rust-version = "1.71"
 
 [lib]
 crate-type = ["cdylib"]
-test       = false
-doctest    = false
+test = false
+doctest = false
 
 [dependencies]
-oxc_resolver = { path = ".." }
 napi = { version = "3.0.0-alpha", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3.0.0-alpha" }
-tracing-subscriber = { version = "0.3.18", default-features = false, features = [
-  "std",
-  "fmt",
-] } # Omit the `regex` feature
+oxc_resolver = { path = ".." }
+tracing-subscriber = { version = "0.3.18", default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 
 [build-dependencies]
 napi-build = "2.1.3"

@@ -2,8 +2,8 @@
 
 See
 
-* `index.d.ts` for `resolveSync` and `ResolverFactory` API.
-* [README.md](https://github.com/oxc-project/oxc-resolver?tab=readme-ov-file#oxc-resolver) for options.
+- `index.d.ts` for `resolveSync` and `ResolverFactory` API.
+- [README.md](https://github.com/oxc-project/oxc-resolver?tab=readme-ov-file#oxc-resolver) for options.
 
 ## API
 
@@ -26,14 +26,14 @@ The string passed to `require` or `import`, i.e. `require("specifier")` or `impo
 ## ESM Example
 
 ```javascript
+import assert from 'assert';
 import path from 'path';
 import resolve, { ResolverFactory } from './index.js';
-import assert from 'assert';
 
 // `resolve`
-assert(resolve.sync(process.cwd(), "./index.js").path, path.join(cwd, 'index.js'));
+assert(resolve.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
 
 // `ResolverFactory`
 const resolver = new ResolverFactory();
-assert(resolver.sync(process.cwd(), "./index.js").path, path.join(cwd, 'index.js'));
+assert(resolver.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
 ```
