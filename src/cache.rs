@@ -52,7 +52,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .iter()
                 .rev()
                 .filter(|&&b| b != b'/' && b != b'\\')
-                .take(10)
+                .take(20)
             {
                 b.hash(&mut hasher);
             }
