@@ -106,6 +106,7 @@ fn imports_field(value: serde_json::Value) -> JSONMap {
     serde_json::from_str(&s).unwrap()
 }
 
+#[allow(clippy::too_many_lines)]
 #[test]
 fn test_cases() {
     let test_cases = [
@@ -1298,7 +1299,7 @@ fn test_cases() {
     for case in test_cases {
         let resolver = Resolver::default();
         let cached_path = resolver.cache.value(Path::new(""));
-        let resolved = resolver
+        let resolved_path = resolver
             .package_imports_exports_resolve(
                 case.request,
                 &case.imports_field,
@@ -1310,14 +1311,19 @@ fn test_cases() {
             .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {
             if expect.is_empty() {
-                assert!(matches!(resolved, Ok(None)), "{} {:?}", &case.name, &resolved);
+                assert!(matches!(resolved_path, Ok(None)), "{} {:?}", &case.name, &resolved_path);
             } else {
                 for expect in expect {
-                    assert_eq!(resolved, Ok(Some(Path::new(expect).normalize())), "{}", &case.name);
+                    assert_eq!(
+                        resolved_path,
+                        Ok(Some(Path::new(expect).normalize())),
+                        "{}",
+                        &case.name
+                    );
                 }
             }
         } else {
-            assert!(resolved.is_err(), "{} {resolved:?}", &case.name);
+            assert!(resolved_path.is_err(), "{} {resolved_path:?}", &case.name);
         }
     }
 }

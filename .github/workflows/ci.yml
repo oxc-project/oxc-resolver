@@ -102,7 +102,7 @@ jobs:
       - uses: Boshen/setup-rust@main
         with:
           components: clippy
-      - run: cargo clippy --all-features -- -D warnings
+      - run: cargo clippy --all-features --all-targets -- -D warnings
 
   doc:
     name: Doc

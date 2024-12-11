@@ -2522,7 +2522,7 @@ fn test_cases() {
             ..ResolveOptions::default()
         });
         let cached_path = resolver.cache.value(Path::new(""));
-        let resolved = resolver
+        let resolved_path = resolver
             .package_exports_resolve(
                 &cached_path,
                 case.request,
@@ -2533,18 +2533,23 @@ fn test_cases() {
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(
-                    matches!(resolved, Err(ResolveError::PackagePathNotExported(_, _))),
+                    matches!(resolved_path, Err(ResolveError::PackagePathNotExported(_, _))),
                     "{} {:?}",
                     &case.name,
-                    &resolved
+                    &resolved_path
                 );
             } else {
                 for expect in expect {
-                    assert_eq!(resolved, Ok(Some(Path::new(expect).normalize())), "{}", &case.name);
+                    assert_eq!(
+                        resolved_path,
+                        Ok(Some(Path::new(expect).normalize())),
+                        "{}",
+                        &case.name
+                    );
                 }
             }
         } else {
-            assert!(resolved.is_err(), "{} {resolved:?}", &case.name);
+            assert!(resolved_path.is_err(), "{} {resolved_path:?}", &case.name);
         }
     }
 }
