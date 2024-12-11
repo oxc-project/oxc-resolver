@@ -671,11 +671,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         }
         // enhanced-resolve: try file as alias
-        let alias_specifier = cached_path.path().to_string_lossy();
-        if let Some(path) =
-            self.load_alias(cached_path, &alias_specifier, &self.options.alias, ctx)?
-        {
-            return Ok(Some(path));
+        // Guard this because this is on a hot path, and `.to_string_lossy()` has a cost.
+        if !self.options.alias.is_empty() {
+            let alias_specifier = cached_path.path().to_string_lossy();
+            if let Some(path) =
+                self.load_alias(cached_path, &alias_specifier, &self.options.alias, ctx)?
+            {
+                return Ok(Some(path));
+            }
         }
         if cached_path.is_file(&self.cache.fs, ctx) {
             return Ok(Some(cached_path.clone()));
