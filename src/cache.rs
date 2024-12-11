@@ -138,9 +138,30 @@ impl Hash for CachedPath {
     }
 }
 
+fn partial_eq(a: &Path, b: &Path) -> bool {
+    let a = a.as_os_str().as_encoded_bytes();
+    let b = b.as_os_str().as_encoded_bytes();
+    let len = a.len();
+    if len != b.len() {
+        return false;
+    }
+    for i in (0..len).rev() {
+        let x = a[i];
+        let y = b[i];
+        if (x == b'/' || x == b'\\') && (y == b'/' || y == b'\\') {
+            continue;
+        }
+        if x == y {
+            continue;
+        }
+        return false;
+    }
+    true
+}
+
 impl PartialEq for CachedPath {
     fn eq(&self, other: &Self) -> bool {
-        self.0.path == other.0.path
+        partial_eq(self.path(), other.path())
     }
 }
 impl Eq for CachedPath {}
@@ -404,7 +425,7 @@ impl Hash for dyn CacheKey + '_ {
 
 impl PartialEq for dyn CacheKey + '_ {
     fn eq(&self, other: &Self) -> bool {
-        self.tuple().1 == other.tuple().1
+        partial_eq(self.tuple().1, other.tuple().1)
     }
 }
 
