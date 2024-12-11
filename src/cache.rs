@@ -46,16 +46,19 @@ impl<Fs: FileSystem> Cache<Fs> {
         // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
         let hash = {
             let mut hasher = FxHasher::default();
-            for b in path
+            let mut array: [u8; 24] = [0; 24];
+            for (i, b) in path
                 .as_os_str()
                 .as_encoded_bytes()
                 .iter()
                 .rev()
-                .filter(|&&b| b != b'/' && b != b'\\')
-                .take(20)
+                .map(|&b| if b == b'\\' { b'/' } else { b })
+                .take(24)
+                .enumerate()
             {
-                b.hash(&mut hasher);
+                array[i] = b;
             }
+            array.hash(&mut hasher);
             hasher.finish()
         };
         if let Some(cache_entry) = self.paths.get((hash, path).borrow() as &dyn CacheKey) {
