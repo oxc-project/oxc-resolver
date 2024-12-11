@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Cow,
     cell::UnsafeCell,
     convert::AsRef,
     hash::{BuildHasherDefault, Hash, Hasher},
@@ -27,9 +27,43 @@ thread_local! {
 #[derive(Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
-    paths: DashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
+    paths: DashSet<PathEntry<'static>, BuildHasherDefault<IdentityHasher>>,
     tsconfigs: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
 }
+
+/// An entry in the path cache. Can also be borrowed for lookups without allocations.
+enum PathEntry<'a> {
+    Owned(CachedPath),
+    Borrowed { hash: u64, path: &'a Path },
+}
+
+impl Hash for PathEntry<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            PathEntry::Owned(entry) => {
+                entry.hash.hash(state);
+            }
+            PathEntry::Borrowed { hash, .. } => {
+                hash.hash(state);
+            }
+        }
+    }
+}
+
+impl PartialEq for PathEntry<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let self_path = match self {
+            PathEntry::Owned(info) => &info.path,
+            PathEntry::Borrowed { path, .. } => *path,
+        };
+        let other_path = match other {
+            PathEntry::Owned(info) => &info.path,
+            PathEntry::Borrowed { path, .. } => *path,
+        };
+        self_path.as_os_str() == other_path.as_os_str()
+    }
+}
+impl Eq for PathEntry<'_> {}
 
 impl<Fs: FileSystem> Cache<Fs> {
     pub fn new(fs: Fs) -> Self {
@@ -41,34 +75,35 @@ impl<Fs: FileSystem> Cache<Fs> {
         self.tsconfigs.clear();
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     pub fn value(&self, path: &Path) -> CachedPath {
         // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
         // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
         let hash = {
             let mut hasher = FxHasher::default();
-            for b in path
-                .as_os_str()
-                .as_encoded_bytes()
-                .iter()
-                .rev()
-                .filter(|&&b| b != b'/' && b != b'\\')
-                .take(20)
-            {
-                b.hash(&mut hasher);
-            }
+            path.as_os_str().hash(&mut hasher);
             hasher.finish()
         };
-        if let Some(cache_entry) = self.paths.get((hash, path).borrow() as &dyn CacheKey) {
-            return cache_entry.clone();
+        let key = PathEntry::Borrowed { hash, path };
+        // A DashMap is just an array of RwLock<HashSet>, sharded by hash to reduce lock contention.
+        // This uses the low level raw API to avoid cloning the value when using the `entry` method.
+        // First, find which shard the value is in, and check to see if we already have a value in the map.
+        let shard = self.paths.determine_shard(hash as usize);
+        {
+            // Scope the read lock.
+            let map = self.paths.shards()[shard].read();
+            if let Some((PathEntry::Owned(entry), _)) = map.get(hash, |v| v.0 == key) {
+                return entry.clone();
+            }
         }
         let parent = path.parent().map(|p| self.value(p));
-        let data = CachedPath(Arc::new(CachedPathImpl::new(
+        let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
             parent,
         )));
-        self.paths.insert(data.clone());
-        data
+        self.paths.insert(PathEntry::Owned(cached_path.clone()));
+        cached_path
     }
 
     pub fn tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
@@ -132,42 +167,11 @@ impl CachedPathImpl {
     }
 }
 
-impl Hash for CachedPath {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.hash.hash(state);
-    }
-}
-
-impl PartialEq for CachedPath {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.path == other.0.path
-    }
-}
-impl Eq for CachedPath {}
-
 impl Deref for CachedPath {
     type Target = CachedPathImpl;
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
-    }
-}
-
-impl<'a> Borrow<dyn CacheKey + 'a> for CachedPath {
-    fn borrow(&self) -> &(dyn CacheKey + 'a) {
-        self
-    }
-}
-
-impl AsRef<CachedPathImpl> for CachedPath {
-    fn as_ref(&self) -> &CachedPathImpl {
-        self.0.as_ref()
-    }
-}
-
-impl CacheKey for CachedPath {
-    fn tuple(&self) -> (u64, &Path) {
-        (self.hash, &self.path)
     }
 }
 
@@ -388,37 +392,6 @@ impl CachedPath {
 
             cache.value(path)
         })
-    }
-}
-
-/// Memoized cache key, code adapted from <https://stackoverflow.com/a/50478038>.
-trait CacheKey {
-    fn tuple(&self) -> (u64, &Path);
-}
-
-impl Hash for dyn CacheKey + '_ {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.tuple().0.hash(state);
-    }
-}
-
-impl PartialEq for dyn CacheKey + '_ {
-    fn eq(&self, other: &Self) -> bool {
-        self.tuple().1 == other.tuple().1
-    }
-}
-
-impl Eq for dyn CacheKey + '_ {}
-
-impl CacheKey for (u64, &Path) {
-    fn tuple(&self) -> (u64, &Path) {
-        (self.0, self.1)
-    }
-}
-
-impl<'a> Borrow<dyn CacheKey + 'a> for (u64, &'a Path) {
-    fn borrow(&self) -> &(dyn CacheKey + 'a) {
-        self
     }
 }
 
