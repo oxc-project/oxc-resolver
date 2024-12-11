@@ -6,22 +6,29 @@ use std::{
     io,
     ops::Deref,
     path::{Component, Path, PathBuf},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
 };
 
+use cfg_if::cfg_if;
 use dashmap::{DashMap, DashSet};
 use once_cell::sync::OnceCell as OnceLock;
 use rustc_hash::FxHasher;
 
 use crate::{
-    context::ResolveContext as Ctx, package_json::PackageJson, FileMetadata, FileSystem,
-    ResolveError, ResolveOptions, TsConfig,
+    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, FileMetadata,
+    FileSystem, ResolveError, ResolveOptions, TsConfig,
 };
+
+static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
 
 thread_local! {
     /// Per-thread pre-allocated path that is used to perform operations on paths more quickly.
     /// Learned from parcel <https://github.com/parcel-bundler/parcel/blob/a53f8f3ba1025c7ea8653e9719e0a61ef9717079/crates/parcel-resolver/src/cache.rs#L394>
   pub static SCRATCH_PATH: UnsafeCell<PathBuf> = UnsafeCell::new(PathBuf::with_capacity(256));
+  pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
 #[derive(Default)]
@@ -46,16 +53,19 @@ impl<Fs: FileSystem> Cache<Fs> {
         // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
         let hash = {
             let mut hasher = FxHasher::default();
-            for b in path
+            let mut array: [u8; 24] = [0; 24];
+            for (i, b) in path
                 .as_os_str()
                 .as_encoded_bytes()
                 .iter()
                 .rev()
-                .filter(|&&b| b != b'/' && b != b'\\')
-                .take(20)
+                .map(|&b| if b == b'\\' { b'/' } else { b })
+                .take(24)
+                .enumerate()
             {
-                b.hash(&mut hasher);
+                array[i] = b;
             }
+            array.hash(&mut hasher);
             hasher.finish()
         };
         if let Some(cache_entry) = self.paths.get((hash, path).borrow() as &dyn CacheKey) {
@@ -113,7 +123,8 @@ pub struct CachedPathImpl {
     path: Box<Path>,
     parent: Option<CachedPath>,
     meta: OnceLock<Option<FileMetadata>>,
-    canonicalized: OnceLock<Option<CachedPath>>,
+    canonicalized: OnceLock<Result<CachedPath, ResolveError>>,
+    canonicalizing: AtomicU64,
     node_modules: OnceLock<Option<CachedPath>>,
     package_json: OnceLock<Option<(CachedPath, Arc<PackageJson>)>>,
 }
@@ -126,6 +137,7 @@ impl CachedPathImpl {
             parent,
             meta: OnceLock::new(),
             canonicalized: OnceLock::new(),
+            canonicalizing: AtomicU64::new(0),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
         }
@@ -138,9 +150,30 @@ impl Hash for CachedPath {
     }
 }
 
+fn partial_eq(a: &Path, b: &Path) -> bool {
+    let a = a.as_os_str().as_encoded_bytes();
+    let b = b.as_os_str().as_encoded_bytes();
+    let len = a.len();
+    if len != b.len() {
+        return false;
+    }
+    for i in (0..len).rev() {
+        let x = a[i];
+        let y = b[i];
+        if (x == b'/' || x == b'\\') && (y == b'/' || y == b'\\') {
+            continue;
+        }
+        if x == y {
+            continue;
+        }
+        return false;
+    }
+    true
+}
+
 impl PartialEq for CachedPath {
     fn eq(&self, other: &Self) -> bool {
-        self.0.path == other.0.path
+        partial_eq(self.path(), other.path())
     }
 }
 impl Eq for CachedPath {}
@@ -208,23 +241,67 @@ impl CachedPath {
         )
     }
 
-    pub fn realpath<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> io::Result<Self> {
-        self.canonicalized
-            .get_or_try_init(|| {
-                if cache.fs.symlink_metadata(&self.path).is_ok_and(|m| m.is_symlink) {
-                    let canonicalized = cache.fs.canonicalize(&self.path)?;
-                    return Ok(Some(cache.value(&canonicalized)));
-                }
-                if let Some(parent) = self.parent() {
-                    let parent_path = parent.realpath(cache)?;
-                    let normalized = parent_path
-                        .normalize_with(self.path.strip_prefix(&parent.path).unwrap(), cache);
-                    return Ok(Some(normalized));
-                };
-                Ok(None)
+    pub fn canonicalize<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Result<PathBuf, ResolveError> {
+        let cached_path = self.canocalize_impl(cache)?;
+        let path = cached_path.to_path_buf();
+        cfg_if! {
+            if #[cfg(windows)] {
+                let path = crate::FileSystemOs::strip_windows_prefix(path);
+            }
+        }
+        Ok(path)
+    }
+
+    /// Returns the canonical path, resolving all symbolic links.
+    ///
+    /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
+    fn canocalize_impl<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Result<Self, ResolveError> {
+        // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
+        // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
+        let tid = THREAD_ID.with(|t| *t);
+        if self.0.canonicalizing.load(Ordering::Acquire) == tid {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
+        }
+
+        self.0
+            .canonicalized
+            .get_or_init(|| {
+                self.0.canonicalizing.store(tid, Ordering::Release);
+
+                let res = self.parent().map_or_else(
+                    || Ok(self.clone()),
+                    |parent| {
+                        parent.canocalize_impl(cache).and_then(|parent_canonical| {
+                            let path = parent_canonical.normalize_with(
+                                self.path().strip_prefix(parent.path()).unwrap(),
+                                cache,
+                            );
+
+                            if cache.fs.symlink_metadata(self.path()).is_ok_and(|m| m.is_symlink) {
+                                let link = cache.fs.read_link(path.path())?;
+                                if link.is_absolute() {
+                                    return cache.value(&link.normalize()).canocalize_impl(cache);
+                                } else if let Some(dir) = path.parent() {
+                                    // Symlink is relative `../../foo.js`, use the path directory
+                                    // to resolve this symlink.
+                                    return dir.normalize_with(&link, cache).canocalize_impl(cache);
+                                }
+                                debug_assert!(
+                                    false,
+                                    "Failed to get path parent for {:?}.",
+                                    path.path()
+                                );
+                            }
+
+                            Ok(path)
+                        })
+                    },
+                );
+
+                self.0.canonicalizing.store(0, Ordering::Release);
+                res
             })
-            .cloned()
-            .map(|r| r.unwrap_or_else(|| self.clone()))
+            .clone()
     }
 
     pub fn module_directory<Fs: FileSystem>(
@@ -265,7 +342,7 @@ impl CachedPath {
                     return Ok(None);
                 };
                 let real_path = if options.symlinks {
-                    self.realpath(cache)?.path().join("package.json")
+                    self.canonicalize(cache)?.join("package.json")
                 } else {
                     package_json_path.clone()
                 };
@@ -378,7 +455,14 @@ impl CachedPath {
                         path.pop();
                     }
                     Component::Normal(c) => {
-                        path.push(c);
+                        cfg_if! {
+                            if #[cfg(target_family = "wasm")] {
+                                // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                                path.push(c.to_string_lossy().trim_end_matches('\0'));
+                            } else {
+                                path.push(c);
+                            }
+                        }
                     }
                     Component::Prefix(..) | Component::RootDir => {
                         unreachable!("Path {:?} Subpath {:?}", self.path, subpath)
@@ -404,7 +488,7 @@ impl Hash for dyn CacheKey + '_ {
 
 impl PartialEq for dyn CacheKey + '_ {
     fn eq(&self, other: &Self) -> bool {
-        self.tuple().1 == other.tuple().1
+        partial_eq(self.tuple().1, other.tuple().1)
     }
 }
 
