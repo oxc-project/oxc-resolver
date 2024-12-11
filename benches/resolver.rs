@@ -17,7 +17,7 @@ fn data() -> Vec<(PathBuf, &'static str)> {
         (cwd.clone(), "@napi-rs/wasm-runtime"),
         (cwd.clone(), "ava"),
         (cwd.clone(), "emnapi"),
-        (cwd.clone(), "typescript"),
+        (cwd, "typescript"),
         // relative path
         (f1.clone(), "./"),
         (f1.clone(), "./lib/index"),
