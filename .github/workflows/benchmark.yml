@@ -19,7 +19,7 @@ concurrency:
 jobs:
   benchmark:
     name: Benchmark
-    runs-on: ubuntu-latest
+    runs-on: codspeed-macro
     steps:
       - uses: taiki-e/checkout-action@v1
 
