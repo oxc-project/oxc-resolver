@@ -58,9 +58,19 @@ impl<Fs: FileSystem> Cache<Fs> {
             }
             hasher.finish()
         };
-        if let Some(cache_entry) = self.paths.get((hash, path).borrow() as &dyn CacheKey) {
-            return cache_entry.clone();
+
+        // A DashMap is just an array of RwLock<HashSet>, sharded by hash to reduce lock contention.
+        // This uses the low level raw API to avoid cloning the value when using the `entry` method.
+        // First, find which shard the value is in, and check to see if we already have a value in the map.
+        let shard = self.paths.determine_shard(hash as usize);
+        {
+            // Scope the read lock.
+            let map = self.paths.shards()[shard].read();
+            if let Some((entry, _)) = map.get(hash, |v| v.0.path() == path) {
+                return entry.clone();
+            }
         }
+
         let parent = path.parent().map(|p| self.value(p));
         let data = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
