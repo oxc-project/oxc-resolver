@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.1.1...oxc_resolver-v3.0.0) - 2024-12-11
+
+### Added
+
+- [**breaking**] replace `FileSystem::canonicalize` with `FileSystem::read_link` (#331)
+
+### Other
+
+- guard `load_alias` on hot path (#339)
+
 ## [2.1.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.1.0...oxc_resolver-v2.1.1) - 2024-11-22
 
 ### Performance
