@@ -1,6 +1,6 @@
 {
   "name": "oxc-resolver",
-  "version": "null",
+  "version": "3.0.0",
   "description": "Oxc Resolver Node API",
   "main": "index.js",
   "browser": "browser.js",

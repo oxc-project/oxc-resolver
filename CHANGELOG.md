@@ -11,18 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - [**breaking**] replace `FileSystem::canonicalize` with `FileSystem::read_link` (#331)
-- faster and stable path hash for the cache (#328)
 
 ### Other
 
 - guard `load_alias` on hot path (#339)
-- use `as_os_str` for `Hash` and `PartialEq` operations (#338)
-- run clippy with `--all-targets` (#333)
-- increase hash size (#329)
-- add dprint (#326)
-- update dependencies
-- *(deps)* update rust crates
-- update README logo
 
 ## [2.1.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v2.1.0...oxc_resolver-v2.1.1) - 2024-11-22
 
