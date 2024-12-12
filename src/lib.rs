@@ -746,8 +746,21 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // Try as file or directory for all other cases
                 // b. LOAD_AS_FILE(DIR/X)
                 // c. LOAD_AS_DIRECTORY(DIR/X)
+
                 let cached_path = cached_path.normalize_with(specifier, &self.cache);
-                if let Some(path) = self.load_as_file_or_directory(&cached_path, specifier, ctx)? {
+
+                // Perf: try the directory first for package specifiers.
+                if cached_path.is_dir(&self.cache.fs, ctx) {
+                    if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
+                        return Ok(Some(path));
+                    }
+                }
+                if self.options.resolve_to_context {
+                    return Ok(cached_path
+                        .is_dir(&self.cache.fs, ctx)
+                        .then(|| cached_path.clone()));
+                }
+                if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                     return Ok(Some(path));
                 }
             }

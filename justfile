@@ -32,6 +32,9 @@ watch *args='':
 watch-check:
   just watch "'cargo check; cargo clippy'"
 
+watch-example *args='':
+  just watch "cargo run --example resolver -- {{args}}"
+
 # Run the example in `parser`, `formatter`, `linter`
 example *args='':
   cargo run --example resolver -- {{args}}
