@@ -4,13 +4,15 @@ on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize]
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "src/**/*.rs"
+      - "Cargo.lock"
   push:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "src/**/*.rs"
+      - "Cargo.lock"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
