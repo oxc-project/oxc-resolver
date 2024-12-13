@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.2](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v3.0.1...oxc_resolver-v3.0.2) - 2024-12-13
+
+### <!-- 1 -->Bug Fixes
+
+- special case for aliasing `@/` (#348)
+- normalize resolved result on Windows for root (#345)
+
+### <!-- 4 -->Refactor
+
+- replace UnsafeCell with RefCell (#346)
+
 ## [3.0.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v3.0.0...oxc_resolver-v3.0.1) - 2024-12-12
 
 ### <!-- 2 -->Performance
