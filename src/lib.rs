@@ -1021,17 +1021,20 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let new_specifier = if tail.is_empty() {
                 Cow::Borrowed(alias_value)
             } else {
-                let alias_value = Path::new(alias_value).normalize();
+                let alias_path = Path::new(alias_value).normalize();
                 // Must not append anything to alias_value if it is a file.
-                let alias_value_cached_path = self.cache.value(&alias_value);
-                if alias_value_cached_path.is_file(&self.cache.fs, ctx) {
+                let cached_alias_path = self.cache.value(&alias_path);
+                if cached_alias_path.is_file(&self.cache.fs, ctx) {
                     return Ok(None);
                 }
-
                 // Remove the leading slash so the final path is concatenated.
                 let tail = tail.trim_start_matches(SLASH_START);
-                let normalized = alias_value_cached_path.normalize_with(tail, &self.cache);
-                Cow::Owned(normalized.path().to_string_lossy().to_string())
+                if tail.is_empty() {
+                    Cow::Borrowed(alias_value)
+                } else {
+                    let normalized = alias_path.normalize_with(tail);
+                    Cow::Owned(normalized.to_string_lossy().to_string())
+                }
             };
 
             *should_stop = true;
