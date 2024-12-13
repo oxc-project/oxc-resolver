@@ -249,7 +249,7 @@ impl CachedPath {
                 self.0.canonicalizing.store(tid, Ordering::Release);
 
                 let res = self.parent().map_or_else(
-                    || Ok(self.clone()),
+                    || Ok(self.normalize_root(cache)),
                     |parent| {
                         parent.canocalize_impl(cache).and_then(|parent_canonical| {
                             let path = parent_canonical.normalize_with(
@@ -452,6 +452,25 @@ impl CachedPath {
 
             cache.value(path)
         })
+    }
+
+    #[inline]
+    pub fn normalize_root<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Self {
+        #[cfg(windows)]
+        {
+            if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
+                let mut path_string = self.path.to_string_lossy().into_owned();
+                path_string.pop();
+                path_string.push('\\');
+                cache.value(&PathBuf::from(path_string))
+            } else {
+                self.clone()
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            self.clone()
+        }
     }
 }
 

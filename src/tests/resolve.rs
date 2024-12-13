@@ -121,8 +121,6 @@ fn resolve_hash_as_module() {
 #[cfg(windows)]
 #[test]
 fn resolve_normalized_on_windows() {
-    use std::path::PathBuf;
-
     use normalize_path::NormalizePath;
 
     let f = super::fixture();
@@ -132,9 +130,15 @@ fn resolve_normalized_on_windows() {
     let resolver = Resolver::new(ResolveOptions::default());
 
     let resolution = resolver.resolve(&f, &normalized_absolute).map(|r| r.full_path());
-    assert_eq!(resolution, Ok(PathBuf::from(absolute_str.as_ref())));
+    assert_eq!(
+        resolution.map(|r| r.to_string_lossy().into_owned()),
+        Ok(absolute_str.clone().into_owned())
+    );
 
     let normalized_f = f.to_str().unwrap().replace('\\', "/");
     let resolution = resolver.resolve(normalized_f, ".\\foo\\index.js").map(|r| r.full_path());
-    assert_eq!(resolution, Ok(PathBuf::from(absolute_str.as_ref())));
+    assert_eq!(
+        resolution.map(|r| r.to_string_lossy().into_owned()),
+        Ok(absolute_str.clone().into_owned())
+    );
 }
