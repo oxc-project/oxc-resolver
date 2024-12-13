@@ -82,6 +82,7 @@ fn alias() {
         ("should resolve '#' alias 2", "#/index", "/c/dir/index"),
         ("should resolve '@' alias 1", "@", "/c/dir/index"),
         ("should resolve '@' alias 2", "@/index", "/c/dir/index"),
+        ("should resolve '@' alias 3", "@/", "/c/dir/index"),
         ("should resolve a recursive aliased module 1", "recursive", "/recursive/dir/index"),
         ("should resolve a recursive aliased module 2", "recursive/index", "/recursive/dir/index"),
         ("should resolve a recursive aliased module 3", "recursive/dir", "/recursive/dir/index"),
