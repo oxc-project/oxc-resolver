@@ -455,22 +455,21 @@ impl CachedPath {
     }
 
     #[inline]
+    #[cfg(windows)]
     pub fn normalize_root<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Self {
-        #[cfg(windows)]
-        {
-            if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
-                let mut path_string = self.path.to_string_lossy().into_owned();
-                path_string.pop();
-                path_string.push('\\');
-                cache.value(&PathBuf::from(path_string))
-            } else {
-                self.clone()
-            }
-        }
-        #[cfg(not(windows))]
-        {
+        if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
+            let mut path_string = self.path.to_string_lossy().into_owned();
+            path_string.pop();
+            path_string.push('\\');
+            cache.value(&PathBuf::from(path_string))
+        } else {
             self.clone()
         }
+    }
+    #[inline]
+    #[cfg(not(windows))]
+    pub fn normalize_root<Fs: FileSystem>(&self, _cache: &Cache<Fs>) -> Self {
+        self.clone()
     }
 }
 
