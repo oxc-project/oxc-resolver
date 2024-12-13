@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cell::UnsafeCell,
+    cell::RefCell,
     convert::AsRef,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
@@ -27,7 +27,7 @@ static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
 thread_local! {
     /// Per-thread pre-allocated path that is used to perform operations on paths more quickly.
     /// Learned from parcel <https://github.com/parcel-bundler/parcel/blob/a53f8f3ba1025c7ea8653e9719e0a61ef9717079/crates/parcel-resolver/src/cache.rs#L394>
-  pub static SCRATCH_PATH: UnsafeCell<PathBuf> = UnsafeCell::new(PathBuf::with_capacity(256));
+  pub static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
   pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
@@ -382,9 +382,7 @@ impl CachedPath {
     }
 
     pub fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
-        SCRATCH_PATH.with(|path| {
-            // SAFETY: ???
-            let path = unsafe { &mut *path.get() };
+        SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
             s.push(self.path.as_os_str());
@@ -394,9 +392,7 @@ impl CachedPath {
     }
 
     pub fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
-        SCRATCH_PATH.with(|path| {
-            // SAFETY: ???
-            let path = unsafe { &mut *path.get() };
+        SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
             let self_len = self.path.as_os_str().len();
@@ -423,9 +419,7 @@ impl CachedPath {
         if matches!(head, Component::Prefix(..) | Component::RootDir) {
             return cache.value(subpath);
         }
-        SCRATCH_PATH.with(|path| {
-            // SAFETY: ???
-            let path = unsafe { &mut *path.get() };
+        SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             path.push(&self.path);
             for component in std::iter::once(head).chain(components) {
