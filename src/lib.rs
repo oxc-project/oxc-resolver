@@ -657,7 +657,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
-    fn load_alias_or_file(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
+    fn load_browser_field_or_alias(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
         if !self.options.alias_fields.is_empty() {
             if let Some((package_url, package_json)) =
                 cached_path.find_package_json(&self.options, &self.cache, ctx)?
@@ -678,6 +682,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             {
                 return Ok(Some(path));
             }
+        }
+        Ok(None)
+    }
+
+    fn load_alias_or_file(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
+        if let Some(path) = self.load_browser_field_or_alias(cached_path, ctx)? {
+            return Ok(Some(path));
         }
         if cached_path.is_file(&self.cache.fs, ctx) {
             return Ok(Some(cached_path.clone()));
@@ -750,17 +761,23 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let cached_path = cached_path.normalize_with(specifier, &self.cache);
 
                 // Perf: try the directory first for package specifiers.
-                if cached_path.is_dir(&self.cache.fs, ctx) {
-                    if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
-                        return Ok(Some(path));
-                    }
-                }
                 if self.options.resolve_to_context {
                     return Ok(cached_path
                         .is_dir(&self.cache.fs, ctx)
                         .then(|| cached_path.clone()));
                 }
+                if cached_path.is_dir(&self.cache.fs, ctx) {
+                    if let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)? {
+                        return Ok(Some(path));
+                    }
+                    if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
+                        return Ok(Some(path));
+                    }
+                }
                 if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                    return Ok(Some(path));
+                }
+                if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
                     return Ok(Some(path));
                 }
             }
