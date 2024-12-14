@@ -1,0 +1,43 @@
+name: Miri
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - "src/**/*.rs"
+      - "tests/**/*.rs"
+      - ".github/workflows/miri.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**/*.rs"
+      - "tests/**/*.rs"
+      - ".github/workflows/miri.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
+
+      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
+        with:
+          cache-key: miri
+          save-cache: ${{ github.ref_name == 'main' }}
+
+      - name: Install Miri
+        run: |
+          rustup toolchain install nightly --component miri
+          rustup override set nightly
+          cargo miri setup
+
+      - name: Run Miri
+        run: MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test
