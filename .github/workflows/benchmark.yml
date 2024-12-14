@@ -23,7 +23,7 @@ jobs:
     name: Benchmark
     runs-on: ubuntu-latest
     steps:
-      - uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1
 
       - uses: Boshen/setup-rust@main
         with:
@@ -37,7 +37,7 @@ jobs:
         env:
           RUSTFLAGS: "-C debuginfo=1 -C strip=none"
 
-      - uses: CodSpeedHQ/action@v3
+      - uses: CodSpeedHQ/action@513a19673a831f139e8717bf45ead67e47f00044 # v3
         timeout-minutes: 30
         with:
           run: cargo codspeed run
