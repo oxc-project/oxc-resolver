@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.3](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v3.0.2...oxc_resolver-v3.0.3) - 2024-12-14
+
+### <!-- 1 -->Bug Fixes
+
+- try browsers field and alias before resolving directory in node_modules (#349)
+
 ## [3.0.2](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v3.0.1...oxc_resolver-v3.0.2) - 2024-12-13
 
 ### <!-- 1 -->Bug Fixes
