@@ -90,7 +90,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1
 
-      - uses: crate-ci/typos@v1.28.2
+      - uses: crate-ci/typos@9d890159570d5018df91fedfa40b4730cd4a81b1 # v1.28.4
         with:
           files: .
 
