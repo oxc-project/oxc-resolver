@@ -11,7 +11,6 @@ fn pnp1() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        pnp_manifest: Some(pnp::load_pnp_manifest(fixture.join(".pnp.cjs")).unwrap()),
         ..ResolveOptions::default()
     });
 
@@ -23,9 +22,16 @@ fn pnp1() {
     );
 
     assert_eq!(
+        resolver.resolve(&fixture, "lodash.zip").map(|r| r.full_path()),
+        Ok(fixture.join(
+            ".yarn/cache/lodash.zip-npm-4.2.0-5299417ec8-e596da80a6.zip/node_modules/lodash.zip/index.js"
+        ))
+    );
+
+    assert_eq!(
         resolver
             .resolve(
-                &fixture.join(
+                fixture.join(
                     ".yarn/cache/is-even-npm-1.0.0-9f726520dc-2728cc2f39.zip/node_modules/is-even"
                 ),
                 "is-odd"

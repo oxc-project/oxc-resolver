@@ -43,6 +43,12 @@ pub struct ResolveOptions {
     /// Default `["package.json"]`
     pub description_files: Vec<String>,
 
+    /// Whether the resolver should check for the presence of a .pnp.cjs file up the dependency tree.
+    ///
+    /// Default `true`
+    #[cfg(feature = "yarn_pnp")]
+    pub enable_pnp: bool,
+
     /// Set to [EnforceExtension::Enabled] for [ESM Mandatory file extensions](https://nodejs.org/api/esm.html#mandatory-file-extensions).
     ///
     /// If `enforce_extension` is set to [EnforceExtension::Enabled], resolution will not allow extension-less files.
@@ -114,12 +120,6 @@ pub struct ResolveOptions {
     ///
     /// Default `["node_modules"]`
     pub modules: Vec<String>,
-
-    /// A manifest loaded from pnp::load_pnp_manifest.
-    ///
-    /// Default `None`
-    #[cfg(feature = "yarn_pnp")]
-    pub pnp_manifest: Option<pnp::Manifest>,
 
     /// Resolve to a context instead of a file.
     ///
@@ -468,7 +468,7 @@ impl Default for ResolveOptions {
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
             #[cfg(feature = "yarn_pnp")]
-            pnp_manifest: None,
+            enable_pnp: true,
             resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
@@ -607,6 +607,8 @@ mod test {
             builtin_modules: false,
             condition_names: vec![],
             description_files: vec![],
+            #[cfg(feature = "yarn_pnp")]
+            enable_pnp: true,
             enforce_extension: EnforceExtension::Disabled,
             exports_fields: vec![],
             extension_alias: vec![],
@@ -617,8 +619,6 @@ mod test {
             main_fields: vec![],
             main_files: vec![],
             modules: vec![],
-            #[cfg(feature = "yarn_pnp")]
-            pnp_manifest: None,
             prefer_absolute: false,
             prefer_relative: false,
             resolve_to_context: false,

@@ -64,11 +64,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lodash.zip@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "lodash.zip@npm:4.2.0"
+  checksum: 10c0/e596da80a6138e369998b50c78b51ed6cf984b4f239e59056aa18dca5972a213c491c511caf5888a2dec603c67265caf942099bec554a86a5c7ff1937d57f0e4
+  languageName: node
+  linkType: hard
+
 "pnp@workspace:.":
   version: 0.0.0-use.local
   resolution: "pnp@workspace:."
   dependencies:
     is-even: "npm:^1.0.0"
     is-odd: "npm:^3.0.1"
+    lodash.zip: "npm:^4.2.0"
   languageName: unknown
   linkType: soft

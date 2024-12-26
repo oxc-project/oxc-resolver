@@ -84,23 +84,33 @@ impl From<fs::Metadata> for FileMetadata {
     }
 }
 
+pub struct FileSystemOptions {
+    #[cfg(feature = "yarn_pnp")]
+    pub enable_pnp: bool,
+}
+
+impl Default for FileSystemOptions {
+    fn default() -> Self {
+        Self {
+            #[cfg(feature = "yarn_pnp")]
+            enable_pnp: true,
+        }
+    }
+}
+
 /// Operating System
-#[cfg(feature = "yarn_pnp")]
 pub struct FileSystemOs {
+    options: FileSystemOptions,
+    #[cfg(feature = "yarn_pnp")]
     pnp_lru: LruZipCache<Vec<u8>>,
 }
 
-#[cfg(not(feature = "yarn_pnp"))]
-pub struct FileSystemOs;
-
 impl Default for FileSystemOs {
     fn default() -> Self {
-        cfg_if! {
-            if #[cfg(feature = "yarn_pnp")] {
-                Self { pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p) }
-            } else {
-                Self
-            }
+        Self {
+            options: FileSystemOptions::default(),
+            #[cfg(feature = "yarn_pnp")]
+            pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p),
         }
     }
 }
@@ -123,36 +133,40 @@ impl FileSystem for FileSystemOs {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                match VPath::from(path)? {
-                    VPath::Zip(info) => {
-                        self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                if self.options.enable_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => {
+                            self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                        }
+                        VPath::Virtual(info) => read_to_string(&info.physical_base_path()),
+                        VPath::Native(path) => read_to_string(&path),
                     }
-                    VPath::Virtual(info) => read_to_string(&info.physical_base_path()),
-                    VPath::Native(path) => read_to_string(&path),
                 }
-            } else {
-                read_to_string(path)
             }
         }
+
+        read_to_string(path)
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                match VPath::from(path)? {
-                    VPath::Zip(info) => self
-                        .pnp_lru
-                        .file_type(info.physical_base_path(), info.zip_path)
-                        .map(FileMetadata::from),
-                    VPath::Virtual(info) => {
-                        fs::metadata(info.physical_base_path()).map(FileMetadata::from)
+                if self.options.enable_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => self
+                            .pnp_lru
+                            .file_type(info.physical_base_path(), info.zip_path)
+                            .map(FileMetadata::from),
+                        VPath::Virtual(info) => {
+                            fs::metadata(info.physical_base_path()).map(FileMetadata::from)
+                        }
+                        VPath::Native(path) => fs::metadata(path).map(FileMetadata::from),
                     }
-                    VPath::Native(path) => fs::metadata(path).map(FileMetadata::from),
                 }
-            } else {
-                fs::metadata(path).map(FileMetadata::from)
             }
         }
+
+        fs::metadata(path).map(FileMetadata::from)
     }
 
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
@@ -162,14 +176,20 @@ impl FileSystem for FileSystemOs {
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                match VPath::from(path)? {
-                    VPath::Zip(info) => {
-                        dunce::canonicalize(info.physical_base_path().join(info.zip_path))
+                if self.options.enable_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => {
+                            dunce::canonicalize(info.physical_base_path().join(info.zip_path))
+                        }
+                        VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
+                        VPath::Native(path) => dunce::canonicalize(path),
                     }
-                    VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
-                    VPath::Native(path) => dunce::canonicalize(path),
                 }
-            } else if #[cfg(not(target_os = "wasi"))]{
+            }
+        }
+
+        cfg_if! {
+            if #[cfg(not(target_os = "wasi"))]{
                 dunce::canonicalize(path)
             } else {
                 use std::path::Component;

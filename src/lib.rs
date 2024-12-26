@@ -71,13 +71,14 @@ use std::{
     sync::Arc,
 };
 
+use dashmap::{mapref::one::Ref, DashMap};
 use rustc_hash::FxHashSet;
 use serde_json::Value as JSONValue;
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
     error::{JSONError, ResolveError, SpecifierError},
-    file_system::{FileMetadata, FileSystem},
+    file_system::{FileMetadata, FileSystem, FileSystemOs},
     options::{
         Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
         TsconfigReferences,
@@ -88,7 +89,6 @@ pub use crate::{
 use crate::{
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
-    file_system::FileSystemOs,
     package_json::JSONMap,
     path::{PathUtil, SLASH_START},
     specifier::Specifier,
@@ -115,6 +115,8 @@ pub type Resolver = ResolverGeneric<FileSystemOs>;
 pub struct ResolverGeneric<Fs> {
     options: ResolveOptions,
     cache: Arc<Cache<Fs>>,
+    #[cfg(feature = "yarn_pnp")]
+    pnp_cache: Arc<DashMap<CachedPath, Option<pnp::Manifest>>>,
 }
 
 impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
@@ -131,19 +133,34 @@ impl<Fs: FileSystem + Default> Default for ResolverGeneric<Fs> {
 
 impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     pub fn new(options: ResolveOptions) -> Self {
-        Self { options: options.sanitize(), cache: Arc::new(Cache::new(Fs::default())) }
+        Self {
+            options: options.sanitize(),
+            cache: Arc::new(Cache::new(Fs::default())),
+            #[cfg(feature = "yarn_pnp")]
+            pnp_cache: Arc::new(DashMap::default()),
+        }
     }
 }
 
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        Self { cache: Arc::new(Cache::new(file_system)), options: options.sanitize() }
+        Self {
+            options: options.sanitize(),
+            cache: Arc::new(Cache::new(file_system)),
+            #[cfg(feature = "yarn_pnp")]
+            pnp_cache: Arc::new(DashMap::default()),
+        }
     }
 
     /// Clone the resolver using the same underlying cache.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
-        Self { options: options.sanitize(), cache: Arc::clone(&self.cache) }
+        Self {
+            options: options.sanitize(),
+            cache: Arc::clone(&self.cache),
+            #[cfg(feature = "yarn_pnp")]
+            pnp_cache: Arc::clone(&self.pnp_cache),
+        }
     }
 
     /// Returns the options.
@@ -745,41 +762,63 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     #[cfg(feature = "yarn_pnp")]
+    fn find_pnp_manifest(
+        &self,
+        cached_path: &CachedPath,
+    ) -> Ref<'_, CachedPath, Option<pnp::Manifest>> {
+        let entry = self
+            .pnp_cache
+            .entry(cached_path.clone())
+            .or_insert_with(|| pnp::find_pnp_manifest(cached_path.path()).unwrap());
+
+        entry.downgrade()
+    }
+
+    #[cfg(feature = "yarn_pnp")]
     fn load_pnp(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<Option<CachedPath>, ResolveError> {
-        let Some(pnp_manifest) = &self.options.pnp_manifest else { return Ok(None) };
-        let resolution =
-            pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, cached_path.path());
-        match resolution {
-            Ok(pnp::Resolution::Resolved(path, subpath)) => {
-                let cached_path = self.cache.value(&path);
-                let export_resolution = self.load_package_exports(
-                    specifier,
-                    &subpath.unwrap_or_default(),
-                    &cached_path,
-                    ctx,
-                )?;
-                if export_resolution.is_some() {
-                    return Ok(export_resolution);
-                }
-                let file_or_directory_resolution =
-                    self.load_as_file_or_directory(&cached_path, specifier, ctx)?;
-                if file_or_directory_resolution.is_some() {
-                    return Ok(file_or_directory_resolution);
-                }
-                Err(ResolveError::NotFound(specifier.to_string()))
-            }
+        let pnp_manifest = self.find_pnp_manifest(cached_path);
 
-            Ok(pnp::Resolution::Skipped) => Ok(None),
+        if let Some(pnp_manifest) = pnp_manifest.as_ref() {
+            // `resolve_to_unqualified` requires a trailing slash
+            let mut path = cached_path.to_path_buf();
+            path.push("");
 
-            Err(_) => {
-                // Todo: Add a ResolveError::Pnp variant?
-                Err(ResolveError::NotFound(specifier.to_string()))
+            let resolution =
+                pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, path);
+
+            match resolution {
+                Ok(pnp::Resolution::Resolved(path, subpath)) => {
+                    let cached_path = self.cache.value(&path);
+
+                    let export_resolution = self.load_package_exports(
+                        specifier,
+                        &subpath.unwrap_or_default(),
+                        &cached_path,
+                        ctx,
+                    )?;
+                    if export_resolution.is_some() {
+                        return Ok(export_resolution);
+                    }
+
+                    let file_or_directory_resolution =
+                        self.load_as_file_or_directory(&cached_path, specifier, ctx)?;
+                    if file_or_directory_resolution.is_some() {
+                        return Ok(file_or_directory_resolution);
+                    }
+
+                    Err(ResolveError::NotFound(specifier.to_string()))
+                }
+
+                Ok(pnp::Resolution::Skipped) => Ok(None),
+                Err(_) => Err(ResolveError::NotFound(specifier.to_string())),
             }
+        } else {
+            Ok(None)
         }
     }
 

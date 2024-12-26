@@ -101,7 +101,7 @@ criterion2     = { version = "1.0.0", default-features = false }
 normalize-path = { version = "0.2.1" }
 
 [features]
-default = []
+default = ["yarn_pnp"]
 ## Enables the [PackageJson::raw_json] API,
 ## which returns the `package.json` with `serde_json::Value`.
 package_json_raw_json_api = []

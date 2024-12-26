@@ -28,7 +28,8 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./",\
         "packageDependencies": [\
           ["is-even", "npm:1.0.0"],\
-          ["is-odd", "npm:3.0.1"]\
+          ["is-odd", "npm:3.0.1"],\
+          ["lodash.zip", "npm:4.2.0"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -97,13 +98,23 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["lodash.zip", [\
+      ["npm:4.2.0", {\
+        "packageLocation": "./.yarn/cache/lodash.zip-npm-4.2.0-5299417ec8-e596da80a6.zip/node_modules/lodash.zip/",\
+        "packageDependencies": [\
+          ["lodash.zip", "npm:4.2.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["pnp", [\
       ["workspace:.", {\
         "packageLocation": "./",\
         "packageDependencies": [\
           ["pnp", "workspace:."],\
           ["is-even", "npm:1.0.0"],\
-          ["is-odd", "npm:3.0.1"]\
+          ["is-odd", "npm:3.0.1"],\
+          ["lodash.zip", "npm:4.2.0"]\
         ],\
         "linkType": "SOFT"\
       }]\
