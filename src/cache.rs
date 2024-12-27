@@ -78,7 +78,11 @@ impl<Fs: FileSystem> Cache<Fs> {
             .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
         let mut tsconfig =
             TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
-                ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
+                ResolveError::from_serde_json_error(
+                    tsconfig_path.to_path_buf(),
+                    &error,
+                    Some(tsconfig_string),
+                )
             })?;
         callback(&mut tsconfig)?;
         let tsconfig = Arc::new(tsconfig.build());
@@ -281,7 +285,13 @@ impl CachedPathImpl {
                 PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
                     .map(Arc::new)
                     .map(Some)
-                    .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
+                    .map_err(|error| {
+                        ResolveError::from_serde_json_error(
+                            package_json_path,
+                            &error,
+                            Some(package_json_string),
+                        )
+                    })
             })
             .cloned();
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82

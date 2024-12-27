@@ -9,6 +9,12 @@ use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
 /// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem {
+    /// See [std::fs::read]
+    ///
+    /// # Errors
+    ///
+    /// See [std::fs::read]
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
     /// See [std::fs::read_to_string]
     ///
     /// # Errors
@@ -115,9 +121,8 @@ impl Default for FileSystemOs {
     }
 }
 
-fn read_to_string(path: &Path) -> io::Result<String> {
+fn buffer_to_string(bytes: Vec<u8>) -> io::Result<String> {
     // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
-    let bytes = std::fs::read(path)?;
     if simdutf8::basic::from_utf8(&bytes).is_err() {
         // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
         return Err(io::Error::new(
@@ -130,22 +135,23 @@ fn read_to_string(path: &Path) -> io::Result<String> {
 }
 
 impl FileSystem for FileSystemOs {
-    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         cfg_if! {
-            if #[cfg(feature = "yarn_pnp")] {
-                if self.options.enable_pnp {
-                    return match VPath::from(path)? {
-                        VPath::Zip(info) => {
-                            self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
-                        }
-                        VPath::Virtual(info) => read_to_string(&info.physical_base_path()),
-                        VPath::Native(path) => read_to_string(&path),
-                    }
+          if #[cfg(feature = "yarn_pnp")] {
+            if self.options.enable_pnp {
+                return match VPath::from(path)? {
+                    VPath::Zip(info) => self.pnp_lru.read(info.physical_base_path(), info.zip_path),
+                    VPath::Virtual(info) => std::fs::read(info.physical_base_path()),
+                    VPath::Native(path) => std::fs::read(&path),
                 }
             }
-        }
+        }}
 
-        read_to_string(path)
+        std::fs::read(path)
+    }
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        let buffer = self.read(path)?;
+        buffer_to_string(buffer)
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {

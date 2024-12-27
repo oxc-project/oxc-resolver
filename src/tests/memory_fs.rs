@@ -52,6 +52,10 @@ impl FileSystem for MemoryFS {
         file.read_to_string(&mut buffer).unwrap();
         Ok(buffer)
     }
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
+        let buf = self.read_to_string(path)?;
+        Ok(buf.into_bytes())
+    }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         use vfs::FileSystem;

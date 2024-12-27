@@ -103,12 +103,17 @@ impl ResolveError {
         matches!(self, Self::Ignored(_))
     }
 
-    pub(crate) fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
+    pub(crate) fn from_serde_json_error(
+        path: PathBuf,
+        error: &serde_json::Error,
+        content: Option<String>,
+    ) -> Self {
         Self::JSON(JSONError {
             path,
             message: error.to_string(),
             line: error.line(),
             column: error.column(),
+            content,
         })
     }
 }
@@ -127,6 +132,7 @@ pub struct JSONError {
     pub message: String,
     pub line: usize,
     pub column: usize,
+    pub content: Option<String>,
 }
 
 #[derive(Debug, Clone, Error)]
