@@ -72,14 +72,13 @@ use std::{
 };
 
 use dashmap::{mapref::one::Ref, DashMap};
-use file_system::FileSystemOptions;
 use rustc_hash::FxHashSet;
 use serde_json::Value as JSONValue;
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
     error::{JSONError, ResolveError, SpecifierError},
-    file_system::{FileMetadata, FileSystem, FileSystemOs, PnpFileSystem},
+    file_system::{FileMetadata, FileSystem, FileSystemOs},
     options::{
         Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
         TsconfigReferences,
@@ -115,7 +114,7 @@ pub type Resolver = ResolverGeneric<FileSystemOs>;
 /// Generic implementation of the resolver, can be configured by the [FileSystem] trait
 pub struct ResolverGeneric<Fs> {
     options: ResolveOptions,
-    cache: Arc<Cache<PnpFileSystem<Fs>>>,
+    cache: Arc<Cache<Fs>>,
     #[cfg(feature = "yarn_pnp")]
     pnp_cache: Arc<DashMap<CachedPath, Option<pnp::Manifest>>>,
 }
@@ -134,11 +133,9 @@ impl<Fs: FileSystem + Default> Default for ResolverGeneric<Fs> {
 
 impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
     pub fn new(options: ResolveOptions) -> Self {
-        let fs_options = FileSystemOptions::from(&options);
-
         Self {
             options: options.sanitize(),
-            cache: Arc::new(Cache::new(PnpFileSystem::new_with_options(Fs::default(), fs_options))),
+            cache: Arc::new(Cache::new(Fs::default())),
             #[cfg(feature = "yarn_pnp")]
             pnp_cache: Arc::new(DashMap::default()),
         }
@@ -147,11 +144,9 @@ impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
 
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        let fs_options = FileSystemOptions::from(&options);
-
         Self {
             options: options.sanitize(),
-            cache: Arc::new(Cache::new(PnpFileSystem::new_with_options(file_system, fs_options))),
+            cache: Arc::new(Cache::new(file_system)),
             #[cfg(feature = "yarn_pnp")]
             pnp_cache: Arc::new(DashMap::default()),
         }
