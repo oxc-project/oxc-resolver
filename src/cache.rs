@@ -58,7 +58,9 @@ impl<Fs: FileSystem> Cache<Fs> {
             hasher.finish()
         };
         let paths = self.paths.pin();
-        if let Some(entry) = paths.get_by_hash(hash, |key| key.path() == path) {
+        if let Some(entry) =
+            paths.get_by_hash(hash, |key| key.path().as_os_str() == path.as_os_str())
+        {
             return entry.clone();
         }
         let parent = path.parent().map(|p| self.value(p));
