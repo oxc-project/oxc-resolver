@@ -13,8 +13,8 @@ use std::{
 };
 
 use cfg_if::cfg_if;
-use dashmap::{DashMap, DashSet};
 use once_cell::sync::OnceCell as OnceLock;
+use papaya::{Equivalent, HashMap, HashSet};
 use rustc_hash::FxHasher;
 
 use crate::{
@@ -38,50 +38,16 @@ thread_local! {
 #[derive(Default)]
 pub struct FsCache<Fs> {
     pub(crate) fs: Fs,
-    paths: DashSet<PathEntry<'static>, BuildHasherDefault<IdentityHasher>>,
-    tsconfigs: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    paths: HashSet<FsCachedPath, BuildHasherDefault<IdentityHasher>>,
+    tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
 }
-
-/// An entry in the path cache. Can also be borrowed for lookups without allocations.
-enum PathEntry<'a> {
-    Owned(FsCachedPath),
-    Borrowed { hash: u64, path: &'a Path },
-}
-
-impl Hash for PathEntry<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            PathEntry::Owned(entry) => {
-                entry.hash.hash(state);
-            }
-            PathEntry::Borrowed { hash, .. } => {
-                hash.hash(state);
-            }
-        }
-    }
-}
-
-impl PartialEq for PathEntry<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        let self_path = match self {
-            PathEntry::Owned(info) => &info.path,
-            PathEntry::Borrowed { path, .. } => *path,
-        };
-        let other_path = match other {
-            PathEntry::Owned(info) => &info.path,
-            PathEntry::Borrowed { path, .. } => *path,
-        };
-        self_path.as_os_str() == other_path.as_os_str()
-    }
-}
-impl Eq for PathEntry<'_> {}
 
 impl<Fs: FileSystem> Cache for FsCache<Fs> {
     type Cp = FsCachedPath;
 
     fn clear(&self) {
-        self.paths.clear();
-        self.tsconfigs.clear();
+        self.paths.pin().clear();
+        self.tsconfigs.pin().clear();
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -93,17 +59,9 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             path.as_os_str().hash(&mut hasher);
             hasher.finish()
         };
-        let key = PathEntry::Borrowed { hash, path };
-        // A DashMap is just an array of RwLock<HashSet>, sharded by hash to reduce lock contention.
-        // This uses the low level raw API to avoid cloning the value when using the `entry` method.
-        // First, find which shard the value is in, and check to see if we already have a value in the map.
-        let shard = self.paths.determine_shard(hash as usize);
-        {
-            // Scope the read lock.
-            let map = self.paths.shards()[shard].read();
-            if let Some((PathEntry::Owned(entry), _)) = map.get(hash, |v| v.0 == key) {
-                return entry.clone();
-            }
+        let paths = self.paths.pin();
+        if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
+            return entry.clone();
         }
         let parent = path.parent().map(|p| self.value(p));
         let cached_path = FsCachedPath(Arc::new(CachedPathImpl::new(
@@ -111,7 +69,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             path.to_path_buf().into_boxed_path(),
             parent,
         )));
-        self.paths.insert(PathEntry::Owned(cached_path.clone()));
+        paths.insert(cached_path.clone());
         cached_path
     }
 
@@ -196,8 +154,9 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         path: &Path,
         callback: F, // callback for modifying tsconfig with `extends`
     ) -> Result<Arc<TsConfig>, ResolveError> {
-        if let Some(tsconfig) = self.tsconfigs.get(path) {
-            return Ok(Arc::clone(&tsconfig));
+        let tsconfigs = self.tsconfigs.pin();
+        if let Some(tsconfig) = tsconfigs.get(path) {
+            return Ok(Arc::clone(tsconfig));
         }
         let meta = self.fs.metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
@@ -219,14 +178,26 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             })?;
         callback(&mut tsconfig)?;
         let tsconfig = Arc::new(tsconfig.build());
-        self.tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
+        tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)
     }
 }
 
 impl<Fs: FileSystem> FsCache<Fs> {
     pub fn new(fs: Fs) -> Self {
-        Self { fs, paths: DashSet::default(), tsconfigs: DashMap::default() }
+        Self {
+            fs,
+            paths: HashSet::builder()
+                .hasher(BuildHasherDefault::default())
+                .resize_mode(papaya::ResizeMode::Blocking)
+                .collector(seize::Collector::new().epoch_frequency(None))
+                .build(),
+            tsconfigs: HashMap::builder()
+                .hasher(BuildHasherDefault::default())
+                .resize_mode(papaya::ResizeMode::Blocking)
+                .collector(seize::Collector::new().epoch_frequency(None))
+                .build(),
+        }
     }
 
     /// Returns the canonical path, resolving all symbolic links.
@@ -478,6 +449,29 @@ impl PartialEq for FsCachedPath {
 }
 
 impl Eq for FsCachedPath {}
+
+struct BorrowedCachedPath<'a> {
+    hash: u64,
+    path: &'a Path,
+}
+
+impl Equivalent<FsCachedPath> for BorrowedCachedPath<'_> {
+    fn equivalent(&self, other: &FsCachedPath) -> bool {
+        self.path.as_os_str() == other.path.as_os_str()
+    }
+}
+
+impl Hash for BorrowedCachedPath<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialEq for BorrowedCachedPath<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path.as_os_str() == other.path.as_os_str()
+    }
+}
 
 /// Since the cache key is memoized, use an identity hasher
 /// to avoid double cache.
