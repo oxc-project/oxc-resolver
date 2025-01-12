@@ -496,7 +496,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -671,7 +671,7 @@ dependencies = [
 [[package]]
 name = "papaya"
 version = "0.1.7"
-source = "git+https://github.com/arendjr/papaya.git?branch=add-get-by-hash#36a8b25fdd6cdb4f22d18c639f670a35ea2c85ac"
+source = "git+https://github.com/arendjr/papaya.git?branch=add-get-by-hash#92cfb5d5c03ad5269721f51b3ed05e0924377b4d"
 dependencies = [
  "seize",
 ]

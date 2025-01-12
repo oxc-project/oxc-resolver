@@ -14,7 +14,7 @@ use std::{
 
 use cfg_if::cfg_if;
 use once_cell::sync::OnceCell as OnceLock;
-use papaya::{HashMap, HashSet};
+use papaya::{Equivalent, HashMap, HashSet};
 use rustc_hash::FxHasher;
 
 use crate::{
@@ -58,9 +58,7 @@ impl<Fs: FileSystem> Cache<Fs> {
             hasher.finish()
         };
         let paths = self.paths.pin();
-        if let Some(entry) =
-            paths.get_by_hash(hash, |key| key.path().as_os_str() == path.as_os_str())
-        {
+        if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
             return entry.clone();
         }
         let parent = path.parent().map(|p| self.value(p));
@@ -441,6 +439,29 @@ impl PartialEq for CachedPath {
 }
 
 impl Eq for CachedPath {}
+
+struct BorrowedCachedPath<'a> {
+    hash: u64,
+    path: &'a Path,
+}
+
+impl Equivalent<CachedPath> for BorrowedCachedPath<'_> {
+    fn equivalent(&self, other: &CachedPath) -> bool {
+        self.path.as_os_str() == other.path.as_os_str()
+    }
+}
+
+impl Hash for BorrowedCachedPath<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialEq for BorrowedCachedPath<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path.as_os_str() == other.path.as_os_str()
+    }
+}
 
 /// Since the cache key is memoized, use an identity hasher
 /// to avoid double cache.
