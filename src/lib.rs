@@ -797,10 +797,10 @@ impl<C: Cache> ResolverGeneric<C> {
     #[cfg(feature = "yarn_pnp")]
     fn load_pnp(
         &self,
-        cached_path: &FsCachedPath,
+        cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<Option<FsCachedPath>, ResolveError> {
+    ) -> Result<Option<C::Cp>, ResolveError> {
         let Some(pnp_manifest) = &self.options.pnp_manifest else { return Ok(None) };
         let resolution =
             pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, cached_path.path());
