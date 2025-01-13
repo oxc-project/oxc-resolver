@@ -5,7 +5,7 @@ mod windows {
     use std::path::PathBuf;
 
     use super::super::memory_fs::MemoryFS;
-    use crate::{ResolveContext, ResolveOptions, ResolverGeneric};
+    use crate::{FsCache, ResolveContext, ResolveOptions, ResolverGeneric};
 
     fn file_system() -> MemoryFS {
         MemoryFS::new(&[
@@ -20,8 +20,8 @@ mod windows {
     fn test() {
         let file_system = file_system();
 
-        let resolver = ResolverGeneric::<MemoryFS>::new_with_file_system(
-            file_system,
+        let resolver = ResolverGeneric::new_with_cache(
+            FsCache::new(file_system),
             ResolveOptions {
                 extensions: vec![".json".into(), ".js".into()],
                 modules: vec!["/modules".into(), "node_modules".into()],

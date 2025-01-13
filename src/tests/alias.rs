@@ -13,7 +13,7 @@ fn alias() {
     use std::path::{Path, PathBuf};
 
     use super::memory_fs::MemoryFS;
-    use crate::ResolverGeneric;
+    use crate::{FsCache, ResolverGeneric};
 
     let f = Path::new("/");
 
@@ -34,8 +34,8 @@ fn alias() {
         ("/dashed-name", ""),
     ]);
 
-    let resolver = ResolverGeneric::<MemoryFS>::new_with_file_system(
-        file_system,
+    let resolver = ResolverGeneric::new_with_cache(
+        FsCache::new(file_system),
         ResolveOptions {
             alias: vec![
                 ("aliasA".into(), vec![AliasValue::from("a")]),

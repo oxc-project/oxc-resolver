@@ -242,7 +242,7 @@ mod windows_test {
 
     use super::super::memory_fs::MemoryFS;
     use crate::{
-        ResolveError, ResolveOptions, ResolverGeneric, TsconfigOptions, TsconfigReferences,
+        FsCache, ResolveError, ResolveOptions, ResolverGeneric, TsconfigOptions, TsconfigReferences,
     };
 
     struct OneTest {
@@ -285,7 +285,7 @@ mod windows_test {
     }
 
     impl OneTest {
-        fn resolver(&self, root: &Path) -> ResolverGeneric<MemoryFS> {
+        fn resolver(&self, root: &Path) -> ResolverGeneric<FsCache<MemoryFS>> {
             let mut file_system = MemoryFS::default();
 
             file_system.add_file(&root.join("tsconfig.json"), &self.tsconfig);
@@ -308,7 +308,7 @@ mod windows_test {
                 options.main_fields.clone_from(main_fields);
             }
 
-            ResolverGeneric::<MemoryFS>::new_with_file_system(file_system, options)
+            ResolverGeneric::new_with_cache(FsCache::new(file_system), options)
         }
     }
 
