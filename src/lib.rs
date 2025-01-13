@@ -49,7 +49,7 @@
 
 mod builtins;
 mod cache;
-mod context;
+pub mod context;
 mod error;
 #[cfg(feature = "fs_cache")]
 mod file_system;
@@ -74,7 +74,6 @@ use std::{
     sync::Arc,
 };
 
-use cache::CachedPath;
 use rustc_hash::FxHashSet;
 use serde_json::Value as JSONValue;
 
@@ -86,7 +85,7 @@ pub use crate::{
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
-    cache::Cache,
+    cache::{Cache, CachedPath},
     error::{JSONError, ResolveError, SpecifierError},
     options::{
         Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
@@ -94,13 +93,15 @@ pub use crate::{
     },
     package_json::PackageJson,
     resolution::Resolution,
+    tsconfig::{
+        CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
+    },
 };
 use crate::{
     context::ResolveContext as Ctx,
     package_json::JSONMap,
     path::{PathUtil, SLASH_START},
     specifier::Specifier,
-    tsconfig::{ExtendsField, ProjectReference, TsConfig},
 };
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;

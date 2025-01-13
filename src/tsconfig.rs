@@ -78,6 +78,7 @@ impl TsConfig {
     /// # Panics
     ///
     /// * When the `tsconfig.json` path is misconfigured.
+    #[must_use]
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
         self.path.parent().unwrap()

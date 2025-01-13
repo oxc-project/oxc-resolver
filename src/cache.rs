@@ -79,13 +79,17 @@ pub trait CachedPath: Sized {
         ctx: &mut Ctx,
     ) -> Result<Option<(Self, Arc<PackageJson>)>, ResolveError>;
 
+    #[must_use]
     fn add_extension<C: Cache<Cp = Self>>(&self, ext: &str, cache: &C) -> Self;
 
+    #[must_use]
     fn replace_extension<C: Cache<Cp = Self>>(&self, ext: &str, cache: &C) -> Self;
 
     /// Returns a new path by resolving the given subpath (including "." and
     /// ".." components) with this path.
+    #[must_use]
     fn normalize_with<C: Cache<Cp = Self>>(&self, subpath: impl AsRef<Path>, cache: &C) -> Self;
 
+    #[must_use]
     fn normalize_root<C: Cache<Cp = Self>>(&self, _cache: &C) -> Self;
 }
