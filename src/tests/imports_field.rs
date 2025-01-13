@@ -111,7 +111,7 @@ fn imports_field(value: serde_json::Value) -> JSONMap {
 #[allow(clippy::too_many_lines)]
 #[test]
 fn test_cases() {
-    let test_cases = [
+    let test_cases = vec![
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./dist/test/file.js"]),

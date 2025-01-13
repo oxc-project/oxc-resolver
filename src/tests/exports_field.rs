@@ -311,7 +311,7 @@ const fn exports_field(value: serde_json::Value) -> serde_json::Value {
 
 #[test]
 fn test_cases() {
-    let test_cases = [
+    let test_cases = vec![
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./dist/test/file.js"]),
