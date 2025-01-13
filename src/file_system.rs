@@ -65,6 +65,21 @@ impl FileMetadata {
     pub const fn new(is_file: bool, is_dir: bool, is_symlink: bool) -> Self {
         Self { is_file, is_dir, is_symlink }
     }
+
+    #[must_use]
+    pub const fn is_file(self) -> bool {
+        self.is_file
+    }
+
+    #[must_use]
+    pub const fn is_dir(self) -> bool {
+        self.is_dir
+    }
+
+    #[must_use]
+    pub const fn is_symlink(self) -> bool {
+        self.is_symlink
+    }
 }
 
 #[cfg(feature = "yarn_pnp")]
