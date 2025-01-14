@@ -440,7 +440,7 @@ impl CachedPath {
 
 impl Hash for CachedPath {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.hash.hash(state);
+        state.write_u64(self.hash);
     }
 }
 
@@ -465,7 +465,7 @@ impl Equivalent<CachedPath> for BorrowedCachedPath<'_> {
 
 impl Hash for BorrowedCachedPath<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.hash.hash(state);
+        state.write_u64(self.hash);
     }
 }
 
