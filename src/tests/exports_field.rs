@@ -6,7 +6,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::{Ctx, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{cache::CachedPath, Cache, Ctx, PathUtil, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn test_simple() {

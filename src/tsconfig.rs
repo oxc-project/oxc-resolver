@@ -78,16 +78,18 @@ impl TsConfig {
     /// # Panics
     ///
     /// * When the `tsconfig.json` path is misconfigured.
+    #[must_use]
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
         self.path.parent().unwrap()
     }
 
-    pub(crate) fn parse(
-        root: bool,
-        path: &Path,
-        json: &mut str,
-    ) -> Result<Self, serde_json::Error> {
+    /// Parses the tsconfig from a JSON string.
+    ///
+    /// # Errors
+    ///
+    /// * Any error that can be returned by `serde_json::from_str()`.
+    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         _ = json_strip_comments::strip(json);
         let mut tsconfig: Self = serde_json::from_str(json)?;
         tsconfig.root = root;
@@ -103,7 +105,8 @@ impl TsConfig {
         Ok(tsconfig)
     }
 
-    pub(crate) fn build(mut self) -> Self {
+    #[must_use]
+    pub fn build(mut self) -> Self {
         if self.root {
             let dir = self.directory().to_path_buf();
             // Substitute template variable in `tsconfig.compilerOptions.paths`
