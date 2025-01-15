@@ -3,7 +3,10 @@
 #[test]
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 fn fallback() {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
 
     use super::memory_fs::MemoryFS;
     use crate::{AliasValue, FsCache, ResolveError, ResolveOptions, ResolverGeneric};
@@ -29,7 +32,7 @@ fn fallback() {
     ]);
 
     let resolver = ResolverGeneric::new_with_cache(
-        FsCache::new(file_system),
+        Arc::new(FsCache::new(file_system)),
         ResolveOptions {
             fallback: vec![
                 ("aliasA".into(), vec![AliasValue::Path("a".into())]),

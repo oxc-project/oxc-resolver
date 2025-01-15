@@ -2,7 +2,7 @@
 
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, sync::Arc};
 
     use super::super::memory_fs::MemoryFS;
     use crate::{AliasValue, FsCache, ResolveOptions, ResolverGeneric};
@@ -29,7 +29,7 @@ mod windows {
         let file_system = file_system();
 
         let resolver = ResolverGeneric::new_with_cache(
-            FsCache::new(file_system),
+            Arc::new(FsCache::new(file_system)),
             ResolveOptions {
                 alias: vec![
                     ("alias1".into(), vec![AliasValue::from("/a/abc")]),
@@ -80,7 +80,7 @@ mod windows {
         let file_system = file_system();
 
         let resolver = ResolverGeneric::new_with_cache(
-            FsCache::new(file_system),
+            Arc::new(FsCache::new(file_system)),
             ResolveOptions {
                 alias: vec![
                     ("alias1".into(), vec![AliasValue::from("/a/abc")]),

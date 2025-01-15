@@ -238,7 +238,10 @@ fn test_template_variable() {
 
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows_test {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
 
     use super::super::memory_fs::MemoryFS;
     use crate::{
@@ -308,7 +311,7 @@ mod windows_test {
                 options.main_fields.clone_from(main_fields);
             }
 
-            ResolverGeneric::new_with_cache(FsCache::new(file_system), options)
+            ResolverGeneric::new_with_cache(Arc::new(FsCache::new(file_system)), options)
         }
     }
 

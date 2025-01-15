@@ -146,8 +146,8 @@ impl<C: Cache + Default> ResolverGeneric<C> {
 }
 
 impl<C: Cache> ResolverGeneric<C> {
-    pub fn new_with_cache(cache: C, options: ResolveOptions) -> Self {
-        Self { cache: Arc::new(cache), options: options.sanitize() }
+    pub fn new_with_cache(cache: Arc<C>, options: ResolveOptions) -> Self {
+        Self { cache, options: options.sanitize() }
     }
 
     /// Clone the resolver using the same underlying cache.

@@ -48,6 +48,8 @@ fn dashed_name() {
 
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows {
+    use std::sync::Arc;
+
     use super::super::memory_fs::MemoryFS;
     use crate::{FsCache, ResolveOptions};
 
@@ -58,8 +60,10 @@ mod windows {
         use crate::ResolverGeneric;
         let f = Path::new("/");
         let file_system = MemoryFS::new(&[]);
-        let resolver =
-            ResolverGeneric::new_with_cache(FsCache::new(file_system), ResolveOptions::default());
+        let resolver = ResolverGeneric::new_with_cache(
+            Arc::new(FsCache::new(file_system)),
+            ResolveOptions::default(),
+        );
         let resolved_path = resolver.resolve(f, "package");
         assert!(resolved_path.is_err());
     }
