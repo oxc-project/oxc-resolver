@@ -6,7 +6,10 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::{cache::CachedPath, Cache, Ctx, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{
+    cache::CachedPath, package_json_serde::ImportsExportsSerdeEntry, Cache, Ctx, PathUtil,
+    ResolveError, ResolveOptions, Resolver,
+};
 
 #[test]
 fn test_simple() {
@@ -299,14 +302,15 @@ fn extension_alias_throw_error() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    exports_field: serde_json::Value,
+    exports_field: ImportsExportsSerdeEntry<'static>,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-const fn exports_field(value: serde_json::Value) -> serde_json::Value {
-    value
+fn exports_field(value: serde_json::Value) -> ImportsExportsSerdeEntry<'static> {
+    // Don't do this at home:
+    let value = Box::leak::<'static>(Box::new(value));
+    ImportsExportsSerdeEntry(value)
 }
 
 #[test]

@@ -9,7 +9,7 @@ use std::{
 
 use napi::{bindgen_prelude::AsyncTask, Task};
 use napi_derive::napi;
-use oxc_resolver::{ResolveOptions, Resolver};
+use oxc_resolver::{PackageJson, ResolveOptions, Resolver};
 
 use self::{
     options::{NapiResolveOptions, StrOrStrList},
@@ -32,11 +32,7 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
         Ok(resolution) => ResolveResult {
             path: Some(resolution.full_path().to_string_lossy().to_string()),
             error: None,
-            module_type: resolution
-                .package_json()
-                .and_then(|p| p.r#type.as_ref())
-                .and_then(|t| t.as_str())
-                .map(|t| t.to_string()),
+            module_type: resolution.package_json().and_then(|p| p.r#type()).map(|t| t.to_string()),
         },
         Err(err) => ResolveResult { path: None, module_type: None, error: Some(err.to_string()) },
     }

@@ -20,9 +20,8 @@ use rustc_hash::FxHasher;
 use crate::{
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
-    package_json::PackageJson,
     path::PathUtil,
-    FileMetadata, FileSystem, ResolveError, ResolveOptions, TsConfig,
+    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfig,
 };
 
 static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
@@ -44,6 +43,7 @@ pub struct FsCache<Fs> {
 
 impl<Fs: FileSystem> Cache for FsCache<Fs> {
     type Cp = FsCachedPath;
+    type Pj = PackageJsonSerde;
 
     fn clear(&self) {
         self.paths.pin().clear();
@@ -109,7 +109,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         path: &Self::Cp,
         options: &ResolveOptions,
         ctx: &mut Ctx,
-    ) -> Result<Option<(Self::Cp, Arc<PackageJson>)>, ResolveError> {
+    ) -> Result<Option<(Self::Cp, Arc<PackageJsonSerde>)>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
         let result = path
             .package_json
@@ -123,7 +123,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
                 } else {
                     package_json_path.clone()
                 };
-                PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
+                PackageJsonSerde::parse(package_json_path.clone(), real_path, &package_json_string)
                     .map(|package_json| Some((path.clone(), (Arc::new(package_json)))))
                     .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
             })
@@ -264,7 +264,7 @@ pub struct CachedPathImpl {
     canonicalized: OnceLock<Result<FsCachedPath, ResolveError>>,
     canonicalizing: AtomicU64,
     node_modules: OnceLock<Option<FsCachedPath>>,
-    package_json: OnceLock<Option<(FsCachedPath, Arc<PackageJson>)>>,
+    package_json: OnceLock<Option<(FsCachedPath, Arc<PackageJsonSerde>)>>,
 }
 
 impl CachedPathImpl {
@@ -327,7 +327,7 @@ impl CachedPath for FsCachedPath {
         options: &ResolveOptions,
         cache: &C,
         ctx: &mut Ctx,
-    ) -> Result<Option<(Self, Arc<PackageJson>)>, ResolveError> {
+    ) -> Result<Option<(Self, Arc<C::Pj>)>, ResolveError> {
         let mut cache_value = self;
         // Go up directories when the querying path is not a directory
         while !cache.is_dir(cache_value, ctx) {
