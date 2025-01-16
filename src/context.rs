@@ -1,15 +1,9 @@
-use std::{
-    ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use crate::error::ResolveError;
 
 #[derive(Debug, Default, Clone)]
-pub struct ResolveContext(ResolveContextImpl);
-
-#[derive(Debug, Default, Clone)]
-pub struct ResolveContextImpl {
+pub struct ResolveContext {
     pub fully_specified: bool,
 
     pub query: Option<String>,
@@ -27,20 +21,6 @@ pub struct ResolveContextImpl {
 
     /// For avoiding infinite recursion, which will cause stack overflow.
     depth: u8,
-}
-
-impl Deref for ResolveContext {
-    type Target = ResolveContextImpl;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for ResolveContext {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 impl ResolveContext {
@@ -78,6 +58,11 @@ impl ResolveContext {
         self.resolving_alias = Some(alias);
     }
 
+    /// Increases the context's depth in order to detect recursion.
+    ///
+    /// ### Errors
+    ///
+    /// * [ResolveError::Recursion]
     pub fn test_for_infinite_recursion(&mut self) -> Result<(), ResolveError> {
         self.depth += 1;
         // 64 should be more than enough for detecting infinite recursion.

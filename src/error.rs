@@ -107,7 +107,8 @@ impl ResolveError {
         matches!(self, Self::Ignored(_))
     }
 
-    pub(crate) fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
+    #[must_use]
+    pub fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
         Self::JSON(JSONError {
             path,
             message: error.to_string(),
