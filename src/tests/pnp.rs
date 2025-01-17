@@ -11,6 +11,7 @@ fn pnp1() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".js".into()],
+        condition_names: vec!["import".into()],
         ..ResolveOptions::default()
     });
 
@@ -46,6 +47,20 @@ fn pnp1() {
         resolver.resolve(&fixture, "is-odd").map(|r| r.full_path()),
         Ok(fixture.join(
             ".yarn/cache/is-odd-npm-3.0.1-93c3c3f41b-89ee2e353c.zip/node_modules/is-odd/index.js"
+        )),
+    );
+
+    assert_eq!(
+        resolver.resolve(&fixture, "preact").map(|r| r.full_path()),
+        Ok(fixture.join(
+            ".yarn/cache/preact-npm-10.25.4-2dd2c0aa44-33a009d614.zip/node_modules/preact/dist/preact.mjs"
+        )),
+    );
+
+    assert_eq!(
+        resolver.resolve(&fixture, "preact/devtools").map(|r| r.full_path()),
+        Ok(fixture.join(
+            ".yarn/cache/preact-npm-10.25.4-2dd2c0aa44-33a009d614.zip/node_modules/preact/devtools/dist/devtools.mjs"
         )),
     );
 }

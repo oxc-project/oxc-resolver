@@ -4,6 +4,7 @@
   "dependencies": {
     "is-even": "^1.0.0",
     "is-odd": "^3.0.1",
-    "lodash.zip": "^4.2.0"
+    "lodash.zip": "^4.2.0",
+    "preact": "^10.25.4"
   }
 }

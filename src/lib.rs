@@ -792,8 +792,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, path);
 
             match resolution {
-                Ok(pnp::Resolution::Resolved(path, subpath)) => {
+                Ok(pnp::Resolution::Resolved(path, mut subpath)) => {
                     let cached_path = self.cache.value(&path);
+
+                    if let Some(subpath) = subpath.as_mut() {
+                        subpath.insert(0, '/');
+                    }
 
                     let export_resolution = self.load_package_exports(
                         specifier,

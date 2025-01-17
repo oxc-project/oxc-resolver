@@ -29,7 +29,8 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["is-even", "npm:1.0.0"],\
           ["is-odd", "npm:3.0.1"],\
-          ["lodash.zip", "npm:4.2.0"]\
+          ["lodash.zip", "npm:4.2.0"],\
+          ["preact", "npm:10.25.4"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -114,9 +115,19 @@ const RAW_RUNTIME_STATE =
           ["pnp", "workspace:."],\
           ["is-even", "npm:1.0.0"],\
           ["is-odd", "npm:3.0.1"],\
-          ["lodash.zip", "npm:4.2.0"]\
+          ["lodash.zip", "npm:4.2.0"],\
+          ["preact", "npm:10.25.4"]\
         ],\
         "linkType": "SOFT"\
+      }]\
+    ]],\
+    ["preact", [\
+      ["npm:10.25.4", {\
+        "packageLocation": "./.yarn/cache/preact-npm-10.25.4-2dd2c0aa44-33a009d614.zip/node_modules/preact/",\
+        "packageDependencies": [\
+          ["preact", "npm:10.25.4"]\
+        ],\
+        "linkType": "HARD"\
       }]\
     ]]\
   ]\
