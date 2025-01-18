@@ -1,15 +1,16 @@
 use std::{
+    fmt::Debug,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use crate::{tsconfig::TsConfig, Ctx, PackageJson, ResolveError, ResolveOptions};
+use crate::{Ctx, PackageJson, ResolveError, ResolveOptions, TsConfig};
 
 #[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
 pub trait Cache: Sized {
     type Cp: CachedPath + Clone;
-
     type Pj: PackageJson;
+    type Tc: TsConfig + Debug;
 
     /// Clears the cache.
     fn clear(&self);
@@ -45,12 +46,12 @@ pub trait Cache: Sized {
     ///
     /// `callback` can be used for modifying the returned tsconfig with
     /// `extends`.
-    fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
+    fn get_tsconfig<F: FnOnce(&mut Self::Tc) -> Result<(), ResolveError>>(
         &self,
         root: bool,
         path: &Path,
         callback: F,
-    ) -> Result<Arc<TsConfig>, ResolveError>;
+    ) -> Result<Arc<Self::Tc>, ResolveError>;
 }
 
 #[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error

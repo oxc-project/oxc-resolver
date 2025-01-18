@@ -63,6 +63,8 @@ mod path;
 mod resolution;
 mod specifier;
 mod tsconfig;
+#[cfg(feature = "fs_cache")]
+mod tsconfig_serde;
 
 #[cfg(test)]
 mod tests;
@@ -84,6 +86,7 @@ pub use crate::{
     file_system::{FileMetadata, FileSystem, FileSystemOs},
     fs_cache::{FsCache, FsCachedPath},
     package_json_serde::PackageJsonSerde,
+    tsconfig_serde::TsConfigSerde,
 };
 
 pub use crate::{
@@ -202,7 +205,7 @@ impl<C: Cache> ResolverGeneric<C> {
     /// # Errors
     ///
     /// * See [ResolveError]
-    pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
+    pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<C::Tc>, ResolveError> {
         let path = path.as_ref();
         self.load_tsconfig(true, path, &TsconfigReferences::Auto)
     }
@@ -1166,13 +1169,13 @@ impl<C: Cache> ResolverGeneric<C> {
         root: bool,
         path: &Path,
         references: &TsconfigReferences,
-    ) -> Result<Arc<TsConfig>, ResolveError> {
+    ) -> Result<Arc<C::Tc>, ResolveError> {
         self.cache.get_tsconfig(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
             // Extend tsconfig
-            if let Some(extends) = &tsconfig.extends {
+            if let Some(extends) = tsconfig.extends() {
                 let extended_tsconfig_paths = match extends {
                     ExtendsField::Single(s) => {
                         vec![self.get_extended_tsconfig_path(&directory, tsconfig, s)?]
@@ -1192,36 +1195,24 @@ impl<C: Cache> ResolverGeneric<C> {
                 }
             }
 
-            // Load project references
-            match references {
-                TsconfigReferences::Disabled => {
-                    tsconfig.references.drain(..);
-                }
-                TsconfigReferences::Auto => {}
-                TsconfigReferences::Paths(paths) => {
-                    tsconfig.references = paths
-                        .iter()
-                        .map(|path| ProjectReference { path: path.clone(), tsconfig: None })
-                        .collect();
-                }
-            }
-            if !tsconfig.references.is_empty() {
+            if tsconfig.load_references(references) {
+                let path = tsconfig.path().to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
-                for reference in &mut tsconfig.references {
-                    let reference_tsconfig_path = directory.normalize_with(&reference.path);
+                for reference in tsconfig.references_mut() {
+                    let reference_tsconfig_path = directory.normalize_with(reference.path());
                     let tsconfig = self.cache.get_tsconfig(
                         /* root */ true,
                         &reference_tsconfig_path,
                         |reference_tsconfig| {
-                            if reference_tsconfig.path == tsconfig.path {
+                            if reference_tsconfig.path() == path {
                                 return Err(ResolveError::TsconfigSelfReference(
-                                    reference_tsconfig.path.clone(),
+                                    reference_tsconfig.path().to_path_buf(),
                                 ));
                             }
                             Ok(())
                         },
                     )?;
-                    reference.tsconfig.replace(tsconfig);
+                    reference.set_tsconfig(tsconfig);
                 }
             }
             Ok(())
@@ -1255,7 +1246,7 @@ impl<C: Cache> ResolverGeneric<C> {
     fn get_extended_tsconfig_path(
         &self,
         directory: &C::Cp,
-        tsconfig: &TsConfig,
+        tsconfig: &C::Tc,
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {

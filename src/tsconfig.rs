@@ -6,164 +6,130 @@ use std::{
 
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
-use serde::Deserialize;
 
-use crate::PathUtil;
+use crate::{path::PathUtil, TsconfigReferences};
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
-#[serde(untagged)]
-pub enum ExtendsField {
-    Single(String),
-    Multiple(Vec<String>),
-}
+/// Abstract representation for the contents of a `tsconfig.json` file, as well
+/// as the location where it was found.
+///
+/// This representation makes no assumptions regarding how the file was
+/// deserialized.
+#[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
+pub trait TsConfig: Sized {
+    type Co: CompilerOptions;
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TsConfig {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
-    #[serde(skip)]
-    pub root: bool,
+    fn root(&self) -> bool;
 
-    /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
-    #[serde(skip)]
-    pub path: PathBuf,
+    /// Returns the path where the `tsconfig.json` was found.
+    ///
+    /// Contains the `tsconfig.json` filename.
+    #[must_use]
+    fn path(&self) -> &Path;
 
-    #[serde(default)]
-    pub extends: Option<ExtendsField>,
-
-    #[serde(default)]
-    pub compiler_options: CompilerOptions,
-
-    /// Bubbled up project references with a reference to their tsconfig.
-    #[serde(default)]
-    pub references: Vec<ProjectReference>,
-}
-
-/// Compiler Options
-///
-/// <https://www.typescriptlang.org/tsconfig#compilerOptions>
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompilerOptions {
-    pub base_url: Option<PathBuf>,
-
-    /// Path aliases
-    pub paths: Option<CompilerOptionsPathsMap>,
-
-    /// The actual base for where path aliases are resolved from.
-    #[serde(skip)]
-    paths_base: PathBuf,
-}
-
-/// Project Reference
-///
-/// <https://www.typescriptlang.org/docs/handbook/project-references.html>
-#[derive(Debug, Deserialize)]
-pub struct ProjectReference {
-    /// The path property of each reference can point to a directory containing a tsconfig.json file,
-    /// or to the config file itself (which may have any name).
-    pub path: PathBuf,
-
-    /// Reference to the resolved tsconfig
-    #[serde(skip)]
-    pub tsconfig: Option<Arc<TsConfig>>,
-}
-
-impl TsConfig {
-    /// Directory to `tsconfig.json`
+    /// Directory to `tsconfig.json`.
     ///
     /// # Panics
     ///
     /// * When the `tsconfig.json` path is misconfigured.
     #[must_use]
-    pub fn directory(&self) -> &Path {
-        debug_assert!(self.path.file_name().is_some());
-        self.path.parent().unwrap()
-    }
+    fn directory(&self) -> &Path;
 
-    /// Parses the tsconfig from a JSON string.
-    ///
-    /// # Errors
-    ///
-    /// * Any error that can be returned by `serde_json::from_str()`.
-    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
-        _ = json_strip_comments::strip(json);
-        let mut tsconfig: Self = serde_json::from_str(json)?;
-        tsconfig.root = root;
-        tsconfig.path = path.to_path_buf();
-        let directory = tsconfig.directory().to_path_buf();
-        if let Some(base_url) = tsconfig.compiler_options.base_url {
-            tsconfig.compiler_options.base_url = Some(directory.normalize_with(base_url));
-        }
-        if tsconfig.compiler_options.paths.is_some() {
-            tsconfig.compiler_options.paths_base =
-                tsconfig.compiler_options.base_url.as_ref().map_or(directory, Clone::clone);
-        }
-        Ok(tsconfig)
-    }
-
+    /// Returns the compiler options configured in this tsconfig.
     #[must_use]
-    pub fn build(mut self) -> Self {
-        if self.root {
-            let dir = self.directory().to_path_buf();
-            // Substitute template variable in `tsconfig.compilerOptions.paths`
-            if let Some(paths) = &mut self.compiler_options.paths {
-                for paths in paths.values_mut() {
-                    for path in paths {
-                        Self::substitute_template_variable(&dir, path);
-                    }
-                }
+    fn compiler_options(&self) -> &Self::Co;
+
+    /// Returns a mutable reference to the compiler options configured in this
+    /// tsconfig.
+    #[must_use]
+    fn compiler_options_mut(&mut self) -> &mut Self::Co;
+
+    /// Returns one or more paths to tsconfigs that should be extended by this
+    /// tsconfig.
+    #[must_use]
+    fn extends(&self) -> Option<&ExtendsField>;
+
+    /// Loads the given references into this tsconfig.
+    ///
+    /// Returns whether any references are defined in the tsconfig.
+    fn load_references(&mut self, references: &TsconfigReferences) -> bool;
+
+    /// Returns references to other tsconfig files.
+    #[must_use]
+    fn references(&self) -> impl Iterator<Item = &impl ProjectReference<Tc = Self>>;
+
+    /// Returns mutable references to other tsconfig files.
+    #[must_use]
+    fn references_mut(&mut self) -> impl Iterator<Item = &mut impl ProjectReference<Tc = Self>>;
+
+    /// Returns the base path from which to resolve aliases.
+    ///
+    /// The base path can be configured by the user as part of the
+    /// [CompilerOptions]. If not configured, it returs the directory in which
+    /// the tsconfig itself is found.
+    #[must_use]
+    fn base_path(&self) -> &Path {
+        self.compiler_options().base_url().unwrap_or_else(|| self.directory())
+    }
+
+    /// Inherits settings from the given tsconfig into `self`.
+    fn extend_tsconfig(&mut self, tsconfig: &Self) {
+        let compiler_options = self.compiler_options_mut();
+        if compiler_options.paths().is_none() {
+            compiler_options.set_paths_base(compiler_options.base_url().map_or_else(
+                || tsconfig.compiler_options().paths_base().to_path_buf(),
+                Path::to_path_buf,
+            ));
+            compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
+        }
+        if compiler_options.base_url().is_none() {
+            if let Some(base_url) = tsconfig.compiler_options().base_url() {
+                compiler_options.set_base_url(base_url.to_path_buf());
             }
         }
-        self
     }
 
-    pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
-        let compiler_options = &mut self.compiler_options;
-        if compiler_options.paths.is_none() {
-            compiler_options.paths_base = compiler_options
-                .base_url
-                .as_ref()
-                .map_or_else(|| tsconfig.compiler_options.paths_base.clone(), Clone::clone);
-            compiler_options.paths.clone_from(&tsconfig.compiler_options.paths);
-        }
-        if compiler_options.base_url.is_none() {
-            compiler_options.base_url.clone_from(&tsconfig.compiler_options.base_url);
-        }
-    }
-
-    pub(crate) fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
+    /// Resolves the given `specifier` within the project configured by this
+    /// tsconfig, relative to the given `path`.
+    ///
+    /// `specifier` can be either a real path or an alias.
+    #[must_use]
+    fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
         if path.starts_with(self.base_path()) {
             let paths = self.resolve_path_alias(specifier);
             if !paths.is_empty() {
                 return paths;
             }
         }
-        for tsconfig in self.references.iter().filter_map(|reference| reference.tsconfig.as_ref()) {
+        for tsconfig in self.references().filter_map(ProjectReference::tsconfig) {
             if path.starts_with(tsconfig.base_path()) {
                 return tsconfig.resolve_path_alias(specifier);
             }
         }
-        vec![]
+        Vec::new()
     }
 
+    /// Resolves the given `specifier` within the project configured by this
+    /// tsconfig.
+    ///
+    /// `specifier` is expected to be a path alias.
     // Copied from parcel
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
-    pub(crate) fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
+    #[must_use]
+    fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
         if specifier.starts_with(['/', '.']) {
-            return vec![];
+            return Vec::new();
         }
 
-        let base_url_iter = self
-            .compiler_options
-            .base_url
-            .as_ref()
+        let compiler_options = self.compiler_options();
+        let base_url_iter = compiler_options
+            .base_url()
             .map_or_else(Vec::new, |base_url| vec![base_url.normalize_with(specifier)]);
 
-        let Some(paths_map) = &self.compiler_options.paths else {
+        let Some(paths_map) = compiler_options.paths() else {
             return base_url_iter;
         };
 
@@ -204,27 +170,78 @@ impl TsConfig {
 
         paths
             .into_iter()
-            .map(|p| self.compiler_options.paths_base.normalize_with(p))
+            .map(|p| compiler_options.paths_base().normalize_with(p))
             .chain(base_url_iter)
             .collect()
     }
 
-    fn base_path(&self) -> &Path {
-        self.compiler_options
-            .base_url
-            .as_ref()
-            .map_or_else(|| self.directory(), |path| path.as_ref())
-    }
-
-    /// Template variable `${configDir}` for substitution of config files directory path
+    /// Template variable `${configDir}` for substitution of config files
+    /// directory path.
     ///
-    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so we are constrained as such.
+    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
+    ///       we are constrained as such.
     ///
-    /// See <https://github.com/microsoft/TypeScript/pull/58042>
+    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
     fn substitute_template_variable(directory: &Path, path: &mut String) {
         const TEMPLATE_VARIABLE: &str = "${configDir}/";
         if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
             *path = directory.join(stripped_path).to_string_lossy().to_string();
         }
     }
+}
+
+/// Compiler Options.
+///
+/// <https://www.typescriptlang.org/tsconfig#compilerOptions>
+pub trait CompilerOptions {
+    /// Explicit base URL configured by the user.
+    #[must_use]
+    fn base_url(&self) -> Option<&Path>;
+
+    /// Sets the base URL.
+    fn set_base_url(&mut self, base_url: PathBuf);
+
+    /// Path aliases.
+    #[must_use]
+    fn paths(&self) -> Option<&CompilerOptionsPathsMap>;
+
+    /// Sets the path aliases.
+    fn set_paths(&mut self, paths: Option<CompilerOptionsPathsMap>);
+
+    /// The actual base from where path aliases are resolved.
+    #[must_use]
+    fn paths_base(&self) -> &Path;
+
+    /// Sets the path base.
+    fn set_paths_base(&mut self, paths_base: PathBuf);
+}
+
+/// Value for the "extends" field.
+///
+/// <https://www.typescriptlang.org/tsconfig/#extends>
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "fs_cache", derive(serde::Deserialize))]
+#[cfg_attr(feature = "fs_cache", serde(untagged))]
+pub enum ExtendsField {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+/// Project Reference.
+///
+/// <https://www.typescriptlang.org/docs/handbook/project-references.html>
+pub trait ProjectReference {
+    type Tc: TsConfig;
+
+    /// Returns the path to a directory containing a `tsconfig.json` file, or to
+    /// the config file itself (which may have any name).
+    #[must_use]
+    fn path(&self) -> &Path;
+
+    /// Returns the resolved tsconfig, if one has been set.
+    #[must_use]
+    fn tsconfig(&self) -> Option<Arc<Self::Tc>>;
+
+    /// Sets the resolved tsconfig.
+    fn set_tsconfig(&mut self, tsconfig: Arc<Self::Tc>);
 }

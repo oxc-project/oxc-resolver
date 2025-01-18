@@ -21,7 +21,7 @@ use crate::{
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
     path::PathUtil,
-    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfig,
+    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfigSerde,
 };
 
 static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
@@ -38,12 +38,13 @@ thread_local! {
 pub struct FsCache<Fs> {
     pub(crate) fs: Fs,
     paths: HashSet<FsCachedPath, BuildHasherDefault<IdentityHasher>>,
-    tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    tsconfigs: HashMap<PathBuf, Arc<TsConfigSerde>, BuildHasherDefault<FxHasher>>,
 }
 
 impl<Fs: FileSystem> Cache for FsCache<Fs> {
     type Cp = FsCachedPath;
     type Pj = PackageJsonSerde;
+    type Tc = TsConfigSerde;
 
     fn clear(&self) {
         self.paths.pin().clear();
@@ -148,12 +149,12 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         result
     }
 
-    fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
+    fn get_tsconfig<F: FnOnce(&mut TsConfigSerde) -> Result<(), ResolveError>>(
         &self,
         root: bool,
         path: &Path,
         callback: F, // callback for modifying tsconfig with `extends`
-    ) -> Result<Arc<TsConfig>, ResolveError> {
+    ) -> Result<Arc<TsConfigSerde>, ResolveError> {
         let tsconfigs = self.tsconfigs.pin();
         if let Some(tsconfig) = tsconfigs.get(path) {
             return Ok(Arc::clone(tsconfig));
@@ -172,8 +173,8 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             .fs
             .read_to_string(&tsconfig_path)
             .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
-        let mut tsconfig =
-            TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
+        let mut tsconfig = TsConfigSerde::parse(root, &tsconfig_path, &mut tsconfig_string)
+            .map_err(|error| {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
         callback(&mut tsconfig)?;
