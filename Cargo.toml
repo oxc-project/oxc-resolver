@@ -90,7 +90,7 @@ vfs = "0.12.0" # for testing with in memory file system
 default = ["fs_cache"]
 ## Provides the `FsCache` implementation.
 fs_cache = ["dep:serde", "dep:serde_json"]
-## Enables the [PackageJson::raw_json] API,
+## Enables the [PackageJsonSerde::raw_json] API,
 ## which returns the `package.json` with `serde_json::Value`.
 package_json_raw_json_api = []
 ## [Yarn Plug'n'Play](https://yarnpkg.com/features/pnp)

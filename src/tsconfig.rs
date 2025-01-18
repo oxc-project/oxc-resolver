@@ -68,7 +68,7 @@ pub trait TsConfig: Sized {
     /// Returns the base path from which to resolve aliases.
     ///
     /// The base path can be configured by the user as part of the
-    /// [CompilerOptions]. If not configured, it returs the directory in which
+    /// [CompilerOptions]. If not configured, it returns the directory in which
     /// the tsconfig itself is found.
     #[must_use]
     fn base_path(&self) -> &Path {
