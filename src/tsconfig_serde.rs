@@ -116,6 +116,10 @@ impl CompilerOptions for CompilerOptionsSerde {
         self.paths.as_ref()
     }
 
+    fn paths_mut(&mut self) -> Option<&mut CompilerOptionsPathsMap> {
+        self.paths.as_mut()
+    }
+
     fn set_paths(&mut self, paths: Option<CompilerOptionsPathsMap>) {
         self.paths = paths;
     }
@@ -176,21 +180,5 @@ impl TsConfigSerde {
                 tsconfig.compiler_options.base_url.as_ref().map_or(directory, Clone::clone);
         }
         Ok(tsconfig)
-    }
-
-    #[must_use]
-    pub fn build(mut self) -> Self {
-        if self.root {
-            let dir = self.directory().to_path_buf();
-            // Substitute template variable in `tsconfig.compilerOptions.paths`
-            if let Some(paths) = &mut self.compiler_options.paths {
-                for paths in paths.values_mut() {
-                    for path in paths {
-                        Self::substitute_template_variable(&dir, path);
-                    }
-                }
-            }
-        }
-        self
     }
 }

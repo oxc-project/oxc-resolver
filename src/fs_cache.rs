@@ -21,7 +21,8 @@ use crate::{
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
     path::PathUtil,
-    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfigSerde,
+    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfig,
+    TsConfigSerde,
 };
 
 static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
@@ -178,7 +179,8 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
         callback(&mut tsconfig)?;
-        let tsconfig = Arc::new(tsconfig.build());
+        tsconfig.expand_template_variables();
+        let tsconfig = Arc::new(tsconfig);
         tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)
     }

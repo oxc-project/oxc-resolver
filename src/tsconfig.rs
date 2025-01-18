@@ -75,6 +75,21 @@ pub trait TsConfig: Sized {
         self.compiler_options().base_url().unwrap_or_else(|| self.directory())
     }
 
+    /// Expands all template variables in this tsconfig.
+    fn expand_template_variables(&mut self) {
+        if self.root() {
+            let dir = self.directory().to_path_buf();
+            // Substitute template variable in `tsconfig.compilerOptions.paths`
+            if let Some(paths) = &mut self.compiler_options_mut().paths_mut() {
+                for paths in paths.values_mut() {
+                    for path in paths {
+                        Self::substitute_template_variable(&dir, path);
+                    }
+                }
+            }
+        }
+    }
+
     /// Inherits settings from the given tsconfig into `self`.
     fn extend_tsconfig(&mut self, tsconfig: &Self) {
         let compiler_options = self.compiler_options_mut();
@@ -204,6 +219,10 @@ pub trait CompilerOptions {
     /// Path aliases.
     #[must_use]
     fn paths(&self) -> Option<&CompilerOptionsPathsMap>;
+
+    /// Returns a mutable reference to the path aliases.
+    #[must_use]
+    fn paths_mut(&mut self) -> Option<&mut CompilerOptionsPathsMap>;
 
     /// Sets the path aliases.
     fn set_paths(&mut self, paths: Option<CompilerOptionsPathsMap>);
