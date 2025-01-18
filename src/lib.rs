@@ -89,6 +89,9 @@ pub use crate::{
     tsconfig_serde::TsConfigSerde,
 };
 
+#[cfg(feature = "fs_cache")]
+pub type FsResolution = Resolution<FsCache<FileSystemOs>>;
+
 pub use crate::{
     builtins::NODEJS_BUILTINS,
     cache::{Cache, CachedPath},
