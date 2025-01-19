@@ -103,16 +103,13 @@ pub use crate::{
         ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
         PackageJson, PackageType,
     },
+    path::PathUtil,
     resolution::Resolution,
     tsconfig::{
         CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
     },
 };
-use crate::{
-    context::ResolveContext as Ctx,
-    path::{PathUtil, SLASH_START},
-    specifier::Specifier,
-};
+use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier};
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
