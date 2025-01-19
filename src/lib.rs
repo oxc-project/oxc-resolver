@@ -78,7 +78,6 @@ use std::{
     sync::Arc,
 };
 
-use package_json::ImportsExportsArray;
 use rustc_hash::FxHashSet;
 
 #[cfg(feature = "fs_cache")]
@@ -101,7 +100,8 @@ pub use crate::{
         TsconfigReferences,
     },
     package_json::{
-        ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap, PackageJson, PackageType,
+        ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
+        PackageJson, PackageType,
     },
     resolution::Resolution,
     tsconfig::{
