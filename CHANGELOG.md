@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v3.0.3...oxc_resolver-v4.0.0) - 2025-01-20
+
+### <!-- 0 -->Features
+
+- [**breaking**] generic fs cache `type Resolver = ResolverGeneric<FsCache<FileSystemOs>>` (#358)
+- [**breaking**] `PackageJson` and `TsConfig` traits (#360)
+
+### <!-- 2 -->Performance
+
+- use papaya instead of dashmap (#356)
+
 ## [3.0.3](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v3.0.2...oxc_resolver-v3.0.3) - 2024-12-14
 
 ### <!-- 1 -->Bug Fixes
