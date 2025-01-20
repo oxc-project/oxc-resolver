@@ -2,13 +2,16 @@
 
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{EnforceExtension, Resolution, ResolveContext, ResolveOptions, Resolver};
+use oxc_resolver::{
+    EnforceExtension, FileSystemOs, FsCache, PackageJson, Resolution, ResolveContext,
+    ResolveOptions, Resolver,
+};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
 }
 
-fn resolve(specifier: &str) -> Resolution {
+fn resolve(specifier: &str) -> Resolution<FsCache<FileSystemOs>> {
     let path = dir();
     Resolver::new(ResolveOptions::default()).resolve(path, specifier).unwrap()
 }
@@ -36,8 +39,8 @@ fn eq() {
 fn package_json() {
     let resolution = resolve("./tests/package.json");
     let package_json = resolution.package_json().unwrap();
-    assert_eq!(package_json.name.as_ref().unwrap(), "name");
-    assert_eq!(package_json.r#type.as_ref().unwrap().as_str(), "module".into());
+    assert_eq!(package_json.name().unwrap(), "name");
+    assert_eq!(package_json.r#type().unwrap().to_string(), "module".to_string());
     assert!(package_json.side_effects.as_ref().unwrap().is_object());
 }
 

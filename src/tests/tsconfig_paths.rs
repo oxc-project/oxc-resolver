@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    JSONError, ResolveError, ResolveOptions, Resolver, TsConfig, TsconfigOptions,
+    JSONError, ResolveError, ResolveOptions, Resolver, TsConfig, TsConfigSerde, TsconfigOptions,
     TsconfigReferences,
 };
 
@@ -130,7 +130,7 @@ fn test_paths() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap();
 
     let data = [
         ("jquery", vec!["/foo/node_modules/jquery/dist/jquery"]),
@@ -160,7 +160,7 @@ fn test_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap();
 
     let data = [
         ("foo", vec!["/foo/src/foo"]),
@@ -191,7 +191,7 @@ fn test_paths_and_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap();
 
     let data = [
         ("test", vec!["/foo/src/generated/test", "/foo/src/test"]),

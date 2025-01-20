@@ -1,13 +1,16 @@
 use std::{
+    fmt::Debug,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use crate::{tsconfig::TsConfig, Ctx, PackageJson, ResolveError, ResolveOptions};
+use crate::{Ctx, PackageJson, ResolveError, ResolveOptions, TsConfig};
 
 #[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
 pub trait Cache: Sized {
     type Cp: CachedPath + Clone;
+    type Pj: PackageJson;
+    type Tc: TsConfig + Debug;
 
     /// Clears the cache.
     fn clear(&self);
@@ -34,7 +37,7 @@ pub trait Cache: Sized {
         path: &Self::Cp,
         options: &ResolveOptions,
         ctx: &mut Ctx,
-    ) -> Result<Option<(Self::Cp, Arc<PackageJson>)>, ResolveError>;
+    ) -> Result<Option<(Self::Cp, Arc<Self::Pj>)>, ResolveError>;
 
     /// Returns the tsconfig stored in the given path.
     ///
@@ -43,14 +46,15 @@ pub trait Cache: Sized {
     ///
     /// `callback` can be used for modifying the returned tsconfig with
     /// `extends`.
-    fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
+    fn get_tsconfig<F: FnOnce(&mut Self::Tc) -> Result<(), ResolveError>>(
         &self,
         root: bool,
         path: &Path,
         callback: F,
-    ) -> Result<Arc<TsConfig>, ResolveError>;
+    ) -> Result<Arc<Self::Tc>, ResolveError>;
 }
 
+#[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
 pub trait CachedPath: Sized {
     fn path(&self) -> &Path;
 
@@ -68,16 +72,13 @@ pub trait CachedPath: Sized {
     fn cached_node_modules<C: Cache<Cp = Self>>(&self, cache: &C, ctx: &mut Ctx) -> Option<Self>;
 
     /// Find package.json of a path by traversing parent directories.
-    ///
-    /// # Errors
-    ///
-    /// * [ResolveError::JSON]
+    #[allow(clippy::type_complexity)]
     fn find_package_json<C: Cache<Cp = Self>>(
         &self,
         options: &ResolveOptions,
         cache: &C,
         ctx: &mut Ctx,
-    ) -> Result<Option<(Self, Arc<PackageJson>)>, ResolveError>;
+    ) -> Result<Option<(Self, Arc<C::Pj>)>, ResolveError>;
 
     #[must_use]
     fn add_extension<C: Cache<Cp = Self>>(&self, ext: &str, cache: &C) -> Self;

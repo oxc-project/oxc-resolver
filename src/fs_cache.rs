@@ -20,9 +20,9 @@ use rustc_hash::FxHasher;
 use crate::{
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
-    package_json::PackageJson,
     path::PathUtil,
-    FileMetadata, FileSystem, ResolveError, ResolveOptions, TsConfig,
+    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfig,
+    TsConfigSerde,
 };
 
 static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
@@ -39,11 +39,13 @@ thread_local! {
 pub struct FsCache<Fs> {
     pub(crate) fs: Fs,
     paths: HashSet<FsCachedPath, BuildHasherDefault<IdentityHasher>>,
-    tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    tsconfigs: HashMap<PathBuf, Arc<TsConfigSerde>, BuildHasherDefault<FxHasher>>,
 }
 
 impl<Fs: FileSystem> Cache for FsCache<Fs> {
     type Cp = FsCachedPath;
+    type Pj = PackageJsonSerde;
+    type Tc = TsConfigSerde;
 
     fn clear(&self) {
         self.paths.pin().clear();
@@ -109,7 +111,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         path: &Self::Cp,
         options: &ResolveOptions,
         ctx: &mut Ctx,
-    ) -> Result<Option<(Self::Cp, Arc<PackageJson>)>, ResolveError> {
+    ) -> Result<Option<(Self::Cp, Arc<PackageJsonSerde>)>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
         let result = path
             .package_json
@@ -123,7 +125,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
                 } else {
                     package_json_path.clone()
                 };
-                PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
+                PackageJsonSerde::parse(package_json_path.clone(), real_path, &package_json_string)
                     .map(|package_json| Some((path.clone(), (Arc::new(package_json)))))
                     .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
             })
@@ -148,12 +150,12 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         result
     }
 
-    fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
+    fn get_tsconfig<F: FnOnce(&mut TsConfigSerde) -> Result<(), ResolveError>>(
         &self,
         root: bool,
         path: &Path,
         callback: F, // callback for modifying tsconfig with `extends`
-    ) -> Result<Arc<TsConfig>, ResolveError> {
+    ) -> Result<Arc<TsConfigSerde>, ResolveError> {
         let tsconfigs = self.tsconfigs.pin();
         if let Some(tsconfig) = tsconfigs.get(path) {
             return Ok(Arc::clone(tsconfig));
@@ -172,12 +174,13 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             .fs
             .read_to_string(&tsconfig_path)
             .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
-        let mut tsconfig =
-            TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
+        let mut tsconfig = TsConfigSerde::parse(root, &tsconfig_path, &mut tsconfig_string)
+            .map_err(|error| {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
         callback(&mut tsconfig)?;
-        let tsconfig = Arc::new(tsconfig.build());
+        tsconfig.expand_template_variables();
+        let tsconfig = Arc::new(tsconfig);
         tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)
     }
@@ -264,7 +267,7 @@ pub struct CachedPathImpl {
     canonicalized: OnceLock<Result<FsCachedPath, ResolveError>>,
     canonicalizing: AtomicU64,
     node_modules: OnceLock<Option<FsCachedPath>>,
-    package_json: OnceLock<Option<(FsCachedPath, Arc<PackageJson>)>>,
+    package_json: OnceLock<Option<(FsCachedPath, Arc<PackageJsonSerde>)>>,
 }
 
 impl CachedPathImpl {
@@ -327,7 +330,7 @@ impl CachedPath for FsCachedPath {
         options: &ResolveOptions,
         cache: &C,
         ctx: &mut Ctx,
-    ) -> Result<Option<(Self, Arc<PackageJson>)>, ResolveError> {
+    ) -> Result<Option<(Self, Arc<C::Pj>)>, ResolveError> {
         let mut cache_value = self;
         // Go up directories when the querying path is not a directory
         while !cache.is_dir(cache_value, ctx) {

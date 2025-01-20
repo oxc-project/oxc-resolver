@@ -57,10 +57,14 @@ mod file_system;
 mod fs_cache;
 mod options;
 mod package_json;
+#[cfg(feature = "fs_cache")]
+mod package_json_serde;
 mod path;
 mod resolution;
 mod specifier;
 mod tsconfig;
+#[cfg(feature = "fs_cache")]
+mod tsconfig_serde;
 
 #[cfg(test)]
 mod tests;
@@ -75,13 +79,17 @@ use std::{
 };
 
 use rustc_hash::FxHashSet;
-use serde_json::Value as JSONValue;
 
 #[cfg(feature = "fs_cache")]
 pub use crate::{
     file_system::{FileMetadata, FileSystem, FileSystemOs},
     fs_cache::{FsCache, FsCachedPath},
+    package_json_serde::PackageJsonSerde,
+    tsconfig_serde::{CompilerOptionsSerde, ExtendsField, ProjectReferenceSerde, TsConfigSerde},
 };
+
+#[cfg(feature = "fs_cache")]
+pub type FsResolution = Resolution<FsCache<FileSystemOs>>;
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
@@ -91,18 +99,15 @@ pub use crate::{
         Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
         TsconfigReferences,
     },
-    package_json::PackageJson,
-    resolution::Resolution,
-    tsconfig::{
-        CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
+    package_json::{
+        ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
+        PackageJson, PackageType,
     },
+    path::PathUtil,
+    resolution::Resolution,
+    tsconfig::{CompilerOptions, CompilerOptionsPathsMap, ProjectReference, TsConfig},
 };
-use crate::{
-    context::ResolveContext as Ctx,
-    package_json::JSONMap,
-    path::{PathUtil, SLASH_START},
-    specifier::Specifier,
-};
+use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier};
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
@@ -182,7 +187,7 @@ impl<C: Cache> ResolverGeneric<C> {
         &self,
         directory: P,
         specifier: &str,
-    ) -> Result<Resolution, ResolveError> {
+    ) -> Result<Resolution<C>, ResolveError> {
         let mut ctx = Ctx::default();
         self.resolve_tracing(directory.as_ref(), specifier, &mut ctx)
     }
@@ -198,7 +203,7 @@ impl<C: Cache> ResolverGeneric<C> {
     /// # Errors
     ///
     /// * See [ResolveError]
-    pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
+    pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<C::Tc>, ResolveError> {
         let path = path.as_ref();
         self.load_tsconfig(true, path, &TsconfigReferences::Auto)
     }
@@ -213,7 +218,7 @@ impl<C: Cache> ResolverGeneric<C> {
         directory: P,
         specifier: &str,
         resolve_context: &mut ResolveContext,
-    ) -> Result<Resolution, ResolveError> {
+    ) -> Result<Resolution<C>, ResolveError> {
         let mut ctx = Ctx::default();
         ctx.init_file_dependencies();
         let result = self.resolve_tracing(directory.as_ref(), specifier, &mut ctx);
@@ -232,7 +237,7 @@ impl<C: Cache> ResolverGeneric<C> {
         directory: &Path,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<Resolution, ResolveError> {
+    ) -> Result<Resolution<C>, ResolveError> {
         let span = tracing::debug_span!("resolve", path = ?directory, specifier = specifier);
         let _enter = span.enter();
         let r = self.resolve_impl(directory, specifier, ctx);
@@ -252,7 +257,7 @@ impl<C: Cache> ResolverGeneric<C> {
         path: &Path,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<Resolution, ResolveError> {
+    ) -> Result<Resolution<C>, ResolveError> {
         ctx.with_fully_specified(self.options.fully_specified);
         let cached_path = self.cache.value(path);
         let cached_path = self.require(&cached_path, specifier, ctx)?;
@@ -872,7 +877,7 @@ impl<C: Cache> ResolverGeneric<C> {
         // Note: The subpath is not prepended with a dot on purpose
         for exports in package_json.exports_fields(&self.options.exports_fields) {
             if let Some(path) =
-                self.package_exports_resolve(cached_path, &format!(".{subpath}"), exports, ctx)?
+                self.package_exports_resolve(cached_path, &format!(".{subpath}"), &exports, ctx)?
             {
                 // 6. RESOLVE_ESM_MATCH(MATCH)
                 return self.resolve_esm_match(specifier, &path, ctx);
@@ -897,8 +902,7 @@ impl<C: Cache> ResolverGeneric<C> {
         // 3. If the SCOPE/package.json "exports" is null or undefined, return.
         // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
         if let Some(subpath) = package_json
-            .name
-            .as_ref()
+            .name()
             .and_then(|package_name| Self::strip_package_name(specifier, package_name))
         {
             // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
@@ -910,7 +914,7 @@ impl<C: Cache> ResolverGeneric<C> {
                 if let Some(cached_path) = self.package_exports_resolve(
                     &package_url,
                     &format!(".{subpath}"),
-                    exports,
+                    &exports,
                     ctx,
                 )? {
                     // 6. RESOLVE_ESM_MATCH(MATCH)
@@ -945,7 +949,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         module_specifier: Option<&str>,
         package_url: &C::Cp,
-        package_json: &PackageJson,
+        package_json: &C::Pj,
         ctx: &mut Ctx,
     ) -> ResolveResult<C::Cp> {
         let path = cached_path.path();
@@ -1163,62 +1167,43 @@ impl<C: Cache> ResolverGeneric<C> {
         root: bool,
         path: &Path,
         references: &TsconfigReferences,
-    ) -> Result<Arc<TsConfig>, ResolveError> {
+    ) -> Result<Arc<C::Tc>, ResolveError> {
         self.cache.get_tsconfig(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
             // Extend tsconfig
-            if let Some(extends) = &tsconfig.extends {
-                let extended_tsconfig_paths = match extends {
-                    ExtendsField::Single(s) => {
-                        vec![self.get_extended_tsconfig_path(&directory, tsconfig, s)?]
-                    }
-                    ExtendsField::Multiple(specifiers) => specifiers
-                        .iter()
-                        .map(|s| self.get_extended_tsconfig_path(&directory, tsconfig, s))
-                        .collect::<Result<Vec<PathBuf>, ResolveError>>()?,
-                };
-                for extended_tsconfig_path in extended_tsconfig_paths {
-                    let extended_tsconfig = self.load_tsconfig(
-                        /* root */ false,
-                        &extended_tsconfig_path,
-                        &TsconfigReferences::Disabled,
-                    )?;
-                    tsconfig.extend_tsconfig(&extended_tsconfig);
-                }
+            let extended_tsconfig_paths = tsconfig
+                .extends()
+                .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
+                .collect::<Result<Vec<_>, _>>()?;
+            for extended_tsconfig_path in extended_tsconfig_paths {
+                let extended_tsconfig = self.load_tsconfig(
+                    /* root */ false,
+                    &extended_tsconfig_path,
+                    &TsconfigReferences::Disabled,
+                )?;
+                tsconfig.extend_tsconfig(&extended_tsconfig);
             }
 
-            // Load project references
-            match references {
-                TsconfigReferences::Disabled => {
-                    tsconfig.references.drain(..);
-                }
-                TsconfigReferences::Auto => {}
-                TsconfigReferences::Paths(paths) => {
-                    tsconfig.references = paths
-                        .iter()
-                        .map(|path| ProjectReference { path: path.clone(), tsconfig: None })
-                        .collect();
-                }
-            }
-            if !tsconfig.references.is_empty() {
+            if tsconfig.load_references(references) {
+                let path = tsconfig.path().to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
-                for reference in &mut tsconfig.references {
-                    let reference_tsconfig_path = directory.normalize_with(&reference.path);
+                for reference in tsconfig.references_mut() {
+                    let reference_tsconfig_path = directory.normalize_with(reference.path());
                     let tsconfig = self.cache.get_tsconfig(
                         /* root */ true,
                         &reference_tsconfig_path,
                         |reference_tsconfig| {
-                            if reference_tsconfig.path == tsconfig.path {
+                            if reference_tsconfig.path() == path {
                                 return Err(ResolveError::TsconfigSelfReference(
-                                    reference_tsconfig.path.clone(),
+                                    reference_tsconfig.path().to_path_buf(),
                                 ));
                             }
                             Ok(())
                         },
                     )?;
-                    reference.tsconfig.replace(tsconfig);
+                    reference.set_tsconfig(tsconfig);
                 }
             }
             Ok(())
@@ -1252,7 +1237,7 @@ impl<C: Cache> ResolverGeneric<C> {
     fn get_extended_tsconfig_path(
         &self,
         directory: &C::Cp,
-        tsconfig: &TsConfig,
+        tsconfig: &C::Tc,
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
@@ -1313,7 +1298,7 @@ impl<C: Cache> ResolverGeneric<C> {
                             if let Some(path) = self.package_exports_resolve(
                                 &cached_path,
                                 &format!(".{subpath}"),
-                                exports,
+                                &exports,
                                 ctx,
                             )? {
                                 return Ok(Some(path));
@@ -1343,16 +1328,16 @@ impl<C: Cache> ResolverGeneric<C> {
     }
 
     /// PACKAGE_EXPORTS_RESOLVE(packageURL, subpath, exports, conditions)
-    fn package_exports_resolve(
+    fn package_exports_resolve<'a, Io: ImportsExportsEntry<'a>>(
         &self,
         package_url: &C::Cp,
         subpath: &str,
-        exports: &JSONValue,
+        exports: &Io,
         ctx: &mut Ctx,
     ) -> ResolveResult<C::Cp> {
         let conditions = &self.options.condition_names;
         // 1. If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
-        if let JSONValue::Object(map) = exports {
+        if let Some(map) = exports.as_map() {
             let mut has_dot = false;
             let mut without_dot = false;
             for key in map.keys() {
@@ -1381,27 +1366,25 @@ impl<C: Cache> ResolverGeneric<C> {
                 ));
             }
             // 1. Let mainExport be undefined.
-            let main_export = match exports {
+            let main_export = match exports.kind() {
                 // 2. If exports is a String or Array, or an Object containing no keys starting with ".", then
-                JSONValue::String(_) | JSONValue::Array(_) => {
+                ImportsExportsKind::String | ImportsExportsKind::Array => {
                     // 1. Set mainExport to exports.
-                    Some(exports)
+                    Some(Cow::Borrowed(exports))
                 }
                 // 3. Otherwise if exports is an Object containing a "." property, then
-                JSONValue::Object(map) => {
-                    // 1. Set mainExport to exports["."].
+                _ => exports.as_map().and_then(|map| {
                     map.get(".").map_or_else(
                         || {
                             if map.keys().any(|key| key.starts_with("./") || key.starts_with('#')) {
                                 None
                             } else {
-                                Some(exports)
+                                Some(Cow::Borrowed(exports))
                             }
                         },
-                        Some,
+                        |entry| Some(Cow::Owned(entry)),
                     )
-                }
-                _ => None,
+                }),
             };
             // 4. If mainExport is not undefined, then
             if let Some(main_export) = main_export {
@@ -1409,7 +1392,7 @@ impl<C: Cache> ResolverGeneric<C> {
                 let resolved = self.package_target_resolve(
                     package_url,
                     ".",
-                    main_export,
+                    main_export.as_ref(),
                     None,
                     /* is_imports */ false,
                     conditions,
@@ -1422,14 +1405,14 @@ impl<C: Cache> ResolverGeneric<C> {
             }
         }
         // 3. Otherwise, if exports is an Object and all keys of exports start with ".", then
-        if let JSONValue::Object(exports) = exports {
+        if let Some(exports) = exports.as_map() {
             // 1. Let matchKey be the string "./" concatenated with subpath.
             // Note: `package_imports_exports_resolve` does not require the leading dot.
             let match_key = &subpath;
             // 2. Let resolved be the result of PACKAGE_IMPORTS_EXPORTS_RESOLVE( matchKey, exports, packageURL, false, conditions).
             if let Some(path) = self.package_imports_exports_resolve(
                 match_key,
-                exports,
+                &exports,
                 package_url,
                 /* is_imports */ false,
                 conditions,
@@ -1450,7 +1433,7 @@ impl<C: Cache> ResolverGeneric<C> {
     fn package_imports_resolve(
         &self,
         specifier: &str,
-        package_json: &PackageJson,
+        package_json: &C::Pj,
         ctx: &mut Ctx,
     ) -> Result<Option<C::Cp>, ResolveError> {
         // 1. Assert: specifier begins with "#".
@@ -1472,13 +1455,13 @@ impl<C: Cache> ResolverGeneric<C> {
                 if specifier == "#" || specifier.starts_with("#/") {
                     return Err(ResolveError::InvalidModuleSpecifier(
                         specifier.to_string(),
-                        package_json.path.clone(),
+                        package_json.path().to_path_buf(),
                     ));
                 }
             }
             if let Some(path) = self.package_imports_exports_resolve(
                 specifier,
-                imports,
+                &imports,
                 &self.cache.value(package_json.directory()),
                 /* is_imports */ true,
                 &self.options.condition_names,
@@ -1493,7 +1476,7 @@ impl<C: Cache> ResolverGeneric<C> {
         if has_imports {
             Err(ResolveError::PackageImportNotDefined(
                 specifier.to_string(),
-                package_json.path.clone(),
+                package_json.path().to_path_buf(),
             ))
         } else {
             Ok(None)
@@ -1501,10 +1484,10 @@ impl<C: Cache> ResolverGeneric<C> {
     }
 
     /// PACKAGE_IMPORTS_EXPORTS_RESOLVE(matchKey, matchObj, packageURL, isImports, conditions)
-    fn package_imports_exports_resolve(
+    fn package_imports_exports_resolve<'a, Io: ImportsExportsMap<'a>>(
         &self,
         match_key: &str,
-        match_obj: &JSONMap,
+        match_obj: &Io,
         package_url: &C::Cp,
         is_imports: bool,
         conditions: &[String],
@@ -1523,7 +1506,7 @@ impl<C: Cache> ResolverGeneric<C> {
                 return self.package_target_resolve(
                     package_url,
                     match_key,
-                    target,
+                    &target,
                     None,
                     is_imports,
                     conditions,
@@ -1537,7 +1520,7 @@ impl<C: Cache> ResolverGeneric<C> {
         let mut best_key = "";
         // 2. Let expansionKeys be the list of keys of matchObj containing only a single "*", sorted by the sorting function PATTERN_KEY_COMPARE which orders in descending order of specificity.
         // 3. For each key expansionKey in expansionKeys, do
-        for (expansion_key, target) in match_obj {
+        for (expansion_key, target) in match_obj.iter() {
             if expansion_key.starts_with("./") || expansion_key.starts_with('#') {
                 // 1. Let patternBase be the substring of expansionKey up to but excluding the first "*" character.
                 if let Some((pattern_base, pattern_trailer)) = expansion_key.split_once('*') {
@@ -1574,7 +1557,7 @@ impl<C: Cache> ResolverGeneric<C> {
             return self.package_target_resolve(
                 package_url,
                 best_key,
-                best_target,
+                &best_target,
                 Some(best_match),
                 is_imports,
                 conditions,
@@ -1587,11 +1570,11 @@ impl<C: Cache> ResolverGeneric<C> {
 
     /// PACKAGE_TARGET_RESOLVE(packageURL, target, patternMatch, isImports, conditions)
     #[allow(clippy::too_many_arguments)]
-    fn package_target_resolve(
+    fn package_target_resolve<'a, Io: ImportsExportsEntry<'a>>(
         &self,
         package_url: &C::Cp,
         target_key: &str,
-        target: &JSONValue,
+        target: &Io,
         pattern_match: Option<&str>,
         is_imports: bool,
         conditions: &[String],
@@ -1623,110 +1606,106 @@ impl<C: Cache> ResolverGeneric<C> {
             Ok(target)
         }
 
-        match target {
-            // 1. If target is a String, then
-            JSONValue::String(target) => {
-                // 1. If target does not start with "./", then
-                if !target.starts_with("./") {
-                    // 1. If isImports is false, or if target starts with "../" or "/", or if target is a valid URL, then
-                    if !is_imports || target.starts_with("../") || target.starts_with('/') {
-                        // 1. Throw an Invalid Package Target error.
-                        return Err(ResolveError::InvalidPackageTarget(
-                            target.to_string(),
-                            target_key.to_string(),
-                            package_url.path().join("package.json"),
-                        ));
-                    }
-                    // 2. If patternMatch is a String, then
-                    //   1. Return PACKAGE_RESOLVE(target with every instance of "*" replaced by patternMatch, packageURL + "/").
-                    let target =
-                        normalize_string_target(target_key, target, pattern_match, package_url)?;
-                    // // 3. Return PACKAGE_RESOLVE(target, packageURL + "/").
-                    return self.package_resolve(package_url, &target, ctx);
-                }
-
-                // 2. If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after the first "." segment, case insensitive and including percent encoded variants, throw an Invalid Package Target error.
-                // 3. Let resolvedTarget be the URL resolution of the concatenation of packageURL and target.
-                // 4. Assert: resolvedTarget is contained in packageURL.
-                // 5. If patternMatch is null, then
-                let target =
-                    normalize_string_target(target_key, target, pattern_match, package_url)?;
-                if Path::new(target.as_ref()).is_invalid_exports_target() {
+        // 1. If target is a String, then
+        if let Some(target) = target.as_string() {
+            // 1. If target does not start with "./", then
+            if !target.starts_with("./") {
+                // 1. If isImports is false, or if target starts with "../" or "/", or if target is a valid URL, then
+                if !is_imports || target.starts_with("../") || target.starts_with('/') {
+                    // 1. Throw an Invalid Package Target error.
                     return Err(ResolveError::InvalidPackageTarget(
-                        target.to_string(),
+                        (*target).to_string(),
                         target_key.to_string(),
                         package_url.path().join("package.json"),
                     ));
                 }
-                // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
-                // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
-                return Ok(Some(package_url.normalize_with(target.as_ref(), self.cache.as_ref())));
+                // 2. If patternMatch is a String, then
+                //   1. Return PACKAGE_RESOLVE(target with every instance of "*" replaced by patternMatch, packageURL + "/").
+                let target =
+                    normalize_string_target(target_key, target, pattern_match, package_url)?;
+                // // 3. Return PACKAGE_RESOLVE(target, packageURL + "/").
+                return self.package_resolve(package_url, &target, ctx);
             }
-            // 2. Otherwise, if target is a non-null Object, then
-            JSONValue::Object(target) => {
-                // 1. If exports contains any index property keys, as defined in ECMA-262 6.1.7 Array Index, throw an Invalid Package Configuration error.
-                // 2. For each property p of target, in object insertion order as,
-                for (key, target_value) in target {
-                    // 1. If p equals "default" or conditions contains an entry for p, then
-                    if key == "default" || conditions.contains(key) {
-                        // 1. Let targetValue be the value of the p property in target.
-                        // 2. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions).
-                        let resolved = self.package_target_resolve(
-                            package_url,
-                            target_key,
-                            target_value,
-                            pattern_match,
-                            is_imports,
-                            conditions,
-                            ctx,
-                        );
-                        // 3. If resolved is equal to undefined, continue the loop.
-                        if let Some(path) = resolved? {
-                            // 4. Return resolved.
-                            return Ok(Some(path));
-                        }
-                    }
-                }
-                // 3. Return undefined.
-                return Ok(None);
+
+            // 2. If target split on "/" or "\" contains any "", ".", "..", or "node_modules" segments after the first "." segment, case insensitive and including percent encoded variants, throw an Invalid Package Target error.
+            // 3. Let resolvedTarget be the URL resolution of the concatenation of packageURL and target.
+            // 4. Assert: resolvedTarget is contained in packageURL.
+            // 5. If patternMatch is null, then
+            let target = normalize_string_target(target_key, target, pattern_match, package_url)?;
+            if Path::new(target.as_ref()).is_invalid_exports_target() {
+                return Err(ResolveError::InvalidPackageTarget(
+                    target.to_string(),
+                    target_key.to_string(),
+                    package_url.path().join("package.json"),
+                ));
             }
-            // 3. Otherwise, if target is an Array, then
-            JSONValue::Array(targets) => {
-                // 1. If _target.length is zero, return null.
-                if targets.is_empty() {
-                    // Note: return PackagePathNotExported has the same effect as return because there are no matches.
-                    return Err(ResolveError::PackagePathNotExported(
-                        pattern_match.unwrap_or(".").to_string(),
-                        package_url.path().join("package.json"),
-                    ));
-                }
-                // 2. For each item targetValue in target, do
-                for (i, target_value) in targets.iter().enumerate() {
-                    // 1. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions), continuing the loop on any Invalid Package Target error.
+            // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
+            // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
+            return Ok(Some(package_url.normalize_with(target.as_ref(), self.cache.as_ref())));
+        }
+        // 2. Otherwise, if target is a non-null Object, then
+        else if let Some(target) = target.as_map() {
+            // 1. If exports contains any index property keys, as defined in ECMA-262 6.1.7 Array Index, throw an Invalid Package Configuration error.
+            // 2. For each property p of target, in object insertion order as,
+            for (key, target_value) in target.iter() {
+                // 1. If p equals "default" or conditions contains an entry for p, then
+                if key == "default" || conditions.iter().any(|condition| condition == key) {
+                    // 1. Let targetValue be the value of the p property in target.
+                    // 2. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions).
                     let resolved = self.package_target_resolve(
                         package_url,
                         target_key,
-                        target_value,
+                        &target_value,
                         pattern_match,
                         is_imports,
                         conditions,
                         ctx,
                     );
-
-                    if resolved.is_err() && i == targets.len() {
-                        return resolved;
-                    }
-
-                    // 2. If resolved is undefined, continue the loop.
-                    if let Ok(Some(path)) = resolved {
-                        // 3. Return resolved.
+                    // 3. If resolved is equal to undefined, continue the loop.
+                    if let Some(path) = resolved? {
+                        // 4. Return resolved.
                         return Ok(Some(path));
                     }
                 }
-                // 3. Return or throw the last fallback resolution null return or error.
-                // Note: see `resolved.is_err() && i == targets.len()`
             }
-            _ => {}
+            // 3. Return undefined.
+            return Ok(None);
+        }
+        // 3. Otherwise, if target is an Array, then
+        else if let Some(targets) = target.as_array() {
+            // 1. If _target.length is zero, return null.
+            if targets.is_empty() {
+                // Note: return PackagePathNotExported has the same effect as return because there are no matches.
+                return Err(ResolveError::PackagePathNotExported(
+                    pattern_match.unwrap_or(".").to_string(),
+                    package_url.path().join("package.json"),
+                ));
+            }
+            // 2. For each item targetValue in target, do
+            for (i, target_value) in targets.iter().enumerate() {
+                // 1. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions), continuing the loop on any Invalid Package Target error.
+                let resolved = self.package_target_resolve(
+                    package_url,
+                    target_key,
+                    &target_value,
+                    pattern_match,
+                    is_imports,
+                    conditions,
+                    ctx,
+                );
+
+                if resolved.is_err() && i == targets.len() {
+                    return resolved;
+                }
+
+                // 2. If resolved is undefined, continue the loop.
+                if let Ok(Some(path)) = resolved {
+                    // 3. Return resolved.
+                    return Ok(Some(path));
+                }
+            }
+            // 3. Return or throw the last fallback resolution null return or error.
+            // Note: see `resolved.is_err() && i == targets.len()`
         }
         // 4. Otherwise, if target is null, return null.
         Ok(None)

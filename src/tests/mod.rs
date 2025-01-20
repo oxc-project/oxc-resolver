@@ -14,6 +14,7 @@ mod memory_fs;
 mod missing;
 #[cfg(feature = "yarn_pnp")]
 mod pnp;
+mod resolution;
 mod resolve;
 mod restrictions;
 mod roots;
