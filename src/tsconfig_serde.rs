@@ -6,7 +6,7 @@ use std::{
 use serde::Deserialize;
 
 use crate::{
-    CompilerOptions, CompilerOptionsPathsMap, ExtendsField, PathUtil, ProjectReference, TsConfig,
+    CompilerOptions, CompilerOptionsPathsMap, PathUtil, ProjectReference, TsConfig,
     TsconfigReferences,
 };
 
@@ -57,8 +57,17 @@ impl TsConfig for TsConfigSerde {
         &mut self.compiler_options
     }
 
-    fn extends(&self) -> Option<&ExtendsField> {
-        self.extends.as_ref()
+    fn extends(&self) -> impl Iterator<Item = &str> {
+        let specifiers = match &self.extends {
+            Some(ExtendsField::Single(specifier)) => {
+                vec![specifier.as_str()]
+            }
+            Some(ExtendsField::Multiple(specifiers)) => {
+                specifiers.iter().map(String::as_str).collect()
+            }
+            None => Vec::new(),
+        };
+        specifiers.into_iter()
     }
 
     fn load_references(&mut self, references: &TsconfigReferences) -> bool {
@@ -131,6 +140,16 @@ impl CompilerOptions for CompilerOptionsSerde {
     fn set_paths_base(&mut self, paths_base: PathBuf) {
         self.paths_base = paths_base;
     }
+}
+
+/// Value for the "extends" field.
+///
+/// <https://www.typescriptlang.org/tsconfig/#extends>
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum ExtendsField {
+    Single(String),
+    Multiple(Vec<String>),
 }
 
 /// Project Reference

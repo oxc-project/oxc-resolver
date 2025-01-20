@@ -47,10 +47,9 @@ pub trait TsConfig: Sized {
     #[must_use]
     fn compiler_options_mut(&mut self) -> &mut Self::Co;
 
-    /// Returns one or more paths to tsconfigs that should be extended by this
-    /// tsconfig.
+    /// Returns any paths to tsconfigs that should be extended by this tsconfig.
     #[must_use]
-    fn extends(&self) -> Option<&ExtendsField>;
+    fn extends(&self) -> impl Iterator<Item = &str>;
 
     /// Loads the given references into this tsconfig.
     ///
@@ -233,17 +232,6 @@ pub trait CompilerOptions {
 
     /// Sets the path base.
     fn set_paths_base(&mut self, paths_base: PathBuf);
-}
-
-/// Value for the "extends" field.
-///
-/// <https://www.typescriptlang.org/tsconfig/#extends>
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "fs_cache", derive(serde::Deserialize))]
-#[cfg_attr(feature = "fs_cache", serde(untagged))]
-pub enum ExtendsField {
-    Single(String),
-    Multiple(Vec<String>),
 }
 
 /// Project Reference.

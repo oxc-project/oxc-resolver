@@ -85,7 +85,7 @@ pub use crate::{
     file_system::{FileMetadata, FileSystem, FileSystemOs},
     fs_cache::{FsCache, FsCachedPath},
     package_json_serde::PackageJsonSerde,
-    tsconfig_serde::TsConfigSerde,
+    tsconfig_serde::{CompilerOptionsSerde, ExtendsField, ProjectReferenceSerde, TsConfigSerde},
 };
 
 #[cfg(feature = "fs_cache")]
@@ -105,9 +105,7 @@ pub use crate::{
     },
     path::PathUtil,
     resolution::Resolution,
-    tsconfig::{
-        CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
-    },
+    tsconfig::{CompilerOptions, CompilerOptionsPathsMap, ProjectReference, TsConfig},
 };
 use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier};
 
@@ -1175,24 +1173,17 @@ impl<C: Cache> ResolverGeneric<C> {
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
             // Extend tsconfig
-            if let Some(extends) = tsconfig.extends() {
-                let extended_tsconfig_paths = match extends {
-                    ExtendsField::Single(s) => {
-                        vec![self.get_extended_tsconfig_path(&directory, tsconfig, s)?]
-                    }
-                    ExtendsField::Multiple(specifiers) => specifiers
-                        .iter()
-                        .map(|s| self.get_extended_tsconfig_path(&directory, tsconfig, s))
-                        .collect::<Result<Vec<PathBuf>, ResolveError>>()?,
-                };
-                for extended_tsconfig_path in extended_tsconfig_paths {
-                    let extended_tsconfig = self.load_tsconfig(
-                        /* root */ false,
-                        &extended_tsconfig_path,
-                        &TsconfigReferences::Disabled,
-                    )?;
-                    tsconfig.extend_tsconfig(&extended_tsconfig);
-                }
+            let extended_tsconfig_paths = tsconfig
+                .extends()
+                .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
+                .collect::<Result<Vec<_>, _>>()?;
+            for extended_tsconfig_path in extended_tsconfig_paths {
+                let extended_tsconfig = self.load_tsconfig(
+                    /* root */ false,
+                    &extended_tsconfig_path,
+                    &TsconfigReferences::Disabled,
+                )?;
+                tsconfig.extend_tsconfig(&extended_tsconfig);
             }
 
             if tsconfig.load_references(references) {
