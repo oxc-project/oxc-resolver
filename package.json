@@ -22,7 +22,7 @@
     ],
     "cache": false
   },
-  "packageManager": "pnpm@9.14.4",
+  "packageManager": "pnpm@10.2.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oxc-project/oxc-resolver.git"
