@@ -32,18 +32,15 @@ jobs:
         if: ${{ steps.release-plz.outputs.prs_created }}
         env:
           GH_TOKEN: ${{ secrets.OXC_BOT_PAT }}
+          PR_NUMBER: ${{ fromJSON(steps.release-plz.outputs.pr).number }}
+          VERSION: ${{ fromJSON(steps.release-plz.outputs.pr).releases[0].version }}
         run: |
           set -e
-
-          pr_number=${{ fromJSON(steps.release-plz.outputs.pr).number }}
-          if [[ -n "$pr_number" ]]; then
-            version=${{ fromJSON(steps.release-plz.outputs.pr).releases[0].version }}
-            echo "version: $version"
-
-            jq --arg version "${version}" '.version = ($version)' npm/package.json > tmp
+          if [[ -n "$PR_NUMBER" ]]; then
+            jq --arg version "${VERSION}" '.version = ($VERSION)' npm/package.json > tmp
             mv tmp npm/package.json
 
-            gh pr checkout $pr_number
+            gh pr checkout $PR_NUMBER
             git add .
             git commit --amend --no-edit
             git push --force-with-lease
