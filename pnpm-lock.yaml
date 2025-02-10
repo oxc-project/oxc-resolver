@@ -9,14 +9,14 @@ importers:
   .:
     devDependencies:
       '@napi-rs/cli':
-        specifier: 3.0.0-alpha.64
-        version: 3.0.0-alpha.64(@emnapi/runtime@1.3.1)(@types/node@22.10.2)(emnapi@1.3.1)
+        specifier: 3.0.0-alpha.70
+        version: 3.0.0-alpha.70(@emnapi/runtime@1.3.1)(@types/node@22.13.1)(emnapi@1.3.1)
       '@napi-rs/wasm-runtime':
         specifier: ^0.2.5
-        version: 0.2.5
+        version: 0.2.6
       '@types/node':
         specifier: ^22.10.2
-        version: 22.10.2
+        version: 22.13.1
       ava:
         specifier: ^6.2.0
         version: 6.2.0
@@ -25,7 +25,7 @@ importers:
         version: 1.3.1
       typescript:
         specifier: ^5.7.2
-        version: 5.7.2
+        version: 5.7.3
 
   fixtures/pnpm:
     devDependencies:
@@ -170,8 +170,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  '@napi-rs/cli@3.0.0-alpha.64':
-    resolution: {integrity: sha512-IYkNvh+SjFd4StEIJVsXa4paAeKakYG80GWTfX3PwpFlrX4fQZ7BkPR1IGWI17x5psz9MQvuEyicwjGWiHxI4A==}
+  '@napi-rs/cli@3.0.0-alpha.70':
+    resolution: {integrity: sha512-hYZuA1gXO7hx9sXzz4qCVBevh46unQMXRvgUhg2kHctnHJNOKKOjNcxM3OF7o60olzlNsjQ1SpzySWlYn/JLSg==}
     engines: {node: '>= 16'}
     hasBin: true
     peerDependencies:
@@ -183,15 +183,15 @@ packages:
       emnapi:
         optional: true
 
-  '@napi-rs/cross-toolchain@0.0.16':
-    resolution: {integrity: sha512-jwdjHT5L0m9MH0CmzDwPp0ckn/UO7afHCsPeo7NugHUvYgvlgS7SWhdMVgIgJW2HHqhcW/2nhaLLGpAU1c7QRQ==}
+  '@napi-rs/cross-toolchain@0.0.19':
+    resolution: {integrity: sha512-StHXqYANdTaMFqJJ3JXHqKQMylOzOJPcrOCd9Nt2NIGfvfaXK3SzpmNfkJimkOAYfTsfpfuRERsML0bUZCpHBQ==}
     peerDependencies:
-      '@napi-rs/cross-toolchain-arm64-target-aarch64': ^0.0.16
-      '@napi-rs/cross-toolchain-arm64-target-armv7': ^0.0.16
-      '@napi-rs/cross-toolchain-arm64-target-x86_64': ^0.0.16
-      '@napi-rs/cross-toolchain-x64-target-aarch64': ^0.0.16
-      '@napi-rs/cross-toolchain-x64-target-armv7': ^0.0.16
-      '@napi-rs/cross-toolchain-x64-target-x86_64': ^0.0.16
+      '@napi-rs/cross-toolchain-arm64-target-aarch64': ^0.0.19
+      '@napi-rs/cross-toolchain-arm64-target-armv7': ^0.0.19
+      '@napi-rs/cross-toolchain-arm64-target-x86_64': ^0.0.19
+      '@napi-rs/cross-toolchain-x64-target-aarch64': ^0.0.19
+      '@napi-rs/cross-toolchain-x64-target-armv7': ^0.0.19
+      '@napi-rs/cross-toolchain-x64-target-x86_64': ^0.0.19
     peerDependenciesMeta:
       '@napi-rs/cross-toolchain-arm64-target-aarch64':
         optional: true
@@ -410,8 +410,8 @@ packages:
     resolution: {integrity: sha512-hDsvmMZY8tl2CcLfjnTeE1o5W1eGTSL+ZIX8YEybtcJwA+Cc8SNHb7l6JqMnGcjOrWBZbHt8tzTN+W7qHS5Wmg==}
     engines: {node: '>= 10'}
 
-  '@napi-rs/wasm-runtime@0.2.5':
-    resolution: {integrity: sha512-kwUxR7J9WLutBbulqg1dfOrMTwhMdXLdcGUhcbCcGwnPLt3gz19uHVdwH1syKVDbE022ZS2vZxOWflFLS0YTjw==}
+  '@napi-rs/wasm-runtime@0.2.6':
+    resolution: {integrity: sha512-z8YVS3XszxFTO73iwvFDNpQIzdMmSDTP/mB3E/ucR37V3Sx57hSExcXyMoNwaucWxnsWf4xfbZv0iZ30jr0M4Q==}
 
   '@napi-rs/wasm-tools-android-arm-eabi@0.0.2':
     resolution: {integrity: sha512-/b+UU3suXjW4P0DzHRNdrnebQtFKcQf/YMeZJH+xUlKgvwli5kbmWjx8Wqqz0VETVkUTuPqJMBDIVLyc+14FGw==}
@@ -584,8 +584,8 @@ packages:
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
 
-  '@types/node@22.10.2':
-    resolution: {integrity: sha512-Xxr6BBRCAOQixvonOye19wnzyDiUtTeqldOOmj3CkeblonbccA12PFwlufvRdrpjXxqnmUaeiU5EOA+7s5diUQ==}
+  '@types/node@22.13.1':
+    resolution: {integrity: sha512-jK8uzQlrvXqEU91UxiK5J7pKHyzgnI1Qnl0QDHIgVGuolJhRb9EEl28Cj9b3rGR8B2lhFCtvIm5os8lFnO/1Ew==}
 
   '@types/stylis@4.2.6':
     resolution: {integrity: sha512-4nebF2ZJGzQk0ka0O6+FZUWceyFv4vWq/0dXBMmrSeAwzOuOd/GxE5Pa64d/ndeNLG73dXoBsRzvtsVsYUv6Uw==}
@@ -1396,8 +1396,8 @@ packages:
     resolution: {integrity: sha512-EGjWssW7Tsk4DGfE+5yluuljS1OGYWiI1J6e8puZz9nTMM51Oug8CD5Zo4gWMsOhq5BI+1bF+rWTm4Vbj3ivRA==}
     engines: {node: '>= 18'}
 
-  typescript@5.7.2:
-    resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
+  typescript@5.7.3:
+    resolution: {integrity: sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -1495,25 +1495,25 @@ snapshots:
 
   '@emotion/unitless@0.8.1': {}
 
-  '@inquirer/checkbox@4.0.3(@types/node@22.10.2)':
+  '@inquirer/checkbox@4.0.3(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
       '@inquirer/figures': 1.0.8
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
       ansi-escapes: 4.3.2
       yoctocolors-cjs: 2.1.2
 
-  '@inquirer/confirm@5.1.0(@types/node@22.10.2)':
+  '@inquirer/confirm@5.1.0(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
 
-  '@inquirer/core@10.1.1(@types/node@22.10.2)':
+  '@inquirer/core@10.1.1(@types/node@22.13.1)':
     dependencies:
       '@inquirer/figures': 1.0.8
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
       ansi-escapes: 4.3.2
       cli-width: 4.1.0
       mute-stream: 2.0.0
@@ -1524,82 +1524,82 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@inquirer/editor@4.2.0(@types/node@22.10.2)':
+  '@inquirer/editor@4.2.0(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
       external-editor: 3.1.0
 
-  '@inquirer/expand@4.0.3(@types/node@22.10.2)':
+  '@inquirer/expand@4.0.3(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
       yoctocolors-cjs: 2.1.2
 
   '@inquirer/figures@1.0.8': {}
 
-  '@inquirer/input@4.1.0(@types/node@22.10.2)':
+  '@inquirer/input@4.1.0(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
 
-  '@inquirer/number@3.0.3(@types/node@22.10.2)':
+  '@inquirer/number@3.0.3(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
 
-  '@inquirer/password@4.0.3(@types/node@22.10.2)':
+  '@inquirer/password@4.0.3(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
       ansi-escapes: 4.3.2
 
-  '@inquirer/prompts@7.2.0(@types/node@22.10.2)':
+  '@inquirer/prompts@7.2.0(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/checkbox': 4.0.3(@types/node@22.10.2)
-      '@inquirer/confirm': 5.1.0(@types/node@22.10.2)
-      '@inquirer/editor': 4.2.0(@types/node@22.10.2)
-      '@inquirer/expand': 4.0.3(@types/node@22.10.2)
-      '@inquirer/input': 4.1.0(@types/node@22.10.2)
-      '@inquirer/number': 3.0.3(@types/node@22.10.2)
-      '@inquirer/password': 4.0.3(@types/node@22.10.2)
-      '@inquirer/rawlist': 4.0.3(@types/node@22.10.2)
-      '@inquirer/search': 3.0.3(@types/node@22.10.2)
-      '@inquirer/select': 4.0.3(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/checkbox': 4.0.3(@types/node@22.13.1)
+      '@inquirer/confirm': 5.1.0(@types/node@22.13.1)
+      '@inquirer/editor': 4.2.0(@types/node@22.13.1)
+      '@inquirer/expand': 4.0.3(@types/node@22.13.1)
+      '@inquirer/input': 4.1.0(@types/node@22.13.1)
+      '@inquirer/number': 3.0.3(@types/node@22.13.1)
+      '@inquirer/password': 4.0.3(@types/node@22.13.1)
+      '@inquirer/rawlist': 4.0.3(@types/node@22.13.1)
+      '@inquirer/search': 3.0.3(@types/node@22.13.1)
+      '@inquirer/select': 4.0.3(@types/node@22.13.1)
+      '@types/node': 22.13.1
 
-  '@inquirer/rawlist@4.0.3(@types/node@22.10.2)':
+  '@inquirer/rawlist@4.0.3(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
       yoctocolors-cjs: 2.1.2
 
-  '@inquirer/search@3.0.3(@types/node@22.10.2)':
+  '@inquirer/search@3.0.3(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
       '@inquirer/figures': 1.0.8
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
       yoctocolors-cjs: 2.1.2
 
-  '@inquirer/select@4.0.3(@types/node@22.10.2)':
+  '@inquirer/select@4.0.3(@types/node@22.13.1)':
     dependencies:
-      '@inquirer/core': 10.1.1(@types/node@22.10.2)
+      '@inquirer/core': 10.1.1(@types/node@22.13.1)
       '@inquirer/figures': 1.0.8
-      '@inquirer/type': 3.0.1(@types/node@22.10.2)
-      '@types/node': 22.10.2
+      '@inquirer/type': 3.0.1(@types/node@22.13.1)
+      '@types/node': 22.13.1
       ansi-escapes: 4.3.2
       yoctocolors-cjs: 2.1.2
 
-  '@inquirer/type@3.0.1(@types/node@22.10.2)':
+  '@inquirer/type@3.0.1(@types/node@22.13.1)':
     dependencies:
-      '@types/node': 22.10.2
+      '@types/node': 22.13.1
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -1627,10 +1627,10 @@ snapshots:
       - encoding
       - supports-color
 
-  '@napi-rs/cli@3.0.0-alpha.64(@emnapi/runtime@1.3.1)(@types/node@22.10.2)(emnapi@1.3.1)':
+  '@napi-rs/cli@3.0.0-alpha.70(@emnapi/runtime@1.3.1)(@types/node@22.13.1)(emnapi@1.3.1)':
     dependencies:
-      '@inquirer/prompts': 7.2.0(@types/node@22.10.2)
-      '@napi-rs/cross-toolchain': 0.0.16
+      '@inquirer/prompts': 7.2.0(@types/node@22.13.1)
+      '@napi-rs/cross-toolchain': 0.0.19
       '@napi-rs/wasm-tools': 0.0.2
       '@octokit/rest': 21.0.2
       clipanion: 3.2.1(typanion@3.14.0)
@@ -1655,7 +1655,7 @@ snapshots:
       - '@types/node'
       - supports-color
 
-  '@napi-rs/cross-toolchain@0.0.16':
+  '@napi-rs/cross-toolchain@0.0.19':
     dependencies:
       '@napi-rs/lzma': 1.4.1
       '@napi-rs/tar': 0.1.4
@@ -1704,7 +1704,7 @@ snapshots:
 
   '@napi-rs/lzma-wasm32-wasi@1.4.1':
     dependencies:
-      '@napi-rs/wasm-runtime': 0.2.5
+      '@napi-rs/wasm-runtime': 0.2.6
     optional: true
 
   '@napi-rs/lzma-win32-arm64-msvc@1.4.1':
@@ -1774,7 +1774,7 @@ snapshots:
 
   '@napi-rs/tar-wasm32-wasi@0.1.4':
     dependencies:
-      '@napi-rs/wasm-runtime': 0.2.5
+      '@napi-rs/wasm-runtime': 0.2.6
     optional: true
 
   '@napi-rs/tar-win32-arm64-msvc@0.1.4':
@@ -1805,7 +1805,7 @@ snapshots:
       '@napi-rs/tar-win32-ia32-msvc': 0.1.4
       '@napi-rs/tar-win32-x64-msvc': 0.1.4
 
-  '@napi-rs/wasm-runtime@0.2.5':
+  '@napi-rs/wasm-runtime@0.2.6':
     dependencies:
       '@emnapi/core': 1.3.1
       '@emnapi/runtime': 1.3.1
@@ -1840,7 +1840,7 @@ snapshots:
 
   '@napi-rs/wasm-tools-wasm32-wasi@0.0.2':
     dependencies:
-      '@napi-rs/wasm-runtime': 0.2.5
+      '@napi-rs/wasm-runtime': 0.2.6
     optional: true
 
   '@napi-rs/wasm-tools-win32-arm64-msvc@0.0.2':
@@ -1960,7 +1960,7 @@ snapshots:
 
   '@types/estree@1.0.6': {}
 
-  '@types/node@22.10.2':
+  '@types/node@22.13.1':
     dependencies:
       undici-types: 6.20.0
 
@@ -2693,7 +2693,7 @@ snapshots:
 
   typed-function@4.2.1: {}
 
-  typescript@5.7.2: {}
+  typescript@5.7.3: {}
 
   undici-types@6.20.0: {}
 
