@@ -115,7 +115,9 @@ Quoting esbuild's documentation:
 
 ## Options
 
-The options are aligned with [enhanced-resolve].
+The following options are aligned with [enhanced-resolve], and is implemented for Rust crate usage.
+
+See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/index.d.ts) for Node.js usage.
 
 | Field            | Default                   | Description                                                                                                                                               |
 | ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
