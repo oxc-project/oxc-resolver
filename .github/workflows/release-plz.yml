@@ -1,5 +1,7 @@
 name: Release Plz
 
+permissions: {}
+
 on:
   workflow_dispatch:
   push:
@@ -18,11 +20,6 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.OXC_BOT_PAT }}
-
-      - uses: Boshen/setup-rust@main
-        with:
-          save-cache: ${{ github.ref_name == 'main' }}
-          cache-key: warm
 
       - name: Run release-plz
         id: release-plz
