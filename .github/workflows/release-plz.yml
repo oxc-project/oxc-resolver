@@ -36,11 +36,16 @@ jobs:
           VERSION: ${{ fromJSON(steps.release-plz.outputs.pr).releases[0].version }}
         run: |
           set -e
-          if [[ -n "$PR_NUMBER" ]]; then
-            jq --arg version "${VERSION}" '.version = ($VERSION)' npm/package.json > tmp
+
+          pr_number="${PR_NUMBER}"
+
+          if [[ -n "$pr_number" ]]; then
+            version="${VERSION}"
+
+            jq --arg version "${version}" '.version = ($version)' npm/package.json > tmp
             mv tmp npm/package.json
 
-            gh pr checkout $PR_NUMBER
+            gh pr checkout $pr_number
             git add .
             git commit --amend --no-edit
             git push --force-with-lease
