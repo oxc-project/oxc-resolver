@@ -697,8 +697,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         #[cfg(feature = "yarn_pnp")]
         {
-            if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
-                return Ok(Some(resolved_path));
+            if self.options.enable_pnp {
+                if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
+                    return Ok(Some(resolved_path));
+                }
             }
         }
 
@@ -1537,8 +1539,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         && !pattern_trailer.contains('*')
                         // 2. If patternTrailer has zero length, or if matchKey ends with patternTrailer and the length of matchKey is greater than or equal to the length of expansionKey, then
                         && (pattern_trailer.is_empty()
-                            || (match_key.len() >= expansion_key.len()
-                                && match_key.ends_with(pattern_trailer)))
+                        || (match_key.len() >= expansion_key.len()
+                        && match_key.ends_with(pattern_trailer)))
                         && Self::pattern_key_compare(best_key, expansion_key).is_gt()
                     {
                         // 1. Let target be the value of matchObj[expansionKey].

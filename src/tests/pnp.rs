@@ -3,6 +3,7 @@
 //! enhanced_resolve's test <https://github.com/webpack/enhanced-resolve/blob/main/test/pnp.test.js>
 //! cannot be ported over because it uses mocks on `pnpApi` provided by the runtime.
 
+use crate::ResolveError::NotFound;
 use crate::{ResolveOptions, Resolver};
 
 #[test]
@@ -62,5 +63,17 @@ fn pnp1() {
         Ok(fixture.join(
             ".yarn/cache/preact-npm-10.25.4-2dd2c0aa44-33a009d614.zip/node_modules/preact/devtools/dist/devtools.mjs"
         )),
+    );
+}
+
+#[test]
+fn resolve_pnp_pkg_should_failed_while_disable_pnp_mode() {
+    let fixture = super::fixture_root().join("pnp");
+
+    let resolver = Resolver::new(ResolveOptions { enable_pnp: false, ..ResolveOptions::default() });
+
+    assert_eq!(
+        resolver.resolve(&fixture, "is-even").map(|r| r.full_path()),
+        Err(NotFound("is-even".to_string()))
     );
 }
