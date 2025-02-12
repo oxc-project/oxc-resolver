@@ -110,6 +110,21 @@ pub struct CompilerOptionsSerde {
     /// The actual base from where path aliases are resolved.
     #[serde(skip)]
     paths_base: PathBuf,
+
+    /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
+    pub experimental_decorators: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#jsx>
+    pub jsx: Option<String>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#jsxFactory>
+    pub jsx_factory: Option<String>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#jsxFragmentFactory>
+    pub jsx_fragment_factory: Option<String>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#jsxImportSource>
+    pub jsx_import_source: Option<String>,
 }
 
 impl CompilerOptions for CompilerOptionsSerde {
