@@ -104,6 +104,38 @@ pub trait TsConfig: Sized {
                 compiler_options.set_base_url(base_url.to_path_buf());
             }
         }
+
+        if compiler_options.experimental_decorators().is_none() {
+            if let Some(experimental_decorators) =
+                tsconfig.compiler_options().experimental_decorators()
+            {
+                compiler_options.set_experimental_decorators(*experimental_decorators);
+            }
+        }
+
+        if compiler_options.jsx().is_none() {
+            if let Some(jsx) = tsconfig.compiler_options().jsx() {
+                compiler_options.set_jsx(jsx.to_string());
+            }
+        }
+
+        if compiler_options.jsx_factory().is_none() {
+            if let Some(jsx_factory) = tsconfig.compiler_options().jsx_factory() {
+                compiler_options.set_jsx_factory(jsx_factory.to_string());
+            }
+        }
+
+        if compiler_options.jsx_fragment_factory().is_none() {
+            if let Some(jsx_fragment_factory) = tsconfig.compiler_options().jsx_fragment_factory() {
+                compiler_options.set_jsx_fragment_factory(jsx_fragment_factory.to_string());
+            }
+        }
+
+        if compiler_options.jsx_import_source().is_none() {
+            if let Some(jsx_import_source) = tsconfig.compiler_options().jsx_import_source() {
+                compiler_options.set_jsx_import_source(jsx_import_source.to_string());
+            }
+        }
     }
 
     /// Resolves the given `specifier` within the project configured by this
@@ -232,6 +264,36 @@ pub trait CompilerOptions {
 
     /// Sets the path base.
     fn set_paths_base(&mut self, paths_base: PathBuf);
+
+    /// Whether to enable experimental decorators.
+    fn experimental_decorators(&self) -> Option<&bool>;
+
+    /// Sets whether to enable experimental decorators.
+    fn set_experimental_decorators(&mut self, experimental_decorators: bool);
+
+    /// JSX.
+    fn jsx(&self) -> Option<&str>;
+
+    /// Sets JSX.
+    fn set_jsx(&mut self, jsx: String);
+
+    /// JSX factory.
+    fn jsx_factory(&self) -> Option<&str>;
+
+    /// Sets JSX factory.
+    fn set_jsx_factory(&mut self, jsx_factory: String);
+
+    /// JSX fragment factory.
+    fn jsx_fragment_factory(&self) -> Option<&str>;
+
+    /// Sets JSX fragment factory.
+    fn set_jsx_fragment_factory(&mut self, jsx_fragment_factory: String);
+
+    /// JSX import source.
+    fn jsx_import_source(&self) -> Option<&str>;
+
+    /// Sets JSX import source.
+    fn set_jsx_import_source(&mut self, jsx_import_source: String);
 }
 
 /// Project Reference.
