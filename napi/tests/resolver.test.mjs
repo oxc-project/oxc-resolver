@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import test from 'ava';
+import { assert, test } from 'vitest';
 
 let ResolverFactory;
 
@@ -222,17 +222,17 @@ for (
     ],
   ]
 ) {
-  test(title, (t) => {
+  test(title, () => {
     const resolver = new ResolverFactory({
       modules: ['src/a', 'src/b', 'src/common', 'node_modules'],
       extensions: ['.js', '.jsx', '.ts', '.tsx'],
     });
 
-    t.is(resolver.sync(context, request).path, expected);
+    assert.equal(resolver.sync(context, request).path, expected);
   });
 }
 
-test('resolve pnpm package', (t) => {
+test('resolve pnpm package', () => {
   const rootDir = join(currentDir, '..', '..');
   const pnpmProjectPath = join(rootDir, 'fixtures', 'pnpm');
   const resolver = new ResolverFactory({
@@ -240,7 +240,7 @@ test('resolve pnpm package', (t) => {
   });
 
   const styledComponents = resolver.sync(pnpmProjectPath, 'styled-components');
-  t.deepEqual(
+  assert.deepEqual(
     styledComponents.path,
     join(
       rootDir,
@@ -255,7 +255,7 @@ test('resolve pnpm package', (t) => {
     ),
     'react',
   );
-  t.deepEqual(
+  assert.deepEqual(
     react.path,
     join(
       rootDir,
