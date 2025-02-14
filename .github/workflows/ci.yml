@@ -46,6 +46,8 @@ jobs:
       - run: cargo check --all-features --locked
       - run: cargo test --doc
       - run: cargo test --all-features
+      - run: pnpm run build:debug && pnpm run test
+        if: ${{ matrix.os  != 'windows-latest' }}
 
   wasm:
     name: Check Wasm
@@ -82,7 +84,7 @@ jobs:
           pnpm build --target wasm32-wasip1-threads
 
       - name: Test
-        run: pnpm test
+        run: pnpm run test
         env:
           WASI_TEST: 1
 

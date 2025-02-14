@@ -1,6 +1,6 @@
-import * as assert from 'node:assert';
 import * as path from 'node:path';
-import { describe, it } from 'node:test';
+import { assert, describe, it } from 'vitest';
+
 import { ResolverFactory } from '../index.js';
 
 const fixtureDir = new URL(
