@@ -1,0 +1,10 @@
+{
+  "extends": "./base-tsconfig",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "jsx": "react-jsx",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
+    "jsxImportSource": "xxx"
+  }
+}

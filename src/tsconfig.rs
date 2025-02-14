@@ -266,34 +266,44 @@ pub trait CompilerOptions {
     fn set_paths_base(&mut self, paths_base: PathBuf);
 
     /// Whether to enable experimental decorators.
-    fn experimental_decorators(&self) -> Option<&bool>;
+    fn experimental_decorators(&self) -> Option<&bool> {
+        None
+    }
 
     /// Sets whether to enable experimental decorators.
-    fn set_experimental_decorators(&mut self, experimental_decorators: bool);
+    fn set_experimental_decorators(&mut self, _experimental_decorators: bool) {}
 
     /// JSX.
-    fn jsx(&self) -> Option<&str>;
+    fn jsx(&self) -> Option<&str> {
+        None
+    }
 
     /// Sets JSX.
-    fn set_jsx(&mut self, jsx: String);
+    fn set_jsx(&mut self, _jsx: String) {}
 
     /// JSX factory.
-    fn jsx_factory(&self) -> Option<&str>;
+    fn jsx_factory(&self) -> Option<&str> {
+        None
+    }
 
     /// Sets JSX factory.
-    fn set_jsx_factory(&mut self, jsx_factory: String);
+    fn set_jsx_factory(&mut self, _jsx_factory: String) {}
 
     /// JSX fragment factory.
-    fn jsx_fragment_factory(&self) -> Option<&str>;
+    fn jsx_fragment_factory(&self) -> Option<&str> {
+        None
+    }
 
     /// Sets JSX fragment factory.
-    fn set_jsx_fragment_factory(&mut self, jsx_fragment_factory: String);
+    fn set_jsx_fragment_factory(&mut self, _jsx_fragment_factory: String) {}
 
     /// JSX import source.
-    fn jsx_import_source(&self) -> Option<&str>;
+    fn jsx_import_source(&self) -> Option<&str> {
+        None
+    }
 
     /// Sets JSX import source.
-    fn set_jsx_import_source(&mut self, jsx_import_source: String);
+    fn set_jsx_import_source(&mut self, _jsx_import_source: String) {}
 }
 
 /// Project Reference.

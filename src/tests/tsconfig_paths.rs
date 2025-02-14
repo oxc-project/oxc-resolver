@@ -209,6 +209,32 @@ fn test_paths_and_base_url() {
     }
 }
 
+#[test]
+fn test_merge_tsconfig() {
+    let resolver = Resolver::default();
+    let dir = super::fixture_root().join("tsconfig/cases/merge_compiler_options");
+    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
+    let compiler_options = resolution.compiler_options();
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
+    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
+    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
+    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+}
+
+#[test]
+fn test_no_merge_tsconfig() {
+    let resolver = Resolver::default();
+    let dir = super::fixture_root().join("tsconfig/cases/no_merge_compiler_options");
+    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
+    let compiler_options = resolution.compiler_options();
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
+    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
+    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
+    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+}
+
 // Template variable ${configDir} for substitution of config files directory path
 // https://github.com/microsoft/TypeScript/pull/58042
 #[test]
