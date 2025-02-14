@@ -15,7 +15,7 @@ fn data() -> Vec<(PathBuf, &'static str)> {
         // real packages
         (cwd.clone(), "@napi-rs/cli"),
         (cwd.clone(), "@napi-rs/wasm-runtime"),
-        (cwd.clone(), "ava"),
+        (cwd.clone(), "vitest"),
         (cwd.clone(), "emnapi"),
         (cwd, "typescript"),
         // relative path
