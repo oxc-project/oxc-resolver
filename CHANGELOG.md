@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v4.0.1...oxc_resolver-v4.1.0) - 2025-02-14
+
+### <!-- 0 -->Features
+
+- merge options from extends tsconfig.json (#375)
+- add more fields in tsconfig#CompilerOptionsSerde (#374)
+
+### <!-- 1 -->Bug Fixes
+
+- fix bench
+
 ## [4.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v3.0.3...oxc_resolver-v4.0.0) - 2025-01-20
 
 ### <!-- 0 -->Features
