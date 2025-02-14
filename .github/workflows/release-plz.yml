@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.OXC_BOT_PAT }}
-          persist-credentials: false
+          persist-credentials: true # required by release-plz
 
       - name: Run release-plz
         id: release-plz
