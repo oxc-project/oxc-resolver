@@ -1,7 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>Boshen/renovate", "helpers:pinGitHubActionDigests"],
-  "updateNotScheduled": true,
+  "extends": ["github>Boshen/renovate", "helpers:pinGitHubActionDigestsToSemver"],
   "ignorePaths": ["**/node_modules/**", "**/fixtures/**"],
   "packageRules": [
     {
