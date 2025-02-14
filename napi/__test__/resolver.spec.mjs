@@ -238,25 +238,28 @@ test('resolve pnpm package', (t) => {
   const resolver = new ResolverFactory({
     aliasFields: ['browser'],
   });
-  t.deepEqual(resolver.sync(pnpmProjectPath, 'styled-components'), {
-    path: join(
+
+  const styledComponents = resolver.sync(pnpmProjectPath, 'styled-components');
+  t.deepEqual(
+    styledComponents.path,
+    join(
       rootDir,
       'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components/dist/styled-components.browser.cjs.js',
     ),
-  });
-  t.deepEqual(
-    resolver.sync(
-      join(
-        rootDir,
-        'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components',
-      ),
-      'react',
+  );
+
+  const react = resolver.sync(
+    join(
+      rootDir,
+      'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components',
     ),
-    {
-      path: join(
-        rootDir,
-        'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js',
-      ),
-    },
+    'react',
+  );
+  t.deepEqual(
+    react.path,
+    join(
+      rootDir,
+      'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js',
+    ),
   );
 });
