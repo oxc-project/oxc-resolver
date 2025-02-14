@@ -190,6 +190,7 @@ export interface ResolveResult {
   error?: string;
   /** "type" field in the package.json file */
   moduleType?: string;
+  packageJsonPath?: string;
 }
 
 /**
