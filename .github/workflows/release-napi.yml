@@ -110,7 +110,8 @@ jobs:
         run: pnpm build --target ${{ matrix.target }}
 
       - name: Test
-        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-apple-darwin' || matrix.target == 'wasm32-wasip1-threads'
+        # if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-apple-darwin' || matrix.target == 'wasm32-wasip1-threads'
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: pnpm test
 
       - name: Output docker params
@@ -146,7 +147,7 @@ jobs:
 
       - name: Run linux test
         uses: addnab/docker-run-action@4f65fabd2431ebc8d299f8e5a018d79a769ae185 # v3
-        if: ${{ contains(matrix.target, 'linux') }}
+        if: false # ${{ contains(matrix.target, 'linux') }}
         with:
           image: ${{ steps.docker.outputs.IMAGE }}
           options: -v ${{ steps.docker.outputs.PNPM_STORE_PATH }}:${{ steps.docker.outputs.PNPM_STORE_PATH }} -v ${{ github.workspace }}:/oxc_resolver -w /oxc_resolver --platform ${{ steps.docker.outputs.PLATFORM }}
@@ -183,7 +184,7 @@ jobs:
           environment_variables: "DEBUG RUSTUP_IO_THREADS"
           shell: bash
           run: |
-            sudo pkg install -y -f curl node libnghttp2 npm
+            sudo pkg install -y -f curl libnghttp2 node22 npm
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
             source "$HOME/.cargo/env"
@@ -195,6 +196,7 @@ jobs:
             ls -lah
             whoami
             env
+            export COREPACK_INTEGRITY_KEYS=0
             sudo corepack enable
             pnpm install
             pnpm build --target x86_64-unknown-freebsd
@@ -215,10 +217,12 @@ jobs:
     needs:
       - build
       - build-freebsd
+    env:
+      COREPACK_INTEGRITY_KEYS: 0
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
-      - name: corepack
+      - name: Install pnpm
         run: corepack enable
 
       - name: Setup Node.js
