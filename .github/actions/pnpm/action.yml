@@ -14,16 +14,12 @@ runs:
 
     - name: pnpm
       shell: bash
-      env:
-        COREPACK_INTEGRITY_KEYS: 0
       run: |
         corepack enable
         pnpm install
 
     - name: yarn
       shell: bash
-      env:
-        COREPACK_INTEGRITY_KEYS: 0
       run: |
         cd fixtures/pnp
         corepack enable
