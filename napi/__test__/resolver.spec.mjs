@@ -239,6 +239,7 @@ test('resolve pnpm package', (t) => {
     aliasFields: ['browser'],
   });
   t.deepEqual(resolver.sync(pnpmProjectPath, 'styled-components'), {
+    packageJsonPath: join(rootDir, 'fixtures/pnpm/node_modules/styled-components/package.json'),
     path: join(
       rootDir,
       'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components/dist/styled-components.browser.cjs.js',
@@ -257,6 +258,7 @@ test('resolve pnpm package', (t) => {
         rootDir,
         'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js',
       ),
+      packageJsonPath: join(rootDir, 'fixtures/pnpm/node_modules/styled-components/package.json'),
     },
   );
 });
