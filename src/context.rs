@@ -21,6 +21,8 @@ pub struct ResolveContext {
 
     /// For avoiding infinite recursion, which will cause stack overflow.
     depth: u8,
+    /// is resolving alias
+    pub is_resolving_alias: bool,
 }
 
 impl ResolveContext {
@@ -70,5 +72,9 @@ impl ResolveContext {
             return Err(ResolveError::Recursion);
         }
         Ok(())
+    }
+
+    pub fn with_is_resolving_alias(&mut self, v: bool) {
+        self.is_resolving_alias = v;
     }
 }

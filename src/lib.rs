@@ -446,7 +446,9 @@ impl<C: Cache> ResolverGeneric<C> {
             .components()
             .next()
             .is_some_and(|c| matches!(c, Component::Normal(_))));
-        if self.options.prefer_relative {
+        // aliased path will always be normalize, which will always strip './
+        // Add this extra flag to ensure the alias path is correctly resolved.
+        if self.options.prefer_relative || ctx.is_resolving_alias {
             if let Ok(path) = self.require_relative(cached_path, specifier, ctx) {
                 return Ok(path);
             }
@@ -995,6 +997,11 @@ impl<C: Cache> ResolverGeneric<C> {
                     continue;
                 }
                 alias_key
+            } else if let Some(alias_key) = alias_key_raw.strip_suffix('*') {
+                if !specifier.starts_with(alias_key) {
+                    continue;
+                }
+                alias_key
             } else {
                 let strip_package_name = Self::strip_package_name(specifier, alias_key_raw);
                 if strip_package_name.is_none() {
@@ -1070,6 +1077,7 @@ impl<C: Cache> ResolverGeneric<C> {
                 }
             };
 
+            ctx.with_is_resolving_alias(true);
             *should_stop = true;
             ctx.with_fully_specified(false);
             return match self.require(cached_path, new_specifier.as_ref(), ctx) {
