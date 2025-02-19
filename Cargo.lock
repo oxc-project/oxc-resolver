@@ -680,7 +680,6 @@ dependencies = [
  "pnp",
  "rayon",
  "rustc-hash",
- "seize",
  "serde",
  "serde_json",
  "simdutf8",
