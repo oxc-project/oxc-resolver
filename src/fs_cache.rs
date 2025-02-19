@@ -193,12 +193,12 @@ impl<Fs: FileSystem> FsCache<Fs> {
             paths: HashSet::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
-                .collector(seize::Collector::new().epoch_frequency(None))
+                .collector(seize::Collector::new())
                 .build(),
             tsconfigs: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
-                .collector(seize::Collector::new().epoch_frequency(None))
+                .collector(seize::Collector::new())
                 .build(),
         }
     }
