@@ -990,13 +990,15 @@ impl<C: Cache> ResolverGeneric<C> {
         ctx: &mut Ctx,
     ) -> ResolveResult<C::Cp> {
         for (alias_key_raw, specifiers) in aliases {
-            let alias_key = if alias_key_raw.contains('*') {
-                alias_key_raw
-            } else if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
+            let mut alias_key_has_wildcard = false;
+            let alias_key = if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
                 if alias_key != specifier {
                     continue;
                 }
                 alias_key
+            } else if alias_key_raw.contains('*') {
+                alias_key_has_wildcard = true;
+                alias_key_raw
             } else {
                 let strip_package_name = Self::strip_package_name(specifier, alias_key_raw);
                 if strip_package_name.is_none() {
@@ -1014,6 +1016,7 @@ impl<C: Cache> ResolverGeneric<C> {
                         if let Some(path) = self.load_alias_value(
                             cached_path,
                             alias_key,
+                            alias_key_has_wildcard,
                             alias_value,
                             specifier,
                             ctx,
@@ -1039,10 +1042,12 @@ impl<C: Cache> ResolverGeneric<C> {
         Ok(None)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn load_alias_value(
         &self,
         cached_path: &C::Cp,
         alias_key: &str,
+        alias_key_has_wild_card: bool,
         alias_value: &str,
         request: &str,
         ctx: &mut Ctx,
@@ -1051,7 +1056,7 @@ impl<C: Cache> ResolverGeneric<C> {
         if request != alias_value
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
         {
-            let new_specifier = if alias_key.contains('*') {
+            let new_specifier = if alias_key_has_wild_card {
                 // Resolve wildcard, e.g. `@/*` -> `./src/*`
                 let Some(alias_key) = alias_key.split_once('*').and_then(|(prefix, suffix)| {
                     request
