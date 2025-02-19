@@ -60,11 +60,16 @@ fn alias() {
                 ("#".into(), vec![AliasValue::from("/c/dir")]),
                 ("@".into(), vec![AliasValue::from("/c/dir")]),
                 ("ignored".into(), vec![AliasValue::Ignore]),
-                // not part of enhanced-resolve, added to make sure query in alias value works
+                // not part of enhanced-resolve, added to make sure query in alias value would work
                 ("alias_query".into(), vec![AliasValue::from("a?query_after")]),
                 ("alias_fragment".into(), vec![AliasValue::from("a#fragment_after")]),
                 ("dash".into(), vec![AliasValue::Ignore]),
                 ("@scope/package-name/file$".into(), vec![AliasValue::from("/c/dir")]),
+                // wildcard https://github.com/webpack/enhanced-resolve/pull/439
+                ("@adir/*".into(), vec![AliasValue::from("./a/")]), // added to test value without wildcard
+                ("@*".into(), vec![AliasValue::from("/*")]),
+                ("@e*".into(), vec![AliasValue::from("/e/*")]),
+                ("@e*file".into(), vec![AliasValue::from("/e*file")]),
             ],
             modules: vec!["/".into()],
             ..ResolveOptions::default()
@@ -104,6 +109,15 @@ fn alias() {
         ("should resolve a file aliased file 2", "d/dir/index", "/c/dir/index"),
         ("should resolve a file in multiple aliased dirs 1", "multiAlias/dir/file", "/e/dir/file"),
         ("should resolve a file in multiple aliased dirs 2", "multiAlias/anotherDir", "/e/anotherDir/index"),
+        // wildcard
+        ("should resolve wildcard alias 1", "@a", "/a/index"),
+        ("should resolve wildcard alias 2", "@a/dir", "/a/dir/index"),
+        ("should resolve wildcard alias 3", "@e/dir/file", "/e/dir/file"),
+        ("should resolve wildcard alias 4", "@e/anotherDir", "/e/anotherDir/index"),
+        ("should resolve wildcard alias 5", "@e/dir/file", "/e/dir/file"),
+        // added to test value without wildcard
+        ("should resolve scoped package name with sub dir 1", "@adir/index", "/a/index"),
+        ("should resolve scoped package name with sub dir 2", "@adir/dir", "/a/index"),
         // not part of enhanced-resolve, added to make sure query in alias value works
         ("should resolve query in alias value", "alias_query?query_before", "/a/index?query_after"),
         ("should resolve query in alias value", "alias_fragment#fragment_before", "/a/index#fragment_after"),

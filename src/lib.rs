@@ -990,7 +990,9 @@ impl<C: Cache> ResolverGeneric<C> {
         ctx: &mut Ctx,
     ) -> ResolveResult<C::Cp> {
         for (alias_key_raw, specifiers) in aliases {
-            let alias_key = if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
+            let alias_key = if alias_key_raw.contains('*') {
+                alias_key_raw
+            } else if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
                 if alias_key != specifier {
                     continue;
                 }
@@ -1049,24 +1051,39 @@ impl<C: Cache> ResolverGeneric<C> {
         if request != alias_value
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
         {
-            let tail = &request[alias_key.len()..];
-
-            let new_specifier = if tail.is_empty() {
-                Cow::Borrowed(alias_value)
-            } else {
-                let alias_path = Path::new(alias_value).normalize();
-                // Must not append anything to alias_value if it is a file.
-                let cached_alias_path = self.cache.value(&alias_path);
-                if self.cache.is_file(&cached_alias_path, ctx) {
+            let new_specifier = if alias_key.contains('*') {
+                // Resolve wildcard, e.g. `@/*` -> `./src/*`
+                let Some(alias_key) = alias_key.split_once('*').and_then(|(prefix, suffix)| {
+                    request
+                        .strip_prefix(prefix)
+                        .and_then(|specifier| specifier.strip_suffix(suffix))
+                }) else {
                     return Ok(None);
+                };
+                if alias_value.contains('*') {
+                    Cow::Owned(alias_value.replacen('*', alias_key, 1))
+                } else {
+                    Cow::Borrowed(alias_value)
                 }
-                // Remove the leading slash so the final path is concatenated.
-                let tail = tail.trim_start_matches(SLASH_START);
+            } else {
+                let tail = &request[alias_key.len()..];
                 if tail.is_empty() {
                     Cow::Borrowed(alias_value)
                 } else {
-                    let normalized = alias_path.normalize_with(tail);
-                    Cow::Owned(normalized.to_string_lossy().to_string())
+                    let alias_path = Path::new(alias_value).normalize();
+                    // Must not append anything to alias_value if it is a file.
+                    let cached_alias_path = self.cache.value(&alias_path);
+                    if self.cache.is_file(&cached_alias_path, ctx) {
+                        return Ok(None);
+                    }
+                    // Remove the leading slash so the final path is concatenated.
+                    let tail = tail.trim_start_matches(SLASH_START);
+                    if tail.is_empty() {
+                        Cow::Borrowed(alias_value)
+                    } else {
+                        let normalized = alias_path.normalize_with(tail);
+                        Cow::Owned(normalized.to_string_lossy().to_string())
+                    }
                 }
             };
 
