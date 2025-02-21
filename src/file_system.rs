@@ -208,9 +208,9 @@ impl FileSystem for FileSystemOs {
                         .file_type(info.physical_base_path(), info.zip_path)
                         .map(FileMetadata::from),
                     VPath::Virtual(info) => {
-                        Self::metadata(&info.physical_base_path()).map(FileMetadata::from)
+                        Self::metadata(&info.physical_base_path())
                     }
-                    VPath::Native(path) => Self::metadata(&path).map(FileMetadata::from),
+                    VPath::Native(path) => Self::metadata(&path),
                 }
             } else {
                 Self::metadata(path).map(FileMetadata::from)
@@ -219,7 +219,7 @@ impl FileSystem for FileSystemOs {
     }
 
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        Self::symlink_metadata(path).map(FileMetadata::from)
+        Self::symlink_metadata(path)
     }
 
     fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
