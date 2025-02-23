@@ -49,6 +49,20 @@ jobs:
       - run: pnpm run build:debug && pnpm run test
         if: ${{ matrix.os  != 'windows-latest' }}
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
+      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
+        with:
+          components: clippy rust-docs
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+      - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
+      - uses: crate-ci/typos@212923e4ff05b7fc2294a204405eec047b807138 # v1.29.9
+        with:
+          files: .
+
   wasm:
     name: Check Wasm
     runs-on: ubuntu-latest
@@ -87,33 +101,3 @@ jobs:
         run: pnpm run test
         env:
           WASI_TEST: 1
-
-  typos:
-    name: Spell Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-
-      - uses: crate-ci/typos@212923e4ff05b7fc2294a204405eec047b807138 # v1.29.9
-        with:
-          files: .
-
-  lint:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
-        with:
-          components: clippy
-      - run: cargo clippy --all-features --all-targets -- -D warnings
-
-  doc:
-    name: Doc
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
-        with:
-          components: rust-docs
-      - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
