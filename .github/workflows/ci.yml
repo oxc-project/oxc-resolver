@@ -84,25 +84,17 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
-      # Downgrade Rust 1.85.0 https://github.com/toyobayashi/emnapi/issues/136
-      - name: Change to Rust 1.84.1
-        run: |
-          sed -i ${{ (runner.os == 'macOS' && '""') || '' }} -e 's/channel = ".*"/channel = "1.84.1"/g' rust-toolchain.toml
-          sed -i ${{ (runner.os == 'macOS' && '""') || '' }} -e 's/profile = "default"/profile = "minimal"/g' rust-toolchain.toml
-          cat rust-toolchain.toml
-          rustup show
-          rustup target add wasm32-wasip1-threads
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
+      - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
         with:
-          shared-key: wasi
-          save-if: ${{ github.ref_name == 'main' }}
+          cache-key: wasi
+          save-cache: ${{ github.ref_name == 'main' }}
 
       - uses: ./.github/actions/pnpm
 
       - name: Build
-        run: pnpm build --target wasm32-wasip1-threads
+        run: |
+          rustup target add wasm32-wasip1-threads
+          pnpm build --target wasm32-wasip1-threads
 
       - name: Test
         run: pnpm run test
