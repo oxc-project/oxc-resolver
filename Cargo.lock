@@ -419,6 +419,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 
 [[package]]
+name = "hashbrown"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+
+[[package]]
 name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -466,12 +472,12 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.3.0"
+version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de3fc2e30ba82dd1b3911c8de1ffc143c74a914a14e99514d7637e3099df5ea0"
+checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.2",
  "serde",
 ]
 
@@ -692,14 +698,15 @@ checksum = "bda66fc9667c18cb2758a2ac84d1167245054bcf85d5d1aaa6923f45801bdd02"
 
 [[package]]
 name = "pnp"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46770cee76a618023fea15411d0449dd066dc232cc17e4562f154da215f27af7"
+checksum = "96cda59e692c332a953b19dcfe863b45344ce8bfc9027e229f3a732e3d61c50a"
 dependencies = [
  "arca",
  "byteorder",
  "concurrent_lru",
  "fancy-regex",
+ "indexmap 2.7.1",
  "lazy_static",
  "miniz_oxide",
  "pathdiff",
@@ -831,7 +838,7 @@ dependencies = [
  "dashmap",
  "document-features",
  "dunce",
- "indexmap 2.3.0",
+ "indexmap 2.7.1",
  "json-strip-comments",
  "normalize-path",
  "once_cell",
@@ -905,7 +912,7 @@ version = "1.0.122"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "784b6203951c57ff748476b126ccb5e8e2959a5c19e5c617ab1956be3dbc68da"
 dependencies = [
- "indexmap 2.3.0",
+ "indexmap 2.7.1",
  "itoa",
  "memchr",
  "ryu",
@@ -922,7 +929,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.3.0",
+ "indexmap 2.7.1",
  "serde",
  "serde_derive",
  "serde_json",
