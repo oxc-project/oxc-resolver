@@ -67,6 +67,22 @@ fn pnp1() {
 }
 
 #[test]
+fn resolve_in_pnp_linked_folder() {
+    let fixture = super::fixture_root().join("pnp");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".js".into()],
+        condition_names: vec!["import".into()],
+        ..ResolveOptions::default()
+    });
+
+    assert_eq!(
+        resolver.resolve(&fixture, "lib/lib.js").map(|r| r.full_path()),
+        Ok(fixture.join("shared/lib.js"))
+    );
+}
+
+#[test]
 fn resolve_pnp_pkg_should_failed_while_disable_pnp_mode() {
     let fixture = super::fixture_root().join("pnp");
 

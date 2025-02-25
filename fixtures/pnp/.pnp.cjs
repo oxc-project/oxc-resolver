@@ -29,6 +29,7 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["is-even", "npm:1.0.0"],\
           ["is-odd", "npm:3.0.1"],\
+          ["lib", "link:./shared::locator=pnp%40workspace%3A."],\
           ["lodash.zip", "npm:4.2.0"],\
           ["preact", "npm:10.25.4"]\
         ],\
@@ -99,6 +100,16 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["lib", [\
+      ["link:./shared::locator=pnp%40workspace%3A.", {\
+        "packageLocation": "./shared/",\
+        "packageDependencies": [\
+          ["lib", "link:./shared::locator=pnp%40workspace%3A."]\
+        ],\
+        "linkType": "SOFT",\
+        "discardFromLookup": true\
+      }]\
+    ]],\
     ["lodash.zip", [\
       ["npm:4.2.0", {\
         "packageLocation": "./.yarn/cache/lodash.zip-npm-4.2.0-5299417ec8-e596da80a6.zip/node_modules/lodash.zip/",\
@@ -115,6 +126,7 @@ const RAW_RUNTIME_STATE =
           ["pnp", "workspace:."],\
           ["is-even", "npm:1.0.0"],\
           ["is-odd", "npm:3.0.1"],\
+          ["lib", "link:./shared::locator=pnp%40workspace%3A."],\
           ["lodash.zip", "npm:4.2.0"],\
           ["preact", "npm:10.25.4"]\
         ],\
