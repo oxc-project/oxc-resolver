@@ -558,9 +558,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "3.0.0-alpha.30"
+version = "3.0.0-alpha.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fde2ea4fb7f75eb001002f33cf502df0aff268665d3717ed2e45dc69021d6e8"
+checksum = "b1911b4f0d33fbcb5f46ff68319ec053ab8a655f3a17440eae1246a23ba2ad78"
 dependencies = [
  "bitflags",
  "ctor",
@@ -572,9 +572,9 @@ dependencies = [
 
 [[package]]
 name = "napi-build"
-version = "2.1.4"
+version = "2.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db836caddef23662b94e16bf1f26c40eceb09d6aee5d5b06a7ac199320b69b19"
+checksum = "40685973218af4aa4b42486652692c294c44b5a67e4b2202df721c9063f2e51c"
 
 [[package]]
 name = "napi-derive"
@@ -657,7 +657,6 @@ checksum = "b410bbe7e14ab526a0e86877eb47c6996a2bd7746f027ba551028c925390e4e9"
 name = "oxc_napi_resolver"
 version = "0.0.0"
 dependencies = [
- "ctor",
  "napi",
  "napi-build",
  "napi-derive",
