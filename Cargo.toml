@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "oxc_resolver"
-version = "4.2.0"
+version = "4.2.1"
 authors = ["Boshen <boshenc@gmail.com>"]
 categories = ["development-tools"]
 edition = "2021"
