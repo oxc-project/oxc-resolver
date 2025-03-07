@@ -213,8 +213,7 @@ impl FileSystem for FileSystemOs {
                     VPath::Native(path) => Self::metadata(&path),
                 }
             } else {
-                Self::metadata(path).map(FileMetadata::from)
-            }
+                Self::metadata(path)}
         }
     }
 

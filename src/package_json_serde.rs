@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use serde_json::Value as JSONValue;
 
 use crate::{
+    ImportsExportsKind, ImportsExportsMap, PackageJson, ResolveError,
     package_json::{ImportsExportsArray, ImportsExportsEntry, PackageType},
     path::PathUtil,
-    ImportsExportsKind, ImportsExportsMap, PackageJson, ResolveError,
 };
 
 pub type JSONMap = serde_json::Map<String, JSONValue>;

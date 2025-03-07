@@ -7,7 +7,7 @@ use std::{
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 
-use crate::{path::PathUtil, TsconfigReferences};
+use crate::{TsconfigReferences, path::PathUtil};
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
