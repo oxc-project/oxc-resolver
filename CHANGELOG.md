@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v4.2.0...oxc_resolver-v5.0.0) - 2025-03-07
+
+### <!-- 0 -->Features
+
+- [**breaking**] Rust Edition 2024 ([#402](https://github.com/oxc-project/oxc-resolver/pull/402))
+- deserialize `verbatim_module_syntax` from compilerOptions ([#411](https://github.com/oxc-project/oxc-resolver/pull/411))
+
+### <!-- 4 -->Refactor
+
+- remove papaya `.collector(seize::Collector::new())` call ([#393](https://github.com/oxc-project/oxc-resolver/pull/393))
+
 ## [4.2.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v4.1.0...oxc_resolver-v4.2.0) - 2025-02-19
 
 ### <!-- 0 -->Features
