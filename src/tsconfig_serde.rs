@@ -125,6 +125,9 @@ pub struct CompilerOptionsSerde {
 
     /// <https://www.typescriptlang.org/tsconfig/#jsxImportSource>
     pub jsx_import_source: Option<String>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax>
+    pub verbatim_module_syntax: Option<bool>,
 }
 
 impl CompilerOptions for CompilerOptionsSerde {
