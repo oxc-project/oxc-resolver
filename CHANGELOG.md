@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2](https://github.com/web-infra-dev/rspack-resolver/compare/rspack_resolver-v0.5.1...rspack_resolver-v0.5.2) - 2025-02-28
+
+### Added
+
+- *(pnp)* support link (#49)
+
+### Other
+
+- bump pnp 0.9.1 (#50)
+
 ## [0.5.1](https://github.com/web-infra-dev/rspack-resolver/compare/rspack_resolver-v0.5.0...rspack_resolver-v0.5.1) - 2025-02-11
 
 ### Fixed
