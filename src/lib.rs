@@ -378,10 +378,12 @@ impl<C: Cache> ResolverGeneric<C> {
         ctx: &mut Ctx,
     ) -> Result<C::Cp, ResolveError> {
         // Make sure only path prefixes gets called
-        debug_assert!(Path::new(specifier)
-            .components()
-            .next()
-            .is_some_and(|c| matches!(c, Component::RootDir | Component::Prefix(_))));
+        debug_assert!(
+            Path::new(specifier)
+                .components()
+                .next()
+                .is_some_and(|c| matches!(c, Component::RootDir | Component::Prefix(_)))
+        );
         if !self.options.prefer_relative && self.options.prefer_absolute {
             if let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx) {
                 return Ok(path);
@@ -442,10 +444,12 @@ impl<C: Cache> ResolverGeneric<C> {
         ctx: &mut Ctx,
     ) -> Result<C::Cp, ResolveError> {
         // Make sure no other path prefixes gets called
-        debug_assert!(Path::new(specifier)
-            .components()
-            .next()
-            .is_some_and(|c| matches!(c, Component::Normal(_))));
+        debug_assert!(
+            Path::new(specifier)
+                .components()
+                .next()
+                .is_some_and(|c| matches!(c, Component::Normal(_)))
+        );
         if self.options.prefer_relative {
             if let Ok(path) = self.require_relative(cached_path, specifier, ctx) {
                 return Ok(path);

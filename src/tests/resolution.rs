@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{tests::memory_fs::MemoryFS, FsCache, Resolution};
+use crate::{FsCache, Resolution, tests::memory_fs::MemoryFS};
 
 #[test]
 fn test() {

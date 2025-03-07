@@ -7,8 +7,8 @@ use std::{
     ops::Deref,
     path::{Component, Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU64, Ordering},
     },
 };
 
@@ -18,11 +18,11 @@ use papaya::{Equivalent, HashMap, HashSet};
 use rustc_hash::FxHasher;
 
 use crate::{
+    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfig,
+    TsConfigSerde,
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
     path::PathUtil,
-    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfig,
-    TsConfigSerde,
 };
 
 static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);

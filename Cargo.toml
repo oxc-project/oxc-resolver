@@ -7,14 +7,14 @@ name = "oxc_resolver"
 version = "4.2.0"
 authors = ["Boshen <boshenc@gmail.com>"]
 categories = ["development-tools"]
-edition = "2021"
+edition = "2024"
 homepage = "https://github.com/oxc-project/oxc-resolver"
 include = ["/src", "/examples", "/benches"]
 keywords = ["node", "resolve", "cjs", "esm", "enhanced-resolve"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/oxc-project/oxc-resolver"
-rust-version = "1.74"
+rust-version = "1.85.0"
 description = "ESM / CJS module resolution"
 
 [lib]

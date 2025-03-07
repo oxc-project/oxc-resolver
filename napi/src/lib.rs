@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use napi::{bindgen_prelude::AsyncTask, Task};
+use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
 use oxc_resolver::{PackageJson, ResolveOptions, Resolver};
 
