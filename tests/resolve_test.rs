@@ -18,7 +18,6 @@ fn chinese() {
 }
 
 #[test]
-#[ignore = "failed on windows"]
 fn styled_components() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
@@ -31,7 +30,7 @@ fn styled_components() {
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(oxc_resolver::Resolution::into_path_buf),
-        Ok(module_path.join("dist/styled-components.browser.cjs.js"))
+        Ok(module_path.join("dist").join("styled-components.browser.cjs.js"))
     );
 
     // esm
@@ -43,7 +42,7 @@ fn styled_components() {
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(oxc_resolver::Resolution::into_path_buf),
-        Ok(module_path.join("dist/styled-components.browser.esm.js"))
+        Ok(module_path.join("dist").join("styled-components.browser.esm.js"))
     );
 }
 
@@ -208,11 +207,16 @@ fn nested_symlinks() {
 }
 
 #[test]
-#[ignore = "failed on windows"]
 fn windows_symlinked_longfilename() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
-    let module_path = dir.join("node_modules/.pnpm/@oxc-resolver+test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_7a8cf2210bc70feb075991a339017f04/node_modules/@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/index.js");
+    let module_path = dir.join("node_modules")
+        .join(".pnpm")
+        .join("@oxc-resolver+test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_7a8cf2210bc70feb075991a339017f04")
+        .join("node_modules")
+        .join("@oxc-resolver")
+        .join("test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .join("index.js");
 
     let resolution = Resolver::new(ResolveOptions::default()).resolve(&path, "@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").map(|r| r.full_path());
     assert_eq!(resolution, Ok(module_path));
