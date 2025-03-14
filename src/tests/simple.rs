@@ -5,6 +5,17 @@ use std::env;
 use crate::Resolver;
 
 #[test]
+fn resolve_abs_main() {
+    let resolver = Resolver::default();
+    let dirname = env::current_dir().unwrap().join("fixtures");
+    let f = dirname.join("invalid/main.js");
+    // a's main field id `/dist/index.js`
+    let resolution = resolver.resolve(&f, "a").unwrap();
+
+    assert_eq!(resolution.path(), dirname.join("invalid/node_modules/a/dist/index.js"));
+}
+
+#[test]
 fn simple() {
     // mimic `enhanced-resolve/test/simple.test.js`
     let dirname = env::current_dir().unwrap().join("fixtures");
