@@ -3,17 +3,17 @@ members  = ["napi"]
 resolver = "2"
 
 [package]
-version      = "0.5.2"
-name         = "rspack_resolver"
-authors      = ["Rspack"]
+version      = "1.0.0"
+name         = "unrspack-resolver"
+authors      = ["UnRS"]
 categories   = ["development-tools"]
 description  = "ESM / CJS module resolution"
 edition      = "2021"
-homepage     = "https://github.com/web-infra-dev/rspack-resolver"
+homepage     = "https://github.com/unrs/rspack-resolver"
 keywords     = ["node", "resolve", "cjs", "esm", "enhanced-resolve"]
 license      = "MIT"
 readme       = "README.md"
-repository   = "https://github.com/web-infra-dev/rspack-resolver"
+repository   = "https://github.com/unrs/rspack-resolver"
 rust-version = "1.70"
 include      = ["/src", "/examples", "/benches"]
 

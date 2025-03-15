@@ -230,50 +230,53 @@ for (const [title, context, request, expected] of [
   })
 }
 
-test('resolve pnpm package', (t) => {
-  const rootDir = join(currentDir, '..', '..')
-  const pnpmProjectPath = join(rootDir, 'fixtures', 'pnpm')
-  const resolver = new ResolverFactory({
-    aliasFields: ['browser'],
-  })
-  t.deepEqual(resolver.sync(pnpmProjectPath, 'styled-components'), {
-    path: join(
-      rootDir,
-      'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components/dist/styled-components.browser.cjs.js'
-    ),
-  })
-  t.deepEqual(
-    resolver.sync(
-      join(
-        rootDir,
-        'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components'
-      ),
-      'react'
-    ),
-    {
+// FIXME: seems not working correctly, `operation not supported on this platform` error
+if (!process.env.WASI_TEST) {
+  test('resolve pnpm package', (t) => {
+    const rootDir = join(currentDir, '..', '..')
+    const pnpmProjectPath = join(rootDir, 'fixtures', 'pnpm')
+    const resolver = new ResolverFactory({
+      aliasFields: ['browser'],
+    })
+    t.deepEqual(resolver.sync(pnpmProjectPath, 'styled-components'), {
       path: join(
         rootDir,
-        'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js'
+        'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components/dist/styled-components.browser.cjs.js'
       ),
-    }
-  )
-})
-
-test('resolve recursive symbol link', (t) => {
-  const rootDir = join(currentDir, '..', '..')
-  const workspaceProjectPath = join(rootDir, 'fixtures', 'pnpm-workspace')
-  const resolver = new ResolverFactory({})
-
-  t.deepEqual(
-    resolver.sync(
-      join(workspaceProjectPath, './packages/app'),
-      './node_modules/@monorepo/lib/node_modules/react/package.json'
-    ),
-    {
-      path: join(
-        rootDir,
-        'node_modules/.pnpm/react@18.3.1/node_modules/react/package.json'
+    })
+    t.deepEqual(
+      resolver.sync(
+        join(
+          rootDir,
+          'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components'
+        ),
+        'react'
       ),
-    }
-  )
-})
+      {
+        path: join(
+          rootDir,
+          'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js'
+        ),
+      }
+    )
+  })
+
+  test('resolve recursive symbol link', (t) => {
+    const rootDir = join(currentDir, '..', '..')
+    const workspaceProjectPath = join(rootDir, 'fixtures', 'pnpm-workspace')
+    const resolver = new ResolverFactory({})
+
+    t.deepEqual(
+      resolver.sync(
+        join(workspaceProjectPath, './packages/app'),
+        './node_modules/@monorepo/lib/node_modules/react/package.json'
+      ),
+      {
+        path: join(
+          rootDir,
+          'node_modules/.pnpm/react@18.3.1/node_modules/react/package.json'
+        ),
+      }
+    )
+  })
+}

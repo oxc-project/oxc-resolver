@@ -2,7 +2,7 @@
 
 use std::{env, path::PathBuf};
 
-use rspack_resolver::{EnforceExtension, Resolution, ResolveContext, ResolveOptions, Resolver};
+use unrspack_resolver::{EnforceExtension, Resolution, ResolveContext, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()

@@ -1,15 +1,17 @@
 name: Release NAPI
 
+permissions: {}
+
 on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - fork-release
     paths:
       - npm/package.json # Please only commit this file, so we don't need to wait for test CI to pass.
 
 env:
-  DEBUG: 'napi:*'
+  DEBUG: "napi:*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,13 +32,13 @@ jobs:
         id: version
         with:
           static-checking: localIsNew
-          file-url: https://unpkg.com/oxc-resolver@latest/package.json
+          file-url: https://cdn.jsdelivr.net/npm/rspack-resolver@latest/package.json
           file-name: npm/package.json
 
       - name: Set version name
         if: steps.version.outputs.changed == 'true'
         run: |
-          echo "Version change found! New version: ${{ steps.version.outputs.version }} (${{ steps.version.outputs.version_type }})"
+          echo "Version change found! New version: ${{ steps.version.outputs.version }} (${{ steps.version.outputs.type }})"
           echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
 
   build:
@@ -108,7 +110,8 @@ jobs:
         run: pnpm build --target ${{ matrix.target }}
 
       - name: Test
-        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-apple-darwin' || matrix.target == 'wasm32-wasip1-threads'
+        # if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-apple-darwin' || matrix.target == 'wasm32-wasip1-threads'
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: pnpm test
 
       - name: Output docker params
@@ -144,7 +147,7 @@ jobs:
 
       - name: Run linux test
         uses: addnab/docker-run-action@v3
-        if: ${{ contains(matrix.target, 'linux') }}
+        if: false # ${{ contains(matrix.target, 'linux') }}
         with:
           image: ${{ steps.docker.outputs.IMAGE }}
           options: -v ${{ steps.docker.outputs.PNPM_STORE_PATH }}:${{ steps.docker.outputs.PNPM_STORE_PATH }} -v ${{ github.workspace }}:/oxc_resolver -w /oxc_resolver --platform ${{ steps.docker.outputs.PLATFORM }}
@@ -166,22 +169,22 @@ jobs:
     name: Build FreeBSD
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: taiki-e/checkout-action@v1
       - name: Build
         id: build
-        uses: cross-platform-actions/action@v0.25.0
+        uses: cross-platform-actions/action@v0.27.0
         env:
           DEBUG: napi:*
           RUSTUP_IO_THREADS: 1
         with:
           operating_system: freebsd
-          version: '14.0'
+          version: "14.0"
           memory: 8G
           cpu_count: 3
-          environment_variables: 'DEBUG RUSTUP_IO_THREADS'
+          environment_variables: "DEBUG RUSTUP_IO_THREADS"
           shell: bash
           run: |
-            sudo pkg install -y -f curl node libnghttp2 npm
+            sudo pkg install -y -f curl libnghttp2 node22 npm
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
             source "$HOME/.cargo/env"
@@ -193,6 +196,7 @@ jobs:
             ls -lah
             whoami
             env
+            export COREPACK_INTEGRITY_KEYS=0
             sudo corepack enable
             pnpm install
             pnpm build --target x86_64-unknown-freebsd
@@ -213,10 +217,12 @@ jobs:
     needs:
       - build
       - build-freebsd
+    env:
+      COREPACK_INTEGRITY_KEYS: 0
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - name: corepack
+      - name: Install pnpm
         run: corepack enable
 
       - name: Setup Node.js

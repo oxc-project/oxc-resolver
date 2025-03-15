@@ -125,6 +125,7 @@ impl ResolverFactory {
         let default = ResolveOptions::default();
         // merging options
         ResolveOptions {
+            enable_pnp: default.enable_pnp,
             tsconfig: op.tsconfig.map(|tsconfig| tsconfig.into()),
             alias: op
                 .alias

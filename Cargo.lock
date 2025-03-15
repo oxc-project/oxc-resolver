@@ -819,38 +819,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
-name = "rspack_napi_resolver"
+name = "rspack_resolver_napi"
 version = "0.0.0"
 dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "rspack_resolver",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "rspack_resolver"
-version = "0.5.2"
-dependencies = [
- "cfg-if",
- "criterion2",
- "dashmap",
- "document-features",
- "dunce",
- "indexmap 2.7.1",
- "json-strip-comments",
- "normalize-path",
- "once_cell",
- "pnp",
- "rayon",
- "rustc-hash",
- "serde",
- "serde_json",
- "simdutf8",
- "thiserror",
- "tracing",
- "vfs",
+ "unrspack-resolver",
 ]
 
 [[package]]
@@ -1101,6 +1077,30 @@ name = "unicode-segmentation"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
+
+[[package]]
+name = "unrspack-resolver"
+version = "1.0.0"
+dependencies = [
+ "cfg-if",
+ "criterion2",
+ "dashmap",
+ "document-features",
+ "dunce",
+ "indexmap 2.7.1",
+ "json-strip-comments",
+ "normalize-path",
+ "once_cell",
+ "pnp",
+ "rayon",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "simdutf8",
+ "thiserror",
+ "tracing",
+ "vfs",
+]
 
 [[package]]
 name = "vfs"

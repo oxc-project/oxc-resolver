@@ -8,13 +8,13 @@ on:
       - '**/*.md'
   push:
     branches:
-      - main
+      - fork-release
     paths-ignore:
       - '**/*.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_name != 'main' }}
+  cancel-in-progress: true
 
 jobs:
   coverage:
@@ -26,10 +26,10 @@ jobs:
 
       - uses: ./.github/actions/pnpm
 
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           cache-key: codecov
-          save-cache: ${{ github.ref_name == 'main' }}
+          save-cache: ${{ github.ref_name == 'fork-release' }}
           tools: cargo-llvm-cov
           components: llvm-tools-preview
 
@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload to codecov.io
         if: env.CODECOV_TOKEN
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true

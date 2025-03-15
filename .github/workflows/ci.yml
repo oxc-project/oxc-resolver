@@ -9,15 +9,15 @@ on:
       - '!.github/workflows/ci.yml'
   push:
     branches:
-      - main
+      - fork-release
       - "renovate/**"
     paths-ignore:
       - '**/*.md'
       - '!.github/workflows/ci.yml'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.ref_name != 'main' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 defaults:
   run:
@@ -37,16 +37,16 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
-          save-cache: ${{ github.ref_name == 'main' }}
+          save-cache: ${{ github.ref_name == 'fork-release' }}
           cache-key: warm
 
       - run: cargo check --all-features --locked
 
-      # Only need to build the test to create a warm cache on the main branch
+      # Only need to build the test to create a warm cache on the fork-release branch
       - name: Build cache by Cargo Check and Cargo Test
-        if: ${{ github.ref_name == 'main' }}
+        if: ${{ github.ref_name == 'fork-release' }}
         run: cargo test --all-features --no-run
 
   wasm:
@@ -55,38 +55,38 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           cache-key: wasm
-          save-cache: ${{ github.ref_name == 'main' }}
+          save-cache: ${{ github.ref_name == 'fork-release' }}
 
       - name: Check
         run: |
           rustup target add wasm32-unknown-unknown
           cargo check --all-features --target wasm32-unknown-unknown
 
-  # wasi:
-  #   name: Test wasi target
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: taiki-e/checkout-action@v1
+  wasi:
+    name: Test wasi target
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@v1
 
-  #     - uses: Boshen/setup-rust@main
-  #       with:
-  #         cache-key: wasi
-  #         save-cache: ${{ github.ref_name == 'main' }}
+      - uses: Boshen/setup-rust@v1.0.0
+        with:
+          cache-key: wasi
+          save-cache: ${{ github.ref_name == 'fork-release' }}
 
-  #     - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/pnpm
 
-  #     - name: Build
-  #       run: |
-  #         rustup target add wasm32-wasip1-threads
-  #         pnpm build --target wasm32-wasip1-threads
+      - name: Build
+        run: |
+          rustup target add wasm32-wasip1-threads
+          pnpm build --target wasm32-wasip1-threads
 
-  #     - name: Test
-  #       run: pnpm test
-  #       env:
-  #         WASI_TEST: 1
+      - name: Test
+        run: pnpm test
+        env:
+          WASI_TEST: 1
 
   typos:
     name: Spell Check
@@ -111,7 +111,7 @@ jobs:
             src:
               - 'Cargo.lock'
 
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           restore-cache: false
           tools: cargo-deny
@@ -132,11 +132,11 @@ jobs:
               - '**/*.rs'
               - '**/Cargo.toml'
               - 'Cargo.lock'
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           restore-cache: false
         if: steps.filter.outputs.src == 'true'
-      - uses: cargo-bins/cargo-binstall@main
+      - uses: cargo-bins/cargo-binstall@v1.12.1
         if: steps.filter.outputs.src == 'true'
       - run: cargo binstall --no-confirm cargo-shear@1
         if: steps.filter.outputs.src == 'true'
@@ -148,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@v1
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           components: rustfmt
           restore-cache: false
@@ -159,7 +159,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@v1
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           components: clippy
       - run: cargo clippy --all-features -- -D warnings
@@ -169,7 +169,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@v1
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           components: rust-docs
       - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
@@ -189,7 +189,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
       - uses: ./.github/actions/pnpm
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           cache-key: warm
       - run: cargo test --doc

@@ -65,7 +65,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-android-arm64')
+        return require('@unrs/rspack-resolver-binding-android-arm64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -77,7 +77,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-android-arm-eabi')
+        return require('@unrs/rspack-resolver-binding-android-arm-eabi')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -93,7 +93,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-win32-x64-msvc')
+        return require('@unrs/rspack-resolver-binding-win32-x64-msvc')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -105,7 +105,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-win32-ia32-msvc')
+        return require('@unrs/rspack-resolver-binding-win32-ia32-msvc')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -117,7 +117,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-win32-arm64-msvc')
+        return require('@unrs/rspack-resolver-binding-win32-arm64-msvc')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -132,7 +132,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-darwin-universal')
+        return require('@unrs/rspack-resolver-binding-darwin-universal')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -144,7 +144,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-darwin-x64')
+        return require('@unrs/rspack-resolver-binding-darwin-x64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -156,7 +156,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-darwin-arm64')
+        return require('@unrs/rspack-resolver-binding-darwin-arm64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -172,7 +172,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-freebsd-x64')
+        return require('@unrs/rspack-resolver-binding-freebsd-x64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -184,7 +184,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-freebsd-arm64')
+        return require('@unrs/rspack-resolver-binding-freebsd-arm64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -201,7 +201,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-x64-musl')
+        return require('@unrs/rspack-resolver-binding-linux-x64-musl')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -213,7 +213,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-x64-gnu')
+        return require('@unrs/rspack-resolver-binding-linux-x64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -227,7 +227,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-arm64-musl')
+        return require('@unrs/rspack-resolver-binding-linux-arm64-musl')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -239,7 +239,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-arm64-gnu')
+        return require('@unrs/rspack-resolver-binding-linux-arm64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -253,7 +253,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-arm-musleabihf')
+        return require('@unrs/rspack-resolver-binding-linux-arm-musleabihf')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -265,7 +265,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-arm-gnueabihf')
+        return require('@unrs/rspack-resolver-binding-linux-arm-gnueabihf')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -279,7 +279,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-riscv64-musl')
+        return require('@unrs/rspack-resolver-binding-linux-riscv64-musl')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -291,7 +291,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-riscv64-gnu')
+        return require('@unrs/rspack-resolver-binding-linux-riscv64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -304,7 +304,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-ppc64-gnu')
+        return require('@unrs/rspack-resolver-binding-linux-ppc64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -316,7 +316,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@oxc-resolver/binding-linux-s390x-gnu')
+        return require('@unrs/rspack-resolver-binding-linux-s390x-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -336,15 +336,15 @@ if (!nativeBinding || process.env.NAPI_RS_FORCE_WASI) {
     nativeBinding = require('./resolver.wasi.cjs')
   } catch (err) {
     if (process.env.NAPI_RS_FORCE_WASI) {
-      console.error(err)
+      loadErrors.push(err)
     }
   }
   if (!nativeBinding) {
     try {
-      nativeBinding = require('@oxc-resolver/binding-wasm32-wasi')
+      nativeBinding = require('@unrs/rspack-resolver-binding-wasm32-wasi')
     } catch (err) {
       if (process.env.NAPI_RS_FORCE_WASI) {
-        console.error(err)
+        loadErrors.push(err)
       }
     }
   }

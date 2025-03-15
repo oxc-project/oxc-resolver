@@ -8,12 +8,12 @@ on:
       - '**/*.md'
   push:
     branches:
-      - main
+      - fork-release
     paths-ignore:
       - '**/*.md'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,10 +24,10 @@ jobs:
       - name: Checkout Branch
         uses: taiki-e/checkout-action@v1
 
-      - uses: Boshen/setup-rust@main
+      - uses: Boshen/setup-rust@v1.0.0
         with:
           cache-key: benchmark
-          save-cache: ${{ github.ref_name == 'main' }}
+          save-cache: ${{ github.ref_name == 'fork-release' }}
           tools: cargo-codspeed
       - uses: ./.github/actions/pnpm
       - name: Build Benchmark

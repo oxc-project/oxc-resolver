@@ -92,8 +92,8 @@ fn create_symlinks() -> io::Result<PathBuf> {
     Ok(temp_path)
 }
 
-fn oxc_resolver() -> rspack_resolver::Resolver {
-    use rspack_resolver::{AliasValue, ResolveOptions, Resolver};
+fn oxc_resolver() -> unrspack_resolver::Resolver {
+    use unrspack_resolver::{AliasValue, ResolveOptions, Resolver};
     let alias_value = AliasValue::from("./");
     Resolver::new(ResolveOptions {
         extensions: vec![".ts".into(), ".js".into()],

@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use rspack_resolver::{ResolveError, ResolveOptions, Resolver};
+use unrspack_resolver::{ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -12,7 +12,7 @@ fn chinese() {
     let specifier = "./fixtures/misc/中文/中文.js";
     let resolution = Resolver::new(ResolveOptions::default()).resolve(&dir, specifier);
     assert_eq!(
-        resolution.map(rspack_resolver::Resolution::into_path_buf),
+        resolution.map(unrspack_resolver::Resolution::into_path_buf),
         Ok(dir.join("fixtures/misc/中文/中文.js"))
     );
 }
@@ -29,7 +29,7 @@ fn styled_components() {
         ResolveOptions { alias_fields: vec![vec!["browser".into()]], ..ResolveOptions::default() };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(rspack_resolver::Resolution::into_path_buf),
+        resolution.map(unrspack_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist/styled-components.browser.cjs.js"))
     );
 
@@ -41,7 +41,7 @@ fn styled_components() {
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(rspack_resolver::Resolution::into_path_buf),
+        resolution.map(unrspack_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist/styled-components.browser.esm.js"))
     );
 }
@@ -57,7 +57,7 @@ fn axios() {
     let options = ResolveOptions::default();
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(rspack_resolver::Resolution::into_path_buf),
+        resolution.map(unrspack_resolver::Resolution::into_path_buf),
         Ok(module_path.join("index.js"))
     );
 
@@ -68,7 +68,7 @@ fn axios() {
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(rspack_resolver::Resolution::into_path_buf),
+        resolution.map(unrspack_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist/browser/axios.cjs"))
     );
 
@@ -79,7 +79,7 @@ fn axios() {
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(rspack_resolver::Resolution::into_path_buf),
+        resolution.map(unrspack_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist/node/axios.cjs"))
     );
 }
