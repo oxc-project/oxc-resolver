@@ -254,7 +254,7 @@ fn test_paths_nested_base() {
                 config_file: dir.parent().unwrap().join(tsconfig),
                 references: TsconfigReferences::Auto,
             }),
-            ..ResolveOptions::default()
+            ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
         let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {tsconfig} {dir:?}");

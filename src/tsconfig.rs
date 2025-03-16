@@ -129,11 +129,9 @@ impl TsConfig {
     }
 
     pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
-        if path.starts_with(self.base_path()) {
-            let paths = self.resolve_path_alias(specifier);
-            if !paths.is_empty() {
-                return paths;
-            }
+        let paths = self.resolve_path_alias(specifier);
+        if !paths.is_empty() {
+            return paths;
         }
         for tsconfig in self.references.iter().filter_map(|reference| reference.tsconfig.as_ref()) {
             if path.starts_with(tsconfig.base_path()) {
