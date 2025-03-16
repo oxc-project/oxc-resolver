@@ -31,8 +31,8 @@ fn auto() {
         (f.join("app"), "@/index.ts", f.join("app/aliased/index.ts")),
         (f.join("app"), "@/../index.ts", f.join("app/index.ts")),
         // Test project reference
-        (f.join("project_a"), "@/index.ts", f.join("app/aliased/index.ts")),
-        (f.join("project_b/src"), "@/index.ts", f.join("app/aliased/index.ts")),
+        (f.join("project_a"), "@/index.ts", f.join("project_a/aliased/index.ts")),
+        (f.join("project_b/src"), "@/index.ts", f.join("project_b/src/aliased/index.ts")),
         // Does not have paths alias
         (f.join("project_a"), "./index.ts", f.join("project_a/index.ts")),
         (f.join("project_c"), "./index.ts", f.join("project_c/index.ts")),
@@ -161,7 +161,7 @@ fn manual() {
         (f.join("app"), "@/index.ts", Ok(f.join("app/aliased/index.ts"))),
         (f.join("app"), "@/../index.ts", Ok(f.join("app/index.ts"))),
         // Test project reference
-        (f.join("project_a"), "@/index.ts", Ok(f.join("app/aliased/index.ts"))),
+        (f.join("project_a"), "@/index.ts", Ok(f.join("project_a/aliased/index.ts"))),
         (f.join("project_b/src"), "@/index.ts", Ok(f.join("app/aliased/index.ts"))),
         // Does not have paths alias
         (f.join("project_a"), "./index.ts", Ok(f.join("project_a/index.ts"))),

@@ -11,6 +11,9 @@ fn main() {
 
     let specifier = env::args().nth(2).expect("specifier");
 
+    println!("path: {path:?}");
+    println!("specifier: {specifier}");
+
     let options = ResolveOptions {
         alias_fields: vec![vec!["browser".into()]],
         alias: vec![("asdf".into(), vec![AliasValue::from("./test.js")])],
