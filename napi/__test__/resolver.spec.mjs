@@ -241,21 +241,21 @@ if (!process.env.WASI_TEST) {
     t.deepEqual(resolver.sync(pnpmProjectPath, 'styled-components'), {
       path: join(
         rootDir,
-        'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components/dist/styled-components.browser.cjs.js'
+        'node_modules/.pnpm/styled-components@6.1.15_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/styled-components/dist/styled-components.browser.cjs.js'
       ),
     })
     t.deepEqual(
       resolver.sync(
         join(
           rootDir,
-          'node_modules/.pnpm/styled-components@6.1.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/styled-components'
+          'node_modules/.pnpm/styled-components@6.1.15_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/styled-components'
         ),
         'react'
       ),
       {
         path: join(
           rootDir,
-          'node_modules/.pnpm/react@18.3.1/node_modules/react/index.js'
+          'node_modules/.pnpm/react@19.0.0/node_modules/react/index.js'
         ),
       }
     )
@@ -274,7 +274,7 @@ if (!process.env.WASI_TEST) {
       {
         path: join(
           rootDir,
-          'node_modules/.pnpm/react@18.3.1/node_modules/react/package.json'
+          'node_modules/.pnpm/react@19.0.0/node_modules/react/package.json'
         ),
       }
     )

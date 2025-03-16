@@ -14,7 +14,7 @@ const __wasi = new __WASI({
   fs: __fs,
   preopens: {
     '/': '/',
-  }
+  },
 })
 
 const __emnapiContext = __emnapiGetDefaultContext()
@@ -53,21 +53,13 @@ const {
     return importObject
   },
   beforeInit({ instance }) {
-    __napi_rs_initialize_modules(instance)
+    for (const name of Object.keys(instance.exports)) {
+      if (name.startsWith('__napi_register__')) {
+        instance.exports[name]()
+      }
+    }
   },
 })
-
-function __napi_rs_initialize_modules(__napiInstance) {
-  __napiInstance.exports['__napi_register__NapiResolveOptions_struct_0']?.()
-  __napiInstance.exports['__napi_register__EnforceExtension_1']?.()
-  __napiInstance.exports['__napi_register__Restriction_struct_2']?.()
-  __napiInstance.exports['__napi_register__TsconfigOptions_struct_3']?.()
-  __napiInstance.exports['__napi_register__ResolveResult_struct_4']?.()
-  __napiInstance.exports['__napi_register__sync_5']?.()
-  __napiInstance.exports['__napi_register__ResolveTask_impl_6']?.()
-  __napiInstance.exports['__napi_register__ResolverFactory_struct_7']?.()
-  __napiInstance.exports['__napi_register__ResolverFactory_impl_14']?.()
-}
 export const ResolverFactory = __napiModule.exports.ResolverFactory
 export const EnforceExtension = __napiModule.exports.EnforceExtension
 export const sync = __napiModule.exports.sync

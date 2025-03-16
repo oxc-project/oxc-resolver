@@ -224,4 +224,3 @@ export interface TsconfigOptions {
    */
   references?: 'auto' | string[]
 }
-

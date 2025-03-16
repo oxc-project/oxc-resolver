@@ -56,11 +56,11 @@ const { instance: __napiInstance, module: __wasiModule, napiModule: __napiModule
       return 4
     }
   })(),
+  reuseWorker: true,
   wasi: __wasi,
   onCreateWorker() {
     const worker = new Worker(__nodePath.join(__dirname, 'wasi-worker.mjs'), {
       env: process.env,
-      execArgv: ['--experimental-wasi-unstable-preview1'],
     })
     worker.onmessage = ({ data }) => {
       __wasmCreateOnMessageForFsProxy(__nodeFs)(data)
@@ -77,21 +77,14 @@ const { instance: __napiInstance, module: __wasiModule, napiModule: __napiModule
     return importObject
   },
   beforeInit({ instance }) {
-    __napi_rs_initialize_modules(instance)
-  }
+    for (const name of Object.keys(instance.exports)) {
+      if (name.startsWith('__napi_register__')) {
+        instance.exports[name]()
+      }
+    }
+  },
 })
 
-function __napi_rs_initialize_modules(__napiInstance) {
-  __napiInstance.exports['__napi_register__NapiResolveOptions_struct_0']?.()
-  __napiInstance.exports['__napi_register__EnforceExtension_1']?.()
-  __napiInstance.exports['__napi_register__Restriction_struct_2']?.()
-  __napiInstance.exports['__napi_register__TsconfigOptions_struct_3']?.()
-  __napiInstance.exports['__napi_register__ResolveResult_struct_4']?.()
-  __napiInstance.exports['__napi_register__sync_5']?.()
-  __napiInstance.exports['__napi_register__ResolveTask_impl_6']?.()
-  __napiInstance.exports['__napi_register__ResolverFactory_struct_7']?.()
-  __napiInstance.exports['__napi_register__ResolverFactory_impl_14']?.()
-}
 module.exports.ResolverFactory = __napiModule.exports.ResolverFactory
 module.exports.EnforceExtension = __napiModule.exports.EnforceExtension
 module.exports.sync = __napiModule.exports.sync

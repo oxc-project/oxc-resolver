@@ -126,7 +126,7 @@ impl PackageJson {
     pub(crate) fn main_fields<'a>(
         &'a self,
         main_fields: &'a [String],
-    ) -> impl Iterator<Item = &'a str> + '_ {
+    ) -> impl Iterator<Item = &'a str> + 'a {
         main_fields
             .iter()
             .filter_map(|main_field| self.raw_json.get(main_field))
@@ -139,7 +139,7 @@ impl PackageJson {
     pub(crate) fn exports_fields<'a>(
         &'a self,
         exports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a JSONValue> + '_ {
+    ) -> impl Iterator<Item = &'a JSONValue> + 'a {
         exports_fields.iter().filter_map(|object_path| {
             self.raw_json
                 .as_object()
@@ -153,7 +153,7 @@ impl PackageJson {
     pub(crate) fn imports_fields<'a>(
         &'a self,
         imports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a JSONMap> + '_ {
+    ) -> impl Iterator<Item = &'a JSONMap> + 'a {
         imports_fields.iter().filter_map(|object_path| {
             self.raw_json
                 .as_object()
@@ -169,7 +169,7 @@ impl PackageJson {
     fn browser_fields<'a>(
         &'a self,
         alias_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a JSONMap> + '_ {
+    ) -> impl Iterator<Item = &'a JSONMap> + 'a {
         alias_fields.iter().filter_map(|object_path| {
             self.raw_json
                 .as_object()
@@ -190,7 +190,7 @@ impl PackageJson {
         path: &Path,
         request: Option<&str>,
         alias_fields: &'a [Vec<String>],
-    ) -> Result<Option<&str>, ResolveError> {
+    ) -> Result<Option<&'a str>, ResolveError> {
         for object in self.browser_fields(alias_fields) {
             if let Some(request) = request {
                 if let Some(value) = object.get(request) {

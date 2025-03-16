@@ -232,7 +232,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             Err(err) => {
                 tracing::debug!(options = ?self.options, path = ?directory, specifier = specifier, err = ?err);
             }
-        };
+        }
         r
     }
 
@@ -883,7 +883,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             )? {
                 // 6. RESOLVE_ESM_MATCH(MATCH)
                 return self.resolve_esm_match(specifier, &path, ctx);
-            };
+            }
         }
         Ok(None)
     }
@@ -1773,8 +1773,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             if separator_index.is_none() || specifier.is_empty() {
                 // valid_package_name = false;
             } else if let Some(index) = &separator_index {
-                separator_index = specifier[*index + 1..]
-                    .as_bytes()
+                separator_index = specifier.as_bytes()[*index + 1..]
                     .iter()
                     .position(|b| *b == b'/')
                     .map(|i| i + *index + 1);

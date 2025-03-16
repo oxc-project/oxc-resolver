@@ -27,7 +27,7 @@ jobs:
   cache: # Warm cache factory for all other CI jobs
     name: Check and Build
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -177,7 +177,7 @@ jobs:
   test:
     name: Test
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
