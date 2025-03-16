@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - fork-release
+      - main
 
 permissions:
   pull-requests: write
@@ -25,7 +25,7 @@ jobs:
 
       - uses: Boshen/setup-rust@v1.0.0
         with:
-          save-cache: ${{ github.ref_name == 'fork-release' }}
+          save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
 
       - name: Run release-plz

@@ -9,7 +9,7 @@ on:
       - '!.github/workflows/ci.yml'
   push:
     branches:
-      - fork-release
+      - main
       - "renovate/**"
     paths-ignore:
       - '**/*.md'
@@ -39,14 +39,14 @@ jobs:
 
       - uses: Boshen/setup-rust@v1.0.0
         with:
-          save-cache: ${{ github.ref_name == 'fork-release' }}
+          save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
 
       - run: cargo check --all-features --locked
 
-      # Only need to build the test to create a warm cache on the fork-release branch
+      # Only need to build the test to create a warm cache on the main branch
       - name: Build cache by Cargo Check and Cargo Test
-        if: ${{ github.ref_name == 'fork-release' }}
+        if: ${{ github.ref_name == 'main' }}
         run: cargo test --all-features --no-run
 
   wasm:
@@ -58,7 +58,7 @@ jobs:
       - uses: Boshen/setup-rust@v1.0.0
         with:
           cache-key: wasm
-          save-cache: ${{ github.ref_name == 'fork-release' }}
+          save-cache: ${{ github.ref_name == 'main' }}
 
       - name: Check
         run: |
@@ -74,7 +74,7 @@ jobs:
       - uses: Boshen/setup-rust@v1.0.0
         with:
           cache-key: wasi
-          save-cache: ${{ github.ref_name == 'fork-release' }}
+          save-cache: ${{ github.ref_name == 'main' }}
 
       - uses: ./.github/actions/pnpm
 

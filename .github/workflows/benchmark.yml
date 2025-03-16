@@ -8,7 +8,7 @@ on:
       - '**/*.md'
   push:
     branches:
-      - fork-release
+      - main
     paths-ignore:
       - '**/*.md'
 
@@ -27,7 +27,7 @@ jobs:
       - uses: Boshen/setup-rust@v1.0.0
         with:
           cache-key: benchmark
-          save-cache: ${{ github.ref_name == 'fork-release' }}
+          save-cache: ${{ github.ref_name == 'main' }}
           tools: cargo-codspeed
       - uses: ./.github/actions/pnpm
       - name: Build Benchmark

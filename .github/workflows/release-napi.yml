@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - fork-release
+      - main
     paths:
       - npm/package.json # Please only commit this file, so we don't need to wait for test CI to pass.
 

@@ -1,5 +1,5 @@
 {
-  "name": "@oxc-resolver/binding",
+  "name": "@unrs/rspack-resolver-binding",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -25,9 +25,9 @@
   "packageManager": "pnpm@9.11.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oxc-project/oxc-resolver.git"
+    "url": "git+https://github.com/unrs/rspack-resolver.git"
   },
   "funding": {
-    "url": "https://github.com/sponsors/Boshen"
+    "url": "https://github.com/sponsors/JounQin"
   }
 }
