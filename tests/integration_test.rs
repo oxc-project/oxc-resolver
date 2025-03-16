@@ -45,12 +45,14 @@ fn package_json() {
 #[test]
 fn package_json_raw_json_api() {
     let resolution = resolve("./tests/package.json");
-    assert!(resolution
-        .package_json()
-        .unwrap()
-        .raw_json()
-        .get("name")
-        .is_some_and(|name| name == "name"));
+    assert!(
+        resolution
+            .package_json()
+            .unwrap()
+            .raw_json()
+            .get("name")
+            .is_some_and(|name| name == "name")
+    );
 }
 
 #[test]

@@ -8,13 +8,13 @@ name         = "unrspack-resolver"
 authors      = ["UnRS"]
 categories   = ["development-tools"]
 description  = "ESM / CJS module resolution"
-edition      = "2021"
+edition      = "2024"
 homepage     = "https://github.com/unrs/rspack-resolver"
 keywords     = ["node", "resolve", "cjs", "esm", "enhanced-resolve"]
 license      = "MIT"
 readme       = "README.md"
 repository   = "https://github.com/unrs/rspack-resolver"
-rust-version = "1.70"
+rust-version = "1.85.0"
 include      = ["/src", "/examples", "/benches"]
 
 [lib]

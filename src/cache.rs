@@ -13,8 +13,8 @@ use dashmap::{DashMap, DashSet};
 use rustc_hash::FxHasher;
 
 use crate::{
-    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil, FileMetadata,
-    FileSystem, ResolveError, ResolveOptions, TsConfig,
+    FileMetadata, FileSystem, ResolveError, ResolveOptions, TsConfig,
+    context::ResolveContext as Ctx, package_json::PackageJson, path::PathUtil,
 };
 
 #[derive(Default)]

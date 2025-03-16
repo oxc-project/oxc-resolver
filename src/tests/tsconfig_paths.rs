@@ -320,171 +320,172 @@ mod windows_test {
     #[test]
     fn match_path() {
         let pass = [
-        OneTest {
-            name: "should locate path that matches with star and exists",
-            existing_files: vec!["/root/location/mylib/index.ts"],
-            requested_module: "lib/mylib",
-            expected_path: "/root/location/mylib/index.ts",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should resolve to correct path when many are specified",
-            tsconfig: serde_json::json!({
-                "compilerOptions": {
-                    "paths": {
-                        "lib/*": ["foo1/*", "foo2/*", "location/*", "foo3/*"],
+            OneTest {
+                name: "should locate path that matches with star and exists",
+                existing_files: vec!["/root/location/mylib/index.ts"],
+                requested_module: "lib/mylib",
+                expected_path: "/root/location/mylib/index.ts",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should resolve to correct path when many are specified",
+                tsconfig: serde_json::json!({
+                    "compilerOptions": {
+                        "paths": {
+                            "lib/*": ["foo1/*", "foo2/*", "location/*", "foo3/*"],
+                        }
                     }
-                }
-            })
-            .to_string(),
-            existing_files: vec!["/root/location/mylib/index.ts"],
-            requested_module: "lib/mylib",
-            expected_path: "/root/location/mylib/index.ts",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should locate path that matches with star and prioritize pattern with longest prefix",
-            tsconfig: serde_json::json!({
-                "compilerOptions": {
-                    "paths": {
-                        "*": ["location/*"],
-                        "lib/*": ["location/*"],
+                })
+                .to_string(),
+                existing_files: vec!["/root/location/mylib/index.ts"],
+                requested_module: "lib/mylib",
+                expected_path: "/root/location/mylib/index.ts",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should locate path that matches with star and prioritize pattern with longest prefix",
+                tsconfig: serde_json::json!({
+                    "compilerOptions": {
+                        "paths": {
+                            "*": ["location/*"],
+                            "lib/*": ["location/*"],
+                        }
                     }
-                }
-            })
-            .to_string(),
-            existing_files: vec![
-                "/root/location/lib/mylib/index.ts",
-                "/root/location/mylib/index.ts",
-            ],
-            requested_module: "lib/mylib",
-            expected_path: "/root/location/mylib/index.ts",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should locate path that matches with star and exists with extension",
-            existing_files: vec![
-                "/root/location/mylib.myext",
-            ],
-            requested_module: "lib/mylib",
-            extensions: vec![".js".into(), ".myext".into()],
-            expected_path: "/root/location/mylib.myext",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should resolve request with extension specified",
-            existing_files: vec![
-                "/root/location/test.jpg",
-            ],
-            requested_module: "lib/test.jpg",
-            expected_path: "/root/location/test.jpg",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should locate path that matches without star and exists",
-            tsconfig: serde_json::json!({
-                "compilerOptions": {
-                    "paths": {
-                        "lib/foo": ["location/foo"]
+                })
+                .to_string(),
+                existing_files: vec![
+                    "/root/location/lib/mylib/index.ts",
+                    "/root/location/mylib/index.ts",
+                ],
+                requested_module: "lib/mylib",
+                expected_path: "/root/location/mylib/index.ts",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should locate path that matches with star and exists with extension",
+                existing_files: vec!["/root/location/mylib.myext"],
+                requested_module: "lib/mylib",
+                extensions: vec![".js".into(), ".myext".into()],
+                expected_path: "/root/location/mylib.myext",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should resolve request with extension specified",
+                existing_files: vec!["/root/location/test.jpg"],
+                requested_module: "lib/test.jpg",
+                expected_path: "/root/location/test.jpg",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should locate path that matches without star and exists",
+                tsconfig: serde_json::json!({
+                    "compilerOptions": {
+                        "paths": {
+                            "lib/foo": ["location/foo"]
+                        }
                     }
-                }
-            })
-            .to_string(),
-            existing_files: vec![
-                "/root/location/foo.ts",
-            ],
-            requested_module: "lib/foo",
-            expected_path: "/root/location/foo.ts",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should resolve to parent folder when filename is in subfolder",
-            existing_files: vec![
-                "/root/location/mylib/index.ts",
-            ],
-            requested_module: "lib/mylib",
-            expected_path: "/root/location/mylib/index.ts",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should resolve from main field in package.json",
-            package_json: Some((PathBuf::from("/root/location/mylib"), serde_json::json!({
-                "main": "./kalle.ts"
-            }).to_string())),
-            existing_files: vec![
-                "/root/location/mylib/kalle.ts",
-            ],
-            requested_module: "lib/mylib",
-            expected_path: "/root/location/mylib/kalle.ts",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should resolve from main field in package.json (js)",
-            package_json: Some((PathBuf::from("/root/location/mylib.js"), serde_json::json!({
-                "main": "./kalle.js"
-            }).to_string())),
-            existing_files: vec![
-                "/root/location/mylib.js/kalle.js",
-            ],
-            extensions: vec![".ts".into(), ".js".into()],
-            requested_module: "lib/mylib.js",
-            expected_path: "/root/location/mylib.js/kalle.js",
-            ..OneTest::default()
-        },
-        OneTest {
-            name: "should resolve from list of fields by priority in package.json",
-            main_fields: Some(vec!["missing".into(), "browser".into(), "main".into()]),
-            package_json: Some((PathBuf::from("/root/location/mylibjs"), serde_json::json!({
-                "main": "./main.js",
-                "browser": "./browser.js"
-            }).to_string())),
-            existing_files: vec![
-                "/root/location/mylibjs/main.js",
-                "/root/location/mylibjs/browser.js",
-            ],
-            extensions: vec![".ts".into(), ".js".into()],
-            requested_module: "lib/mylibjs",
-            expected_path: "/root/location/mylibjs/browser.js",
-            ..OneTest::default()
-        },
-OneTest {
-            name: "should ignore field mappings to missing files in package.json",
-            main_fields: Some(vec!["browser".into(), "main".into()]),
-            package_json: Some((PathBuf::from("/root/location/mylibjs"), serde_json::json!({
-                "main": "./kalle.js",
-                "browser": "./nope.js"
-            }).to_string())),
-            existing_files: vec![
-                "/root/location/mylibjs/kalle.js",
-            ],
-            extensions: vec![".ts".into(), ".js".into()],
-            requested_module: "lib/mylibjs",
-            expected_path: "/root/location/mylibjs/kalle.js",
-            ..OneTest::default()
-        },
-        // Tests that are not applicable:
-        // name: "should resolve nested main fields"
-        // name: "should ignore advanced field mappings in package.json"
-        // name: "should resolve to with the help of baseUrl when not explicitly set"
-        // name: "should not resolve with the help of baseUrl when asked not to"
-        // name: "should resolve main file with cjs file extension"
-        OneTest {
-            name: "should resolve .ts from .js alias",
-            tsconfig: serde_json::json!({
-                "compilerOptions": {
-                    "paths": {
-                        "@/*": ["src/*"]
+                })
+                .to_string(),
+                existing_files: vec!["/root/location/foo.ts"],
+                requested_module: "lib/foo",
+                expected_path: "/root/location/foo.ts",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should resolve to parent folder when filename is in subfolder",
+                existing_files: vec!["/root/location/mylib/index.ts"],
+                requested_module: "lib/mylib",
+                expected_path: "/root/location/mylib/index.ts",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should resolve from main field in package.json",
+                package_json: Some((
+                    PathBuf::from("/root/location/mylib"),
+                    serde_json::json!({
+                        "main": "./kalle.ts"
+                    })
+                    .to_string(),
+                )),
+                existing_files: vec!["/root/location/mylib/kalle.ts"],
+                requested_module: "lib/mylib",
+                expected_path: "/root/location/mylib/kalle.ts",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should resolve from main field in package.json (js)",
+                package_json: Some((
+                    PathBuf::from("/root/location/mylib.js"),
+                    serde_json::json!({
+                        "main": "./kalle.js"
+                    })
+                    .to_string(),
+                )),
+                existing_files: vec!["/root/location/mylib.js/kalle.js"],
+                extensions: vec![".ts".into(), ".js".into()],
+                requested_module: "lib/mylib.js",
+                expected_path: "/root/location/mylib.js/kalle.js",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should resolve from list of fields by priority in package.json",
+                main_fields: Some(vec!["missing".into(), "browser".into(), "main".into()]),
+                package_json: Some((
+                    PathBuf::from("/root/location/mylibjs"),
+                    serde_json::json!({
+                        "main": "./main.js",
+                        "browser": "./browser.js"
+                    })
+                    .to_string(),
+                )),
+                existing_files: vec![
+                    "/root/location/mylibjs/main.js",
+                    "/root/location/mylibjs/browser.js",
+                ],
+                extensions: vec![".ts".into(), ".js".into()],
+                requested_module: "lib/mylibjs",
+                expected_path: "/root/location/mylibjs/browser.js",
+                ..OneTest::default()
+            },
+            OneTest {
+                name: "should ignore field mappings to missing files in package.json",
+                main_fields: Some(vec!["browser".into(), "main".into()]),
+                package_json: Some((
+                    PathBuf::from("/root/location/mylibjs"),
+                    serde_json::json!({
+                        "main": "./kalle.js",
+                        "browser": "./nope.js"
+                    })
+                    .to_string(),
+                )),
+                existing_files: vec!["/root/location/mylibjs/kalle.js"],
+                extensions: vec![".ts".into(), ".js".into()],
+                requested_module: "lib/mylibjs",
+                expected_path: "/root/location/mylibjs/kalle.js",
+                ..OneTest::default()
+            },
+            // Tests that are not applicable:
+            // name: "should resolve nested main fields"
+            // name: "should ignore advanced field mappings in package.json"
+            // name: "should resolve to with the help of baseUrl when not explicitly set"
+            // name: "should not resolve with the help of baseUrl when asked not to"
+            // name: "should resolve main file with cjs file extension"
+            OneTest {
+                name: "should resolve .ts from .js alias",
+                tsconfig: serde_json::json!({
+                    "compilerOptions": {
+                        "paths": {
+                            "@/*": ["src/*"]
+                        }
                     }
-                }
-            }).to_string(),
-            existing_files: vec![
-                "/root/src/foo.ts",
-            ],
-            requested_module: "@/foo", // original data was "@/foo.ts" but I don't get why it is the case?
-            expected_path: "/root/src/foo.ts", // original data was "/root/src/foo"
-            ..OneTest::default()
-        },
-    ];
+                })
+                .to_string(),
+                existing_files: vec!["/root/src/foo.ts"],
+                requested_module: "@/foo", // original data was "@/foo.ts" but I don't get why it is the case?
+                expected_path: "/root/src/foo.ts", // original data was "/root/src/foo"
+                ..OneTest::default()
+            },
+        ];
 
         let root = PathBuf::from("/root");
 

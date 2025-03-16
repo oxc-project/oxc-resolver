@@ -62,7 +62,7 @@ mod tsconfig;
 #[cfg(test)]
 mod tests;
 
-use dashmap::{mapref::one::Ref, DashMap};
+use dashmap::{DashMap, mapref::one::Ref};
 use rustc_hash::FxHashSet;
 use serde_json::Value as JSONValue;
 use std::{
@@ -360,10 +360,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         // Make sure only path prefixes gets called
-        debug_assert!(Path::new(specifier)
-            .components()
-            .next()
-            .is_some_and(|c| matches!(c, Component::RootDir | Component::Prefix(_))));
+        debug_assert!(
+            Path::new(specifier)
+                .components()
+                .next()
+                .is_some_and(|c| matches!(c, Component::RootDir | Component::Prefix(_)))
+        );
         if !self.options.prefer_relative && self.options.prefer_absolute {
             if let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx) {
                 return Ok(path);
@@ -425,10 +427,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         // Make sure no other path prefixes gets called
-        debug_assert!(Path::new(specifier)
-            .components()
-            .next()
-            .is_some_and(|c| matches!(c, Component::Normal(_))));
+        debug_assert!(
+            Path::new(specifier)
+                .components()
+                .next()
+                .is_some_and(|c| matches!(c, Component::Normal(_)))
+        );
         if self.options.prefer_relative {
             if let Ok(path) = self.require_relative(cached_path, specifier, ctx) {
                 return Ok(path);
@@ -645,7 +649,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     }
                 }
                 Restriction::RegExp(_) => {
-                    return Err(ResolveError::Unimplemented("Restriction with regex"))
+                    return Err(ResolveError::Unimplemented("Restriction with regex"));
                 }
             }
         }
