@@ -237,6 +237,30 @@ fn test_template_variable() {
     }
 }
 
+#[test]
+fn test_paths_nested_base() {
+    let f = super::fixture_root().join("tsconfig");
+    let f2 = f.join("cases").join("paths-nested-base");
+
+    #[rustfmt::skip]
+    let pass = [
+        (f2.clone().join("other"), "tsconfig.json", "foo", f2.join("root/foo.ts")),
+        (f2.clone().join("root"), "tsconfig.json", "other/bar", f2.join("other/bar.ts")),
+    ];
+
+    for (dir, tsconfig, request, expected) in pass {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigOptions {
+                config_file: dir.parent().unwrap().join(tsconfig),
+                references: TsconfigReferences::Auto,
+            }),
+            ..ResolveOptions::default()
+        });
+        let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{request} {tsconfig} {dir:?}");
+    }
+}
+
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows_test {
     use std::path::{Path, PathBuf};
