@@ -129,16 +129,14 @@ impl TsConfig {
     }
 
     pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
-        let paths = self.resolve_path_alias(specifier);
-        if !paths.is_empty() {
-            return paths;
-        }
+        let mut paths = self.resolve_path_alias(specifier);
         for tsconfig in self.references.iter().filter_map(|reference| reference.tsconfig.as_ref()) {
             if path.starts_with(tsconfig.base_path()) {
-                return tsconfig.resolve_path_alias(specifier);
+                paths = [paths, tsconfig.resolve_path_alias(specifier)].concat();
+                break;
             }
         }
-        vec![]
+        paths
     }
 
     // Copied from parcel

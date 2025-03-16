@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../project_a/conf.json"
+    },
+    {
+      "path": "../project_b"
+    },
+    {
+      "path": "../project_c/tsconfig.json"
+    },
+    {
+      "path": "../../paths_template_variable/tsconfig2.json"
+    }
+  ]
+}
