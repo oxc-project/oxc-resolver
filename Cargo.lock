@@ -1080,7 +1080,7 @@ checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
 
 [[package]]
 name = "unrspack-resolver"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "cfg-if",
  "criterion2",

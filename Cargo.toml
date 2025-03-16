@@ -3,7 +3,7 @@ members  = ["napi"]
 resolver = "2"
 
 [package]
-version      = "1.1.0"
+version      = "1.1.1"
 name         = "unrspack-resolver"
 authors      = ["UnRS"]
 categories   = ["development-tools"]
