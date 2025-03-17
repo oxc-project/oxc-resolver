@@ -625,7 +625,8 @@ impl TsConfig {
     pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
         _ = json_strip_comments::strip(json);
-        let mut tsconfig: Self = serde_json::from_str(json)?;
+        let mut tsconfig: Self =
+            serde_json::from_str(if json.trim().is_empty() { "{}" } else { json })?;
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)

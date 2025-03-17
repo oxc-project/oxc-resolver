@@ -131,6 +131,22 @@ fn broken() {
     assert_eq!(resolved_path, Err(error));
 }
 
+#[test]
+fn empty() {
+    let f = super::fixture_root().join("tsconfig/cases/empty");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        }),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver.resolve(&f, "./index").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f.join("index.js")));
+}
+
 // <https://github.com/parcel-bundler/parcel/blob/c8f5c97a01f643b4d5c333c02d019ef2618b44a5/packages/utils/node-resolver-rs/src/tsconfig.rs#L193C12-L193C12>
 #[test]
 fn test_paths() {
