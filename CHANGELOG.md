@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.1.2...unrspack-resolver-v2.0.0) - 2025-03-18
+
+### Features
+
+- *(napi)* add mimalloc ([#423](https://github.com/unrs/rspack-resolver/pull/423)) ([#18](https://github.com/unrs/rspack-resolver/pull/18))
+- merge from upstream `oxc-project/oxc-resolver` ([#15](https://github.com/unrs/rspack-resolver/pull/15))
+
 ## [1.1.2](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.1.1...unrspack-resolver-v1.1.2) - 2025-03-16
 
 ### Fixed
