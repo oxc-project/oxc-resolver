@@ -1,9 +1,9 @@
 [package]
 name = "rspack_resolver_napi"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 publish = false
-rust-version = "1.71"
+rust-version = "1.85.0"
 
 [lib]
 crate-type = ["cdylib"]
@@ -15,6 +15,12 @@ napi = { version = "3.0.0-alpha", default-features = false, features = ["napi3",
 napi-derive = { version = "3.0.0-alpha" }
 oxc_resolver = { path = "..", package = "unrspack-resolver" }
 tracing-subscriber = { version = "0.3.18", default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
+
+[target.'cfg(all(not(target_os = "linux"), not(target_os = "freebsd"), not(target_arch = "arm"), not(target_family = "wasm")))'.dependencies]
+mimalloc-safe = { version = "0.1.49", features = ["skip_collect_on_exit"] }
+
+[target.'cfg(any(all(target_os = "linux", not(target_arch = "arm")), target_os = "freebsd"))'.dependencies]
+mimalloc-safe = { version = "0.1.49", features = ["skip_collect_on_exit", "local_dynamic_tls"] }
 
 [build-dependencies]
 napi-build = "2.1.5"

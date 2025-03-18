@@ -52,31 +52,22 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-
           - os: windows-latest
             target: aarch64-pc-windows-msvc
-
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
-
           - os: macos-latest
             target: x86_64-apple-darwin
-
           - os: macos-latest
             target: aarch64-apple-darwin
-
           - os: ubuntu-latest
             target: wasm32-wasip1-threads
 
@@ -87,8 +78,7 @@ jobs:
 
       - uses: ./.github/actions/pnpm
 
-      - name: Add Rust Target
-        run: rustup target add ${{ matrix.target }}
+      - run: rustup target add ${{ matrix.target }}
 
       - uses: goto-bus-stop/setup-zig@v2
         if: ${{ contains(matrix.target, 'musl') }}
@@ -101,57 +91,15 @@ jobs:
 
       - name: Build with napi cross
         if: ${{ contains(matrix.target, 'gnu') }}
+        env:
+          CC: clang # for mimalloc
         run: pnpm build --use-napi-cross --target ${{ matrix.target }}
 
       - name: Build
         if: ${{ !contains(matrix.target, 'gnu') && !contains(matrix.target, 'musl') }}
+        env:
+          CC: clang # for mimalloc
         run: pnpm build --target ${{ matrix.target }}
-
-      - name: Test
-        # if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-apple-darwin' || matrix.target == 'wasm32-wasip1-threads'
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: pnpm test
-
-      - name: Output docker params
-        if: ${{ contains(matrix.target, 'linux') }}
-        id: docker
-        run: |
-          node -e "
-            if ('${{ matrix.target }}'.startsWith('aarch64')) {
-              console.log('PLATFORM=linux/arm64')
-            } else if ('${{ matrix.target }}'.startsWith('armv7')) {
-              console.log('PLATFORM=linux/arm/v7')
-            } else {
-              console.log('PLATFORM=linux/amd64')
-            }
-          " >> $GITHUB_OUTPUT
-          node -e "
-            if ('${{ matrix.target }}'.endsWith('-musl')) {
-              console.log('IMAGE=node:lts-alpine')
-            } else {
-              console.log('IMAGE=node:lts-slim')
-            }
-          " >> $GITHUB_OUTPUT
-          echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        if: ${{ contains(matrix.target, 'linux') }}
-        with:
-          platforms: all
-
-      - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        if: ${{ contains(matrix.target, 'linux') }}
-
-      - name: Run linux test
-        uses: addnab/docker-run-action@v3
-        if: false # ${{ contains(matrix.target, 'linux') }}
-        with:
-          image: ${{ steps.docker.outputs.IMAGE }}
-          options: -v ${{ steps.docker.outputs.PNPM_STORE_PATH }}:${{ steps.docker.outputs.PNPM_STORE_PATH }} -v ${{ github.workspace }}:/oxc_resolver -w /oxc_resolver --platform ${{ steps.docker.outputs.PLATFORM }}
-          run: |
-            corepack enable
-            pnpm test
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -182,7 +130,7 @@ jobs:
           environment_variables: "DEBUG RUSTUP_IO_THREADS"
           shell: bash
           run: |
-            sudo pkg install -y -f curl libnghttp2 node22 npm
+            sudo pkg install -y -f curl libnghttp2 node22 npm cmake
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
             source "$HOME/.cargo/env"

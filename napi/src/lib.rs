@@ -1,6 +1,6 @@
-extern crate napi;
-extern crate napi_derive;
-extern crate oxc_resolver;
+#[cfg(all(not(target_arch = "arm"), not(target_family = "wasm")))]
+#[global_allocator]
+static ALLOC: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
 
 use std::{
     path::{Path, PathBuf},

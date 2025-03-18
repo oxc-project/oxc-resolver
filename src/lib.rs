@@ -751,11 +751,9 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         ctx: &mut Ctx,
     ) -> ResolveResult<C::Cp> {
         #[cfg(feature = "yarn_pnp")]
-        {
-            if self.options.enable_pnp {
-                if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
-                    return Ok(Some(resolved_path));
-                }
+        if self.options.enable_pnp {
+            if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
+                return Ok(Some(resolved_path));
             }
         }
 
