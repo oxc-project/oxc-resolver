@@ -1,6 +1,6 @@
 {
   "name": "rspack-resolver",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Oxc Resolver Node API with PNP support",
   "main": "index.js",
   "browser": "browser.js",
