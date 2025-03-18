@@ -22,7 +22,6 @@ jobs:
     name: Check version
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ env.version }}
       version_changed: ${{ steps.version.outputs.changed }}
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
@@ -39,15 +38,11 @@ jobs:
         if: steps.version.outputs.changed == 'true'
         run: |
           echo "Version change found! New version: ${{ steps.version.outputs.version }} (${{ steps.version.outputs.version_type }})"
-          echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
+          echo "version=${{ steps.version.outputs.version }}"
 
   build:
     needs: check
     if: needs.check.outputs.version_changed == 'true'
-    env:
-      version: ${{ needs.check.outputs.version }}
-    outputs:
-      version: ${{ env.version }}
     strategy:
       fail-fast: false
       matrix:
