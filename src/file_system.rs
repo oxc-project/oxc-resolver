@@ -295,7 +295,7 @@ impl FileSystem for FileSystemOs {
                         VPath::Virtual(info) => dunce::canonicalize(info.physical_base_path()),
                         VPath::Native(path) => dunce::canonicalize(path),
                     }
-            }
+                }
             }
         }
 

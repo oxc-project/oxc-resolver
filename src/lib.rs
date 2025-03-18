@@ -148,7 +148,6 @@ impl<C: Cache + Default> Default for ResolverGeneric<C> {
 impl<C: Cache + Default> ResolverGeneric<C> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
-        println!("enable_pnp: {:?}", options.enable_pnp);
         Self {
             options: options.sanitize(),
             cache: Arc::new(C::default()),
