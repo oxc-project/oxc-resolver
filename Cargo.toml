@@ -87,7 +87,7 @@ pnp = { version = "0.9.1", optional = true }
 document-features = { version = "0.2.10", optional = true }
 
 [dev-dependencies]
-criterion2 = { version = "1.0.0", default-features = false }
+criterion2 = { version = "3.0.0", default-features = false }
 normalize-path = { version = "0.2.1" }
 rayon = { version = "1.10.0" }
 vfs = "0.12.0" # for testing with in memory file system
