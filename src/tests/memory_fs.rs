@@ -72,6 +72,10 @@ impl FileSystem for MemoryFS {
         self.metadata(path)
     }
 
+    fn read_link(&self, _path: &Path) -> io::Result<PathBuf> {
+        Err(io::Error::new(io::ErrorKind::NotFound, "not a symlink"))
+    }
+
     fn canonicalize(&self, _path: &Path) -> io::Result<PathBuf> {
         Err(io::Error::new(io::ErrorKind::NotFound, "not a symlink"))
     }

@@ -1,7 +1,8 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/extensions.test.js>
 
-use crate::{EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 use rustc_hash::FxHashSet;
+
+use crate::{EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn extensions() {
@@ -118,7 +119,7 @@ fn multi_dot_extension() {
 #[test]
 #[should_panic = "All extensions must start with a leading dot"]
 fn without_leading_dot() {
-    Resolver::new(ResolveOptions {
+    let _ = Resolver::new(ResolveOptions {
         extensions: vec!["ts".into(), "js".into()],
         ..ResolveOptions::default()
     });

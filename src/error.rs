@@ -1,4 +1,5 @@
 use std::{io, path::PathBuf, sync::Arc};
+
 use thiserror::Error;
 
 /// All resolution errors
@@ -40,12 +41,14 @@ pub enum ResolveError {
     #[error("{0}")]
     IOError(IOError),
 
-    /// Node.js builtin modules
+    /// Node.js builtin module when `Options::builtin_modules` is enabled.
     ///
-    /// This is an error due to not being a Node.js runtime.
-    /// The `alias` option can be used to resolve a builtin module to a polyfill.
-    #[error("Builtin module {0}")]
-    Builtin(String),
+    /// `is_runtime_module` can be used to determine whether the request
+    /// was prefixed with `node:` or not.
+    ///
+    /// `resolved` is always prefixed with "node:" in compliance with the ESM specification.
+    #[error("Builtin module {resolved}")]
+    Builtin { resolved: String, is_runtime_module: bool },
 
     /// All of the aliased extension are not found
     ///
@@ -99,11 +102,14 @@ pub enum ResolveError {
 }
 
 impl ResolveError {
-    pub fn is_ignore(&self) -> bool {
+    #[must_use]
+    pub const fn is_ignore(&self) -> bool {
         matches!(self, Self::Ignored(_))
     }
 
-    pub(crate) fn from_serde_json_error(
+    #[must_use]
+    #[cfg(feature = "fs_cache")]
+    pub fn from_serde_json_error(
         path: PathBuf,
         error: &serde_json::Error,
         content: Option<String>,

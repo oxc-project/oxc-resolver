@@ -1,8 +1,7 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use napi::Either;
 use napi_derive::napi;
-use std::collections::HashMap;
 
 /// Module Resolution Options
 ///
@@ -153,7 +152,7 @@ pub struct NapiResolveOptions {
 }
 
 #[napi]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnforceExtension {
     Auto,
     Enabled,
@@ -203,9 +202,9 @@ pub struct TsconfigOptions {
     pub references: Option<Either<String, Vec<String>>>,
 }
 
-impl Into<oxc_resolver::Restriction> for Restriction {
-    fn into(self) -> oxc_resolver::Restriction {
-        match (self.path, self.regex) {
+impl From<Restriction> for oxc_resolver::Restriction {
+    fn from(val: Restriction) -> Self {
+        match (val.path, val.regex) {
             (None, None) => {
                 panic!("Should specify path or regex")
             }
@@ -218,9 +217,9 @@ impl Into<oxc_resolver::Restriction> for Restriction {
     }
 }
 
-impl Into<oxc_resolver::EnforceExtension> for EnforceExtension {
-    fn into(self) -> oxc_resolver::EnforceExtension {
-        match self {
+impl From<EnforceExtension> for oxc_resolver::EnforceExtension {
+    fn from(val: EnforceExtension) -> Self {
+        match val {
             EnforceExtension::Auto => oxc_resolver::EnforceExtension::Auto,
             EnforceExtension::Enabled => oxc_resolver::EnforceExtension::Enabled,
             EnforceExtension::Disabled => oxc_resolver::EnforceExtension::Disabled,
@@ -228,11 +227,11 @@ impl Into<oxc_resolver::EnforceExtension> for EnforceExtension {
     }
 }
 
-impl Into<oxc_resolver::TsconfigOptions> for TsconfigOptions {
-    fn into(self) -> oxc_resolver::TsconfigOptions {
+impl From<TsconfigOptions> for oxc_resolver::TsconfigOptions {
+    fn from(val: TsconfigOptions) -> Self {
         oxc_resolver::TsconfigOptions {
-            config_file: PathBuf::from(self.config_file),
-            references: match self.references {
+            config_file: PathBuf::from(val.config_file),
+            references: match val.references {
                 Some(Either::A(string)) if string.as_str() == "auto" => {
                     oxc_resolver::TsconfigReferences::Auto
                 }
@@ -251,9 +250,9 @@ impl Into<oxc_resolver::TsconfigOptions> for TsconfigOptions {
 type StrOrStrListType = Either<String, Vec<String>>;
 pub struct StrOrStrList(pub StrOrStrListType);
 
-impl Into<Vec<String>> for StrOrStrList {
-    fn into(self) -> Vec<String> {
-        match self {
+impl From<StrOrStrList> for Vec<String> {
+    fn from(val: StrOrStrList) -> Self {
+        match val {
             StrOrStrList(Either::A(s)) => Vec::from([s]),
             StrOrStrList(Either::B(a)) => a,
         }

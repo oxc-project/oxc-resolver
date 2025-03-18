@@ -1,7 +1,5 @@
 name: Release NAPI
 
-permissions: {}
-
 on:
   workflow_dispatch:
   push:

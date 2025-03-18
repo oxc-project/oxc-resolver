@@ -1,11 +1,14 @@
-use std::path::Path;
-use std::{fmt, path::PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 /// Module Resolution Options
 ///
 /// Options are directly ported from [enhanced-resolve](https://github.com/webpack/enhanced-resolve#resolver-options).
 ///
 /// See [webpack resolve](https://webpack.js.org/configuration/resolve/) for information and examples
+#[expect(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
     /// Path to TypeScript configuration file.
@@ -185,7 +188,7 @@ impl ResolveOptions {
     /// assert_eq!(options.builtin_modules, false)
     /// ```
     #[must_use]
-    pub fn with_builtin_modules(mut self, flag: bool) -> Self {
+    pub const fn with_builtin_modules(mut self, flag: bool) -> Self {
         self.builtin_modules = flag;
         self
     }
@@ -207,7 +210,7 @@ impl ResolveOptions {
         self
     }
 
-    /// Adds a single extension to the list of extensions
+    /// Adds a single extension to the list of extensions. Extension must start with a `.`
     ///
     /// ## Examples
     ///
@@ -215,8 +218,8 @@ impl ResolveOptions {
     /// use unrspack_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
     ///
-    /// let options = ResolveOptions::default().with_extension("jsonc");
-    /// assert!(options.extensions.contains(&"jsonc".to_string()));
+    /// let options = ResolveOptions::default().with_extension(".jsonc");
+    /// assert!(options.extensions.contains(&".jsonc".to_string()));
     /// ```
     #[must_use]
     pub fn with_extension<S: Into<String>>(mut self, extension: S) -> Self {
@@ -253,7 +256,7 @@ impl ResolveOptions {
     /// assert_eq!(options.enforce_extension, EnforceExtension::Enabled);
     /// ```
     #[must_use]
-    pub fn with_force_extension(mut self, enforce_extension: EnforceExtension) -> Self {
+    pub const fn with_force_extension(mut self, enforce_extension: EnforceExtension) -> Self {
         self.enforce_extension = enforce_extension;
         self
     }
@@ -270,10 +273,11 @@ impl ResolveOptions {
     /// assert_eq!(options.fully_specified, true);
     /// ```
     #[must_use]
-    pub fn with_fully_specified(mut self, fully_specified: bool) -> Self {
+    pub const fn with_fully_specified(mut self, fully_specified: bool) -> Self {
         self.fully_specified = fully_specified;
         self
     }
+
     /// Sets the value for [ResolveOptions::prefer_relative]
     ///
     /// ## Examples
@@ -286,10 +290,11 @@ impl ResolveOptions {
     /// assert_eq!(options.prefer_relative, true);
     /// ```
     #[must_use]
-    pub fn with_prefer_relative(mut self, flag: bool) -> Self {
+    pub const fn with_prefer_relative(mut self, flag: bool) -> Self {
         self.prefer_relative = flag;
         self
     }
+
     /// Sets the value for [ResolveOptions::prefer_absolute]
     ///
     /// ## Examples
@@ -302,7 +307,7 @@ impl ResolveOptions {
     /// assert_eq!(options.prefer_absolute, true);
     /// ```
     #[must_use]
-    pub fn with_prefer_absolute(mut self, flag: bool) -> Self {
+    pub const fn with_prefer_absolute(mut self, flag: bool) -> Self {
         self.prefer_absolute = flag;
         self
     }
@@ -318,7 +323,7 @@ impl ResolveOptions {
     /// assert_eq!(options.symlinks, false);
     /// ```
     #[must_use]
-    pub fn with_symbolic_link(mut self, flag: bool) -> Self {
+    pub const fn with_symbolic_link(mut self, flag: bool) -> Self {
         self.symlinks = flag;
         self
     }
@@ -382,14 +387,17 @@ pub enum EnforceExtension {
 }
 
 impl EnforceExtension {
+    #[must_use]
     pub const fn is_auto(&self) -> bool {
         matches!(self, Self::Auto)
     }
 
+    #[must_use]
     pub const fn is_enabled(&self) -> bool {
         matches!(self, Self::Enabled)
     }
 
+    #[must_use]
     pub const fn is_disabled(&self) -> bool {
         matches!(self, Self::Disabled)
     }
@@ -467,7 +475,6 @@ impl Default for ResolveOptions {
             main_fields: vec!["main".into()],
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            #[cfg(feature = "yarn_pnp")]
             enable_pnp: true,
             resolve_to_context: false,
             prefer_relative: false,
@@ -552,11 +559,12 @@ impl fmt::Display for ResolveOptions {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
     use super::{
         AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
         TsconfigReferences,
     };
-    use std::path::PathBuf;
 
     #[test]
     fn enforce_extension() {

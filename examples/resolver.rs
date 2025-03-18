@@ -1,4 +1,5 @@
-///! See documentation at <https://docs.rs/rspack_resolver>
+// See documentation at <https://docs.rs/unrspack_resolver>
+
 use std::{env, path::PathBuf};
 
 use unrspack_resolver::{AliasValue, ResolveOptions, Resolver};

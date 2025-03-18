@@ -90,3 +90,34 @@ fn roots_fall_through() {
         Ok(absolute_path)
     );
 }
+
+#[test]
+fn should_resolve_slash() {
+    let f = super::fixture();
+    let dir_with_index = super::fixture_root().join("./misc/dir-with-index");
+
+    #[rustfmt::skip]
+    let pass = [
+        ("should resolve if importer is root", vec![dir_with_index.clone()], &dir_with_index, dir_with_index.join("index.js")),
+    ];
+
+    for (comment, roots, directory, expected) in pass {
+        let resolver =
+            Resolver::new(ResolveOptions { roots: roots.clone(), ..ResolveOptions::default() });
+        let resolved_path = resolver.resolve(directory, "/").map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {roots:?}");
+    }
+
+    #[rustfmt::skip]
+    let fail = [
+        ("should not resolve if not found", vec![f.clone()], &f),
+        ("should not resolve if importer is not root", vec![dir_with_index], &f)
+    ];
+
+    for (comment, roots, directory) in fail {
+        let resolver =
+            Resolver::new(ResolveOptions { roots: roots.clone(), ..ResolveOptions::default() });
+        let resolution = resolver.resolve(directory, "/");
+        assert_eq!(resolution, Err(ResolveError::NotFound("/".into())), "{comment} {roots:?}");
+    }
+}

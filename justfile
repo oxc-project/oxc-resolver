@@ -26,20 +26,24 @@ ready:
   just lint
   git status
 
-# --no-vcs-ignores: cargo-watch has a bug loading all .gitignores, including the ones listed in .gitignore
-# use .ignore file getting the ignore list
-# Run `cargo watch`
-watch command:
-  cargo watch -x '{{command}}'
+watch *args='':
+  watchexec {{args}}
+
+watch-check:
+  just watch "'cargo check; cargo clippy'"
+
+watch-example *args='':
+  just watch "cargo run --example resolver -- {{args}}"
 
 # Run the example in `parser`, `formatter`, `linter`
 example *args='':
-  just watch 'run --example resolver -- {{args}}'
+  cargo run --example resolver -- {{args}}
 
 # Format all files
 fmt:
-  cargo fmt
-  taplo format
+  cargo shear --fix # remove all unused dependencies
+  cargo fmt --all
+  dprint fmt
 
 # Run cargo check
 check:
@@ -51,7 +55,7 @@ test:
 
 # Lint the whole project
 lint:
-  cargo clippy --all-features -- --deny warnings
+  cargo clippy --all-features --all-targets -- --deny warnings
 
 # Generate doc
 doc:
@@ -61,9 +65,9 @@ doc:
 codecov:
   cargo codecov --html
 
-# Run the benchmarks. See `tasks/benchmark`
+# Run the benchmarks.
 benchmark:
-  cargo benchmark
+  cargo bench
 
 # Run cargo-fuzz
 fuzz:

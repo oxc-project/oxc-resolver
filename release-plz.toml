@@ -1,3 +1,4 @@
 [workspace]
-semver_check = false
+semver_check = true
 allow_dirty = true # The "fixtures" is being marked as dirty.
+changelog_config = "cliff.toml"

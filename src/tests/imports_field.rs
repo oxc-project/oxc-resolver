@@ -2,10 +2,14 @@
 //!
 //! The huge imports field test cases are at the bottom of this file.
 
+use std::path::Path;
+
 use serde_json::json;
 
-use crate::{Ctx, JSONMap, PathUtil, ResolveError, ResolveOptions, Resolver};
-use std::path::Path;
+use crate::{
+    Cache, Ctx, PathUtil, ResolveError, ResolveOptions, Resolver, cache::CachedPath,
+    package_json_serde::ImportsExportsSerdeMap,
+};
 
 #[test]
 fn test_simple() {
@@ -94,20 +98,24 @@ fn shared_resolvers() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    imports_field: JSONMap,
+    imports_field: ImportsExportsSerdeMap<'static>,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn imports_field(value: serde_json::Value) -> JSONMap {
-    let s = serde_json::to_string(&value).unwrap();
-    serde_json::from_str(&s).unwrap()
+fn imports_field(value: serde_json::Value) -> ImportsExportsSerdeMap<'static> {
+    let serde_json::Value::Object(map) = value else {
+        panic!("Expected an object");
+    };
+    // Don't do this at home:
+    let map = Box::leak::<'static>(Box::new(map));
+    ImportsExportsSerdeMap(map)
 }
 
+#[allow(clippy::too_many_lines)]
 #[test]
 fn test_cases() {
-    let test_cases = [
+    let test_cases = vec![
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./dist/test/file.js"]),
@@ -1295,11 +1303,13 @@ fn test_cases() {
     ];
 
     for case in test_cases {
-        let resolved = Resolver::default()
+        let resolver = Resolver::default();
+        let cached_path = resolver.cache.value(Path::new(""));
+        let resolved_path = resolver
             .package_imports_exports_resolve(
                 case.request,
                 &case.imports_field,
-                Path::new(""),
+                &cached_path,
                 true,
                 &case.condition_names.iter().map(ToString::to_string).collect::<Vec<_>>(),
                 &mut Ctx::default(),
@@ -1307,14 +1317,19 @@ fn test_cases() {
             .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {
             if expect.is_empty() {
-                assert!(matches!(resolved, Ok(None)), "{} {:?}", &case.name, &resolved);
+                assert!(matches!(resolved_path, Ok(None)), "{} {:?}", &case.name, &resolved_path);
             } else {
                 for expect in expect {
-                    assert_eq!(resolved, Ok(Some(Path::new(expect).normalize())), "{}", &case.name);
+                    assert_eq!(
+                        resolved_path,
+                        Ok(Some(Path::new(expect).normalize())),
+                        "{}",
+                        &case.name
+                    );
                 }
             }
         } else {
-            assert!(resolved.is_err(), "{} {resolved:?}", &case.name);
+            assert!(resolved_path.is_err(), "{} {resolved_path:?}", &case.name);
         }
     }
 }

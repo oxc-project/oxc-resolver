@@ -1,5 +1,8 @@
 use std::{fs, io, path::Path};
 
+#[cfg(target_family = "windows")]
+use normalize_path::NormalizePath;
+
 use crate::{ResolveOptions, Resolver};
 
 #[derive(Debug, Clone, Copy)]
@@ -21,8 +24,10 @@ fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(
 
     #[cfg(target_family = "windows")]
     match file_type {
-        FileType::File => std::os::windows::fs::symlink_file(original, link),
-        FileType::Dir => std::os::windows::fs::symlink_dir(original, link),
+        // NOTE: original path should use `\` instead of `/` for relative paths
+        //       otherwise the symlink will be broken and the test will fail with InvalidFilename error
+        FileType::File => std::os::windows::fs::symlink_file(original.as_ref().normalize(), link),
+        FileType::Dir => std::os::windows::fs::symlink_dir(original.as_ref().normalize(), link),
     }
 }
 
@@ -33,9 +38,7 @@ fn init(dirname: &Path, temp_path: &Path) -> io::Result<()> {
     fs::create_dir(temp_path)?;
     symlink(dirname.join("../lib/index.js"), temp_path.join("test"), FileType::File)?;
     symlink(dirname.join("../lib"), temp_path.join("test2"), FileType::Dir)?;
-    fs::remove_file(temp_path.join("test"))?;
-    fs::remove_file(temp_path.join("test2"))?;
-    fs::remove_dir(temp_path)
+    fs::remove_dir_all(temp_path)
 }
 
 fn create_symlinks(dirname: &Path, temp_path: &Path) -> io::Result<()> {

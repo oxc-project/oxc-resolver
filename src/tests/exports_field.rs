@@ -2,9 +2,14 @@
 //!
 //! The huge exports field test cases are at the bottom of this file.
 
-use crate::{Ctx, PathUtil, ResolveError, ResolveOptions, Resolver};
-use serde_json::json;
 use std::path::Path;
+
+use serde_json::json;
+
+use crate::{
+    Cache, Ctx, PathUtil, ResolveError, ResolveOptions, Resolver, cache::CachedPath,
+    package_json_serde::ImportsExportsSerdeEntry,
+};
 
 #[test]
 fn test_simple() {
@@ -302,19 +307,20 @@ fn extension_alias_throw_error() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    exports_field: serde_json::Value,
+    exports_field: ImportsExportsSerdeEntry<'static>,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn exports_field(value: serde_json::Value) -> serde_json::Value {
-    value
+fn exports_field(value: serde_json::Value) -> ImportsExportsSerdeEntry<'static> {
+    // Don't do this at home:
+    let value = Box::leak::<'static>(Box::new(value));
+    ImportsExportsSerdeEntry(value)
 }
 
 #[test]
 fn test_cases() {
-    let test_cases = [
+    let test_cases = vec![
         TestCase {
             name: "sample #1",
             expect: Some(vec!["./dist/test/file.js"]),
@@ -2516,36 +2522,43 @@ fn test_cases() {
     ];
 
     for case in test_cases {
-        let resolved = Resolver::new(ResolveOptions {
+        let resolver = Resolver::new(ResolveOptions {
             condition_names: case
                 .condition_names
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
             ..ResolveOptions::default()
-        })
-        .package_exports_resolve(
-            Path::new(""),
-            case.request,
-            &case.exports_field,
-            &mut Ctx::default(),
-        )
-        .map(|p| p.map(|p| p.to_path_buf()));
+        });
+        let cached_path = resolver.cache.value(Path::new(""));
+        let resolved_path = resolver
+            .package_exports_resolve(
+                &cached_path,
+                case.request,
+                &case.exports_field,
+                &mut Ctx::default(),
+            )
+            .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(
-                    matches!(resolved, Err(ResolveError::PackagePathNotExported(_, _))),
+                    matches!(resolved_path, Err(ResolveError::PackagePathNotExported(_, _))),
                     "{} {:?}",
                     &case.name,
-                    &resolved
+                    &resolved_path
                 );
             } else {
                 for expect in expect {
-                    assert_eq!(resolved, Ok(Some(Path::new(expect).normalize())), "{}", &case.name);
+                    assert_eq!(
+                        resolved_path,
+                        Ok(Some(Path::new(expect).normalize())),
+                        "{}",
+                        &case.name
+                    );
                 }
             }
         } else {
-            assert!(resolved.is_err(), "{} {resolved:?}", &case.name);
+            assert!(resolved_path.is_err(), "{} {resolved_path:?}", &case.name);
         }
     }
 }

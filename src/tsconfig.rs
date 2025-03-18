@@ -6,94 +6,80 @@ use std::{
 
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
-use serde::Deserialize;
 
-use crate::PathUtil;
+use crate::{TsconfigReferences, path::PathUtil};
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
-#[serde(untagged)]
-pub enum ExtendsField {
-    Single(String),
-    Multiple(Vec<String>),
-}
+/// Abstract representation for the contents of a `tsconfig.json` file, as well
+/// as the location where it was found.
+///
+/// This representation makes no assumptions regarding how the file was
+/// deserialized.
+#[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
+pub trait TsConfig: Sized {
+    type Co: CompilerOptions;
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TsConfig {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
-    #[serde(skip)]
-    root: bool,
+    fn root(&self) -> bool;
 
-    /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
-    #[serde(skip)]
-    pub(crate) path: PathBuf,
+    /// Returns the path where the `tsconfig.json` was found.
+    ///
+    /// Contains the `tsconfig.json` filename.
+    #[must_use]
+    fn path(&self) -> &Path;
 
-    #[serde(default)]
-    pub extends: Option<ExtendsField>,
+    /// Directory to `tsconfig.json`.
+    ///
+    /// # Panics
+    ///
+    /// * When the `tsconfig.json` path is misconfigured.
+    #[must_use]
+    fn directory(&self) -> &Path;
 
-    #[serde(default)]
-    pub compiler_options: CompilerOptions,
+    /// Returns the compiler options configured in this tsconfig.
+    #[must_use]
+    fn compiler_options(&self) -> &Self::Co;
 
-    /// Bubbled up project references with a reference to their tsconfig.
-    #[serde(default)]
-    pub references: Vec<ProjectReference>,
-}
+    /// Returns a mutable reference to the compiler options configured in this
+    /// tsconfig.
+    #[must_use]
+    fn compiler_options_mut(&mut self) -> &mut Self::Co;
 
-/// Compiler Options
-///
-/// <https://www.typescriptlang.org/tsconfig#compilerOptions>
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompilerOptions {
-    base_url: Option<PathBuf>,
+    /// Returns any paths to tsconfigs that should be extended by this tsconfig.
+    #[must_use]
+    fn extends(&self) -> impl Iterator<Item = &str>;
 
-    /// Path aliases
-    paths: Option<CompilerOptionsPathsMap>,
+    /// Loads the given references into this tsconfig.
+    ///
+    /// Returns whether any references are defined in the tsconfig.
+    fn load_references(&mut self, references: &TsconfigReferences) -> bool;
 
-    /// The actual base for where path aliases are resolved from.
-    #[serde(skip)]
-    paths_base: PathBuf,
-}
+    /// Returns references to other tsconfig files.
+    #[must_use]
+    fn references(&self) -> impl Iterator<Item = &impl ProjectReference<Tc = Self>>;
 
-/// Project Reference
-///
-/// <https://www.typescriptlang.org/docs/handbook/project-references.html>
-#[derive(Debug, Deserialize)]
-pub struct ProjectReference {
-    /// The path property of each reference can point to a directory containing a tsconfig.json file,
-    /// or to the config file itself (which may have any name).
-    pub path: PathBuf,
+    /// Returns mutable references to other tsconfig files.
+    #[must_use]
+    fn references_mut(&mut self) -> impl Iterator<Item = &mut impl ProjectReference<Tc = Self>>;
 
-    /// Reference to the resolved tsconfig
-    #[serde(skip)]
-    pub tsconfig: Option<Arc<TsConfig>>,
-}
-
-impl TsConfig {
-    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
-        _ = json_strip_comments::strip(json);
-        let mut tsconfig: Self = serde_json::from_str(json)?;
-        tsconfig.root = root;
-        tsconfig.path = path.to_path_buf();
-        let directory = tsconfig.directory().to_path_buf();
-        if let Some(base_url) = tsconfig.compiler_options.base_url {
-            tsconfig.compiler_options.base_url = Some(directory.normalize_with(base_url));
-        }
-        if tsconfig.compiler_options.paths.is_some() {
-            tsconfig.compiler_options.paths_base =
-                tsconfig.compiler_options.base_url.as_ref().map_or(directory, Clone::clone);
-        }
-        Ok(tsconfig)
+    /// Returns the base path from which to resolve aliases.
+    ///
+    /// The base path can be configured by the user as part of the
+    /// [CompilerOptions]. If not configured, it returns the directory in which
+    /// the tsconfig itself is found.
+    #[must_use]
+    fn base_path(&self) -> &Path {
+        self.compiler_options().base_url().unwrap_or_else(|| self.directory())
     }
 
-    pub fn build(mut self) -> Self {
-        if self.root {
+    /// Expands all template variables in this tsconfig.
+    fn expand_template_variables(&mut self) {
+        if self.root() {
             let dir = self.directory().to_path_buf();
             // Substitute template variable in `tsconfig.compilerOptions.paths`
-            if let Some(paths) = &mut self.compiler_options.paths {
+            if let Some(paths) = &mut self.compiler_options_mut().paths_mut() {
                 for paths in paths.values_mut() {
                     for path in paths {
                         Self::substitute_template_variable(&dir, path);
@@ -101,59 +87,90 @@ impl TsConfig {
                 }
             }
         }
-        self
     }
 
-    /// Directory to `tsconfig.json`
-    ///
-    /// # Panics
-    ///
-    /// * When the `tsconfig.json` path is misconfigured.
-    pub fn directory(&self) -> &Path {
-        debug_assert!(self.path.file_name().is_some());
-        self.path.parent().unwrap()
-    }
-
-    pub fn extend_tsconfig(&mut self, tsconfig: &Self) {
-        let compiler_options = &mut self.compiler_options;
-        if compiler_options.paths.is_none() {
-            compiler_options.paths_base = compiler_options
-                .base_url
-                .as_ref()
-                .map_or_else(|| tsconfig.compiler_options.paths_base.clone(), Clone::clone);
-            compiler_options.paths.clone_from(&tsconfig.compiler_options.paths);
+    /// Inherits settings from the given tsconfig into `self`.
+    fn extend_tsconfig(&mut self, tsconfig: &Self) {
+        let compiler_options = self.compiler_options_mut();
+        if compiler_options.paths().is_none() {
+            compiler_options.set_paths_base(compiler_options.base_url().map_or_else(
+                || tsconfig.compiler_options().paths_base().to_path_buf(),
+                Path::to_path_buf,
+            ));
+            compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
         }
-        if compiler_options.base_url.is_none() {
-            compiler_options.base_url.clone_from(&tsconfig.compiler_options.base_url);
+        if compiler_options.base_url().is_none() {
+            if let Some(base_url) = tsconfig.compiler_options().base_url() {
+                compiler_options.set_base_url(base_url.to_path_buf());
+            }
+        }
+
+        if compiler_options.experimental_decorators().is_none() {
+            if let Some(experimental_decorators) =
+                tsconfig.compiler_options().experimental_decorators()
+            {
+                compiler_options.set_experimental_decorators(*experimental_decorators);
+            }
+        }
+
+        if compiler_options.jsx().is_none() {
+            if let Some(jsx) = tsconfig.compiler_options().jsx() {
+                compiler_options.set_jsx(jsx.to_string());
+            }
+        }
+
+        if compiler_options.jsx_factory().is_none() {
+            if let Some(jsx_factory) = tsconfig.compiler_options().jsx_factory() {
+                compiler_options.set_jsx_factory(jsx_factory.to_string());
+            }
+        }
+
+        if compiler_options.jsx_fragment_factory().is_none() {
+            if let Some(jsx_fragment_factory) = tsconfig.compiler_options().jsx_fragment_factory() {
+                compiler_options.set_jsx_fragment_factory(jsx_fragment_factory.to_string());
+            }
+        }
+
+        if compiler_options.jsx_import_source().is_none() {
+            if let Some(jsx_import_source) = tsconfig.compiler_options().jsx_import_source() {
+                compiler_options.set_jsx_import_source(jsx_import_source.to_string());
+            }
         }
     }
 
-    pub fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
-        let mut paths = self.resolve_path_alias(specifier);
-        for tsconfig in self.references.iter().filter_map(|reference| reference.tsconfig.as_ref()) {
-            // references takes higher priority
+    /// Resolves the given `specifier` within the project configured by this
+    /// tsconfig, relative to the given `path`.
+    ///
+    /// `specifier` can be either a real path or an alias.
+    #[must_use]
+    fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
+        let paths = self.resolve_path_alias(specifier);
+        for tsconfig in self.references().filter_map(ProjectReference::tsconfig) {
             if path.starts_with(tsconfig.base_path()) {
-                paths = [tsconfig.resolve_path_alias(specifier), paths].concat();
-                break;
+                return [tsconfig.resolve_path_alias(specifier), paths].concat();
             }
         }
         paths
     }
 
+    /// Resolves the given `specifier` within the project configured by this
+    /// tsconfig.
+    ///
+    /// `specifier` is expected to be a path alias.
     // Copied from parcel
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
-    pub fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
+    #[must_use]
+    fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
         if specifier.starts_with(['/', '.']) {
-            return vec![];
+            return Vec::new();
         }
 
-        let base_url_iter = self
-            .compiler_options
-            .base_url
-            .as_ref()
+        let compiler_options = self.compiler_options();
+        let base_url_iter = compiler_options
+            .base_url()
             .map_or_else(Vec::new, |base_url| vec![base_url.normalize_with(specifier)]);
 
-        let Some(paths_map) = &self.compiler_options.paths else {
+        let Some(paths_map) = compiler_options.paths() else {
             return base_url_iter;
         };
 
@@ -194,27 +211,111 @@ impl TsConfig {
 
         paths
             .into_iter()
-            .map(|p| self.compiler_options.paths_base.normalize_with(p))
+            .map(|p| compiler_options.paths_base().normalize_with(p))
             .chain(base_url_iter)
             .collect()
     }
 
-    fn base_path(&self) -> &Path {
-        self.compiler_options
-            .base_url
-            .as_ref()
-            .map_or_else(|| self.directory(), |path| path.as_ref())
-    }
-
-    /// Template variable `${configDir}` for substitution of config files directory path
+    /// Template variable `${configDir}` for substitution of config files
+    /// directory path.
     ///
-    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so we are constrained as such.
+    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
+    ///       we are constrained as such.
     ///
-    /// See <https://github.com/microsoft/TypeScript/pull/58042>
+    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
     fn substitute_template_variable(directory: &Path, path: &mut String) {
         const TEMPLATE_VARIABLE: &str = "${configDir}/";
         if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
             *path = directory.join(stripped_path).to_string_lossy().to_string();
         }
     }
+}
+
+/// Compiler Options.
+///
+/// <https://www.typescriptlang.org/tsconfig#compilerOptions>
+pub trait CompilerOptions {
+    /// Explicit base URL configured by the user.
+    #[must_use]
+    fn base_url(&self) -> Option<&Path>;
+
+    /// Sets the base URL.
+    fn set_base_url(&mut self, base_url: PathBuf);
+
+    /// Path aliases.
+    #[must_use]
+    fn paths(&self) -> Option<&CompilerOptionsPathsMap>;
+
+    /// Returns a mutable reference to the path aliases.
+    #[must_use]
+    fn paths_mut(&mut self) -> Option<&mut CompilerOptionsPathsMap>;
+
+    /// Sets the path aliases.
+    fn set_paths(&mut self, paths: Option<CompilerOptionsPathsMap>);
+
+    /// The actual base from where path aliases are resolved.
+    #[must_use]
+    fn paths_base(&self) -> &Path;
+
+    /// Sets the path base.
+    fn set_paths_base(&mut self, paths_base: PathBuf);
+
+    /// Whether to enable experimental decorators.
+    fn experimental_decorators(&self) -> Option<&bool> {
+        None
+    }
+
+    /// Sets whether to enable experimental decorators.
+    fn set_experimental_decorators(&mut self, _experimental_decorators: bool) {}
+
+    /// JSX.
+    fn jsx(&self) -> Option<&str> {
+        None
+    }
+
+    /// Sets JSX.
+    fn set_jsx(&mut self, _jsx: String) {}
+
+    /// JSX factory.
+    fn jsx_factory(&self) -> Option<&str> {
+        None
+    }
+
+    /// Sets JSX factory.
+    fn set_jsx_factory(&mut self, _jsx_factory: String) {}
+
+    /// JSX fragment factory.
+    fn jsx_fragment_factory(&self) -> Option<&str> {
+        None
+    }
+
+    /// Sets JSX fragment factory.
+    fn set_jsx_fragment_factory(&mut self, _jsx_fragment_factory: String) {}
+
+    /// JSX import source.
+    fn jsx_import_source(&self) -> Option<&str> {
+        None
+    }
+
+    /// Sets JSX import source.
+    fn set_jsx_import_source(&mut self, _jsx_import_source: String) {}
+}
+
+/// Project Reference.
+///
+/// <https://www.typescriptlang.org/docs/handbook/project-references.html>
+pub trait ProjectReference {
+    type Tc: TsConfig;
+
+    /// Returns the path to a directory containing a `tsconfig.json` file, or to
+    /// the config file itself (which may have any name).
+    #[must_use]
+    fn path(&self) -> &Path;
+
+    /// Returns the resolved tsconfig, if one has been set.
+    #[must_use]
+    fn tsconfig(&self) -> Option<Arc<Self::Tc>>;
+
+    /// Sets the resolved tsconfig.
+    fn set_tsconfig(&mut self, tsconfig: Arc<Self::Tc>);
 }

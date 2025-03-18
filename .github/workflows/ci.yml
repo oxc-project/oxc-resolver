@@ -3,17 +3,18 @@ name: CI
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, synchronize]
+    types:
+      - opened
+      - synchronize
     paths-ignore:
-      - '**/*.md'
-      - '!.github/workflows/ci.yml'
+      - "**/*.md"
+      - "!.github/workflows/ci.yml"
   push:
     branches:
       - main
-      - "renovate/**"
     paths-ignore:
-      - '**/*.md'
-      - '!.github/workflows/ci.yml'
+      - "**/*.md"
+      - "!.github/workflows/ci.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,8 +25,22 @@ defaults:
     shell: bash
 
 jobs:
-  cache: # Warm cache factory for all other CI jobs
-    name: Check and Build
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@v1
+      - uses: oxc-project/setup-rust@v1.0.0
+        with:
+          components: clippy rust-docs
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+      - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
+      - uses: crate-ci/typos@v1
+        with:
+          files: .
+
+  test:
+    name: Test
     strategy:
       fail-fast: false
       matrix:
@@ -36,18 +51,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: taiki-e/checkout-action@v1
-
-      - uses: Boshen/setup-rust@v1.0.0
+      - uses: oxc-project/setup-rust@v1.0.0
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
-
+      - uses: ./.github/actions/pnpm
       - run: cargo check --all-features --locked
-
-      # Only need to build the test to create a warm cache on the main branch
-      - name: Build cache by Cargo Check and Cargo Test
-        if: ${{ github.ref_name == 'main' }}
-        run: cargo test --all-features --no-run
+      - run: cargo test --doc
+      - run: cargo test --all-features
+      - run: pnpm run build:debug && pnpm run test
+        if: ${{ matrix.os  != 'windows-latest' }}
 
   wasm:
     name: Check Wasm
@@ -55,7 +68,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - uses: Boshen/setup-rust@v1.0.0
+      - uses: oxc-project/setup-rust@v1.0.0
         with:
           cache-key: wasm
           save-cache: ${{ github.ref_name == 'main' }}
@@ -71,7 +84,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@v1
 
-      - uses: Boshen/setup-rust@v1.0.0
+      - uses: oxc-project/setup-rust@v1.0.0
         with:
           cache-key: wasi
           save-cache: ${{ github.ref_name == 'main' }}
@@ -84,113 +97,6 @@ jobs:
           pnpm build --target wasm32-wasip1-threads
 
       - name: Test
-        run: pnpm test
+        run: pnpm run test
         env:
           WASI_TEST: 1
-
-  typos:
-    name: Spell Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-
-      - uses: crate-ci/typos@v1.26.0
-        with:
-          files: .
-
-  deny:
-    name: Cargo Deny
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            src:
-              - 'Cargo.lock'
-
-      - uses: Boshen/setup-rust@v1.0.0
-        with:
-          restore-cache: false
-          tools: cargo-deny
-
-      - if: steps.filter.outputs.src == 'true'
-        run: cargo deny check
-
-  unused-deps:
-    name: Check Unused Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            src:
-              - '**/*.rs'
-              - '**/Cargo.toml'
-              - 'Cargo.lock'
-      - uses: Boshen/setup-rust@v1.0.0
-        with:
-          restore-cache: false
-        if: steps.filter.outputs.src == 'true'
-      - uses: cargo-bins/cargo-binstall@v1.12.1
-        if: steps.filter.outputs.src == 'true'
-      - run: cargo binstall --no-confirm cargo-shear@1
-        if: steps.filter.outputs.src == 'true'
-      - run: cargo shear
-        if: steps.filter.outputs.src == 'true'
-
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: Boshen/setup-rust@v1.0.0
-        with:
-          components: rustfmt
-          restore-cache: false
-      - run: cargo fmt --all -- --check
-
-  lint:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: Boshen/setup-rust@v1.0.0
-        with:
-          components: clippy
-      - run: cargo clippy --all-features -- -D warnings
-
-  doc:
-    name: Doc
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: Boshen/setup-rust@v1.0.0
-        with:
-          components: rust-docs
-      - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
-
-  test:
-    name: Test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-          - os: ubuntu-latest
-          - os: macos-14
-    runs-on: ${{ matrix.os }}
-    env:
-      RUST_BACKTRACE: 1
-    steps:
-      - uses: taiki-e/checkout-action@v1
-      - uses: ./.github/actions/pnpm
-      - uses: Boshen/setup-rust@v1.0.0
-        with:
-          cache-key: warm
-      - run: cargo test --doc
-      - run: cargo test --all-features

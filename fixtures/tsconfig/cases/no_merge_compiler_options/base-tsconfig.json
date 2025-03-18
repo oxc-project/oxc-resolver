@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": false,
+    "jsx": "aaa",
+    "jsxFactory": "bbb",
+    "jsxFragmentFactory": "ccc",
+    "jsxImportSource": "ddd"
+  }
+}

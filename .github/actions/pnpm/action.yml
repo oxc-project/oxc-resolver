@@ -12,26 +12,15 @@ runs:
         node-version-file: .node-version
         cache: pnpm
 
-    - name: Enable corepack
-      if: ${{ inputs.node-version != '16' }}
+    - name: pnpm
       shell: bash
       run: |
-        if [[ "${{runner.os}}" == "Windows" ]]; then
-          # add the npm prefix to PATH to ensure the installed corepack work properly
-          NPM_PREFIX=$(cygpath -u "$(npm config get prefix)")
-          export PATH="$NPM_PREFIX:$PATH"
-        fi
-        npm install -g corepack@0.31.0 --force
-        echo "Corepack version: $(corepack --version)"
         corepack enable
+        pnpm install
 
     - name: yarn
       shell: bash
       run: |
         cd fixtures/pnp
+        corepack enable
         yarn install
-
-    - name: pnpm
-      shell: bash
-      run: |
-        pnpm install

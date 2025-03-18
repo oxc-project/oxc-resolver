@@ -1,13 +1,13 @@
-use crate::package_json::PackageJson;
 use std::{
     fmt,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
+use crate::{Cache, PackageJson};
+
 /// The final path resolution with optional `?query` and `#fragment`
-#[derive(Clone)]
-pub struct Resolution {
+pub struct Resolution<C: Cache> {
     pub(crate) path: PathBuf,
 
     /// path query `?query`, contains `?`.
@@ -16,54 +16,71 @@ pub struct Resolution {
     /// path fragment `#query`, contains `#`.
     pub(crate) fragment: Option<String>,
 
-    pub(crate) package_json: Option<Arc<PackageJson>>,
+    pub(crate) package_json: Option<Arc<C::Pj>>,
 }
 
-impl fmt::Debug for Resolution {
+impl<C: Cache> Clone for Resolution<C> {
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            query: self.query.clone(),
+            fragment: self.fragment.clone(),
+            package_json: self.package_json.clone(),
+        }
+    }
+}
+
+impl<C: Cache> fmt::Debug for Resolution<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Resolution")
             .field("path", &self.path)
             .field("query", &self.query)
             .field("fragment", &self.fragment)
-            .field("package_json", &self.package_json.as_ref().map(|p| &p.path))
+            .field("package_json", &self.package_json.as_ref().map(|p| p.path()))
             .finish()
     }
 }
 
-impl PartialEq for Resolution {
+impl<C: Cache> PartialEq for Resolution<C> {
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path && self.query == other.query && self.fragment == other.fragment
     }
 }
-impl Eq for Resolution {}
+impl<C: Cache> Eq for Resolution<C> {}
 
-impl Resolution {
+impl<C: Cache> Resolution<C> {
     /// Returns the path without query and fragment
+    #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     /// Returns the path without query and fragment
+    #[must_use]
     pub fn into_path_buf(self) -> PathBuf {
         self.path
     }
 
     /// Returns the path query `?query`, contains the leading `?`
+    #[must_use]
     pub fn query(&self) -> Option<&str> {
         self.query.as_deref()
     }
 
     /// Returns the path fragment `#fragment`, contains the leading `#`
+    #[must_use]
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
     }
 
     /// Returns serialized package_json
-    pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
+    #[must_use]
+    pub const fn package_json(&self) -> Option<&Arc<C::Pj>> {
         self.package_json.as_ref()
     }
 
     /// Returns the full path with query and fragment
+    #[must_use]
     pub fn full_path(&self) -> PathBuf {
         let mut path = self.path.clone().into_os_string();
         if let Some(query) = &self.query {
@@ -74,19 +91,4 @@ impl Resolution {
         }
         PathBuf::from(path)
     }
-}
-
-#[test]
-fn test() {
-    let resolution = Resolution {
-        path: PathBuf::from("foo"),
-        query: Some("?query".to_string()),
-        fragment: Some("#fragment".to_string()),
-        package_json: None,
-    };
-    assert_eq!(resolution.path(), Path::new("foo"));
-    assert_eq!(resolution.query(), Some("?query"));
-    assert_eq!(resolution.fragment(), Some("#fragment"));
-    assert_eq!(resolution.full_path(), PathBuf::from("foo?query#fragment"));
-    assert_eq!(resolution.into_path_buf(), PathBuf::from("foo"));
 }

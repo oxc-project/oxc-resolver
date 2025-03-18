@@ -9,7 +9,7 @@ use std::{
 
 use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{ResolveOptions, Resolver};
+use oxc_resolver::{PackageJson, ResolveOptions, Resolver};
 
 use self::{
     options::{NapiResolveOptions, StrOrStrList},
@@ -25,6 +25,7 @@ pub struct ResolveResult {
     pub error: Option<String>,
     /// "type" field in the package.json file
     pub module_type: Option<String>,
+    pub package_json_path: Option<String>,
 }
 
 fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
@@ -32,13 +33,18 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
         Ok(resolution) => ResolveResult {
             path: Some(resolution.full_path().to_string_lossy().to_string()),
             error: None,
-            module_type: resolution
+            module_type: resolution.package_json().and_then(|p| p.r#type()).map(|t| t.to_string()),
+            package_json_path: resolution
                 .package_json()
-                .and_then(|p| p.r#type.as_ref())
-                .and_then(|t| t.as_str())
-                .map(|t| t.to_string()),
+                .and_then(|p| p.path().to_str())
+                .map(|p| p.to_string()),
         },
-        Err(err) => ResolveResult { path: None, module_type: None, error: Some(err.to_string()) },
+        Err(err) => ResolveResult {
+            path: None,
+            module_type: None,
+            error: Some(err.to_string()),
+            package_json_path: None,
+        },
     }
 }
 
@@ -58,8 +64,8 @@ pub struct ResolveTask {
 
 #[napi]
 impl Task for ResolveTask {
-    type Output = ResolveResult;
     type JsValue = ResolveResult;
+    type Output = ResolveResult;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         Ok(resolve(&self.resolver, &self.directory, &self.request))
@@ -80,11 +86,12 @@ impl ResolverFactory {
     #[napi(constructor)]
     pub fn new(options: Option<NapiResolveOptions>) -> Self {
         init_tracing();
-        let options = options.map_or_else(|| ResolveOptions::default(), Self::normalize_options);
+        let options = options.map_or_else(ResolveOptions::default, Self::normalize_options);
         Self { resolver: Arc::new(Resolver::new(options)) }
     }
 
     #[napi]
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         let default_options = ResolveOptions::default();
         Self { resolver: Arc::new(Resolver::new(default_options)) }

@@ -1,219 +1,156 @@
-//! package.json definitions
-//!
-//! Code related to export field are copied from [Parcel's resolver](https://github.com/parcel-bundler/parcel/blob/v2/packages/utils/node-resolver-rs/src/package_json.rs)
-use std::path::{Path, PathBuf};
+use std::{fmt::Display, path::Path};
 
-use serde_json::Value as JSONValue;
+use crate::ResolveError;
 
-use crate::{ResolveError, path::PathUtil};
+/// Abstract representation for the contents of a `package.json` file, as well
+/// as the location where it was found.
+///
+/// This representation makes no assumptions regarding how the file was
+/// deserialized.
+#[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
+pub trait PackageJson: Sized {
+    /// Returns the path where the `package.json` was found.
+    ///
+    /// Contains the `package.json` filename.
+    ///
+    /// This does not need to be the path where the file is stored on disk.
+    /// See [Self::realpath()].
+    #[must_use]
+    fn path(&self) -> &Path;
 
-pub type JSONMap = serde_json::Map<String, JSONValue>;
+    /// Returns the path where the `package.json` file was stored on disk.
+    ///
+    /// Contains the `package.json` filename.
+    ///
+    /// This is the canonicalized version of [Self::path()], where all symbolic
+    /// links are resolved.
+    #[must_use]
+    fn realpath(&self) -> &Path;
 
-/// Deserialized package.json
-#[derive(Debug, Default)]
-pub struct PackageJson {
-    /// Path to `package.json`. Contains the `package.json` filename.
-    pub path: PathBuf,
+    /// Directory to `package.json`.
+    ///
+    /// # Panics
+    ///
+    /// * When the `package.json` path is misconfigured.
+    #[must_use]
+    fn directory(&self) -> &Path;
 
-    /// Realpath to `package.json`. Contains the `package.json` filename.
-    pub realpath: PathBuf,
-
-    /// The "name" field defines your package's name.
-    /// The "name" field can be used in addition to the "exports" field to self-reference a package using its name.
+    /// Name of the package.
+    ///
+    /// The "name" field can be used together with the "exports" field to
+    /// self-reference a package using its name.
     ///
     /// <https://nodejs.org/api/packages.html#name>
-    pub name: Option<String>,
+    fn name(&self) -> Option<&str>;
 
-    /// The "type" field.
+    /// Returns the package type, if one is configured in the `package.json`.
     ///
     /// <https://nodejs.org/api/packages.html#type>
-    pub r#type: Option<JSONValue>,
+    fn r#type(&self) -> Option<PackageType>;
 
-    /// The "sideEffects" field.
+    /// The "main" field defines the entry point of a package when imported by
+    /// name via a node_modules lookup. Its value should be a path.
     ///
-    /// <https://webpack.js.org/guides/tree-shaking>
-    pub side_effects: Option<JSONValue>,
-
-    raw_json: std::sync::Arc<JSONValue>,
-}
-
-impl PackageJson {
-    /// # Panics
-    /// # Errors
-    pub(crate) fn parse(
-        path: PathBuf,
-        realpath: PathBuf,
-        json: &str,
-    ) -> Result<Self, serde_json::Error> {
-        let mut raw_json: JSONValue = serde_json::from_str(json)?;
-        let mut package_json = Self::default();
-
-        if let Some(json_object) = raw_json.as_object_mut() {
-            // Remove large fields that are useless for pragmatic use.
-            #[cfg(feature = "package_json_raw_json_api")]
-            {
-                json_object.remove("description");
-                json_object.remove("keywords");
-                json_object.remove("scripts");
-                json_object.remove("dependencies");
-                json_object.remove("devDependencies");
-                json_object.remove("peerDependencies");
-                json_object.remove("optionalDependencies");
-            }
-
-            // Add name, type and sideEffects.
-            package_json.name =
-                json_object.get("name").and_then(|field| field.as_str()).map(ToString::to_string);
-            package_json.r#type = json_object.get("type").cloned();
-            package_json.side_effects = json_object.get("sideEffects").cloned();
-        }
-
-        package_json.path = path;
-        package_json.realpath = realpath;
-        package_json.raw_json = std::sync::Arc::new(raw_json);
-        Ok(package_json)
-    }
-
-    fn get_value_by_path<'a>(
-        fields: &'a serde_json::Map<String, JSONValue>,
-        path: &[String],
-    ) -> Option<&'a JSONValue> {
-        if path.is_empty() {
-            return None;
-        }
-        let mut value = fields.get(&path[0])?;
-        for key in path.iter().skip(1) {
-            if let Some(inner_value) = value.as_object().and_then(|o| o.get(key)) {
-                value = inner_value;
-            } else {
-                return None;
-            }
-        }
-        Some(value)
-    }
-
-    /// Raw serde json value of `package.json`.
+    /// When a package has an "exports" field, this will take precedence over
+    /// the "main" field when importing the package by name.
     ///
-    /// This is currently used in Rspack for:
-    /// * getting the `sideEffects` field
-    /// * query in <https://www.rspack.dev/config/module.html#ruledescriptiondata> - search on GitHub indicates query on the `type` field.
-    ///
-    /// To reduce overall memory consumption, large fields that useless for pragmatic use are removed.
-    /// They are: `description`, `keywords`, `scripts`,
-    /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
-    #[cfg(feature = "package_json_raw_json_api")]
-    pub fn raw_json(&self) -> &std::sync::Arc<JSONValue> {
-        &self.raw_json
-    }
-
-    /// Directory to `package.json`
-    ///
-    /// # Panics
-    ///
-    /// * When the package.json path is misconfigured.
-    pub fn directory(&self) -> &Path {
-        debug_assert!(self.realpath.file_name().is_some_and(|x| x == "package.json"));
-        self.realpath.parent().unwrap()
-    }
-
-    /// The "main" field defines the entry point of a package when imported by name via a node_modules lookup. Its value is a path.
-    ///
-    /// When a package has an "exports" field, this will take precedence over the "main" field when importing the package by name.
-    ///
-    /// Values are dynamically retrieved from [ResolveOptions::main_fields].
+    /// Values are dynamically retrieved from [crate::ResolveOptions::main_fields].
     ///
     /// <https://nodejs.org/api/packages.html#main>
-    pub(crate) fn main_fields<'a>(
-        &'a self,
-        main_fields: &'a [String],
-    ) -> impl Iterator<Item = &'a str> + 'a {
-        main_fields
-            .iter()
-            .filter_map(|main_field| self.raw_json.get(main_field))
-            .filter_map(|value| value.as_str())
-    }
+    #[must_use]
+    fn main_fields<'a>(&'a self, main_fields: &'a [String]) -> impl Iterator<Item = &'a str> + 'a;
 
-    /// The "exports" field allows defining the entry points of a package when imported by name loaded either via a node_modules lookup or a self-reference to its own name.
+    /// The "exports" field allows defining the entry points of a package when
+    /// imported by name loaded either via a node_modules lookup or a
+    /// self-reference to its own name.
     ///
     /// <https://nodejs.org/api/packages.html#exports>
-    pub(crate) fn exports_fields<'a>(
+    #[must_use]
+    fn exports_fields<'a>(
         &'a self,
         exports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a JSONValue> + 'a {
-        exports_fields.iter().filter_map(|object_path| {
-            self.raw_json
-                .as_object()
-                .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-        })
-    }
+    ) -> impl Iterator<Item = impl ImportsExportsEntry<'a>> + 'a;
 
-    /// In addition to the "exports" field, there is a package "imports" field to create private mappings that only apply to import specifiers from within the package itself.
+    /// In addition to the "exports" field, there is a package "imports" field
+    /// to create private mappings that only apply to import specifiers from
+    /// within the package itself.
     ///
     /// <https://nodejs.org/api/packages.html#subpath-imports>
-    pub(crate) fn imports_fields<'a>(
+    #[must_use]
+    fn imports_fields<'a>(
         &'a self,
         imports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a JSONMap> + 'a {
-        imports_fields.iter().filter_map(|object_path| {
-            self.raw_json
-                .as_object()
-                .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-                .and_then(|value| value.as_object())
-        })
-    }
+    ) -> impl Iterator<Item = impl ImportsExportsMap<'a>> + 'a;
 
-    /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
-    /// Multiple values are configured by [ResolveOptions::alias_fields].
+    /// Resolves the request string for this `package.json` by looking at the
+    /// "browser" field.
     ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
-    fn browser_fields<'a>(
-        &'a self,
-        alias_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a JSONMap> + 'a {
-        alias_fields.iter().filter_map(|object_path| {
-            self.raw_json
-                .as_object()
-                .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-                // Only object is valid, all other types are invalid
-                // https://github.com/webpack/enhanced-resolve/blob/3a28f47788de794d9da4d1702a3a583d8422cd48/lib/AliasFieldPlugin.js#L44-L52
-                .and_then(|value| value.as_object())
-        })
-    }
-
-    /// Resolve the request string for this package.json by looking at the `browser` field.
-    ///
-    /// # Errors
-    ///
-    /// * Returns [ResolveError::Ignored] for `"path": false` in `browser` field.
-    pub(crate) fn resolve_browser_field<'a>(
+    fn resolve_browser_field<'a>(
         &'a self,
         path: &Path,
         request: Option<&str>,
         alias_fields: &'a [Vec<String>],
-    ) -> Result<Option<&'a str>, ResolveError> {
-        for object in self.browser_fields(alias_fields) {
-            if let Some(request) = request {
-                if let Some(value) = object.get(request) {
-                    return Self::alias_value(path, value);
-                }
-            } else {
-                let dir = self.path.parent().unwrap();
-                for (key, value) in object {
-                    let joined = dir.normalize_with(key);
-                    if joined == path {
-                        return Self::alias_value(path, value);
-                    }
-                }
-            }
+    ) -> Result<Option<&'a str>, ResolveError>;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "fs_cache", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "fs_cache", serde(rename_all = "lowercase"))]
+pub enum PackageType {
+    CommonJs,
+    Module,
+}
+
+impl Display for PackageType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CommonJs => f.write_str("commonjs"),
+            Self::Module => f.write_str("module"),
         }
-        Ok(None)
+    }
+}
+
+/// Trait used for representing entries in the `imports` and `exports` fields
+/// without allocation.
+pub trait ImportsExportsEntry<'a>: Clone + Sized {
+    type Array: ImportsExportsArray<'a, Entry = Self>;
+    type Map: ImportsExportsMap<'a, Entry = Self>;
+
+    fn kind(&self) -> ImportsExportsKind;
+
+    fn as_string(&self) -> Option<&'a str>;
+    fn as_array(&self) -> Option<Self::Array>;
+    fn as_map(&self) -> Option<Self::Map>;
+}
+
+/// Trait used for representing array values in the `imports` and `exports`
+/// fields without allocation.
+pub trait ImportsExportsArray<'a>: Clone + Sized {
+    type Entry: ImportsExportsEntry<'a, Array = Self>;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
-    fn alias_value<'a>(key: &Path, value: &'a JSONValue) -> Result<Option<&'a str>, ResolveError> {
-        match value {
-            JSONValue::String(value) => Ok(Some(value.as_str())),
-            JSONValue::Bool(b) if !b => Err(ResolveError::Ignored(key.to_path_buf())),
-            _ => Ok(None),
-        }
-    }
+    fn len(&self) -> usize;
+    fn iter(&self) -> impl Iterator<Item = Self::Entry>;
+}
+
+/// Trait used for representing map (object) values in the `imports` and
+/// `exports` fields without allocation.
+pub trait ImportsExportsMap<'a>: Clone + Sized {
+    type Entry: ImportsExportsEntry<'a, Map = Self>;
+
+    fn get(&self, key: &str) -> Option<Self::Entry>;
+    fn keys(&self) -> impl Iterator<Item = &'a str>;
+    fn iter(&self) -> impl Iterator<Item = (&'a str, Self::Entry)>;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImportsExportsKind {
+    String,
+    Array,
+    Map,
+    Invalid,
 }
