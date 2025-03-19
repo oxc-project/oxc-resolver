@@ -1181,7 +1181,7 @@ checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
 name = "unrspack-resolver"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "cfg-if",
  "criterion2",

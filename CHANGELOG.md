@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.2.1...unrspack-resolver-v1.2.2) - 2025-03-19
+
+### <!-- 1 -->Bug Fixes
+
+- *(pnp)* support `pnpapi` core module and package deep link ([#24](https://github.com/unrs/rspack-resolver/pull/24))
+
 ## [1.2.0](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.1.2...unrspack-resolver-v2.0.0) - 2025-03-18
 
 ### Features
