@@ -850,6 +850,11 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         let pnp_manifest = self.find_pnp_manifest(cached_path);
 
         if let Some(pnp_manifest) = pnp_manifest.as_ref() {
+            // "pnpapi" in a P'n'P builtin module
+            if specifier == "pnpapi" {
+                return Ok(Some(self.cache.value(pnp_manifest.manifest_path.as_path())));
+            }
+
             // `resolve_to_unqualified` requires a trailing slash
             let mut path = cached_path.to_path_buf();
             path.push("");
@@ -860,6 +865,26 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
             match resolution {
                 Ok(pnp::Resolution::Resolved(path, subpath)) => {
                     let cached_path = self.cache.value(&path);
+                    let cached_path_string = cached_path.path().to_string_lossy();
+
+                    // symbol linked package doesn't have node_modules structure
+                    let pkg_name = cached_path_string.rsplit_once("node_modules/").map_or(
+                        "",
+                        // remove trailing slash
+                        |last| last.1.strip_suffix("/").unwrap_or(last.1),
+                    );
+
+                    let inner_request = if pkg_name.is_empty() {
+                        subpath.map_or_else(
+                            || ".".to_string(),
+                            |mut p| {
+                                p.insert_str(0, "./");
+                                p
+                            },
+                        )
+                    } else {
+                        String::from("./") + specifier.strip_prefix(pkg_name).unwrap()
+                    };
 
                     let export_resolution = self.load_package_self(&cached_path, specifier, ctx)?;
                     // can be found in pnp cached folder
@@ -867,13 +892,6 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                         return Ok(export_resolution);
                     }
 
-                    let inner_request = subpath.map_or_else(
-                        || ".".to_string(),
-                        |mut p| {
-                            p.insert_str(0, "./");
-                            p
-                        },
-                    );
                     let inner_resolver = self.clone_with_options(self.options().clone());
 
                     // try as file or directory `path` in the pnp folder

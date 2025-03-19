@@ -64,6 +64,11 @@ fn pnp1() {
             ".yarn/cache/preact-npm-10.26.4-e97fe426c5-8abf64ec6f.zip/node_modules/preact/devtools/dist/devtools.mjs"
         )),
     );
+
+    assert_eq!(
+        resolver.resolve(&fixture, "pnpapi").map(|r| r.full_path()),
+        Ok(fixture.join(".pnp.cjs")),
+    );
 }
 
 #[test]
@@ -91,5 +96,19 @@ fn resolve_pnp_pkg_should_failed_while_disable_pnp_mode() {
     assert_eq!(
         resolver.resolve(&fixture, "is-even").map(|r| r.full_path()),
         Err(NotFound("is-even".to_string()))
+    );
+}
+
+#[test]
+fn resolve_package_deep_link() {
+    let fixture = super::fixture_root().join("pnp");
+
+    let resolver = Resolver::new(ResolveOptions::default());
+
+    assert_eq!(
+        resolver.resolve(fixture.join("shared"), "beachball/lib/commands/bump.js").map(|r| r.full_path()),
+        Ok(fixture.join(
+          ".yarn/cache/beachball-npm-2.51.0-65bc162b4f-05a8be5dde.zip/node_modules/beachball/lib/commands/bump.js"
+      )),
     );
 }
