@@ -1,4 +1,5 @@
 {
+  "$schema": "https://dprint.dev/schemas/v0.json",
   "lineWidth": 120,
   "typescript": {
     "quoteStyle": "preferSingle",

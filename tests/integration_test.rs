@@ -2,7 +2,7 @@
 
 use std::{env, path::PathBuf};
 
-use unrspack_resolver::{
+use unrs_resolver::{
     EnforceExtension, FileSystemOs, FsCache, PackageJson, Resolution, ResolveContext,
     ResolveOptions, Resolver,
 };

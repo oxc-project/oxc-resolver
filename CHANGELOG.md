@@ -6,41 +6,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.2](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.2.1...unrspack-resolver-v1.2.2) - 2025-03-19
-
-### <!-- 1 -->Bug Fixes
-
-- *(pnp)* support `pnpapi` core module and package deep link ([#24](https://github.com/unrs/rspack-resolver/pull/24))
-
-## [1.2.0](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.1.2...unrspack-resolver-v2.0.0) - 2025-03-18
+## [1.3.0](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.2.2...unrspack-resolver-v1.3.0) - 2025-03-21
 
 ### Features
 
-- *(napi)* add mimalloc ([#423](https://github.com/unrs/rspack-resolver/pull/423)) ([#18](https://github.com/unrs/rspack-resolver/pull/18))
-- merge from upstream `oxc-project/oxc-resolver` ([#15](https://github.com/unrs/rspack-resolver/pull/15))
+- enable more targets ([#29](https://github.com/unrs/unrs-resolver/pull/29))
 
-## [1.1.2](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.1.1...unrspack-resolver-v1.1.2) - 2025-03-16
+## [1.2.2](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.2.1...unrspack-resolver-v1.2.2) - 2025-03-19
+
+### <!-- 1 -->Bug Fixes
+
+- *(pnp)* support `pnpapi` core module and package deep link ([#24](https://github.com/unrs/unrs-resolver/pull/24))
+
+## [1.2.0](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.1.2...unrspack-resolver-v2.0.0) - 2025-03-18
+
+### Features
+
+- *(napi)* add mimalloc ([#423](https://github.com/unrs/unrs-resolver/pull/423)) ([#18](https://github.com/unrs/unrs-resolver/pull/18))
+- merge from upstream `oxc-project/oxc-resolver` ([#15](https://github.com/unrs/unrs-resolver/pull/15))
+
+## [1.1.2](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.1.1...unrspack-resolver-v1.1.2) - 2025-03-16
 
 ### Fixed
 
-- references should take higher priority ([#13](https://github.com/unrs/rspack-resolver/pull/13))
+- references should take higher priority ([#13](https://github.com/unrs/unrs-resolver/pull/13))
 - takes paths and references into account at the same time
 - should always try resolve_path_alias
 
-## [1.1.1](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.1.0...unrspack-resolver-v1.1.1) - 2025-03-16
+## [1.1.1](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.1.0...unrspack-resolver-v1.1.1) - 2025-03-16
 
 ### Other
 
 - bump all (dev) deps
 - bump to edition 2024
 
-## [1.1.0](https://github.com/unrs/rspack-resolver/compare/unrspack-resolver-v1.0.0...unrspack-resolver-v1.1.0) - 2025-03-15
+## [1.1.0](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.0.0...unrspack-resolver-v1.1.0) - 2025-03-15
 
 ### Added
 
-- support resolving path with extra query ([#7](https://github.com/unrs/rspack-resolver/pull/7))
+- support resolving path with extra query ([#7](https://github.com/unrs/unrs-resolver/pull/7))
 
-## [1.0.0](https://github.com/unrs/rspack-resolver/releases/tag/unrspack-resolver-v1.0.0) - 2025-03-15
+## [1.0.0](https://github.com/unrs/unrs-resolver/releases/tag/unrspack-resolver-v1.0.0) - 2025-03-15
 
 ## [5.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v4.2.0...oxc_resolver-v5.0.0) - 2025-03-07
 

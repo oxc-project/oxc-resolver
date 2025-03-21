@@ -168,7 +168,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::ResolveOptions;
+    /// use unrs_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_condition_names(&["bar"]);
     /// assert_eq!(options.condition_names, vec!["bar".to_string()])
@@ -182,7 +182,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::ResolveOptions;
+    /// use unrs_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_builtin_modules(false);
     /// assert_eq!(options.builtin_modules, false)
@@ -198,7 +198,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::ResolveOptions;
+    /// use unrs_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
     ///
     /// let options = ResolveOptions::default().with_root("foo");
@@ -215,7 +215,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::ResolveOptions;
+    /// use unrs_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
     ///
     /// let options = ResolveOptions::default().with_extension(".jsonc");
@@ -232,7 +232,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::ResolveOptions;
+    /// use unrs_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
     ///
     /// let options = ResolveOptions::default().with_main_field("something");
@@ -249,7 +249,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::{ResolveOptions, EnforceExtension};
+    /// use unrs_resolver::{ResolveOptions, EnforceExtension};
     /// use std::path::{Path, PathBuf};
     ///
     /// let options = ResolveOptions::default().with_force_extension(EnforceExtension::Enabled);
@@ -266,7 +266,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::{ResolveOptions};
+    /// use unrs_resolver::{ResolveOptions};
     /// use std::path::{Path, PathBuf};
     ///
     /// let options = ResolveOptions::default().with_fully_specified(true);
@@ -283,7 +283,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::{ResolveOptions};
+    /// use unrs_resolver::{ResolveOptions};
     /// use std::path::{Path, PathBuf};
     ///
     /// let options = ResolveOptions::default().with_prefer_relative(true);
@@ -300,7 +300,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::{ResolveOptions};
+    /// use unrs_resolver::{ResolveOptions};
     /// use std::path::{Path, PathBuf};
     ///
     /// let options = ResolveOptions::default().with_prefer_absolute(true);
@@ -317,7 +317,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::{ResolveOptions};
+    /// use unrs_resolver::{ResolveOptions};
     ///
     /// let options = ResolveOptions::default().with_symbolic_link(false);
     /// assert_eq!(options.symlinks, false);
@@ -333,7 +333,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::{ResolveOptions};
+    /// use unrs_resolver::{ResolveOptions};
     ///
     /// let options = ResolveOptions::default().with_module("module");
     /// assert!(options.modules.contains(&"module".to_string()));
@@ -349,7 +349,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use unrspack_resolver::{ResolveOptions};
+    /// use unrs_resolver::{ResolveOptions};
     ///
     /// let options = ResolveOptions::default().with_main_file("foo");
     /// assert!(options.main_files.contains(&"foo".to_string()));

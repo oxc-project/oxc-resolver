@@ -1,6 +1,6 @@
 {
-  "name": "rspack-resolver",
-  "version": "1.2.2",
+  "name": "unrs-resolver",
+  "version": "1.3.0",
   "description": "Oxc Resolver Node API with PNP support",
   "main": "index.js",
   "browser": "browser.js",
@@ -10,10 +10,10 @@
     "browser.js"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/unrs/rspack-resolver",
+  "homepage": "https://github.com/unrs/unrs-resolver",
   "repository": {
     "type": "git",
-    "url": "https://github.com/unrs/rspack-resolver.git"
+    "url": "https://github.com/unrs/unrs-resolver.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
@@ -21,7 +21,7 @@
   },
   "napi": {
     "binaryName": "resolver",
-    "packageName": "@unrs/rspack-resolver-binding",
+    "packageName": "@unrs/resolver-binding",
     "wasm": {
       "browser": {
         "fs": true
@@ -38,7 +38,6 @@
       "aarch64-unknown-linux-musl",
       "armv7-unknown-linux-gnueabihf",
       "armv7-unknown-linux-musleabihf",
-      "riscv64gc-unknown-linux-gnu",
       "powerpc64le-unknown-linux-gnu",
       "s390x-unknown-linux-gnu",
       "x86_64-apple-darwin",

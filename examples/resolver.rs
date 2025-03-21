@@ -1,8 +1,8 @@
-// See documentation at <https://docs.rs/unrspack_resolver>
+// See documentation at <https://docs.rs/unrs_resolver>
 
 use std::{env, path::PathBuf};
 
-use unrspack_resolver::{AliasValue, ResolveOptions, Resolver};
+use unrs_resolver::{AliasValue, ResolveOptions, Resolver};
 
 fn main() {
     let path = PathBuf::from(env::args().nth(1).expect("path"));

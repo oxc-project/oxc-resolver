@@ -1,5 +1,5 @@
 > [!NOTE]\
-> This is a fork of [rspack-resolver](https://github.com/oxc-project/rspack-resolver), and will be used in Rspack cause 100% compatible with enhanced-resolve is the non-goal of rspack-resolver itself, we may add enhanced-resolve specific features like [`pnp support`](https://github.com/web-infra-dev/rspack/issues/2236) and [`alternative support`](https://github.com/web-infra-dev/rspack/issues/5052) in the future.
+> This is a fork of [oxc-resolver] and [rspack-resolver](https://github.com/web-infra-dev/rspack-resolver), cause 100% compatible with [enhanced-resolve] is the non-goal of [oxc-resolver] itself, we may add [enhanced-resolve] specific features like [`pnp support`](https://github.com/web-infra-dev/rspack/issues/2236) and [`alternative support`](https://github.com/web-infra-dev/rspack/issues/5052) in the future.
 
 <div align="center">
 
@@ -15,11 +15,11 @@
 
 </div>
 
-# Rspack Resolver
+# UnRS Resolver
 
 Rust port of [enhanced-resolve].
 
-- released on [crates.io](https://crates.io/crates/unrspack_resolver) and [npm](https://www.npmjs.com/package/rspack-resolver).
+- released on [crates.io][crates-url] and [npm][npm-url].
 - built-in [tsconfig-paths-webpack-plugin]
   - support extending tsconfig defined in `tsconfig.extends`
   - support paths alias defined in `tsconfig.compilerOptions.paths`
@@ -115,7 +115,7 @@ Quoting esbuild's documentation:
 
 The following options are aligned with [enhanced-resolve], and is implemented for Rust crate usage.
 
-See [index.d.ts](https://github.com/unrs/rspack-resolver/blob/main/napi/index.d.ts) for Node.js usage.
+See [index.d.ts](https://github.com/unrs/unrs-resolver/blob/main/napi/index.d.ts) for Node.js usage.
 
 | Field            | Default                   | Description                                                                                                                                               |
 | ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -223,42 +223,53 @@ Irrelevant tests
 - unsafe-cache.test.js
 - yield.test.js
 
-## [Sponsored By](https://github.com/sponsors/Boshen)
+## [Sponsored By](https://github.com/sponsors/JounQin)
 
-<p align="center">
-  <a href="https://github.com/sponsors/Boshen">
-    <img src="https://raw.githubusercontent.com/Boshen/sponsors/main/sponsors.svg" alt="My sponsors" />
-  </a>
-</p>
+[![Sponsors](https://raw.githubusercontent.com/1stG/static/master/sponsors.svg)](https://github.com/sponsors/JounQin)
+
+### Sponsors
+
+| 1stG                                                                                                                               | RxTS                                                                                                                               | UnTS                                                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [![1stG Open Collective backers and sponsors](https://opencollective.com/1stG/organizations.svg)](https://opencollective.com/1stG) | [![RxTS Open Collective backers and sponsors](https://opencollective.com/rxts/organizations.svg)](https://opencollective.com/rxts) | [![UnTS Open Collective backers and sponsors](https://opencollective.com/unts/organizations.svg)](https://opencollective.com/unts) |
+
+### Backers
+
+| 1stG                                                                                                                             | RxTS                                                                                                                             | UnTS                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [![1stG Open Collective backers and sponsors](https://opencollective.com/1stG/individuals.svg)](https://opencollective.com/1stG) | [![RxTS Open Collective backers and sponsors](https://opencollective.com/rxts/individuals.svg)](https://opencollective.com/rxts) | [![UnTS Open Collective backers and sponsors](https://opencollective.com/unts/individuals.svg)](https://opencollective.com/unts) |
 
 ## 📖 License
 
-`oxc_resolver` is free and open-source software licensed under the [MIT License](./LICENSE).
+`unrs_resolver` is free and open-source software licensed under the [MIT License](./LICENSE).
 
-Oxc partially copies code from the following projects.
+UnRS partially copies code from the following projects.
 
-| Project                                                                   | License                                                                      |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)   | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)         |
-| [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)       | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)         |
-| [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)         | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)              |
-| [tmccombs/json-comments-rs](https://github.com/tmccombs/json-comments-rs) | [Apache 2.0](https://github.com/tmccombs/json-comments-rs/blob/main/LICENSE) |
+| Project                                                                           | License                                                                      |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)           | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)         |
+| [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)               | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)         |
+| [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)                 | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)              |
+| [tmccombs/json-comments-rs](https://github.com/tmccombs/json-comments-rs)         | [Apache 2.0](https://github.com/tmccombs/json-comments-rs/blob/main/LICENSE) |
+| [oxc-project/oxc-resolver](https://github.com/oxc-project/oxc-resolver)           | [MIT](https://github.com/oxc-project/oxc-resolver/blob/main/LICENSE)         |
+| [web-infra-dev/rspack-resolver](https://github.com/web-infra-dev/rspack-resolver) | [MIT](https://github.com/web-infra-dev/rspack-resolver/blob/main/LICENSE)    |
 
 [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
+[oxc-resolver]: https://github.com/oxc-project/oxc-resolver
 [tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
 [license-badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[license-url]: https://github.com/unrs/rspack-resolver/blob/main/LICENSE
-[ci-badge]: https://github.com/unrs/rspack-resolver/actions/workflows/ci.yml/badge.svg?event=push&branch=main
-[ci-url]: https://github.com/unrs/rspack-resolver/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain
-[code-coverage-badge]: https://codecov.io/github/unrs/rspack-resolver/branch/main/graph/badge.svg
-[code-coverage-url]: https://codecov.io/gh/unrs/rspack-resolver
+[license-url]: https://github.com/unrs/unrs-resolver/blob/main/LICENSE
+[ci-badge]: https://github.com/unrs/unrs-resolver/actions/workflows/ci.yml/badge.svg?event=push&branch=main
+[ci-url]: https://github.com/unrs/unrs-resolver/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain
+[code-coverage-badge]: https://codecov.io/github/unrs/unrs-resolver/branch/main/graph/badge.svg
+[code-coverage-url]: https://codecov.io/gh/unrs/unrs-resolver
 [sponsors-badge]: https://img.shields.io/github/sponsors/JounQin
 [sponsors-url]: https://github.com/sponsors/JounQin
 [codspeed-badge]: https://img.shields.io/endpoint?url=https://codspeed.io/badge.json
-[codspeed-url]: https://codspeed.io/unrs/rspack-resolver
-[crates-badge]: https://img.shields.io/crates/d/oxc_resolver?label=crates.io
-[crates-url]: https://crates.io/crates/oxc_resolver
-[docs-badge]: https://img.shields.io/docsrs/oxc_resolver
-[docs-url]: https://docs.rs/unrspack-resolver
-[npm-badge]: https://img.shields.io/npm/dw/rspack-resolver?label=npm
-[npm-url]: https://www.npmjs.com/package/rspack-resolver
+[codspeed-url]: https://codspeed.io/unrs/unrs-resolver
+[crates-badge]: https://img.shields.io/crates/d/unrs_resolver?label=crates.io
+[crates-url]: https://crates.io/crates/unrs_resolver
+[docs-badge]: https://img.shields.io/docsrs/unrs_resolver
+[docs-url]: https://docs.rs/unrs_resolver
+[npm-badge]: https://img.shields.io/npm/dw/unrs-resolver?label=npm
+[npm-url]: https://www.npmjs.com/package/unrs-resolver
