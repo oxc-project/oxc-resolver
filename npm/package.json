@@ -13,7 +13,7 @@
   "homepage": "https://github.com/unrs/rspack-resolver",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/unrs/rspack-resolver.git"
+    "url": "https://github.com/unrs/rspack-resolver.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
@@ -30,12 +30,17 @@
     "targets": [
       "x86_64-pc-windows-msvc",
       "aarch64-pc-windows-msvc",
+      "i686-pc-windows-msvc",
       "x86_64-unknown-linux-gnu",
       "x86_64-unknown-linux-musl",
       "x86_64-unknown-freebsd",
       "aarch64-unknown-linux-gnu",
       "aarch64-unknown-linux-musl",
       "armv7-unknown-linux-gnueabihf",
+      "armv7-unknown-linux-musleabihf",
+      "riscv64gc-unknown-linux-gnu",
+      "powerpc64le-unknown-linux-gnu",
+      "s390x-unknown-linux-gnu",
       "x86_64-apple-darwin",
       "aarch64-apple-darwin",
       "wasm32-wasip1-threads"

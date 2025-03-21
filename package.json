@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/unrs/rspack-resolver.git"
+    "url": "https://github.com/unrs/rspack-resolver.git"
   },
   "funding": {
     "url": "https://github.com/sponsors/Boshen"
