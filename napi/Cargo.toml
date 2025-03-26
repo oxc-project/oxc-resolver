@@ -1,5 +1,5 @@
 [package]
-name = "rspack_resolver_napi"
+name = "unrs_resolver_napi"
 version = "0.0.0"
 edition = "2024"
 publish = false
@@ -11,10 +11,10 @@ test = false
 doctest = false
 
 [dependencies]
-napi = { version = "3.0.0-alpha", default-features = false, features = ["napi3", "serde-json"] }
-napi-derive = { version = "3.0.0-alpha" }
+napi = { version = "3.0.0-alpha.33", default-features = false, features = ["napi3", "serde-json"] }
+napi-derive = { version = "3.0.0-alpha.29" }
 oxc_resolver = { path = "..", package = "unrs_resolver" }
-tracing-subscriber = { version = "0.3.18", default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 
 [target.'cfg(all(not(target_os = "linux"), not(target_os = "freebsd"), not(target_arch = "arm"), not(target_family = "wasm")))'.dependencies]
 mimalloc-safe = { version = "0.1.49", features = ["skip_collect_on_exit"] }
@@ -23,7 +23,7 @@ mimalloc-safe = { version = "0.1.49", features = ["skip_collect_on_exit"] }
 mimalloc-safe = { version = "0.1.49", features = ["skip_collect_on_exit", "local_dynamic_tls"] }
 
 [build-dependencies]
-napi-build = "2.1.5"
+napi-build = "2.1.6"
 
 [package.metadata.cargo-machete]
 ignored = ["napi"]

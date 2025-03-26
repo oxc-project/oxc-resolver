@@ -3,7 +3,7 @@
 See
 
 - `index.d.ts` for `resolveSync` and `ResolverFactory` API.
-- [README.md](https://github.com/unrs/unrs-resolver#rspack-resolver) for options.
+- [README.md](https://github.com/unrs/unrs-resolver#unrs-resolver) for options.
 
 ## API
 

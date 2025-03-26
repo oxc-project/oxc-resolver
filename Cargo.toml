@@ -70,27 +70,27 @@ name = "resolver"
 [dependencies]
 cfg-if = "1.0"
 dashmap = "7.0.0-rc2"
-dunce = "1.0.4" # Normalize Windows paths to the most compatible format, avoiding UNC where possible
-indexmap = { version = "2.2.6", features = ["serde"] }
-json-strip-comments = "1.0.2"
-once_cell = "1.19.0" # Use `std::sync::OnceLock::get_or_try_init` when it is stable.
-papaya = "0.2.0"
-rustc-hash = { version = "2.0.0", default-features = false, features = ["std"] }
-serde = { version = "1.0.203", features = ["derive"], optional = true } # derive for Deserialize from package.json
-serde_json = { version = "1.0.117", features = ["preserve_order"], optional = true } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
-simdutf8 = { version = "0.1.4", features = ["aarch64_neon"] }
-thiserror = "1.0.69"
-tracing = "0.1.40"
+dunce = "1.0.5" # Normalize Windows paths to the most compatible format, avoiding UNC where possible
+indexmap = { version = "2.8.0", features = ["serde"] }
+json-strip-comments = "1.0.4"
+once_cell = "1.21.1" # Use `std::sync::OnceLock::get_or_try_init` when it is stable.
+papaya = "0.2.1"
+rustc-hash = { version = "2.1.1", default-features = false, features = ["std"] }
+serde = { version = "1.0.219", features = ["derive"], optional = true } # derive for Deserialize from package.json
+serde_json = { version = "1.0.140", features = ["preserve_order"], optional = true } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
+simdutf8 = { version = "0.1.5", features = ["aarch64_neon"] }
+thiserror = "2.0.12"
+tracing = "0.1.41"
 
 pnp = { version = "0.9.1", optional = true }
 
-document-features = { version = "0.2.10", optional = true }
+document-features = { version = "0.2.11", optional = true }
 
 [dev-dependencies]
 criterion2 = { version = "3.0.0", default-features = false }
 normalize-path = { version = "0.2.1" }
 rayon = { version = "1.10.0" }
-vfs = "0.12.0" # for testing with in memory file system
+vfs = "0.12.1" # for testing with in memory file system
 
 [features]
 default = ["fs_cache", "yarn_pnp"]
