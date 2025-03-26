@@ -26,6 +26,7 @@ fn tsconfig() {
         (f.join("cases/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
         (f.join("cases/extends-paths"), Some("src"), "@/index", f.join("cases/extends-paths/src/index.js")),
         (f.join("cases/extends-multiple"), None, "foo", f.join("cases/extends-multiple/foo.js")),
+        (f.join("cases/absolute-alias"), None, "/images/foo.js", f.join("cases/absolute-alias/public/images/foo.ts")),
     ];
 
     for (dir, subdir, request, expected) in pass {
@@ -34,6 +35,7 @@ fn tsconfig() {
                 config_file: dir.join("tsconfig.json"),
                 references: TsconfigReferences::Auto,
             }),
+            extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
             ..ResolveOptions::default()
         });
         let path = subdir.map_or(dir.clone(), |subdir| dir.join(subdir));
