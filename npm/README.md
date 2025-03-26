@@ -1,4 +1,4 @@
-# Rspack Resolver Napi Binding
+# UnRS Resolver Napi Binding
 
 See
 
