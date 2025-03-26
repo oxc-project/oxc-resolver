@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1](https://github.com/unrs/unrs-resolver/compare/unrs_resolver-v1.3.0...unrs_resolver-v1.3.1) - 2025-03-26
+
+### Other
+
+- bump all (dev) deps ([#34](https://github.com/unrs/unrs-resolver/pull/34))
+
 ## [1.3.0](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.2.2...unrs_resolver-v1.3.0) - 2025-03-26
 
 ### Features

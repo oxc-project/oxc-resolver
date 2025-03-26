@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - npm/package.json # Please only commit this file, so we don't need to wait for test CI to pass.
-  pull_request: null
 
 env:
   DEBUG: napi:*
