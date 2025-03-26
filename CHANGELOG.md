@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2](https://github.com/unrs/unrs-resolver/compare/unrs_resolver-v1.3.1...v1.3.2) - 2025-03-26
+
+### <!-- 1 -->Bug Fixes
+
+- absolute path aliasing should not be skipped ([#37](https://github.com/unrs/unrs-resolver/pull/37))
+
 ## [1.3.1](https://github.com/unrs/unrs-resolver/compare/unrs_resolver-v1.3.0...unrs_resolver-v1.3.1) - 2025-03-26
 
 ### Other
