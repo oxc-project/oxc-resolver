@@ -10,16 +10,16 @@
     "url": "https://github.com/sponsors/JounQin"
   },
   "scripts": {
-    "build": "napi build --platform --release --strip --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
-    "build:debug": "napi build --platform --strip --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
+    "build": "napi build --platform --release --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
+    "build:debug": "napi build --platform --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
     "prepublishOnly": "napi pre-publish -t npm",
     "test": "vitest run -r ./napi"
   },
   "devDependencies": {
     "@napi-rs/cli": "3.0.0-alpha.76",
     "@napi-rs/wasm-runtime": "^0.2.7",
-    "@types/node": "^22.13.10",
-    "emnapi": "^1.3.1",
+    "@types/node": "^22.13.14",
+    "emnapi": "^1.4.0",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"
   },
