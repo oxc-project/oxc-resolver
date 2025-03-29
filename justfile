@@ -15,6 +15,7 @@ init:
 install:
   pnpm install
   cd fixtures/pnp && yarn
+  cd fixtures/misc/nested-package-json && yarn
 
 # When ready, run the same CI commands
 ready:

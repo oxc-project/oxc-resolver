@@ -1,6 +1,6 @@
 {
   "name": "pnp",
-  "packageManager": "yarn@4.7.0",
+  "packageManager": "yarn@4.8.0",
   "dependencies": {
     "beachball": "^2.51.0",
     "is-even": "^1.0.0",

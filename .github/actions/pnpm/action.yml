@@ -28,9 +28,16 @@ runs:
         corepack enable
         pnpm install
 
-    - name: yarn
+    - name: yarn pnp
       shell: bash
       run: |
         cd fixtures/pnp
+        corepack enable
+        yarn install
+
+    - name: nested-package-json
+      shell: bash
+      run: |
+        cd fixtures/misc/nested-package-json
         corepack enable
         yarn install

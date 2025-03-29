@@ -1,0 +1,7 @@
+{
+  "name": "nested-test",
+  "packageManager": "yarn@4.8.0",
+  "dependencies": {
+    "@root/package": "link:./package"
+  }
+}

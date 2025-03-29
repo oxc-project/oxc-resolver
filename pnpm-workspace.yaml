@@ -3,3 +3,5 @@ packages:
   - napi
   - fixtures/pnpm
   - fixtures/pnpm-workspace/**
+ignoredBuiltDependencies:
+  - esbuild
