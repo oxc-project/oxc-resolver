@@ -1,6 +1,6 @@
 {
   "name": "unrs-resolver",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Oxc Resolver Node API with PNP support",
   "main": "index.js",
   "browser": "browser.js",
