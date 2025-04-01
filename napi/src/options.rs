@@ -1,5 +1,6 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
+use fancy_regex::Regex;
 use napi::Either;
 use napi_derive::napi;
 
@@ -219,7 +220,12 @@ impl From<Restriction> for oxc_resolver::Restriction {
             (None, None) => {
                 panic!("Should specify path or regex")
             }
-            (None, Some(regex)) => oxc_resolver::Restriction::RegExp(regex),
+            (None, Some(regex)) => {
+                let re = Regex::new(&regex).unwrap();
+                oxc_resolver::Restriction::Fn(Arc::new(move |path| {
+                    re.is_match(path.to_str().unwrap_or_default()).unwrap_or(false)
+                }))
+            }
             (Some(path), None) => oxc_resolver::Restriction::Path(PathBuf::from(path)),
             (Some(_), Some(_)) => {
                 panic!("Restriction can't be path and regex at the same time")

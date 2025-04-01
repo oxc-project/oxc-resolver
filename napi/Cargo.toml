@@ -24,6 +24,7 @@ oxc_resolver = { workspace = true }
 
 napi = { version = "3.0.0-beta.12", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3.0.0-beta.12" }
+fancy-regex = { version = "^0.14.0", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.19", optional = true, default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 
 [target.'cfg(not(any(target_os = "linux", target_os = "freebsd", target_arch = "arm", target_family = "wasm")))'.dependencies]
