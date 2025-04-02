@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v5.0.1...oxc_resolver-v5.1.0) - 2025-04-02
+
+### <!-- 0 -->Features
+
+- resolve emitDecoratorMetadata in tsconfig ([#439](https://github.com/oxc-project/oxc-resolver/pull/439))
+
+### <!-- 3 -->Documentation
+
+- fix an incorrect comment on `Context::missing_dependencies`
+
 ## [5.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v4.2.0...oxc_resolver-v5.0.0) - 2025-03-07
 
 ### <!-- 0 -->Features

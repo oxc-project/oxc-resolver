@@ -721,7 +721,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_resolver"
-version = "5.0.1"
+version = "5.1.0"
 dependencies = [
  "cfg-if",
  "criterion2",
