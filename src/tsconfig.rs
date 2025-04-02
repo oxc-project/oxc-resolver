@@ -273,6 +273,14 @@ pub trait CompilerOptions {
     /// Sets whether to enable experimental decorators.
     fn set_experimental_decorators(&mut self, _experimental_decorators: bool) {}
 
+    /// Whether to emit decorator metadata.
+    fn emit_decorator_metadata(&self) -> Option<&bool> {
+        None
+    }
+
+    /// Sets whether to emit decorator metadata.
+    fn set_emit_decorator_metadata(&mut self, _emit_decorator_metadata: bool) {}
+
     /// JSX.
     fn jsx(&self) -> Option<&str> {
         None
