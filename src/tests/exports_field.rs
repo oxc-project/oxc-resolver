@@ -29,6 +29,8 @@ fn test_simple() {
     let pass = [
         ("resolve root using exports field, not a main field", f.clone(), "exports-field", f.join("node_modules/exports-field/x.js")),
         ("resolver should respect condition names", f.clone(), "exports-field/dist/main.js", f.join("node_modules/exports-field/lib/lib2/main.js")),
+        ("should resolve query", f.clone(), "exports-field/query.js", f.join("node_modules/exports-field/x.js?query")),
+        ("should resolve fragment", f.clone(), "exports-field/fragment.js", f.join("node_modules/exports-field/x.js#fragment")),
         // enhanced_resolve behaves differently to node.js. enhanced_resolve fallbacks when an
         // array item is unresolved, where as node.js fallbacks when an array has an
         // InvalidPackageTarget error.

@@ -26,6 +26,8 @@ fn test_simple() {
     #[rustfmt::skip]
     let pass = [
         ("should resolve using imports field instead of self-referencing", f.clone(), "#imports-field", f.join("b.js")),
+        ("should resolve query", f.clone(), "#query", f.join("a.js?query")),
+        ("should resolve fragment", f.clone(), "#fragment", f.join("a.js#fragment")),
         ("should resolve using imports field instead of self-referencing for a subpath", f.join("dir"), "#imports-field", f.join("b.js")),
         ("should resolve package #1", f.clone(), "#a/dist/main.js", f.join("node_modules/a/lib/lib2/main.js")),
         ("should resolve package #3", f.clone(), "#ccc/index.js", f.join("node_modules/c/index.js")),

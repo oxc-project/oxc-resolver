@@ -7,7 +7,9 @@
     "#b": "../b.js",
     "#ccc/": "c/",
     "#c": "c",
-    "#a/": "a/"
+    "#a/": "a/",
+    "#query": "./a.js?query",
+    "#fragment": "./a.js#fragment"
   },
   "other": {
     "imports": {
