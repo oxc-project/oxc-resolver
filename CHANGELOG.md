@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v5.1.0...oxc_resolver-v5.1.1) - 2025-04-04
+
+### <!-- 1 -->Bug Fixes
+
+- handle query and fragment in pacakge.json `exports` and `imports` field ([#443](https://github.com/oxc-project/oxc-resolver/pull/443))
+
 ## [5.1.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v5.0.1...oxc_resolver-v5.1.0) - 2025-04-02
 
 ### <!-- 0 -->Features
