@@ -117,6 +117,12 @@ pub struct CompilerOptionsSerde {
     /// <https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata>
     pub emit_decorator_metadata: Option<bool>,
 
+    /// <https://www.typescriptlang.org/tsconfig/#useDefineForClassFields>
+    pub use_define_for_class_fields: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#rewriteRelativeImportExtensions>
+    pub rewrite_relative_import_extensions: Option<bool>,
+
     /// <https://www.typescriptlang.org/tsconfig/#jsx>
     pub jsx: Option<String>,
 
