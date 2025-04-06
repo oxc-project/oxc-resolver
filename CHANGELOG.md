@@ -6,6 +6,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0](https://github.com/unrs/unrs-resolver/compare/v1.3.3...v1.4.0) - 2025-04-06
+
+### <!-- 0 -->Features
+
+- resolve emitDecoratorMetadata in tsconfig ([#439](https://github.com/oxc-project/oxc-resolver/pull/439))
+- *(napi)* add mimalloc ([#423](https://github.com/oxc-project/oxc-resolver/pull/423))
+- [**breaking**] Rust Edition 2024 ([#402](https://github.com/oxc-project/oxc-resolver/pull/402))
+- deserialize `verbatim_module_syntax` from compilerOptions ([#411](https://github.com/oxc-project/oxc-resolver/pull/411))
+- support wildcard `*` in alias plugin ([#388](https://github.com/oxc-project/oxc-resolver/pull/388))
+- merge options from extends tsconfig.json ([#375](https://github.com/oxc-project/oxc-resolver/pull/375))
+- add more fields in tsconfig#CompilerOptionsSerde ([#374](https://github.com/oxc-project/oxc-resolver/pull/374))
+- [**breaking**] generic fs cache `type Resolver = ResolverGeneric<FsCache<FileSystemOs>>` ([#358](https://github.com/oxc-project/oxc-resolver/pull/358))
+- [**breaking**] replace `FileSystem::canonicalize` with `FileSystem::read_link` ([#331](https://github.com/oxc-project/oxc-resolver/pull/331))
+- faster and stable path hash for the cache ([#328](https://github.com/oxc-project/oxc-resolver/pull/328))
+- add `Resolver::resolve_tsconfig` API ([#312](https://github.com/oxc-project/oxc-resolver/pull/312))
+- [**breaking**] add `ResolveError::Builtin::prefixed_with_node_colon` ([#272](https://github.com/oxc-project/oxc-resolver/pull/272))
+- [**breaking**] mark `ResolveError` #[non_exhaustive] ([#252](https://github.com/oxc-project/oxc-resolver/pull/252))
+- show tried extension aliases in `ResolveError::ExtensionAlias` ([#251](https://github.com/oxc-project/oxc-resolver/pull/251))
+- give a specific error for matched alias not found ([#238](https://github.com/oxc-project/oxc-resolver/pull/238))
+- Yarn PnP ([#217](https://github.com/oxc-project/oxc-resolver/pull/217))
+
+### <!-- 1 -->Bug Fixes
+
+- handle query and fragment in package.json `exports` and `imports` field ([#443](https://github.com/oxc-project/oxc-resolver/pull/443))
+- fix bench
+- try browsers field and alias before resolving directory in node_modules ([#349](https://github.com/oxc-project/oxc-resolver/pull/349))
+- special case for aliasing `@/` ([#348](https://github.com/oxc-project/oxc-resolver/pull/348))
+- normalize resolved result on Windows for root ([#345](https://github.com/oxc-project/oxc-resolver/pull/345))
+- don't panic when resolving `/` with `roots` ([#310](https://github.com/oxc-project/oxc-resolver/pull/310))
+- use same UNC path normalization logic with libuv ([#306](https://github.com/oxc-project/oxc-resolver/pull/306))
+- use `fs::canonicalize` to cover symlink edge cases ([#284](https://github.com/oxc-project/oxc-resolver/pull/284))
+- extensionAlias cannot resolve mathjs ([#273](https://github.com/oxc-project/oxc-resolver/pull/273))
+- resolve module `ipaddr.js` correctly when `extensionAlias` is provided ([#228](https://github.com/oxc-project/oxc-resolver/pull/228))
+- *(napi)* update buggy NAPI-RS versions ([#225](https://github.com/oxc-project/oxc-resolver/pull/225))
+- remove `#[cfg(target_os = "windows")]` logic in `canonicalize` ([#221](https://github.com/oxc-project/oxc-resolver/pull/221))
+
+### <!-- 2 -->Performance
+
+- use papaya instead of dashmap ([#356](https://github.com/oxc-project/oxc-resolver/pull/356))
+- try directory first in `node_modules` ([#340](https://github.com/oxc-project/oxc-resolver/pull/340))
+- guard `load_alias` on hot path ([#339](https://github.com/oxc-project/oxc-resolver/pull/339))
+- use `as_os_str` for `Hash` and `PartialEq` operations ([#338](https://github.com/oxc-project/oxc-resolver/pull/338))
+- reduce hash while resolving package.json ([#319](https://github.com/oxc-project/oxc-resolver/pull/319))
+- reduce memory allocation while normalizing package path ([#318](https://github.com/oxc-project/oxc-resolver/pull/318))
+- reduce memory allocation while resolving package.json ([#317](https://github.com/oxc-project/oxc-resolver/pull/317))
+- use `path.as_os_str().hash()` instead of `path.hash()` ([#316](https://github.com/oxc-project/oxc-resolver/pull/316))
+- reduce memory allocation by using a thread_local path for path methods ([#315](https://github.com/oxc-project/oxc-resolver/pull/315))
+- bring back the symlink optimization ([#298](https://github.com/oxc-project/oxc-resolver/pull/298))
+- use simdutf8 to validate UTF-8 when reading files ([#237](https://github.com/oxc-project/oxc-resolver/pull/237))
+- use custom canonicalize impl to avoid useless syscall ([#220](https://github.com/oxc-project/oxc-resolver/pull/220))
+
+### <!-- 3 -->Documentation
+
+- fix an incorrect comment on `Context::missing_dependencies`
+- mention extension must start with a `.` in `with_extension` ([#313](https://github.com/oxc-project/oxc-resolver/pull/313))
+- *(README)* should be `new ResolverFactory`
+
+### <!-- 4 -->Refactor
+
+- remove papaya `.collector(seize::Collector::new())` call ([#393](https://github.com/oxc-project/oxc-resolver/pull/393))
+- replace UnsafeCell with RefCell ([#346](https://github.com/oxc-project/oxc-resolver/pull/346))
+- run clippy with `--all-targets` ([#333](https://github.com/oxc-project/oxc-resolver/pull/333))
+- apply latest `cargo +nightly fmt` ([#281](https://github.com/oxc-project/oxc-resolver/pull/281))
+- add more clippy fixes ([#279](https://github.com/oxc-project/oxc-resolver/pull/279))
+- clean up elided lifetimes ([#277](https://github.com/oxc-project/oxc-resolver/pull/277))
+
+### <!-- 6 -->Testing
+
+- fix warning on Windows
+- fix symlink test init on Windows ([#307](https://github.com/oxc-project/oxc-resolver/pull/307))
+
 ## [1.3.3](https://github.com/unrs/unrs-resolver/compare/v1.3.2...v1.3.3) - 2025-03-29
 
 ### Build
