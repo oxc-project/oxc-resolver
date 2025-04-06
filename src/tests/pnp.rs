@@ -54,14 +54,14 @@ fn pnp1() {
     assert_eq!(
         resolver.resolve(&fixture, "preact").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/preact-npm-10.26.4-e97fe426c5-8abf64ec6f.zip/node_modules/preact/dist/preact.mjs"
+            ".yarn/cache/preact-npm-10.26.5-d46ec4e2ac-542a924009.zip/node_modules/preact/dist/preact.mjs"
         )),
     );
 
     assert_eq!(
         resolver.resolve(&fixture, "preact/devtools").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/preact-npm-10.26.4-e97fe426c5-8abf64ec6f.zip/node_modules/preact/devtools/dist/devtools.mjs"
+            ".yarn/cache/preact-npm-10.26.5-d46ec4e2ac-542a924009.zip/node_modules/preact/devtools/dist/devtools.mjs"
         )),
     );
 
@@ -108,7 +108,7 @@ fn resolve_package_deep_link() {
     assert_eq!(
         resolver.resolve(fixture.join("shared"), "beachball/lib/commands/bump.js").map(|r| r.full_path()),
         Ok(fixture.join(
-          ".yarn/cache/beachball-npm-2.51.0-65bc162b4f-05a8be5dde.zip/node_modules/beachball/lib/commands/bump.js"
+          ".yarn/cache/beachball-npm-2.52.0-ee48e46454-96b8c49193.zip/node_modules/beachball/lib/commands/bump.js"
       )),
     );
 }

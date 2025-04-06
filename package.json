@@ -16,12 +16,12 @@
     "test": "vitest run -r ./napi"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.0.0-alpha.76",
-    "@napi-rs/wasm-runtime": "^0.2.7",
-    "@types/node": "^22.13.14",
+    "@napi-rs/cli": "3.0.0-alpha.77",
+    "@napi-rs/wasm-runtime": "^0.2.8",
+    "@types/node": "^22.14.0",
     "emnapi": "^1.4.0",
-    "typescript": "^5.8.2",
-    "vitest": "^3.0.9"
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
   },
-  "packageManager": "pnpm@10.7.0"
+  "packageManager": "pnpm@10.7.1"
 }

@@ -78,9 +78,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"beachball@npm:^2.51.0":
-  version: 2.51.0
-  resolution: "beachball@npm:2.51.0"
+"beachball@npm:^2.52.0":
+  version: 2.52.0
+  resolution: "beachball@npm:2.52.0"
   dependencies:
     cosmiconfig: "npm:^8.3.6"
     execa: "npm:^5.0.0"
@@ -92,11 +92,11 @@ __metadata:
     prompts: "npm:^2.4.2"
     semver: "npm:^7.0.0"
     toposort: "npm:^2.0.2"
-    workspace-tools: "npm:^0.38.0"
+    workspace-tools: "npm:^0.38.2"
     yargs-parser: "npm:^21.0.0"
   bin:
     beachball: bin/beachball.js
-  checksum: 10c0/05a8be5dde83f08507b2658b83e7f5852a329834029fc17c09c1e47db958a09528efcfac24b67b27cf027c317a7d42026b73d3b41e66cc33b4d9007c527c2158
+  checksum: 10c0/96b8c4919305813baad723ad0e858474b325eb6f6c0256a87c163049ec42e7122046b0bbbdbcc7fe47ad506b260adaf1a8500ee1be24e076d0b4309429fdea0d
   languageName: node
   linkType: hard
 
@@ -654,19 +654,19 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "pnp@workspace:."
   dependencies:
-    beachball: "npm:^2.51.0"
+    beachball: "npm:^2.52.0"
     is-even: "npm:^1.0.0"
     is-odd: "npm:^3.0.1"
     lib: "link:./shared"
     lodash.zip: "npm:^4.2.0"
-    preact: "npm:^10.26.4"
+    preact: "npm:^10.26.5"
   languageName: unknown
   linkType: soft
 
-"preact@npm:^10.26.4":
-  version: 10.26.4
-  resolution: "preact@npm:10.26.4"
-  checksum: 10c0/8abf64ec6f9773f0c4fb3746b7caa3d83e2de4d464928e7f64fc779c96ef9e135d23c1ade8d0923c9191f6d203d9f22bb92d8a50dc0f4f310073dfaa51a56922
+"preact@npm:^10.26.5":
+  version: 10.26.5
+  resolution: "preact@npm:10.26.5"
+  checksum: 10c0/542a924009489c21b24e9588a5580dac03239a60951d10e6ad1207db66c8e719e1d46a38af6577c8f324b238fbe2aa92e0ffc04d3a71dbe182f56426c8abe632
   languageName: node
   linkType: hard
 
@@ -804,9 +804,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"workspace-tools@npm:^0.38.0":
-  version: 0.38.1
-  resolution: "workspace-tools@npm:0.38.1"
+"workspace-tools@npm:^0.38.2":
+  version: 0.38.2
+  resolution: "workspace-tools@npm:0.38.2"
   dependencies:
     "@yarnpkg/lockfile": "npm:^1.1.0"
     fast-glob: "npm:^3.3.1"
@@ -815,7 +815,7 @@ __metadata:
     jju: "npm:^1.4.0"
     js-yaml: "npm:^4.1.0"
     micromatch: "npm:^4.0.0"
-  checksum: 10c0/2d6a1cf15b85de2449e4b58a6bc4abdc01fb7711e58add0621396fe9ad297d930d295af80800a38eafafcc8882ae291a3d53a55070d785e13db33b24df5815cb
+  checksum: 10c0/b063ef45bb46d688f310dc0805c106cd07f3863228d71f2a5b94c9c49b8c0df5f6631180c70315c5cddb5d7236c8494748591d0e0614ad79d983fc496f5ea154
   languageName: node
   linkType: hard
 

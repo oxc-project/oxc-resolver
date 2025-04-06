@@ -4,11 +4,11 @@
   "private": true,
   "devDependencies": {
     "@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "file:longfilename",
-    "axios": "1.8.3",
+    "axios": "1.8.4",
     "decimal.js": "10.5.0",
     "ipaddr.js": "2.2.0",
-    "mathjs": "14.3.1",
+    "mathjs": "14.4.0",
     "postcss": "8.5.3",
-    "styled-components": "6.1.16"
+    "styled-components": "6.1.17"
   }
 }
