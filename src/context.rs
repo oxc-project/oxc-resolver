@@ -10,10 +10,10 @@ pub struct ResolveContext {
 
     pub fragment: Option<String>,
 
-    /// Files that was found on file system
+    /// Files that was found on file system.
     pub file_dependencies: Option<Vec<PathBuf>>,
 
-    /// Files that was found on file system
+    /// Dependencies that was not found on file system.
     pub missing_dependencies: Option<Vec<PathBuf>>,
 
     /// The current resolving alias for bailing recursion alias.

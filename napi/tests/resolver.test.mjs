@@ -244,14 +244,14 @@ test('resolve pnpm package', () => {
     styledComponents.path,
     join(
       rootDir,
-      'node_modules/.pnpm/styled-components@6.1.16_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/styled-components/dist/styled-components.browser.cjs.js',
+      'node_modules/.pnpm/styled-components@6.1.16_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components/dist/styled-components.browser.cjs.js',
     ),
   );
 
   const react = resolver.sync(
     join(
       rootDir,
-      'node_modules/.pnpm/styled-components@6.1.16_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/styled-components',
+      'node_modules/.pnpm/styled-components@6.1.16_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components',
     ),
     'react',
   );
@@ -259,7 +259,7 @@ test('resolve pnpm package', () => {
     react.path,
     join(
       rootDir,
-      'node_modules/.pnpm/react@19.0.0/node_modules/react/index.js',
+      'node_modules/.pnpm/react@19.1.0/node_modules/react/index.js',
     ),
   );
 });

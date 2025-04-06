@@ -1729,6 +1729,12 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
 
         // 1. If target is a String, then
         if let Some(target) = target.as_string() {
+            // Target string con contain queries or fragments:
+            // `"exports": { ".": { "default": "./foo.js?query#fragment" }`
+            let parsed = Specifier::parse(target).map_err(ResolveError::Specifier)?;
+            ctx.with_query_fragment(parsed.query, parsed.fragment);
+            let target = parsed.path();
+
             // 1. If target does not start with "./", then
             if !target.starts_with("./") {
                 // 1. If isImports is false, or if target starts with "../" or "/", or if target is a valid URL, then

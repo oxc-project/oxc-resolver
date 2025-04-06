@@ -114,6 +114,15 @@ pub struct CompilerOptionsSerde {
     /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
     pub experimental_decorators: Option<bool>,
 
+    /// <https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata>
+    pub emit_decorator_metadata: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#useDefineForClassFields>
+    pub use_define_for_class_fields: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#rewriteRelativeImportExtensions>
+    pub rewrite_relative_import_extensions: Option<bool>,
+
     /// <https://www.typescriptlang.org/tsconfig/#jsx>
     pub jsx: Option<String>,
 
@@ -165,6 +174,14 @@ impl CompilerOptions for CompilerOptionsSerde {
 
     fn set_experimental_decorators(&mut self, experimental_decorators: bool) {
         self.experimental_decorators = Some(experimental_decorators);
+    }
+
+    fn emit_decorator_metadata(&self) -> Option<&bool> {
+        self.emit_decorator_metadata.as_ref()
+    }
+
+    fn set_emit_decorator_metadata(&mut self, emit_decorator_metadata: bool) {
+        self.emit_decorator_metadata = Some(emit_decorator_metadata);
     }
 
     fn jsx(&self) -> Option<&str> {

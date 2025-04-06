@@ -1,4 +1,4 @@
-> [!NOTE]\
+> [!NOTE]
 > This is a fork of [oxc-resolver] and [rspack-resolver](https://github.com/web-infra-dev/rspack-resolver), cause 100% compatible with [enhanced-resolve] is the non-goal of [oxc-resolver] itself, we may add [enhanced-resolve] specific features like [`pnp support`](https://github.com/web-infra-dev/rspack/issues/2236) and [`alternative support`](https://github.com/web-infra-dev/rspack/issues/5052) in the future.
 
 <div align="center">
