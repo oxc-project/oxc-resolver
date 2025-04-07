@@ -1,0 +1,17 @@
+// [works]
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["${configDir}/src/*"],
+    }
+  }
+}
+// [should work]
+// {
+//   "compilerOptions": {
+//     "baseUrl": "${configDir}",
+//     "paths": {
+//       "@/*": ["./src/*"],
+//     }
+//   }
+// }

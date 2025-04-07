@@ -241,12 +241,14 @@ fn test_no_merge_tsconfig() {
 fn test_template_variable() {
     let f = super::fixture_root().join("tsconfig");
     let f2 = f.join("cases").join("paths_template_variable");
+    let f3 = f.join("cases").join("paths_template_variable_base_url/app");
 
     #[rustfmt::skip]
     let pass = [
         (f2.clone(), "tsconfig1.json", "foo", f2.join("foo.js")),
         (f2.clone(), "tsconfig2.json", "foo", f2.join("foo.js")),
         (f.clone(), "tsconfig_template_variable.json", "foo", f.join("foo.js")),
+        (f3.clone(), "tsconfig.json", "@/foo.js", f3.join("src/foo.js")),
     ];
 
     for (dir, tsconfig, request, expected) in pass {
