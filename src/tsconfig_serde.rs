@@ -6,8 +6,7 @@ use std::{
 use serde::Deserialize;
 
 use crate::{
-    CompilerOptions, CompilerOptionsPathsMap, PathUtil, ProjectReference, TsConfig,
-    TsconfigReferences,
+    CompilerOptions, CompilerOptionsPathsMap, ProjectReference, TsConfig, TsconfigReferences,
 };
 
 #[derive(Debug, Deserialize)]
@@ -265,14 +264,6 @@ impl TsConfigSerde {
         let mut tsconfig: Self = serde_json::from_str(json)?;
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
-        let directory = tsconfig.directory().to_path_buf();
-        if let Some(base_url) = tsconfig.compiler_options.base_url {
-            tsconfig.compiler_options.base_url = Some(directory.normalize_with(base_url));
-        }
-        if tsconfig.compiler_options.paths.is_some() {
-            tsconfig.compiler_options.paths_base =
-                tsconfig.compiler_options.base_url.as_ref().map_or(directory, Clone::clone);
-        }
         Ok(tsconfig)
     }
 }

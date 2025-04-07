@@ -2,7 +2,7 @@
   "compilerOptions": {
     "composite": true,
     "paths": {
-      "foo": ["${configDir}/foo.js"]
+      "foo": ["${configDir}/src/foo.js"]
     }
   }
 }

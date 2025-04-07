@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "paths": {
-      "foo": ["${configDir}/foo.js"]
+      "foo": ["${configDir}/src/foo.js"]
     }
   }
 }
