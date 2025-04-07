@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "unrs_resolver"
-version = "1.4.0"
+version = "1.4.1"
 authors = ["UnRS"]
 categories = ["development-tools"]
 edition = "2024"

@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1](https://github.com/unrs/unrs-resolver/compare/v1.4.0...v1.4.1) - 2025-04-07
+
+### <!-- 4 -->Refactor
+
+- remove unnecessary checks for query ([#53](https://github.com/unrs/unrs-resolver/pull/53))
+
 ## [1.4.0](https://github.com/unrs/unrs-resolver/compare/v1.3.3...v1.4.0) - 2025-04-06
 
 ### <!-- 0 -->Features
