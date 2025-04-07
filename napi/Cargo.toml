@@ -18,10 +18,10 @@ napi-derive = { version = "3.0.0-alpha" }
 tracing-subscriber = { version = "0.3.18", default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 
 [target.'cfg(all(not(target_os = "linux"), not(target_os = "freebsd"), not(target_arch = "arm"), not(target_family = "wasm")))'.dependencies]
-mimalloc-safe = { version = "0.1.49", features = ["skip_collect_on_exit"] }
+mimalloc-safe = { version = "0.1.50", features = ["skip_collect_on_exit"] }
 
 [target.'cfg(any(all(target_os = "linux", not(target_arch = "arm")), target_os = "freebsd"))'.dependencies]
-mimalloc-safe = { version = "0.1.49", features = ["skip_collect_on_exit", "local_dynamic_tls"] }
+mimalloc-safe = { version = "0.1.50", features = ["skip_collect_on_exit", "local_dynamic_tls"] }
 
 [build-dependencies]
-napi-build = "2.1.3"
+napi-build = "2.1.6"
