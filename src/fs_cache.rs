@@ -179,8 +179,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
         callback(&mut tsconfig)?;
-        tsconfig.expand_template_variables();
-        let tsconfig = Arc::new(tsconfig);
+        let tsconfig = Arc::new(tsconfig.build());
         tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)
     }
