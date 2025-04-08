@@ -49,24 +49,68 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            build: |
+              pnpm build --target x86_64-pc-windows-msvc
+
           - os: windows-latest
             target: aarch64-pc-windows-msvc
+            build: |
+              pnpm build --target aarch64-pc-windows-msvc
+
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            build: |
+              pnpm build --target x86_64-unknown-linux-gnu --use-napi-cross
+
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            build: |
+              pnpm build --target x86_64-unknown-linux-musl -x
+
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
+            build: |
+              pnpm build --target aarch64-unknown-linux-gnu --use-napi-cross
+
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
+            build: |
+              pnpm build --target aarch64-unknown-linux-musl -x
+
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
+            build: |
+              pnpm build --target armv7-unknown-linux-gnueabihf --use-napi-cross
+
           - os: macos-latest
             target: x86_64-apple-darwin
+            build: |
+              pnpm build --target x86_64-apple-darwin
+
           - os: macos-latest
             target: aarch64-apple-darwin
+            build: |
+              pnpm build --target aarch64-apple-darwin
+
           - os: ubuntu-latest
             target: wasm32-wasip1-threads
+            build: |
+              pnpm build --target wasm32-wasip1-threads
+
+          - os: ubuntu-latest
+            target: s390x-unknown-linux-gnu
+            build: |
+              export CFLAGS="-fuse-ld=lld"
+              pnpm build --target s390x-unknown-linux-gnu --use-napi-cross
+
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            build: |
+              sudo apt-get update
+              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
+              export CC=riscv64-linux-gnu-gcc
+              export CXX=riscv64-linux-gnu-g++
+              pnpm build --target riscv64gc-unknown-linux-gnu
 
     name: Package ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -82,25 +126,16 @@ jobs:
         with:
           version: 0.13.0
 
-      - name: Build with zig cross
-        if: ${{ contains(matrix.target, 'musl') }}
-        run: pnpm build -x --target ${{ matrix.target }}
-
-      - name: Build with napi cross
-        if: ${{ contains(matrix.target, 'gnu') }}
-        env:
-          CC: clang # for mimalloc
-        run: pnpm build --use-napi-cross --target ${{ matrix.target }}
-
       - name: Build
-        if: ${{ !contains(matrix.target, 'gnu') && !contains(matrix.target, 'musl') }}
+        run: ${{ matrix.build }}
+        shell: bash
         env:
           CC: clang # for mimalloc
-        run: pnpm build --target ${{ matrix.target }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
+          if-no-files-found: 'error'
           name: bindings-${{ matrix.target }}
           path: |
             napi/*.node
