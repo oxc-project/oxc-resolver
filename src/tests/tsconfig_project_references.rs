@@ -39,7 +39,7 @@ fn auto() {
         // Template variable
         {
             let dir = f.parent().unwrap().join("paths_template_variable");
-            (dir.clone(), "foo", dir.join("foo.js"))
+            (dir.clone(), "foo", dir.join("src/foo.js"))
         }
     ];
 
@@ -62,7 +62,7 @@ fn auto() {
         // Template variable
         {
             let dir = f.parent().unwrap().join("paths_template_variable");
-            (dir.clone(), "foo", Ok(dir.join("foo.js")))
+            (dir.clone(), "foo", Ok(dir.join("src/foo.js")))
         }
     ];
 

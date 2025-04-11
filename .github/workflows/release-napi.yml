@@ -83,6 +83,14 @@ jobs:
             target: powerpc64le-unknown-linux-gnu
             build: pnpm build --use-napi-cross
           - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            build: |
+              sudo apt-get update &&
+              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y &&
+              export CC=riscv64-linux-gnu-gcc &&
+              export CXX=riscv64-linux-gnu-g++ &&
+              pnpm build
+          - os: ubuntu-latest
             target: s390x-unknown-linux-gnu
             build: export CFLAGS="-fuse-ld=lld" && pnpm build --use-napi-cross
           - os: macos-latest
@@ -126,11 +134,11 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
+          if-no-files-found: error
           name: bindings-${{ matrix.target }}
           path: |
             napi/*.node
             napi/*.wasm
-          if-no-files-found: error
 
   build-freebsd:
     needs: check

@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "baseUrl": "${configDir}",
+    "paths": {
+      "foo": ["./src/foo.js"]
+    }
+  }
+}

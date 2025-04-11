@@ -24,6 +24,3 @@ mimalloc-safe = { version = "0.1.50", features = ["skip_collect_on_exit", "local
 
 [build-dependencies]
 napi-build = "2.1.6"
-
-[package.metadata.cargo-machete]
-ignored = ["napi"]

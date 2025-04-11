@@ -11,12 +11,12 @@ use crate::{
 
 // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/lib.rs#L2303>
 #[test]
-fn tsconfig() {
+fn tsconfig_resolve() {
     let f = super::fixture_root().join("tsconfig");
 
     #[rustfmt::skip]
     let pass = [
-        (f.clone(), None, "ts-path", f.join("foo.js")),
+        (f.clone(), None, "ts-path", f.join("src/foo.js")),
         (f.join("nested"), None, "ts-path", f.join("nested/test.js")),
         (f.join("cases/index"), None, "foo", f.join("node_modules/tsconfig-index/foo.js")),
         // This requires reading package.json.tsconfig field
@@ -45,7 +45,7 @@ fn tsconfig() {
 
     #[rustfmt::skip]
     let data = [
-        (f.join("node_modules/tsconfig-not-used"), "ts-path", Ok(f.join("foo.js"))),
+        (f.join("node_modules/tsconfig-not-used"), "ts-path", Ok(f.join("src/foo.js"))),
     ];
 
     let resolver = Resolver::new(ResolveOptions {
@@ -133,7 +133,7 @@ fn test_paths() {
         }
     })
     .to_string();
-    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap().build();
 
     let data = [
         ("jquery", vec!["/foo/node_modules/jquery/dist/jquery"]),
@@ -163,7 +163,7 @@ fn test_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap().build();
 
     let data = [
         ("foo", vec!["/foo/src/foo"]),
@@ -194,7 +194,7 @@ fn test_paths_and_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap();
+    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap().build();
 
     let data = [
         ("test", vec!["/foo/src/generated/test", "/foo/src/test"]),
@@ -247,9 +247,17 @@ fn test_template_variable() {
 
     #[rustfmt::skip]
     let pass = [
-        (f2.clone(), "tsconfig1.json", "foo", f2.join("foo.js")),
-        (f2.clone(), "tsconfig2.json", "foo", f2.join("foo.js")),
-        (f.clone(), "tsconfig_template_variable.json", "foo", f.join("foo.js")),
+        (f2.clone(), "tsconfig.json", "foo", f2.join("src/foo.js")),
+        (f2.clone(), "tsconfig_base_url1.json", "@/foo", f2.join("src/foo.js")),
+        (f2.clone(), "tsconfig_base_url2.json", "@/foo", f2.join("src/foo.js")),
+        (f2.clone(), "tsconfig_extends1.json", "foo", f2.join("src/foo.js")),
+        (f2.clone(), "tsconfig_extends2.json", "foo", f2.join("src/foo.js")),
+        (f2.clone(), "tsconfig_extends3.json", "foo", f2.join("src/foo.js")),
+        (f2.clone(), "tsconfig_extends4.json", "foo", f2.join("src/foo.js")),
+        (f.clone(), "tsconfig_template_variable1.json", "foo", f.join("src/foo.js")),
+        (f.clone(), "tsconfig_template_variable2.json", "foo", f.join("src/foo.js")),
+        (f.clone(), "tsconfig_template_variable3.json", "foo", f.join("src/foo.js")),
+        (f.clone(), "tsconfig_template_variable4.json", "foo", f.join("src/foo.js")),
     ];
 
     for (dir, tsconfig, request, expected) in pass {

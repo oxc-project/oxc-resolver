@@ -14,7 +14,7 @@
       "path": "../project_c/tsconfig.json"
     },
     {
-      "path": "../../paths_template_variable/tsconfig2.json"
+      "path": "../../paths_template_variable/tsconfig.json"
     }
   ]
 }

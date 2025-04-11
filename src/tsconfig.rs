@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
     sync::Arc,
@@ -9,6 +10,8 @@ use rustc_hash::FxHasher;
 
 use crate::{TsconfigReferences, path::PathUtil};
 
+const TEMPLATE_VARIABLE: &str = "${configDir}";
+
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
 /// Abstract representation for the contents of a `tsconfig.json` file, as well
@@ -17,8 +20,8 @@ pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefa
 /// This representation makes no assumptions regarding how the file was
 /// deserialized.
 #[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
-pub trait TsConfig: Sized {
-    type Co: CompilerOptions;
+pub trait TsConfig: Sized + Debug {
+    type Co: CompilerOptions + Debug;
 
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
@@ -74,35 +77,22 @@ pub trait TsConfig: Sized {
         self.compiler_options().base_url().unwrap_or_else(|| self.directory())
     }
 
-    /// Expands all template variables in this tsconfig.
-    fn expand_template_variables(&mut self) {
-        if self.root() {
-            let dir = self.directory().to_path_buf();
-            // Substitute template variable in `tsconfig.compilerOptions.paths`
-            if let Some(paths) = &mut self.compiler_options_mut().paths_mut() {
-                for paths in paths.values_mut() {
-                    for path in paths {
-                        Self::substitute_template_variable(&dir, path);
-                    }
-                }
-            }
-        }
-    }
-
     /// Inherits settings from the given tsconfig into `self`.
     fn extend_tsconfig(&mut self, tsconfig: &Self) {
         let compiler_options = self.compiler_options_mut();
-        if compiler_options.paths().is_none() {
-            compiler_options.set_paths_base(compiler_options.base_url().map_or_else(
-                || tsconfig.compiler_options().paths_base().to_path_buf(),
-                Path::to_path_buf,
-            ));
-            compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
-        }
+
         if compiler_options.base_url().is_none() {
             if let Some(base_url) = tsconfig.compiler_options().base_url() {
                 compiler_options.set_base_url(base_url.to_path_buf());
             }
+        }
+
+        if compiler_options.paths().is_none() {
+            let paths_base = compiler_options
+                .base_url()
+                .map_or_else(|| tsconfig.directory().to_path_buf(), Path::to_path_buf);
+            compiler_options.set_paths_base(paths_base);
+            compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
         }
 
         if compiler_options.experimental_decorators().is_none() {
@@ -135,6 +125,65 @@ pub trait TsConfig: Sized {
             if let Some(jsx_import_source) = tsconfig.compiler_options().jsx_import_source() {
                 compiler_options.set_jsx_import_source(jsx_import_source.to_string());
             }
+        }
+    }
+
+    /// "Build" the root tsconfig, resolve:
+    ///
+    /// * `{configDir}` template variable
+    /// * `paths_base` for resolving paths alias
+    /// * `baseUrl` to absolute path
+    #[must_use]
+    fn build(mut self) -> Self {
+        // Only the root tsconfig requires paths resolution.
+        if !self.root() {
+            return self;
+        }
+
+        let config_dir = self.directory().to_path_buf();
+
+        if let Some(base_url) = self.compiler_options().base_url() {
+            // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
+            let base_url = base_url.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE).map_or_else(
+                || config_dir.normalize_with(base_url),
+                |stripped_path| config_dir.join(stripped_path.trim_start_matches('/')),
+            );
+            self.compiler_options_mut().set_base_url(base_url);
+        }
+
+        if self.compiler_options().paths().is_some() {
+            // `paths_base` should use config dir if it is not resolved with base url nor extended
+            // with another tsconfig.
+            if let Some(base_url) = self.compiler_options().base_url().map(Path::to_path_buf) {
+                self.compiler_options_mut().set_paths_base(base_url);
+            }
+
+            if self.compiler_options().paths_base().as_os_str().is_empty() {
+                self.compiler_options_mut().set_paths_base(config_dir.clone());
+            }
+
+            // Substitute template variable in `tsconfig.compilerOptions.paths`.
+            for paths in self.compiler_options_mut().paths_mut().unwrap().values_mut() {
+                for path in paths {
+                    Self::substitute_template_variable(&config_dir, path);
+                }
+            }
+        }
+
+        self
+    }
+
+    /// Template variable `${configDir}` for substitution of config files
+    /// directory path.
+    ///
+    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
+    ///       we are constrained as such.
+    ///
+    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
+    fn substitute_template_variable(directory: &Path, path: &mut String) {
+        if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
+            *path =
+                directory.join(stripped_path.trim_start_matches('/')).to_string_lossy().to_string();
         }
     }
 
@@ -214,20 +263,6 @@ pub trait TsConfig: Sized {
             .map(|p| compiler_options.paths_base().normalize_with(p))
             .chain(base_url_iter)
             .collect()
-    }
-
-    /// Template variable `${configDir}` for substitution of config files
-    /// directory path.
-    ///
-    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
-    ///       we are constrained as such.
-    ///
-    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
-    fn substitute_template_variable(directory: &Path, path: &mut String) {
-        const TEMPLATE_VARIABLE: &str = "${configDir}/";
-        if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
-            *path = directory.join(stripped_path).to_string_lossy().to_string();
-        }
     }
 }
 
