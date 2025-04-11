@@ -12,10 +12,6 @@ on:
 
 env:
   DEBUG: napi:*
-  APP_NAME: unrs-resolver
-  OXC_LOG: debug
-  MACOSX_DEPLOYMENT_TARGET: 10.13
-  CC: clang
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -84,7 +80,7 @@ jobs:
             build: pnpm build --use-napi-cross
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
-            build: |
+            build: |-
               sudo apt-get update &&
               sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y &&
               export CC=riscv64-linux-gnu-gcc &&
@@ -119,17 +115,11 @@ jobs:
         with:
           version: 0.13.0
 
-      - name: Install cargo-zigbuild
-        uses: taiki-e/install-action@a48a50298f98c47e46a957ae6f82c44cc4878e42 # v2.49.47
-        if: ${{ contains(matrix.target, 'musl') }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          tool: cargo-zigbuild
-
       - name: Build
         run: ${{ matrix.build }} --target ${{ matrix.target }}
         shell: bash
+        env:
+          CC: clang # for mimalloc
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
