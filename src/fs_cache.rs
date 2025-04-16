@@ -80,10 +80,14 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         let path = cached_path.to_path_buf();
         cfg_if! {
             if #[cfg(windows)] {
-                let path = crate::FileSystemOs::strip_windows_prefix(path);
+                match crate::FileSystemOs::try_strip_windows_prefix(&path) {
+                    Some(path) => Ok(path),
+                    None => Err(ResolveError::PathNotSupported(path)),
+                }
+            } else {
+                Ok(path)
             }
         }
-        Ok(path)
     }
 
     fn is_file(&self, path: &Self::Cp, ctx: &mut Ctx) -> bool {
