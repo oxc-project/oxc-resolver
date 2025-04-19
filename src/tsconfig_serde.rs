@@ -136,6 +136,9 @@ pub struct CompilerOptionsSerde {
 
     /// <https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax>
     pub verbatim_module_syntax: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#target>
+    pub target: Option<String>,
 }
 
 impl CompilerOptions for CompilerOptionsSerde {
