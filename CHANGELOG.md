@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v5.2.0...oxc_resolver-v5.3.0) - 2025-04-19
+
+### <!-- 0 -->Features
+
+- deserialize `preserve_value_imports` and `imports_not_used_as_values` from `compilerOptions` ([#457](https://github.com/oxc-project/oxc-resolver/pull/457))
+- deserialize `target` from `compilerOptions` ([#456](https://github.com/oxc-project/oxc-resolver/pull/456))
+
 ## [5.2.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v5.1.1...oxc_resolver-v5.2.0) - 2025-04-08
 
 ### <!-- 1 -->Bug Fixes
