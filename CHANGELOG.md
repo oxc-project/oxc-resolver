@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - deserialize `preserve_value_imports` and `imports_not_used_as_values` from `compilerOptions` ([#457](https://github.com/oxc-project/oxc-resolver/pull/457))
 - deserialize `target` from `compilerOptions` ([#456](https://github.com/oxc-project/oxc-resolver/pull/456))
 
+### <!-- 1 -->Bug Fixes
+
+- fix: add `napi-postinstall` dep for workaround `npm`'s bug ([#66](https://github.com/unrs/unrs-resolver/pull/66))
+
 ## [1.5.0](https://github.com/unrs/unrs-resolver/compare/v1.4.1...v1.5.0) - 2025-04-11
 
 ### <!-- 1 -->Bug Fixes
