@@ -136,6 +136,15 @@ pub struct CompilerOptionsSerde {
 
     /// <https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax>
     pub verbatim_module_syntax: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#preserveValueImports>
+    pub preserve_value_imports: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#importsNotUsedAsValues>
+    pub imports_not_used_as_values: Option<String>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#target>
+    pub target: Option<String>,
 }
 
 impl CompilerOptions for CompilerOptionsSerde {
