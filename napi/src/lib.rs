@@ -1,4 +1,10 @@
-#[cfg(all(not(target_arch = "arm"), not(target_os = "freebsd"), not(target_family = "wasm")))]
+// Disable mimalloc on ARM, FreeBSD, WASM, and Linux/aarch64 due to known allocator issues (see #64).
+#[cfg(not(any(
+    target_arch = "arm",
+    target_os = "freebsd",
+    target_family = "wasm",
+    all(target_os = "linux", target_arch = "aarch64")
+)))]
 #[global_allocator]
 static ALLOC: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
 
