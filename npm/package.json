@@ -1,6 +1,6 @@
 {
   "name": "unrs-resolver",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "UnRS Resolver Node API with PNP support",
   "main": "index.js",
   "browser": "browser.js",

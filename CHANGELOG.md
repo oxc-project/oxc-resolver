@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1](https://github.com/unrs/unrs-resolver/compare/v1.6.0...v1.6.1) - 2025-04-20
+
+### <!-- 1 -->Bug Fixes
+
+- disable `mimalloc` on linux with aarch64 ([#69](https://github.com/unrs/unrs-resolver/pull/69))
+
 ## [1.6.0](https://github.com/unrs/unrs-resolver/compare/v1.5.0...v1.6.0) - 2025-04-20
 
 ### <!-- 0 -->Features
@@ -15,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### <!-- 1 -->Bug Fixes
 
-- fix: add `napi-postinstall` dep for workaround `npm`'s bug ([#66](https://github.com/unrs/unrs-resolver/pull/66))
+- add `napi-postinstall` dep for workaround `npm`'s bug ([#66](https://github.com/unrs/unrs-resolver/pull/66))
 
 ## [1.5.0](https://github.com/unrs/unrs-resolver/compare/v1.4.1...v1.5.0) - 2025-04-11
 
