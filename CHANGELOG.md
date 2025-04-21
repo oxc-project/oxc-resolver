@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3](https://github.com/unrs/unrs-resolver/compare/v1.6.2...v1.6.3) - 2025-04-21
+
+### <!-- 1 -->Bug Fixes
+
+- support `load_as_directory` for pnp mode ([#75](https://github.com/unrs/unrs-resolver/pull/75))
+
+### <!-- 6 -->Testing
+
+- add case for import-js/eslint-import-resolver-typescript#429 ([#76](https://github.com/unrs/unrs-resolver/pull/76))
+
 ## [1.6.2](https://github.com/unrs/unrs-resolver/compare/v1.6.1...v1.6.2) - 2025-04-21
 
 ### <!-- 1 -->Bug Fixes
