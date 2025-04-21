@@ -1,6 +1,0 @@
-{
-  "name": "@root/package",
-  "version": "0.0.1",
-  "main": "./output/index.js",
-  "types": "./output/index.d.ts"
-}

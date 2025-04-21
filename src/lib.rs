@@ -867,6 +867,12 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                     let cached_path = self.cache.value(&path);
                     let cached_path_string = cached_path.path().to_string_lossy();
 
+                    let export_resolution = self.load_package_self(&cached_path, specifier, ctx)?;
+                    // can be found in pnp cached folder
+                    if export_resolution.is_some() {
+                        return Ok(export_resolution);
+                    }
+
                     // symbol linked package doesn't have node_modules structure
                     let pkg_name = cached_path_string.rsplit_once("node_modules/").map_or(
                         "",
@@ -883,13 +889,18 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                             },
                         )
                     } else {
-                        String::from("./") + specifier.strip_prefix(pkg_name).unwrap()
+                        let inner_specifier = specifier.strip_prefix(pkg_name).unwrap();
+                        String::from("./")
+                            + inner_specifier.strip_prefix("/").unwrap_or(inner_specifier)
                     };
 
-                    let export_resolution = self.load_package_self(&cached_path, specifier, ctx)?;
-                    // can be found in pnp cached folder
-                    if export_resolution.is_some() {
-                        return Ok(export_resolution);
+                    // it could be a directory with `package.json` that redirects to another file,
+                    // take `@atlaskit/pragmatic-drag-and-drop` for example, as described at import-js/eslint-import-resolver-typescript#409
+                    if let Ok(Some(result)) = self.load_as_directory(
+                        &self.cache.value(&path.join(inner_request.clone()).normalize()),
+                        ctx,
+                    ) {
+                        return Ok(Some(result));
                     }
 
                     let inner_resolver = self.clone_with_options(self.options().clone());

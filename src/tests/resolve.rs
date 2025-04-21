@@ -118,23 +118,6 @@ fn resolve_hash_as_module() {
     assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
 }
 
-#[test]
-fn resolve_nested_dir_with_package_json() {
-    let f = super::fixture_root().join("misc/nested-package-json");
-    let resolver = Resolver::new(ResolveOptions::default());
-
-    #[rustfmt::skip]
-    let data = [
-        ("normal entry", f.clone(), "@root/package", f.join("package/output/index.js")),
-        ("nested entry", f.clone(), "@root/package/nested", f.join("package/output/nested.js")),
-    ];
-
-    for (comment, path, request, expected) in data {
-        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
-    }
-}
-
 #[cfg(windows)]
 #[test]
 fn resolve_normalized_on_windows() {

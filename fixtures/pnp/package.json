@@ -8,5 +8,8 @@
     "lib": "link:./shared",
     "lodash.zip": "^4.2.0",
     "preact": "^10.26.5"
+  },
+  "devDependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.5.2"
   }
 }

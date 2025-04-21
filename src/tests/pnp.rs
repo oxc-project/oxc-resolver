@@ -7,7 +7,7 @@ use crate::ResolveError::NotFound;
 use crate::{ResolveOptions, Resolver};
 
 #[test]
-fn pnp1() {
+fn pnp_basic() {
     let fixture = super::fixture_root().join("pnp");
 
     let resolver = Resolver::new(ResolveOptions {
@@ -110,5 +110,24 @@ fn resolve_package_deep_link() {
         Ok(fixture.join(
           ".yarn/cache/beachball-npm-2.52.0-ee48e46454-96b8c49193.zip/node_modules/beachball/lib/commands/bump.js"
       )),
+    );
+}
+
+#[test]
+fn resolve_pnp_nested_package_json() {
+    let fixture = super::fixture_root().join("pnp");
+
+    let resolver = Resolver::new({
+        ResolveOptions {
+            main_fields: vec!["module".into(), "main".into()],
+            ..ResolveOptions::default()
+        }
+    });
+
+    assert_eq!(
+        resolver.resolve(&fixture, "@atlaskit/pragmatic-drag-and-drop/combine").map(|r| r.full_path()),
+        Ok(fixture.join(
+            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.5.2-3241d4f843-1dace49fa3.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/esm/entry-point/combine.js"
+        ))
     );
 }
