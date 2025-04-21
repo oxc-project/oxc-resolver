@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2](https://github.com/unrs/unrs-resolver/compare/v1.6.1...v1.6.2) - 2025-04-21
+
+### <!-- 1 -->Bug Fixes
+
+- resolve parent base url correctly by normalizing as absolute path ([#72](https://github.com/unrs/unrs-resolver/pull/72))
+
 ## [1.6.1](https://github.com/unrs/unrs-resolver/compare/v1.6.0...v1.6.1) - 2025-04-20
 
 ### <!-- 1 -->Bug Fixes
