@@ -81,16 +81,29 @@ pub trait TsConfig: Sized + Debug {
     fn extend_tsconfig(&mut self, tsconfig: &Self) {
         let compiler_options = self.compiler_options_mut();
 
+        let tsconfig_dir = tsconfig.directory();
+
         if compiler_options.base_url().is_none() {
             if let Some(base_url) = tsconfig.compiler_options().base_url() {
-                compiler_options.set_base_url(base_url.to_path_buf());
+                compiler_options.set_base_url(if base_url.starts_with(TEMPLATE_VARIABLE) {
+                    base_url.to_path_buf()
+                } else {
+                    tsconfig_dir.join(base_url).normalize()
+                });
             }
         }
 
         if compiler_options.paths().is_none() {
-            let paths_base = compiler_options
-                .base_url()
-                .map_or_else(|| tsconfig.directory().to_path_buf(), Path::to_path_buf);
+            let paths_base = compiler_options.base_url().map_or_else(
+                || tsconfig_dir.to_path_buf(),
+                |path| {
+                    if path.starts_with(TEMPLATE_VARIABLE) {
+                        path.to_path_buf()
+                    } else {
+                        tsconfig_dir.join(path).normalize()
+                    }
+                },
+            );
             compiler_options.set_paths_base(paths_base);
             compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
         }
