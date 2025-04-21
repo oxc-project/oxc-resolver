@@ -22,14 +22,14 @@ impl<'a> Specifier<'a> {
             b'/' | b'.' | b'#' => 1,
             _ => 0,
         };
-        let (path, query, fragment) = Self::parse_query_framgment(specifier, offset);
+        let (path, query, fragment) = Self::parse_query_fragment(specifier, offset);
         if path.is_empty() {
             return Err(SpecifierError::Empty(specifier.to_string()));
         }
         Ok(Self { path, query, fragment })
     }
 
-    fn parse_query_framgment(
+    fn parse_query_fragment(
         specifier: &'a str,
         skip: usize,
     ) -> (Cow<'a, str>, Option<&'a str>, Option<&'a str>) {
