@@ -41,6 +41,10 @@ pub enum ResolveError {
     #[error("{0}")]
     IOError(IOError),
 
+    /// For example, Windows UNC path with Volume GUID is not supported.
+    #[error("Path {0:?} contains unsupported construct.")]
+    PathNotSupported(PathBuf),
+
     /// Node.js builtin module when `Options::builtin_modules` is enabled.
     ///
     /// `is_runtime_module` can be used to determine whether the request

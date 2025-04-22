@@ -157,28 +157,16 @@ impl FileSystemOs {
     pub fn read_link(path: &Path) -> io::Result<PathBuf> {
         let path = fs::read_link(path)?;
         cfg_if! {
-            if #[cfg(windows)] {
-                Ok(Self::strip_windows_prefix(path))
+            if #[cfg(target_os = "windows")] {
+                match crate::windows::try_strip_windows_prefix(path) {
+                    // We won't follow the link if we cannot represent its target properly.
+                    Ok(p) | Err(crate::ResolveError::PathNotSupported(p)) => Ok(p),
+                    _ => unreachable!(),
+                }
             } else {
                 Ok(path)
             }
         }
-    }
-
-    pub fn strip_windows_prefix<P: AsRef<Path>>(path: P) -> PathBuf {
-        const UNC_PATH_PREFIX: &[u8] = b"\\\\?\\UNC\\";
-        const LONG_PATH_PREFIX: &[u8] = b"\\\\?\\";
-        let path_bytes = path.as_ref().as_os_str().as_encoded_bytes();
-        path_bytes
-            .strip_prefix(UNC_PATH_PREFIX)
-            .or_else(|| path_bytes.strip_prefix(LONG_PATH_PREFIX))
-            .map_or_else(
-                || path.as_ref().to_path_buf(),
-                |p| {
-                    // SAFETY: `as_encoded_bytes` ensures `p` is valid path bytes
-                    unsafe { PathBuf::from(std::ffi::OsStr::from_encoded_bytes_unchecked(p)) }
-                },
-            )
     }
 }
 
