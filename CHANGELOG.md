@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### <!-- 1 -->Bug Fixes
+
+- properly handle DOS device paths in strip_windows_prefix ([#455](https://github.com/oxc-project/oxc-resolver/pull/455))
+
 ## [1.6.3](https://github.com/unrs/unrs-resolver/compare/v1.6.2...v1.6.3) - 2025-04-21
 
 ### <!-- 1 -->Bug Fixes

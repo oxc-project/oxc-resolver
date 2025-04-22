@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use unrs_resolver::{ResolveError, ResolveOptions, Resolver};
+use unrs_resolver::{Resolution, ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -12,17 +12,21 @@ fn chinese() {
     let specifier = "./fixtures/misc/中文/中文.js";
     let resolution = Resolver::new(ResolveOptions::default()).resolve(&dir, specifier);
     assert_eq!(
-        resolution.map(unrs_resolver::Resolution::into_path_buf),
+        resolution.map(Resolution::into_path_buf),
         Ok(dir.join("fixtures/misc/中文/中文.js"))
     );
 }
 
 #[test]
-#[ignore = "failed on windows"]
 fn styled_components() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
-    let module_path = dir.join("node_modules/.pnpm/styled-components@6.1.15_react-dom@19.0.0_react@19.0.0__react@19.0.0/node_modules/styled-components");
+    let module_path = dir
+        .join("node_modules")
+        .join(".pnpm")
+        .join("styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0")
+        .join("node_modules")
+        .join("styled-components");
     let specifier = "styled-components";
 
     // cjs
@@ -30,8 +34,8 @@ fn styled_components() {
         ResolveOptions { alias_fields: vec![vec!["browser".into()]], ..ResolveOptions::default() };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(unrs_resolver::Resolution::into_path_buf),
-        Ok(module_path.join("dist/styled-components.browser.cjs.js"))
+        resolution.map(Resolution::into_path_buf),
+        Ok(module_path.join("dist").join("styled-components.browser.cjs.js"))
     );
 
     // esm
@@ -43,7 +47,7 @@ fn styled_components() {
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
         resolution.map(unrs_resolver::Resolution::into_path_buf),
-        Ok(module_path.join("dist/styled-components.browser.esm.js"))
+        Ok(module_path.join("dist").join("styled-components.browser.esm.js"))
     );
 }
 
@@ -207,13 +211,27 @@ fn nested_symlinks() {
     );
 }
 
+// NOTE: pnpm v10 shortens windows directory path.
+// `virtualStoreDirMaxLength: 1024` is set in pnpm-workspace.yaml to keep the long name.
 #[test]
-#[ignore = "failed on windows"]
 fn windows_symlinked_longfilename() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
-    let module_path = dir.join("node_modules/.pnpm/@oxc-resolver+test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_7a8cf2210bc70feb075991a339017f04/node_modules/@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/index.js");
+    let module_path = dir.join("node_modules")
+        .join(".pnpm")
+        .join("@oxc-resolver+test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@file+fixtures+pnpm+longfilename")
+        .join("node_modules")
+        .join("@oxc-resolver")
+        .join("test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .join("index.js");
 
-    let resolution = Resolver::new(ResolveOptions::default()).resolve(&path, "@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").map(|r| r.full_path());
+    // Note: dunce::canonicalize seems to only trim \\?\ when the path is shorter than 260 chars.
+    // Our implementation should mitigate that.
+    // <https://gitlab.com/kornelski/dunce/-/blob/1ee29a83526c9f4c3618e1335f0454c878a54dcf/src/lib.rs#L176-180>
+    assert!(module_path.as_os_str().len() > 260, "Windows path must be super long.");
+
+    let specifier = "@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let resolution =
+        Resolver::new(ResolveOptions::default()).resolve(&path, specifier).map(|r| r.full_path());
     assert_eq!(resolution, Ok(module_path));
 }

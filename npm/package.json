@@ -48,6 +48,6 @@
     "postinstall": "napi-postinstall unrs-resolver check"
   },
   "dependencies": {
-    "napi-postinstall": "^0.1.1"
+    "napi-postinstall": "^0.1.5"
   }
 }

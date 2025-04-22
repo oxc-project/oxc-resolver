@@ -65,6 +65,8 @@ mod specifier;
 mod tsconfig;
 #[cfg(feature = "fs_cache")]
 mod tsconfig_serde;
+#[cfg(target_os = "windows")]
+mod windows;
 
 #[cfg(test)]
 mod tests;

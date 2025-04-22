@@ -3,5 +3,9 @@ packages:
   - napi
   - fixtures/pnpm
   - fixtures/pnpm-workspace/**
+
 ignoredBuiltDependencies:
   - esbuild
+
+# For `windows_symlinked_longfilename` in tests/resolve_test.rs
+virtualStoreDirMaxLength: 1024
