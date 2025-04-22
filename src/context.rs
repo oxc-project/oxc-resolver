@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::error::ResolveError;
+use crate::{PackageJsonResolutionKind, error::ResolveError};
 
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
@@ -21,6 +21,9 @@ pub struct ResolveContext {
 
     /// For avoiding infinite recursion, which will cause stack overflow.
     depth: u8,
+
+    /// When find related package.json, which resolution algorithm should be used.
+    pub package_json_resolution_kind: PackageJsonResolutionKind,
 }
 
 impl ResolveContext {
@@ -56,6 +59,10 @@ impl ResolveContext {
 
     pub fn with_resolving_alias(&mut self, alias: String) {
         self.resolving_alias = Some(alias);
+    }
+
+    pub fn with_package_json_resolution_kind(&mut self, kind: PackageJsonResolutionKind) {
+        self.package_json_resolution_kind = kind;
     }
 
     /// Increases the context's depth in order to detect recursion.

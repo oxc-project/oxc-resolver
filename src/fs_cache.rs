@@ -18,8 +18,8 @@ use papaya::{Equivalent, HashMap, HashSet};
 use rustc_hash::FxHasher;
 
 use crate::{
-    FileMetadata, FileSystem, PackageJsonSerde, ResolveError, ResolveOptions, TsConfig,
-    TsConfigSerde,
+    FileMetadata, FileSystem, PackageJson, PackageJsonSerde, ResolveError, ResolveOptions,
+    TsConfig, TsConfigSerde,
     cache::{Cache, CachedPath},
     context::ResolveContext as Ctx,
     path::PathUtil,
@@ -340,9 +340,23 @@ impl CachedPath for FsCachedPath {
         }
         let mut cache_value = Some(cache_value);
         while let Some(cv) = cache_value {
-            if let Some(package_json) = cache.get_package_json(cv, options, ctx)? {
-                return Ok(Some(package_json));
+            match cache.get_package_json(cv, options, ctx)? {
+                Some(package_json)
+                    if matches!(
+                        ctx.package_json_resolution_kind,
+                        crate::PackageJsonResolutionKind::Nearest
+                    ) =>
+                {
+                    return Ok(Some(package_json));
+                }
+                Some(package_json) => {
+                    if package_json.1.name().is_some() {
+                        return Ok(Some(package_json));
+                    }
+                }
+                None => {}
             }
+
             cache_value = cv.parent.as_ref();
         }
         Ok(None)

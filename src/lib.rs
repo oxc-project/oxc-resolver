@@ -113,6 +113,12 @@ use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specif
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
+#[derive(Debug, Default, Clone, Copy)]
+pub enum PackageJsonResolutionKind {
+    Root,
+    #[default]
+    Nearest,
+}
 /// Context returned from the [Resolver::resolve_with_context] API
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
@@ -121,6 +127,9 @@ pub struct ResolveContext {
 
     /// Dependencies that was not found on file system
     pub missing_dependencies: FxHashSet<PathBuf>,
+
+    /// When find related package.json, which resolution algorithm should be used.
+    pub package_json_resolution_kind: PackageJsonResolutionKind,
 }
 
 /// Resolver with the current operating system as the file system
@@ -222,6 +231,7 @@ impl<C: Cache> ResolverGeneric<C> {
         resolve_context: &mut ResolveContext,
     ) -> Result<Resolution<C>, ResolveError> {
         let mut ctx = Ctx::default();
+        ctx.with_package_json_resolution_kind(resolve_context.package_json_resolution_kind);
         ctx.init_file_dependencies();
         let result = self.resolve_tracing(directory.as_ref(), specifier, &mut ctx);
         if let Some(deps) = &mut ctx.file_dependencies {
