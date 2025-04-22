@@ -2,3 +2,6 @@ packages:
   - 'npm'
   - 'napi'
   - 'fixtures/pnpm'
+
+# For `windows_symlinked_longfilename` in tests/resolve_test.rs
+virtualStoreDirMaxLength: 1024
