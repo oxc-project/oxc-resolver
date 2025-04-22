@@ -79,11 +79,8 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         let cached_path = self.canonicalize_impl(path)?;
         let path = cached_path.to_path_buf();
         cfg_if! {
-            if #[cfg(windows)] {
-                match crate::FileSystemOs::try_strip_windows_prefix(&path) {
-                    Some(path) => Ok(path),
-                    None => Err(ResolveError::PathNotSupported(path)),
-                }
+            if #[cfg(target_os = "windows")] {
+                crate::windows::try_strip_windows_prefix(path)
             } else {
                 Ok(path)
             }

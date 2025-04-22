@@ -155,52 +155,18 @@ impl FileSystemOs {
     /// See [std::fs::read_link]
     #[inline]
     pub fn read_link(path: &Path) -> io::Result<PathBuf> {
-        let target = fs::read_link(path)?;
+        let path = fs::read_link(path)?;
         cfg_if! {
-            if #[cfg(windows)] {
-                Ok(match Self::try_strip_windows_prefix(&target) {
-                    Some(path) => path,
+            if #[cfg(target_os = "windows")] {
+                match crate::windows::try_strip_windows_prefix(path) {
                     // We won't follow the link if we cannot represent its target properly.
-                    None => target,
-                })
+                    Ok(p) | Err(crate::ResolveError::PathNotSupported(p)) => Ok(p),
+                    _ => unreachable!(),
+                }
             } else {
-                Ok(target.to_path_buf())
+                Ok(path)
             }
         }
-    }
-
-    /// When applicable, converts a [DOS device path](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths)
-    /// to a normal path (usually, "Traditional DOS paths" or "UNC path") that can be consumed by the `import`/`require` syntax of Node.js.
-    /// Returns `None` if the path cannot be represented as a normal path.
-    pub fn try_strip_windows_prefix<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
-        // See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
-        let path_bytes = path.as_ref().as_os_str().as_encoded_bytes();
-
-        let path = if let Some(p) =
-            path_bytes.strip_prefix(br"\\?\UNC\").or(path_bytes.strip_prefix(br"\\.\UNC\"))
-        {
-            // UNC paths
-            unsafe {
-                PathBuf::from(std::ffi::OsStr::from_encoded_bytes_unchecked(&[br"\\", p].concat()))
-            }
-        } else if let Some(p) =
-            path_bytes.strip_prefix(br"\\?\").or(path_bytes.strip_prefix(br"\\.\"))
-        {
-            // Assuming traditional DOS path "\\?\C:\"
-            if p[1] != b':' {
-                // E.g.,
-                // \\?\Volume{b75e2c83-0000-0000-0000-602f00000000}
-                // \\?\BootPartition\
-                // It seems nodejs does not support DOS device paths with Volume GUIDs.
-                // This can happen if the path points to a Mounted Volume without a drive letter.
-                return None;
-            }
-            unsafe { PathBuf::from(std::ffi::OsStr::from_encoded_bytes_unchecked(p)) }
-        } else {
-            path.as_ref().to_path_buf()
-        };
-
-        Some(path)
     }
 }
 
@@ -266,38 +232,4 @@ fn metadata() {
         "FileMetadata { is_file: true, is_dir: true, is_symlink: true }"
     );
     let _ = meta;
-}
-
-#[test]
-fn test_strip_windows_prefix() {
-    assert_eq!(
-        FileSystemOs::try_strip_windows_prefix(PathBuf::from(
-            r"\\?\C:\Users\user\Documents\file.txt"
-        )),
-        Some(PathBuf::from(r"C:\Users\user\Documents\file.txt"))
-    );
-
-    assert_eq!(
-        FileSystemOs::try_strip_windows_prefix(PathBuf::from(
-            r"\\.\C:\Users\user\Documents\file.txt"
-        )),
-        Some(PathBuf::from(r"C:\Users\user\Documents\file.txt"))
-    );
-
-    assert_eq!(
-        FileSystemOs::try_strip_windows_prefix(PathBuf::from(r"\\?\UNC\server\share\file.txt")),
-        Some(PathBuf::from(r"\\server\share\file.txt"))
-    );
-
-    assert_eq!(
-        FileSystemOs::try_strip_windows_prefix(PathBuf::from(
-            r"\\?\Volume{c8ec34d8-3ba6-45c3-9b9d-3e4148e12d00}\file.txt"
-        )),
-        None
-    );
-
-    assert_eq!(
-        FileSystemOs::try_strip_windows_prefix(PathBuf::from(r"\\?\BootPartition\file.txt")),
-        None
-    );
 }
