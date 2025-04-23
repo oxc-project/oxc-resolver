@@ -2,13 +2,8 @@
   "name": "@unrs/resolver-binding",
   "private": true,
   "version": "0.0.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/unrs/unrs-resolver.git"
-  },
-  "funding": {
-    "url": "https://github.com/sponsors/JounQin"
-  },
+  "repository": "git+https://github.com/unrs/unrs-resolver.git",
+  "funding": "https://github.com/sponsors/JounQin",
   "scripts": {
     "build": "napi build --platform --release --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
     "build:debug": "napi build --platform --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
@@ -23,5 +18,5 @@
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"
   },
-  "packageManager": "pnpm@10.8.1"
+  "packageManager": "pnpm@10.9.0"
 }
