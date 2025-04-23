@@ -269,10 +269,20 @@ impl TsConfigSerde {
     ///
     /// * Any error that can be returned by `serde_json::from_str()`.
     pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
+        let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
         _ = json_strip_comments::strip(json);
         let mut tsconfig: Self = serde_json::from_str(json)?;
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)
+    }
+}
+
+fn trim_start_matches_mut(s: &mut str, pat: char) -> &mut str {
+    if s.starts_with(pat) {
+        // trim the prefix
+        &mut s[pat.len_utf8()..]
+    } else {
+        s
     }
 }

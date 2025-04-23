@@ -1,0 +1,7 @@
+﻿{
+  "compilerOptions": {
+    "paths": {
+      "foo": ["bar.js"]
+    }
+  }
+}
