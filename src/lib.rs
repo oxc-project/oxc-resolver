@@ -496,7 +496,7 @@ impl<C: Cache> ResolverGeneric<C> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<C::Cp, ResolveError> {
-        let (_, subpath) = Self::parse_package_specifier(specifier);
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
         if subpath.is_empty() {
             ctx.with_fully_specified(false);
         }
@@ -505,7 +505,9 @@ impl<C: Cache> ResolverGeneric<C> {
             return Ok(path);
         }
         // 6. LOAD_NODE_MODULES(X, dirname(Y))
-        if let Some(path) = self.load_node_modules(cached_path, specifier, ctx)? {
+        if let Some(path) =
+            self.load_node_modules(cached_path, specifier, package_name, subpath, ctx)?
+        {
             return Ok(path);
         }
         // 7. THROW "not found"
@@ -723,6 +725,8 @@ impl<C: Cache> ResolverGeneric<C> {
         &self,
         cached_path: &C::Cp,
         specifier: &str,
+        package_name: &str,
+        subpath: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult<C::Cp> {
         #[cfg(feature = "yarn_pnp")]
@@ -732,7 +736,6 @@ impl<C: Cache> ResolverGeneric<C> {
             }
         }
 
-        let (package_name, subpath) = Self::parse_package_specifier(specifier);
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
         for module_name in &self.options.modules {
