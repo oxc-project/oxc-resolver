@@ -1,5 +1,30 @@
 > [!NOTE]
-> This is a fork of [oxc-resolver] and [rspack-resolver](https://github.com/web-infra-dev/rspack-resolver), cause 100% compatible with [enhanced-resolve] is the non-goal of [oxc-resolver] itself, we may add [enhanced-resolve] specific features like [`pnp support`](https://github.com/web-infra-dev/rspack/issues/2236) and [`alternative support`](https://github.com/web-infra-dev/rspack/issues/5052) in the future.
+>
+> This is a fork of [oxc-resolver] and [rspack-resolver], and will be used in [eslint-plugin-import-x] and [eslint-import-resolver-typescript] cause 100% compatible with [enhanced-resolve] is the non-goal of [oxc-resolver] itself, we add [enhanced-resolve] specific features like [`pnp support`](https://github.com/web-infra-dev/rspack/issues/2236).
+>
+> We also fix several bugs reported by [eslint-plugin-import-x] and [eslint-import-resolver-typescript] users:
+>
+> - takes `paths` and `references` into account [at the same time](https://github.com/unrs/unrs-resolver/pull/12)
+> - `references` should [take higher priority](https://github.com/unrs/unrs-resolver/pull/13)
+> - support `pnpapi` core module and [package deep link](https://github.com/un-ts/eslint-plugin-import-x/issues/253)
+> - enable [more targets](https://github.com/unrs/unrs-resolver/pull/29) support
+> - absolute path aliasing [should not be skipped](https://github.com/import-js/eslint-import-resolver-typescript/issues/401)
+> - use [napi-postinstall] for [legacy npm versions](https://github.com/unrs/unrs-resolver/issues/56)
+> - Raspberry PI 4 aarch64 [compatibility issue](https://github.com/unrs/unrs-resolver/issues/64) and [import-js/eslint-import-resolver-typescript#406](https://github.com/import-js/eslint-import-resolver-typescript/issues/406) due to [mimalloc-safe]
+> - support `load_as_directory` for [`pnp` mode](https://github.com/import-js/eslint-import-resolver-typescript/issues/409)
+> - [resolve parent base url correctly](https://github.com/import-js/eslint-import-resolver-typescript/issues/437) by normalizing as absolute path
+>
+> The list could be longer in the future, but we don't want to make it too long here.
+>
+> We also sync with [oxc-resolver] and [rspack-resolver] regularly to keep up with the latest changes:
+>
+> - `oxc-resolver`: [#15](https://github.com/unrs/unrs-resolver/pull/15), [#49](https://github.com/unrs/unrs-resolver/pull/49), [#62](https://github.com/unrs/unrs-resolver/pull/62) and [#86](https://github.com/unrs/unrs-resolver/pull/86)
+> - `rspack-resolver`(planned): [#59](https://github.com/unrs/unrs-resolver/issues/59)
+>
+> Last but not least, we prepare some bug fix PRs first on our side and PR back into upstream projects, and we will keep doing this in the future:
+>
+> - `oxc-resolver`: [#84](https://github.com/unrs/unrs-resolver/pull/84) with [oxc-resolver#455](https://github.com/oxc-project/oxc-resolver/pull/455)
+> - `rspack-resolver`: [#7](https://github.com/unrs/unrs-resolver/pull/7) with [rspack-resolver#54](https://github.com/web-infra-dev/rspack-resolver/pull/54), which is eventually replaced by [oxc-resolver#443](https://github.com/oxc-project/oxc-resolver/pull/443)
 
 <div align="center">
 
@@ -256,6 +281,11 @@ UnRS partially copies code from the following projects.
 
 [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
 [oxc-resolver]: https://github.com/oxc-project/oxc-resolver
+[rspack-resolver]: https://github.com/web-infra-dev/rspack-resolver
+[eslint-plugin-import-x]: https://github.com/un-ts/eslint-plugin-import-x
+[eslint-import-resolver-typescript]: https://github.com/import-js/eslint-import-resolver-typescript
+[napi-postinstall]: https://github.com/un-ts/napi-postinstall
+[mimalloc-safe]: https://github.com/napi-rs/mimalloc-safe
 [tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
 [license-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [license-url]: https://github.com/unrs/unrs-resolver/blob/main/LICENSE
