@@ -80,7 +80,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         let path = cached_path.to_path_buf();
         cfg_if! {
             if #[cfg(target_os = "windows")] {
-                crate::windows::try_strip_windows_prefix(path)
+                crate::windows::strip_windows_prefix(path)
             } else {
                 Ok(path)
             }
@@ -236,20 +236,34 @@ impl<Fs: FileSystem> FsCache<Fs> {
                             );
 
                             if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
-                                let link = self.fs.read_link(normalized.path())?;
-                                if link.is_absolute() {
-                                    return self.canonicalize_impl(&self.value(&link.normalize()));
-                                } else if let Some(dir) = normalized.parent() {
-                                    // Symlink is relative `../../foo.js`, use the path directory
-                                    // to resolve this symlink.
-                                    return self
-                                        .canonicalize_impl(&dir.normalize_with(&link, self));
+                                match self.fs.read_link(normalized.path()) {
+                                    Ok(link) => {
+                                        if link.is_absolute() {
+                                            return self
+                                                .canonicalize_impl(&self.value(&link.normalize()));
+                                        } else if let Some(dir) = normalized.parent() {
+                                            // Symlink is relative `../../foo.js`, use the path directory
+                                            // to resolve this symlink.
+                                            return self.canonicalize_impl(
+                                                &dir.normalize_with(&link, self),
+                                            );
+                                        }
+                                        debug_assert!(
+                                            false,
+                                            "Failed to get path parent for {:?}.",
+                                            normalized.path()
+                                        );
+                                    }
+                                    Err(ResolveError::PathNotSupported(_)) => {
+                                        // No need to follow symlink if the target path cannot be imported in NodeJS.
+                                        // Note that per current implementation, if there is a symlink chain, like
+                                        //      A --> B --> C
+                                        // we won't follow the symlink as long as try_read_link(B) is None,
+                                        // regardless of whether C is a valid path for NodeJS. This is a corner case.
+                                        // We may need to revisit this in the future.
+                                    }
+                                    Err(e) => return Err(e),
                                 }
-                                debug_assert!(
-                                    false,
-                                    "Failed to get path parent for {:?}.",
-                                    normalized.path()
-                                );
                             }
 
                             Ok(normalized)

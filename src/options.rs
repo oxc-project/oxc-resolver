@@ -150,9 +150,24 @@ pub struct ResolveOptions {
     /// Default `[]`
     pub roots: Vec<PathBuf>,
 
-    /// Whether to resolve symlinks to their symlinked location.
+    /// Whether to resolve symlinks to their symlinked location, if possible.
     /// When enabled, symlinked resources are resolved to their real path, not their symlinked location.
-    /// Note that this may cause module resolution to fail when using tools that symlink packages (like npm link).
+    /// Note that this may cause module resolution to fail when using tools that symlink packages (like `npm link`).
+    ///
+    /// Even if this option has been enabled, the resolver may decide not to follow the symlinks if the target cannot be
+    /// represented as a valid path for `require` or `import` statements in NodeJS. Specifically, we won't follow the symlink if:
+    /// 1. On Windows, the symlink is a [Volume mount point](https://learn.microsoft.com/en-us/windows/win32/fileio/volume-mount-points)
+    ///    to a Volume that does not have a drive letter.
+    ///    See: How to [mount a drive in a folder](https://learn.microsoft.com/en-us/windows-server/storage/disk-management/assign-a-mount-point-folder-path-to-a-drive).
+    /// 2. On Windows, the symlink points to a [DOS device path](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths)
+    ///    that cannot be reduced into a [traditional DOS path](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#traditional-dos-paths).
+    ///    For example, all of the following symlink targets _will not_ be followed:
+    ///    * `\\.\Volume{b75e2c83-0000-0000-0000-602f00000000}\folder\` (Volume GUID)
+    ///    * `\\.\BootPartition\folder\file.ts` (Drive name)
+    ///
+    ///    DOS device path either pointing to a drive with drive letter, or a UNC path, will be simplified and followed, such as
+    ///    * `\\.\D:\path\to\file`: reduced to `D:\path\to\file`;
+    ///    * `\\.\UNC\server\share\path\to\file`: reduced to `\\server\share\path\to\file`.
     ///
     /// Default `true`
     pub symlinks: bool,

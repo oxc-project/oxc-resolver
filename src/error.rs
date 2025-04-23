@@ -41,7 +41,8 @@ pub enum ResolveError {
     #[error("{0}")]
     IOError(IOError),
 
-    /// For example, Windows UNC path with Volume GUID is not supported.
+    /// Indicates the resulting path won't be able consumable by NodeJS `import` or `require`.
+    /// For example, DOS device path with Volume GUID (`\\?\Volume{...}`) is not supported.
     #[error("Path {0:?} contains unsupported construct.")]
     PathNotSupported(PathBuf),
 
