@@ -235,3 +235,15 @@ fn windows_symlinked_longfilename() {
         Resolver::new(ResolveOptions::default()).resolve(&path, specifier).map(|r| r.full_path());
     assert_eq!(resolution, Ok(module_path));
 }
+
+#[test]
+fn package_json_with_bom() {
+    let dir = dir();
+    let dir = dir.join("fixtures/misc");
+    assert_eq!(
+        Resolver::new(ResolveOptions::default())
+            .resolve(&dir, "./package-json-with-bom")
+            .map(Resolution::into_path_buf),
+        Ok(dir.join("package-json-with-bom/index.js"))
+    );
+}

@@ -94,6 +94,22 @@ fn json_with_comments() {
 }
 
 #[test]
+fn with_bom() {
+    let f = super::fixture_root().join("tsconfig/cases/with-bom");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        }),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver.resolve(&f, "foo").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f.join("bar.js")));
+}
+
+#[test]
 fn broken() {
     let f = super::fixture_root().join("tsconfig");
 

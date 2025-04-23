@@ -18,7 +18,7 @@
 >
 > We also sync with [oxc-resolver] and [rspack-resolver] regularly to keep up with the latest changes:
 >
-> - `oxc-resolver`: [#15](https://github.com/unrs/unrs-resolver/pull/15), [#49](https://github.com/unrs/unrs-resolver/pull/49), [#62](https://github.com/unrs/unrs-resolver/pull/62) and [#86](https://github.com/unrs/unrs-resolver/pull/86)
+> - `oxc-resolver`: [#15](https://github.com/unrs/unrs-resolver/pull/15), [#49](https://github.com/unrs/unrs-resolver/pull/49), [#62](https://github.com/unrs/unrs-resolver/pull/62), [#86](https://github.com/unrs/unrs-resolver/pull/86) and [#94](https://github.com/unrs/unrs-resolver/pull/94)
 > - `rspack-resolver`(planned): [#59](https://github.com/unrs/unrs-resolver/issues/59)
 >
 > Last but not least, we prepare some bug fix PRs first on our side and PR back into upstream projects, and we will keep doing this in the future:
