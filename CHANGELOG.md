@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0](https://github.com/unrs/unrs-resolver/compare/v1.6.6...v1.7.0) - 2025-04-24
+
+### <!-- 0 -->Features
+
+- enable `no_opt_arch` flag for `mimalloc-safe` on `linux-aarch64` ([#98](https://github.com/unrs/unrs-resolver/pull/98))
+
 ## [1.6.6](https://github.com/unrs/unrs-resolver/compare/v1.6.5...v1.6.6) - 2025-04-23
 
 ### <!-- 0 -->Features
