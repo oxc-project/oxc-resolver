@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.6](https://github.com/unrs/unrs-resolver/compare/v1.6.5...v1.6.6) - 2025-04-23
+
+### <!-- 0 -->Features
+
+- add new target `riscv64gc-unknown-linux-musl` ([#96](https://github.com/unrs/unrs-resolver/pull/96))
+
 ## [1.6.5](https://github.com/unrs/unrs-resolver/compare/v1.6.4...v1.6.5) - 2025-04-23
 
 ### <!-- 1 -->Bug Fixes
@@ -168,7 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.2.2...unrs_resolver-v1.3.0) - 2025-03-26
 
-### Features
+### <!-- 0 -->Features
 
 - enable more targets ([#29](https://github.com/unrs/unrs-resolver/pull/29) and [#32](https://github.com/unrs/unrs-resolver/pull/32))
 
@@ -180,7 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.1.2...unrspack-resolver-v2.0.0) - 2025-03-18
 
-### Features
+### <!-- 0 -->Features
 
 - *(napi)* add mimalloc ([#423](https://github.com/unrs/unrs-resolver/pull/423)) ([#18](https://github.com/unrs/unrs-resolver/pull/18))
 - merge from upstream `oxc-project/oxc-resolver` ([#15](https://github.com/unrs/unrs-resolver/pull/15))
@@ -207,6 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - support resolving path with extra query ([#7](https://github.com/unrs/unrs-resolver/pull/7))
 
 ## [1.0.0](https://github.com/unrs/unrs-resolver/releases/tag/unrspack-resolver-v1.0.0) - 2025-03-15
+
+---
 
 ## [5.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v4.2.0...oxc_resolver-v5.0.0) - 2025-03-07
 
@@ -329,6 +337,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - use `fs::canonicalize` to cover symlink edge cases ([#284](https://github.com/oxc-project/oxc-resolver/pull/284))
 - extensionAlias cannot resolve mathjs ([#273](https://github.com/oxc-project/oxc-resolver/pull/273))
+
+---
 
 ## [0.5.2](https://github.com/web-infra-dev/rspack-resolver/compare/rspack_resolver-v0.5.1...rspack_resolver-v0.5.2) - 2025-02-28
 
