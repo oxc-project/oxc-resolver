@@ -31,7 +31,7 @@ jobs:
         id: version
         with:
           static-checking: localIsNew
-          file-url: https://cdn.jsdelivr.net/npm/unrs-resolver@latest/package.json
+          file-url: https://unpkg.com/unrs-resolver@latest/package.json
           file-name: npm/package.json
 
       - name: Set version name
@@ -86,6 +86,9 @@ jobs:
               export CC=riscv64-linux-gnu-gcc &&
               export CXX=riscv64-linux-gnu-g++ &&
               pnpm build
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-musl
+            build: pnpm build -x
           - os: ubuntu-latest
             target: s390x-unknown-linux-gnu
             build: export CFLAGS="-fuse-ld=lld" && pnpm build --use-napi-cross
