@@ -15,11 +15,12 @@ if (process.env.WASI_TEST) {
 
 const currentDir = join(fileURLToPath(import.meta.url), '..');
 
+const rootDir = join(currentDir, '..', '..');
+
+const fixturesDir = join(rootDir, 'fixtures');
+
 const enhancedResolveRoot = join(
-  currentDir,
-  '..',
-  '..',
-  'fixtures',
+  fixturesDir,
   'enhanced_resolve',
   'test',
   'fixtures',
@@ -232,9 +233,10 @@ for (
   });
 }
 
+const pnpmDir = join(rootDir, 'node_modules', '.pnpm');
+
 test('resolve pnpm package', () => {
-  const rootDir = join(currentDir, '..', '..');
-  const pnpmProjectPath = join(rootDir, 'fixtures', 'pnpm');
+  const pnpmProjectPath = join(fixturesDir, 'pnpm');
   const resolver = new ResolverFactory({
     aliasFields: ['browser'],
   });
@@ -243,23 +245,35 @@ test('resolve pnpm package', () => {
   assert.deepEqual(
     styledComponents.path,
     join(
-      rootDir,
-      'node_modules/.pnpm/styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components/dist/styled-components.browser.cjs.js',
+      pnpmDir,
+      'styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components/dist/styled-components.browser.cjs.js',
     ),
   );
 
   const react = resolver.sync(
     join(
-      rootDir,
-      'node_modules/.pnpm/styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components',
+      pnpmDir,
+      'styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components',
     ),
     'react',
   );
   assert.deepEqual(
     react.path,
-    join(
-      rootDir,
-      'node_modules/.pnpm/react@19.1.0/node_modules/react/index.js',
-    ),
+    join(pnpmDir, 'react@19.1.0/node_modules/react/index.js'),
+  );
+});
+
+test('resolve recursive symbol link', () => {
+  const workspaceProjectPath = join(fixturesDir, 'pnpm-workspace');
+  const resolver = new ResolverFactory({});
+
+  const react = resolver.sync(
+    join(workspaceProjectPath, './packages/app'),
+    './node_modules/@monorepo/lib/node_modules/react/package.json',
+  );
+
+  assert.deepEqual(
+    react.path,
+    join(pnpmDir, 'react@19.1.0/node_modules/react/package.json'),
   );
 });
