@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.5](https://github.com/unrs/unrs-resolver/compare/v1.6.4...v1.6.5) - 2025-04-23
+
+### <!-- 1 -->Bug Fixes
+
+- rework on handling DOS device paths on Windows ([#84](https://github.com/unrs/unrs-resolver/pull/84))
+- handle package.json and tsconfig.json with BOM ([#463](https://github.com/oxc-project/oxc-resolver/pull/463))
+
+### <!-- 2 -->Performance
+
+- avoid double call to `parse_package_specifier` ([#465](https://github.com/oxc-project/oxc-resolver/pull/465))
+
+### <!-- 3 -->Documentation
+
+- add more details about the changes in this fork ([#92](https://github.com/unrs/unrs-resolver/pull/92))
+
 ## [1.6.4](https://github.com/unrs/unrs-resolver/compare/v1.6.3...v1.6.4) - 2025-04-22
 
 ### <!-- 1 -->Bug Fixes
