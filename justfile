@@ -10,7 +10,7 @@ alias r := ready
 # or install via `cargo install cargo-binstall`
 # Initialize the project by installing all the necessary tools.
 init:
-  cargo binstall watchexec-cli typos-cli dprint -y
+  cargo binstall cargo-shear dprint typos-cli watchexec-cli -y
 
 install:
   pnpm install
