@@ -226,5 +226,5 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm --dry-run
-          npm publish napi/ --tag latest --provenance --access public --dry-run
+          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
+          npm publish napi/ --tag latest --provenance --access public
