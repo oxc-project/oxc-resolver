@@ -1194,6 +1194,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "vfs",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

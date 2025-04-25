@@ -76,6 +76,7 @@ serde_json = { version = "1.0.140", features = ["preserve_order"], optional = tr
 simdutf8 = { version = "0.1.5", features = ["aarch64_neon"] }
 thiserror = "2.0.12"
 tracing = "0.1.41"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 pnp = { version = "0.9.3", optional = true }
 

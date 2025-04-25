@@ -163,7 +163,7 @@ See [index.d.ts](https://github.com/unrs/unrs-resolver/blob/main/napi/index.d.ts
 | preferAbsolute   | false                     | Prefer to resolve server-relative urls as absolute paths before falling back to resolve in roots                                                          |
 | restrictions     | []                        | A list of resolve restrictions                                                                                                                            |
 | roots            | []                        | A list of root paths                                                                                                                                      |
-| symlinks         | true                      | Whether to resolve symlinks to their symlinked location                                                                                                   |
+| symlinks         | true                      | Whether to resolve symlinks to their symlinked location, [if possible](https://github.com/unrs/unrs-resolver/blob/main/src/options.rs#L157-L170).         |
 
 ### Unimplemented Options
 
