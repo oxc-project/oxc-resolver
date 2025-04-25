@@ -212,13 +212,9 @@ jobs:
         with:
           path: artifacts
 
-      - run: |
-          cp README.md napi/README.md
-          cp package.json napi/package.json
+      - run: pnpm napi create-npm-dirs --package-json-path package.json
 
-      - run: pnpm napi create-npm-dirs
-
-      - run: pnpm napi artifacts --npm-dir npm --build-output-dir napi
+      - run: pnpm napi artifacts --package-json-path package.json --npm-dir npm --build-output-dir napi
 
       - name: Publish npm packages as latest
         env:
@@ -226,5 +222,9 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
+          pnpm napi pre-publish --no-gh-release --tagstyle npm --package-json-path package.json --npm-dir npm
+
+          # Publish root package
+          cp package.json napi/package.json
+          cp README.md napi/README.md
           npm publish napi/ --tag latest --provenance --access public
