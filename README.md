@@ -38,7 +38,6 @@ See index.d.ts for `resolveSync` and `ResolverFactory` API.
 
 Quick example:
 
-````
 ```javascript
 import assert from 'assert';
 import path from 'path';
@@ -50,7 +49,7 @@ assert(resolve.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'
 // `ResolverFactory`
 const resolver = new ResolverFactory();
 assert(resolver.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
-````
+```
 
 ### Rust
 
