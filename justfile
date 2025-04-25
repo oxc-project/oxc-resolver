@@ -35,7 +35,7 @@ watch-check:
 watch-example *args='':
   just watch "cargo run --example resolver -- {{args}}"
 
-# Run the example in `parser`, `formatter`, `linter`
+# Run the example
 example *args='':
   cargo run --example resolver -- {{args}}
 
