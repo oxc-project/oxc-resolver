@@ -1,3 +1,4 @@
 target/
+/npm
 /node_modules
 fuzz/Cargo.lock

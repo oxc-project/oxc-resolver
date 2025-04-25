@@ -1,13 +1,13 @@
 import {
-  createOnMessage as __wasmCreateOnMessageForFsProxy,
-  getDefaultContext as __emnapiGetDefaultContext,
   instantiateNapiModuleSync as __emnapiInstantiateNapiModuleSync,
+  getDefaultContext as __emnapiGetDefaultContext,
   WASI as __WASI,
-} from '@napi-rs/wasm-runtime';
-import { memfs } from '@napi-rs/wasm-runtime/fs';
-import __wasmUrl from './resolver.wasm32-wasi.wasm?url';
+  createOnMessage as __wasmCreateOnMessageForFsProxy,
+} from '@napi-rs/wasm-runtime'
+import { memfs } from '@napi-rs/wasm-runtime/fs'
+import __wasmUrl from './resolver.wasm32-wasi.wasm?url'
 
-export const { fs: __fs, vol: __volume } = memfs();
+export const { fs: __fs, vol: __volume } = memfs()
 
 const __wasi = new __WASI({
   version: 'preview1',
@@ -15,17 +15,17 @@ const __wasi = new __WASI({
   preopens: {
     '/': '/',
   },
-});
+})
 
-const __emnapiContext = __emnapiGetDefaultContext();
+const __emnapiContext = __emnapiGetDefaultContext()
 
 const __sharedMemory = new WebAssembly.Memory({
   initial: 4000,
   maximum: 65536,
   shared: true,
-});
+})
 
-const __wasmFile = await fetch(__wasmUrl).then((res) => res.arrayBuffer());
+const __wasmFile = await fetch(__wasmUrl).then((res) => res.arrayBuffer())
 
 const {
   instance: __napiInstance,
@@ -38,10 +38,10 @@ const {
   onCreateWorker() {
     const worker = new Worker(new URL('./wasi-worker-browser.mjs', import.meta.url), {
       type: 'module',
-    });
-    worker.addEventListener('message', __wasmCreateOnMessageForFsProxy(__fs));
+    })
+    worker.addEventListener('message', __wasmCreateOnMessageForFsProxy(__fs))
 
-    return worker;
+    return worker
   },
   overwriteImports(importObject) {
     importObject.env = {
@@ -49,17 +49,17 @@ const {
       ...importObject.napi,
       ...importObject.emnapi,
       memory: __sharedMemory,
-    };
-    return importObject;
+    }
+    return importObject
   },
   beforeInit({ instance }) {
     for (const name of Object.keys(instance.exports)) {
       if (name.startsWith('__napi_register__')) {
-        instance.exports[name]();
+        instance.exports[name]()
       }
     }
   },
-});
-export const ResolverFactory = __napiModule.exports.ResolverFactory;
-export const EnforceExtension = __napiModule.exports.EnforceExtension;
-export const sync = __napiModule.exports.sync;
+})
+export const ResolverFactory = __napiModule.exports.ResolverFactory
+export const EnforceExtension = __napiModule.exports.EnforceExtension
+export const sync = __napiModule.exports.sync

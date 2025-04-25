@@ -1,7 +1,7 @@
-import { createFsProxy, instantiateNapiModuleSync, MessageHandler, WASI } from '@napi-rs/wasm-runtime';
-import { memfsExported as __memfsExported } from '@napi-rs/wasm-runtime/fs';
+import { instantiateNapiModuleSync, MessageHandler, WASI, createFsProxy } from '@napi-rs/wasm-runtime'
+import { memfsExported as __memfsExported } from '@napi-rs/wasm-runtime/fs'
 
-const fs = createFsProxy(__memfsExported);
+const fs = createFsProxy(__memfsExported)
 
 const handler = new MessageHandler({
   onLoad({ wasmModule, wasmMemory }) {
@@ -10,15 +10,15 @@ const handler = new MessageHandler({
       preopens: {
         '/': '/',
       },
-      print: function() {
+      print: function () {
         // eslint-disable-next-line no-console
-        console.log.apply(console, arguments);
+        console.log.apply(console, arguments)
       },
       printErr: function() {
         // eslint-disable-next-line no-console
-        console.error.apply(console, arguments);
+        console.error.apply(console, arguments)
       },
-    });
+    })
     return instantiateNapiModuleSync(wasmModule, {
       childThread: true,
       wasi,
@@ -28,12 +28,12 @@ const handler = new MessageHandler({
           ...importObject.napi,
           ...importObject.emnapi,
           memory: wasmMemory,
-        };
+        }
       },
-    });
+    })
   },
-});
+})
 
-globalThis.onmessage = function(e) {
-  handler.handle(e);
-};
+globalThis.onmessage = function (e) {
+  handler.handle(e)
+}
