@@ -14,6 +14,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DEBUG: "napi:*"
+
 jobs:
   check:
     name: Check version
@@ -109,7 +112,7 @@ jobs:
               export CXX=riscv64-linux-gnu-g++
               pnpm build --target riscv64gc-unknown-linux-gnu
 
-    name: Package ${{ matrix.target }}
+    name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
@@ -192,40 +195,35 @@ jobs:
     needs:
       - build
       - build-freebsd
-    env:
-      COREPACK_INTEGRITY_KEYS: 0
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
-      - name: Install pnpm
-        run: corepack enable
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .node-version
+          registry-url: "https://registry.npmjs.org"
           cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Download Artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           path: artifacts
 
-      - name: Prepare dirs and artifacts
-        run: |
-          pnpm napi create-npm-dirs
-          pnpm napi artifacts --build-output-dir napi
+      - run: |
+          cp package.json napi/package.json
+
+      - run: pnpm napi create-npm-dirs
+
+      - run: pnpm napi artifacts --npm-dir npm --build-output-dir napi
 
       - name: Publish npm packages as latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        shell: bash
         run: |
-          cp package.json napi/package.json
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          pnpm napi pre-publish --no-gh-release --tagstyle npm
-          npm publish napi/ --tag latest --provenance --access public
+          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm --dry-run
+          npm publish napi/ --tag latest --provenance --access public --dry-run
