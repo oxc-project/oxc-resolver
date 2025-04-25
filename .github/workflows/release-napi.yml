@@ -213,6 +213,7 @@ jobs:
           path: artifacts
 
       - run: |
+          cp README.md napi/README.md
           cp package.json napi/package.json
 
       - run: pnpm napi create-npm-dirs
