@@ -301,7 +301,7 @@ Oxc partially copies code from the following projects.
 [sponsors-url]: https://github.com/sponsors/Boshen
 [codspeed-badge]: https://img.shields.io/endpoint?url=https://codspeed.io/badge.json
 [codspeed-url]: https://codspeed.io/oxc-project/oxc-resolver
-[crates-badge]: https://img.shields.io/crates/d/oxc_resolver?label=crates.io
+[crates-badge]: https://img.shields.io/crates/dr/oxc_resolver
 [crates-url]: https://crates.io/crates/oxc_resolver
 [docs-badge]: https://img.shields.io/docsrs/oxc_resolver
 [docs-url]: https://docs.rs/oxc_resolver/latest/oxc_resolver
