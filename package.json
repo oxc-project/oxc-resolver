@@ -17,13 +17,15 @@
   "files": [
     "index.d.ts",
     "index.js",
-    "browser.js"
+    "browser.js",
+    "webcontainer-fallback.js"
   ],
   "scripts": {
+    "test": "vitest run -r ./napi",
     "build": "napi build --platform --release --manifest-path napi/Cargo.toml",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
-    "prepublishOnly": "napi pre-publish -t npm",
-    "test": "vitest run -r ./napi"
+    "postbuild": "node napi/patch.mjs",
+    "prepublishOnly": "napi pre-publish -t npm"
   },
   "devDependencies": {
     "@napi-rs/cli": "3.0.0-alpha.77",
