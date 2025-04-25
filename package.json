@@ -1,7 +1,10 @@
 {
-  "name": "@oxc-resolver/binding",
-  "private": true,
-  "version": "0.0.0",
+  "name": "oxc-resolver",
+  "version": "6.0.0",
+  "license": "MIT",
+  "description": "Oxc Resolver Node API",
+  "packageManager": "pnpm@10.7.1",
+  "homepage": "https://oxc.rs",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oxc-project/oxc-resolver.git"
@@ -9,9 +12,16 @@
   "funding": {
     "url": "https://github.com/sponsors/Boshen"
   },
+  "main": "index.js",
+  "browser": "browser.js",
+  "files": [
+    "index.d.ts",
+    "index.js",
+    "browser.js"
+  ],
   "scripts": {
-    "build": "napi build --platform --release --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
-    "build:debug": "napi build --platform --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
+    "build": "napi build --platform --release --manifest-path napi/Cargo.toml",
+    "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
     "prepublishOnly": "napi pre-publish -t npm",
     "test": "vitest run -r ./napi"
   },
@@ -23,5 +33,32 @@
     "typescript": "^5.8.2",
     "vitest": "^3.0.8"
   },
-  "packageManager": "pnpm@10.7.1"
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "napi": {
+    "binaryName": "resolver",
+    "packageName": "@oxc-resolver/binding",
+    "wasm": {
+      "browser": {
+        "fs": true
+      }
+    },
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "x86_64-unknown-freebsd",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "armv7-unknown-linux-gnueabihf",
+      "s390x-unknown-linux-gnu",
+      "riscv64gc-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "wasm32-wasip1-threads"
+    ]
+  }
 }

@@ -8,10 +8,7 @@ on:
     branches:
       - main
     paths:
-      - npm/package.json # Please only commit this file, so we don't need to wait for test CI to pass.
-
-env:
-  DEBUG: "napi:*"
+      - package.json
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +29,7 @@ jobs:
         with:
           static-checking: localIsNew
           file-url: https://unpkg.com/oxc-resolver@latest/package.json
-          file-name: npm/package.json
+          file-name: package.json
 
       - name: Set version name
         if: steps.version.outputs.changed == 'true'
@@ -219,8 +216,8 @@ jobs:
 
       - name: Prepare dirs and artifacts
         run: |
-          pnpm napi create-npm-dirs --package-json-path npm/package.json
-          pnpm napi artifacts --package-json-path npm/package.json --build-output-dir napi
+          pnpm napi create-npm-dirs
+          pnpm napi artifacts --build-output-dir napi
 
       - name: Publish npm packages as latest
         env:
@@ -231,6 +228,7 @@ jobs:
           cp napi/index.js npm/index.js
           cp napi/index.d.ts npm/index.d.ts
           cp napi/browser.js npm/browser.js
+          cp package.json npm/package.json
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          pnpm napi pre-publish --no-gh-release -t npm --package-json-path npm/package.json
+          pnpm napi pre-publish --no-gh-release -t npm
           npm publish npm/ --tag latest --provenance --access public
