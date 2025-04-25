@@ -225,10 +225,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
-          cp napi/index.js npm/index.js
-          cp napi/index.d.ts npm/index.d.ts
-          cp napi/browser.js npm/browser.js
-          cp package.json npm/package.json
+          cp package.json napi/package.json
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          pnpm napi pre-publish --no-gh-release -t npm
-          npm publish npm/ --tag latest --provenance --access public
+          pnpm napi pre-publish --no-gh-release --tagstyle npm
+          npm publish napi/ --tag latest --provenance --access public
