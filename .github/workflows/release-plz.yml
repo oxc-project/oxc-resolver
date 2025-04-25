@@ -43,8 +43,8 @@ jobs:
           if [[ -n "$pr_number" ]]; then
             version="${VERSION}"
 
-            jq --arg version "${version}" '.version = ($version)' npm/package.json > tmp
-            mv tmp npm/package.json
+            jq --arg version "${version}" '.version = ($version)' package.json > tmp
+            mv tmp package.json
 
             gh pr checkout $pr_number
             git add .
