@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v6.0.0...oxc_resolver-v6.0.1) - 2025-04-25
+
+### <!-- 1 -->Bug Fixes
+
+- handle package.json and tsconfig.json with BOM ([#463](https://github.com/oxc-project/oxc-resolver/pull/463))
+
+### <!-- 2 -->Performance
+
+- avoid double call to `parse_package_specifier` ([#465](https://github.com/oxc-project/oxc-resolver/pull/465))
+
 ## [6.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v5.3.0...oxc_resolver-v6.0.0) - 2025-04-22
 
 ### <!-- 1 -->Bug Fixes
