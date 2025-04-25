@@ -51,6 +51,10 @@ const resolver = new ResolverFactory();
 assert(resolver.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
 ```
 
+#### Supports WASM
+
+See https://stackblitz.com/edit/oxc-resolver for usage example.
+
 ### Rust
 
 See [docs.rs/oxc_resolver](https://docs.rs/oxc_resolver/latest/oxc_resolver).
