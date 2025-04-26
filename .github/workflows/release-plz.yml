@@ -47,7 +47,7 @@ jobs:
           if [[ -n "$pr_number" ]]; then
             version="${VERSION}"
 
-            jq --arg version "${version}" '.version = ($version)' npm/package.json > tmp
+            jq --arg version "${version}" '.version = ($version) | .scripts.postinstall = "napi-postinstall unrs-resolver \($version) check"' npm/package.json > tmp
             mv tmp npm/package.json
 
             gh pr checkout $pr_number

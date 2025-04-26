@@ -1,7 +1,13 @@
 {
   "name": "unrs-resolver",
   "version": "1.7.0",
+  "type": "commonjs",
   "description": "UnRS Resolver Node API with PNP support",
+  "repository": "git+https://github.com/unrs/unrs-resolver.git",
+  "homepage": "https://github.com/unrs/unrs-resolver#readme",
+  "author": "JounQin <admin@1stg.me> (https://www.1stG.me)",
+  "funding": "https://github.com/sponsors/JounQin",
+  "license": "MIT",
   "main": "index.js",
   "browser": "browser.js",
   "files": [
@@ -9,12 +15,11 @@
     "index.js",
     "browser.js"
   ],
-  "license": "MIT",
-  "homepage": "https://github.com/unrs/unrs-resolver#readme",
-  "repository": "git+https://github.com/unrs/unrs-resolver.git",
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
+  "scripts": {
+    "postinstall": "napi-postinstall unrs-resolver 1.7.0 check"
+  },
+  "dependencies": {
+    "napi-postinstall": "^0.2.1"
   },
   "napi": {
     "binaryName": "resolver",
@@ -44,11 +49,8 @@
       "wasm32-wasip1-threads"
     ]
   },
-  "funding": "https://github.com/sponsors/JounQin",
-  "scripts": {
-    "postinstall": "napi-postinstall unrs-resolver check"
-  },
-  "dependencies": {
-    "napi-postinstall": "^0.1.6"
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   }
 }
