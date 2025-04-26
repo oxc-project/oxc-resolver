@@ -1,6 +1,6 @@
 {
   "name": "unrs-resolver",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "type": "commonjs",
   "description": "UnRS Resolver Node API with PNP support",
   "repository": "git+https://github.com/unrs/unrs-resolver.git",
@@ -16,7 +16,7 @@
     "browser.js"
   ],
   "scripts": {
-    "postinstall": "napi-postinstall unrs-resolver 1.7.0 check"
+    "postinstall": "napi-postinstall unrs-resolver 1.7.1 check"
   },
   "dependencies": {
     "napi-postinstall": "^0.2.1"
