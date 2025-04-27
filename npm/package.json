@@ -19,7 +19,7 @@
     "postinstall": "napi-postinstall unrs-resolver 1.7.1 check"
   },
   "dependencies": {
-    "napi-postinstall": "^0.2.1"
+    "napi-postinstall": "^0.2.2"
   },
   "napi": {
     "binaryName": "resolver",
