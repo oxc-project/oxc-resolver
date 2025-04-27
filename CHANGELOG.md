@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2](https://github.com/unrs/unrs-resolver/compare/v1.7.1...v1.7.2) - 2025-04-27
+
+### <!-- 1 -->Bug Fixes
+
+- bump `napi-postinstall` to fix `yarn` pnp compatibility issue ([#106](https://github.com/unrs/unrs-resolver/pull/106))
+
 ## [1.7.1](https://github.com/unrs/unrs-resolver/compare/v1.7.0...v1.7.1) - 2025-04-26
 
 ### Chore

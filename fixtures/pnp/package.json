@@ -2,14 +2,12 @@
   "name": "pnp",
   "packageManager": "yarn@4.9.1",
   "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.5.2",
     "beachball": "^2.52.0",
     "is-even": "^1.0.0",
     "is-odd": "^3.0.1",
     "lib": "link:./shared",
     "lodash.zip": "^4.2.0",
     "preact": "^10.26.5"
-  },
-  "devDependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.5.2"
   }
 }
