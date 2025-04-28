@@ -1316,7 +1316,7 @@ fn test_cases() {
                 &case.condition_names.iter().map(ToString::to_string).collect::<Vec<_>>(),
                 &mut Ctx::default(),
             )
-            .map(|p| p.map(|p| p.to_path_buf()));
+            .map(|p| p.map(|r| r.path.to_path_buf()));
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(matches!(resolved_path, Ok(None)), "{} {:?}", &case.name, &resolved_path);

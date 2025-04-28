@@ -451,6 +451,12 @@ impl PartialEq for FsCachedPath {
 
 impl Eq for FsCachedPath {}
 
+impl std::fmt::Debug for FsCachedPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{:?}", self.path)
+    }
+}
+
 struct BorrowedCachedPath<'a> {
     hash: u64,
     path: &'a Path,

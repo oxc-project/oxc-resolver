@@ -113,11 +113,21 @@ use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specif
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Resolving<C: Cache> {
     path: C::Cp,
 
     package_json: Option<Arc<C::Pj>>,
+}
+
+impl<C: Cache> Resolving<C> {
+    fn with_package_json(mut self, package_json: Arc<C::Pj>) -> Self {
+        // self.package_json.
+        if self.package_json.is_none() {
+            self.package_json = Some(package_json);
+        }
+        self
+    }
 }
 
 /// Context returned from the [Resolver::resolve_with_context] API
@@ -529,36 +539,37 @@ impl<C: Cache> ResolverGeneric<C> {
     ) -> ResolveResult<Resolving<C>> {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
-        let Some((_, package_json)) =
+        if let Some((_, package_json)) =
             cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
-        else {
-            return Ok(None);
-        };
-        // 3. If the SCOPE/package.json "imports" is null or undefined, return.
-        // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
-        if let Some(r) = self.package_imports_resolve(specifier, &package_json, ctx)? {
-            // 5. RESOLVE_ESM_MATCH(MATCH).
-            return self.resolve_esm_match(specifier, &r.path, ctx);
+        {
+            // 3. If the SCOPE/package.json "imports" is null or undefined, return.
+            // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
+            if let Some(r) = self.package_imports_resolve(specifier, &package_json, ctx)? {
+                // 5. RESOLVE_ESM_MATCH(MATCH).
+                return self
+                    .resolve_esm_match(specifier, &r.path, ctx)
+                    .map(|result| result.map(|r| r.with_package_json(Arc::clone(&package_json))));
+            }
         }
         Ok(None)
     }
 
     fn load_as_file(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<Resolving<C>> {
         // enhanced-resolve feature: extension_alias
-        if let Some(path) = self.load_extension_alias(cached_path, ctx)? {
-            return Ok(Some(path));
+        if let Some(r) = self.load_extension_alias(cached_path, ctx)? {
+            return Ok(Some(r));
         }
         if self.options.enforce_extension.is_disabled() {
             // 1. If X is a file, load X as its file extension format. STOP
-            if let Some(path) = self.load_alias_or_file(cached_path, ctx)? {
-                return Ok(Some(path));
+            if let Some(r) = self.load_alias_or_file(cached_path, ctx)? {
+                return Ok(Some(r));
             }
         }
         // 2. If X.js is a file, load X.js as JavaScript text. STOP
         // 3. If X.json is a file, parse X.json to a JavaScript Object. STOP
         // 4. If X.node is a file, load X.node as binary addon. STOP
-        if let Some(path) = self.load_extensions(cached_path, &self.options.extensions, ctx)? {
-            return Ok(Some(path));
+        if let Some(r) = self.load_extensions(cached_path, &self.options.extensions, ctx)? {
+            return Ok(Some(r));
         }
         Ok(None)
     }
@@ -577,12 +588,12 @@ impl<C: Cache> ResolverGeneric<C> {
                     // c. let M = X + (json main field)
                     let cached_path = cached_path.normalize_with(main_field, self.cache.as_ref());
                     // d. LOAD_AS_FILE(M)
-                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                        return Ok(Some(path));
+                    if let Some(r) = self.load_as_file(&cached_path, ctx)? {
+                        return Ok(Some(r.with_package_json(Arc::clone(&package_json))));
                     }
                     // e. LOAD_INDEX(M)
-                    if let Some(path) = self.load_index(&cached_path, ctx)? {
-                        return Ok(Some(path));
+                    if let Some(r) = self.load_index(&cached_path, ctx)? {
+                        return Ok(Some(r.with_package_json(Arc::clone(&package_json))));
                     }
                 }
                 // f. LOAD_INDEX(X) DEPRECATED
@@ -700,10 +711,10 @@ impl<C: Cache> ResolverGeneric<C> {
             if let Some((package_url, package_json)) =
                 cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
             {
-                if let Some(resolving) =
+                if let Some(r) =
                     self.load_browser_field(cached_path, None, &package_url, &package_json, ctx)?
                 {
-                    return Ok(Some(resolving));
+                    return Ok(Some(r.with_package_json(package_json)));
                 }
             }
         }
@@ -890,22 +901,26 @@ impl<C: Cache> ResolverGeneric<C> {
     ) -> ResolveResult<Resolving<C>> {
         // 2. If X does not match this pattern or DIR/NAME/package.json is not a file,
         //    return.
-        let Some((_, package_json)) =
+        if let Some((_, package_json)) =
             self.cache.get_package_json(cached_path, &self.options, ctx)?
-        else {
-            return Ok(None);
-        };
-        // 3. Parse DIR/NAME/package.json, and look for "exports" field.
-        // 4. If "exports" is null or undefined, return.
-        // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
-        //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
-        // Note: The subpath is not prepended with a dot on purpose
-        for exports in package_json.exports_fields(&self.options.exports_fields) {
-            if let Some(r) =
-                self.package_exports_resolve(cached_path, &format!(".{subpath}"), &exports, ctx)?
-            {
-                // 6. RESOLVE_ESM_MATCH(MATCH)
-                return self.resolve_esm_match(specifier, &r.path, ctx);
+        {
+            // 3. Parse DIR/NAME/package.json, and look for "exports" field.
+            // 4. If "exports" is null or undefined, return.
+            // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
+            //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
+            // Note: The subpath is not prepended with a dot on purpose
+            for exports in package_json.exports_fields(&self.options.exports_fields) {
+                if let Some(r) = self.package_exports_resolve(
+                    cached_path,
+                    &format!(".{subpath}"),
+                    &exports,
+                    ctx,
+                )? {
+                    // 6. RESOLVE_ESM_MATCH(MATCH)
+                    return self.resolve_esm_match(specifier, &r.path, ctx).map(|result| {
+                        result.map(|r| r.with_package_json(Arc::clone(&package_json)))
+                    });
+                }
             }
         }
         Ok(None)
@@ -919,35 +934,43 @@ impl<C: Cache> ResolverGeneric<C> {
     ) -> ResolveResult<Resolving<C>> {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
-        let Some((package_url, package_json)) =
+        if let Some((package_url, package_json)) =
             cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
-        else {
-            return Ok(None);
-        };
-        // 3. If the SCOPE/package.json "exports" is null or undefined, return.
-        // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
-        if let Some(subpath) = package_json
-            .name()
-            .and_then(|package_name| Self::strip_package_name(specifier, package_name))
         {
-            // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
-            // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-            // defined in the ESM resolver.
-            // Note: The subpath is not prepended with a dot on purpose
-            // because `package_exports_resolve` matches subpath without the leading dot.
-            for exports in package_json.exports_fields(&self.options.exports_fields) {
-                if let Some(r) = self.package_exports_resolve(
-                    &package_url,
-                    &format!(".{subpath}"),
-                    &exports,
-                    ctx,
-                )? {
-                    // 6. RESOLVE_ESM_MATCH(MATCH)
-                    return self.resolve_esm_match(specifier, &r.path, ctx);
+            // 3. If the SCOPE/package.json "exports" is null or undefined, return.
+            // 4. If the SCOPE/package.json "name" is not the first segment of X, return.
+            if let Some(subpath) = package_json
+                .name()
+                .and_then(|package_name| Self::strip_package_name(specifier, package_name))
+            {
+                // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
+                // "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
+                // defined in the ESM resolver.
+                // Note: The subpath is not prepended with a dot on purpose
+                // because `package_exports_resolve` matches subpath without the leading dot.
+                for exports in package_json.exports_fields(&self.options.exports_fields) {
+                    if let Some(r) = self.package_exports_resolve(
+                        &package_url,
+                        &format!(".{subpath}"),
+                        &exports,
+                        ctx,
+                    )? {
+                        // 6. RESOLVE_ESM_MATCH(MATCH)
+                        return self.resolve_esm_match(specifier, &r.path, ctx).map(|result| {
+                            result.map(|r| r.with_package_json(Arc::clone(&package_json)))
+                        });
+                    }
                 }
             }
+            return self.load_browser_field(
+                cached_path,
+                Some(specifier),
+                &package_url,
+                &package_json,
+                ctx,
+            );
         }
-        self.load_browser_field(cached_path, Some(specifier), &package_url, &package_json, ctx)
+        Ok(None)
     }
 
     /// RESOLVE_ESM_MATCH(MATCH)
@@ -1354,13 +1377,13 @@ impl<C: Cache> ResolverGeneric<C> {
                         // 5. If pjson is not null and pjson.exports is not null or undefined, then
                         // 1. Return the result of PACKAGE_EXPORTS_RESOLVE(packageURL, packageSubpath, pjson.exports, defaultConditions).
                         for exports in package_json.exports_fields(&self.options.exports_fields) {
-                            if let Some(resolving) = self.package_exports_resolve(
+                            if let Some(r) = self.package_exports_resolve(
                                 &cached_path,
                                 &format!(".{subpath}"),
                                 &exports,
                                 ctx,
                             )? {
-                                return Ok(Some(resolving));
+                                return Ok(Some(r.with_package_json(Arc::clone(&package_json))));
                             }
                         }
                         // 6. Otherwise, if packageSubpath is equal to ".", then
