@@ -29,6 +29,10 @@ fn main() {
 
     match Resolver::new(options).resolve(path, &specifier) {
         Err(error) => println!("Error: {error}"),
-        Ok(resolution) => println!("Resolved: {:?}", resolution.full_path()),
+        Ok(resolution) => {
+            println!("Resolved: {:?}", resolution.full_path());
+
+            println!("{:?}", resolution.package_json());
+        }
     }
 }
