@@ -113,6 +113,7 @@ use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specif
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
+#[derive(Clone)]
 struct Resolving<C: Cache> {
     path: C::Cp,
 
@@ -313,15 +314,15 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<C::Cp, ResolveError> {
+    ) -> Result<Resolving<C>, ResolveError> {
         // tsconfig-paths
-        if let Some(path) = self.load_tsconfig_paths(cached_path, specifier, &mut Ctx::default())? {
-            return Ok(path);
+        if let Some(r) = self.load_tsconfig_paths(cached_path, specifier, &mut Ctx::default())? {
+            return Ok(r);
         }
 
         // enhanced-resolve: try alias
-        if let Some(path) = self.load_alias(cached_path, specifier, &self.options.alias, ctx)? {
-            return Ok(path);
+        if let Some(r) = self.load_alias(cached_path, specifier, &self.options.alias, ctx)? {
+            return Ok(r);
         }
 
         let result = match Path::new(specifier).components().next() {
@@ -383,7 +384,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<C::Cp, ResolveError> {
+    ) -> Result<Resolving<C>, ResolveError> {
         // Make sure only path prefixes gets called
         debug_assert!(
             Path::new(specifier)
@@ -414,7 +415,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<C::Cp, ResolveError> {
+    ) -> Result<Resolving<C>, ResolveError> {
         // Make sure only relative or normal paths gets called
         debug_assert!(Path::new(specifier).components().next().is_some_and(|c| matches!(
             c,
@@ -435,11 +436,11 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<C::Cp, ResolveError> {
+    ) -> Result<Resolving<C>, ResolveError> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
-        if let Some(path) = self.load_package_imports(cached_path, specifier, ctx)? {
-            return Ok(path);
+        if let Some(r) = self.load_package_imports(cached_path, specifier, ctx)? {
+            return Ok(r);
         }
         self.load_package_self_or_node_modules(cached_path, specifier, ctx)
     }
@@ -449,7 +450,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<C::Cp, ResolveError> {
+    ) -> Result<Resolving<C>, ResolveError> {
         // Make sure no other path prefixes gets called
         debug_assert!(
             Path::new(specifier)
@@ -458,8 +459,8 @@ impl<C: Cache> ResolverGeneric<C> {
                 .is_some_and(|c| matches!(c, Component::Normal(_)))
         );
         if self.options.prefer_relative {
-            if let Ok(path) = self.require_relative(cached_path, specifier, ctx) {
-                return Ok(path);
+            if let Ok(r) = self.require_relative(cached_path, specifier, ctx) {
+                return Ok(r);
             }
         }
         self.load_package_self_or_node_modules(cached_path, specifier, ctx)
@@ -487,8 +488,8 @@ impl<C: Cache> ResolverGeneric<C> {
             let specifier = parsed.path();
             let fragment = ctx.fragment.take().unwrap();
             let path = format!("{specifier}{fragment}");
-            if let Ok(path) = self.require_without_parse(cached_path, &path, ctx) {
-                return Ok((parsed, Some(path)));
+            if let Ok(resolving) = self.require_without_parse(cached_path, &path, ctx) {
+                return Ok((parsed, Some(resolving)));
             }
             ctx.fragment.replace(fragment);
         }
@@ -500,20 +501,20 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<C::Cp, ResolveError> {
+    ) -> Result<Resolving<C>, ResolveError> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         if subpath.is_empty() {
             ctx.with_fully_specified(false);
         }
         // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
-        if let Some(path) = self.load_package_self(cached_path, specifier, ctx)? {
-            return Ok(path);
+        if let Some(r) = self.load_package_self(cached_path, specifier, ctx)? {
+            return Ok(r);
         }
         // 6. LOAD_NODE_MODULES(X, dirname(Y))
-        if let Some(path) =
+        if let Some(r) =
             self.load_node_modules(cached_path, specifier, package_name, subpath, ctx)?
         {
-            return Ok(path);
+            return Ok(r);
         }
         // 7. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
@@ -525,7 +526,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
         let Some((_, package_json)) =
@@ -535,14 +536,14 @@ impl<C: Cache> ResolverGeneric<C> {
         };
         // 3. If the SCOPE/package.json "imports" is null or undefined, return.
         // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
-        if let Some(path) = self.package_imports_resolve(specifier, &package_json, ctx)? {
+        if let Some(r) = self.package_imports_resolve(specifier, &package_json, ctx)? {
             // 5. RESOLVE_ESM_MATCH(MATCH).
-            return self.resolve_esm_match(specifier, &path, ctx);
+            return self.resolve_esm_match(specifier, &r.path, ctx);
         }
         Ok(None)
     }
 
-    fn load_as_file(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<C::Cp> {
+    fn load_as_file(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<Resolving<C>> {
         // enhanced-resolve feature: extension_alias
         if let Some(path) = self.load_extension_alias(cached_path, ctx)? {
             return Ok(Some(path));
@@ -562,7 +563,7 @@ impl<C: Cache> ResolverGeneric<C> {
         Ok(None)
     }
 
-    fn load_as_directory(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<C::Cp> {
+    fn load_as_directory(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<Resolving<C>> {
         // TODO: Only package.json is supported, so warn about having other values
         // Checking for empty files is needed for omitting checks on package.json
         // 1. If X/package.json is a file,
@@ -597,18 +598,21 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         if self.options.resolve_to_context {
-            return Ok(self.cache.is_dir(cached_path, ctx).then(|| cached_path.clone()));
+            return Ok(self
+                .cache
+                .is_dir(cached_path, ctx)
+                .then(|| Resolving { path: cached_path.clone(), package_json: None }));
         }
         if !specifier.ends_with('/') {
-            if let Some(path) = self.load_as_file(cached_path, ctx)? {
-                return Ok(Some(path));
+            if let Some(r) = self.load_as_file(cached_path, ctx)? {
+                return Ok(Some(r));
             }
         }
         if self.cache.is_dir(cached_path, ctx) {
-            if let Some(path) = self.load_as_directory(cached_path, ctx)? {
-                return Ok(Some(path));
+            if let Some(r) = self.load_as_directory(cached_path, ctx)? {
+                return Ok(Some(r));
             }
         }
         Ok(None)
@@ -619,14 +623,14 @@ impl<C: Cache> ResolverGeneric<C> {
         path: &C::Cp,
         extensions: &[String],
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         if ctx.fully_specified {
             return Ok(None);
         }
         for extension in extensions {
             let cached_path = path.add_extension(extension, self.cache.as_ref());
-            if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
-                return Ok(Some(path));
+            if let Some(r) = self.load_alias_or_file(&cached_path, ctx)? {
+                return Ok(Some(r));
             }
         }
         Ok(None)
@@ -669,19 +673,19 @@ impl<C: Cache> ResolverGeneric<C> {
         Ok(())
     }
 
-    fn load_index(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<C::Cp> {
+    fn load_index(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<Resolving<C>> {
         for main_file in &self.options.main_files {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
             if self.options.enforce_extension.is_disabled() {
-                if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
-                    return Ok(Some(path));
+                if let Some(r) = self.load_alias_or_file(&cached_path, ctx)? {
+                    return Ok(Some(r));
                 }
             }
             // 1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
             // 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
             // 3. If X/index.node is a file, load X/index.node as binary addon. STOP
-            if let Some(path) = self.load_extensions(&cached_path, &self.options.extensions, ctx)? {
-                return Ok(Some(path));
+            if let Some(r) = self.load_extensions(&cached_path, &self.options.extensions, ctx)? {
+                return Ok(Some(r));
             }
         }
         Ok(None)
@@ -691,15 +695,15 @@ impl<C: Cache> ResolverGeneric<C> {
         &self,
         cached_path: &C::Cp,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         if !self.options.alias_fields.is_empty() {
             if let Some((package_url, package_json)) =
                 cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
             {
-                if let Some(path) =
+                if let Some(resolving) =
                     self.load_browser_field(cached_path, None, &package_url, &package_json, ctx)?
                 {
-                    return Ok(Some(path));
+                    return Ok(Some(resolving));
                 }
             }
         }
@@ -707,21 +711,25 @@ impl<C: Cache> ResolverGeneric<C> {
         // Guard this because this is on a hot path, and `.to_string_lossy()` has a cost.
         if !self.options.alias.is_empty() {
             let alias_specifier = cached_path.path().to_string_lossy();
-            if let Some(path) =
+            if let Some(r) =
                 self.load_alias(cached_path, &alias_specifier, &self.options.alias, ctx)?
             {
-                return Ok(Some(path));
+                return Ok(Some(r));
             }
         }
         Ok(None)
     }
 
-    fn load_alias_or_file(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<C::Cp> {
-        if let Some(path) = self.load_browser_field_or_alias(cached_path, ctx)? {
-            return Ok(Some(path));
+    fn load_alias_or_file(
+        &self,
+        cached_path: &C::Cp,
+        ctx: &mut Ctx,
+    ) -> ResolveResult<Resolving<C>> {
+        if let Some(resolving) = self.load_browser_field_or_alias(cached_path, ctx)? {
+            return Ok(Some(resolving));
         }
         if self.cache.is_file(cached_path, ctx) {
-            return Ok(Some(cached_path.clone()));
+            return Ok(Some(Resolving { path: cached_path.clone(), package_json: None }));
         }
         Ok(None)
     }
@@ -733,7 +741,7 @@ impl<C: Cache> ResolverGeneric<C> {
         package_name: &str,
         subpath: &str,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         #[cfg(feature = "yarn_pnp")]
         {
             if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
@@ -763,10 +771,10 @@ impl<C: Cache> ResolverGeneric<C> {
                     // Try foo/node_modules/package_name
                     if self.cache.is_dir(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
-                        if let Some(path) =
+                        if let Some(r) =
                             self.load_package_exports(specifier, subpath, &cached_path, ctx)?
                         {
-                            return Ok(Some(path));
+                            return Ok(Some(r));
                         }
                     } else {
                         // foo/node_modules/package_name is not a directory, so useless to check inside it
@@ -793,14 +801,17 @@ impl<C: Cache> ResolverGeneric<C> {
 
                 // Perf: try the directory first for package specifiers.
                 if self.options.resolve_to_context {
-                    return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
+                    return Ok(self
+                        .cache
+                        .is_dir(&cached_path, ctx)
+                        .then(|| Resolving { path: cached_path.clone(), package_json: None }));
                 }
                 if self.cache.is_dir(&cached_path, ctx) {
-                    if let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)? {
-                        return Ok(Some(path));
+                    if let Some(r) = self.load_browser_field_or_alias(&cached_path, ctx)? {
+                        return Ok(Some(r));
                     }
-                    if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
-                        return Ok(Some(path));
+                    if let Some(r) = self.load_as_directory(&cached_path, ctx)? {
+                        return Ok(Some(r));
                     }
                 }
                 if let Some(path) = self.load_as_file(&cached_path, ctx)? {
@@ -876,7 +887,7 @@ impl<C: Cache> ResolverGeneric<C> {
         subpath: &str,
         cached_path: &C::Cp,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         // 2. If X does not match this pattern or DIR/NAME/package.json is not a file,
         //    return.
         let Some((_, package_json)) =
@@ -890,11 +901,11 @@ impl<C: Cache> ResolverGeneric<C> {
         //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
         // Note: The subpath is not prepended with a dot on purpose
         for exports in package_json.exports_fields(&self.options.exports_fields) {
-            if let Some(path) =
+            if let Some(r) =
                 self.package_exports_resolve(cached_path, &format!(".{subpath}"), &exports, ctx)?
             {
                 // 6. RESOLVE_ESM_MATCH(MATCH)
-                return self.resolve_esm_match(specifier, &path, ctx);
+                return self.resolve_esm_match(specifier, &r.path, ctx);
             }
         }
         Ok(None)
@@ -905,7 +916,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
         let Some((package_url, package_json)) =
@@ -925,14 +936,14 @@ impl<C: Cache> ResolverGeneric<C> {
             // Note: The subpath is not prepended with a dot on purpose
             // because `package_exports_resolve` matches subpath without the leading dot.
             for exports in package_json.exports_fields(&self.options.exports_fields) {
-                if let Some(cached_path) = self.package_exports_resolve(
+                if let Some(r) = self.package_exports_resolve(
                     &package_url,
                     &format!(".{subpath}"),
                     &exports,
                     ctx,
                 )? {
                     // 6. RESOLVE_ESM_MATCH(MATCH)
-                    return self.resolve_esm_match(specifier, &cached_path, ctx);
+                    return self.resolve_esm_match(specifier, &r.path, ctx);
                 }
             }
         }
@@ -945,7 +956,7 @@ impl<C: Cache> ResolverGeneric<C> {
         specifier: &str,
         cached_path: &C::Cp,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         // 1. let RESOLVED_PATH = fileURLToPath(MATCH)
         // 2. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension format. STOP
         //
@@ -963,9 +974,9 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         module_specifier: Option<&str>,
         package_url: &C::Cp,
-        package_json: &C::Pj,
+        package_json: &Arc<C::Pj>,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         let path = cached_path.path();
         let Some(new_specifier) = package_json.resolve_browser_field(
             path,
@@ -983,7 +994,10 @@ impl<C: Cache> ResolverGeneric<C> {
             // Complete when resolving to self `{"./a.js": "./a.js"}`
             if new_specifier.strip_prefix("./").filter(|s| path.ends_with(Path::new(s))).is_some() {
                 return if self.cache.is_file(cached_path, ctx) {
-                    Ok(Some(cached_path.clone()))
+                    Ok(Some(Resolving {
+                        path: cached_path.clone(),
+                        package_json: Some(Arc::clone(package_json)),
+                    }))
                 } else {
                     Err(ResolveError::NotFound(new_specifier.to_string()))
                 };
@@ -1002,7 +1016,7 @@ impl<C: Cache> ResolverGeneric<C> {
         specifier: &str,
         aliases: &Alias,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         for (alias_key_raw, specifiers) in aliases {
             let mut alias_key_has_wildcard = false;
             let alias_key = if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
@@ -1066,7 +1080,7 @@ impl<C: Cache> ResolverGeneric<C> {
         request: &str,
         ctx: &mut Ctx,
         should_stop: &mut bool,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         if request != alias_value
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
         {
@@ -1127,7 +1141,11 @@ impl<C: Cache> ResolverGeneric<C> {
     /// # Errors
     ///
     /// * [ResolveError::ExtensionAlias]: When all of the aliased extensions are not found
-    fn load_extension_alias(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<C::Cp> {
+    fn load_extension_alias(
+        &self,
+        cached_path: &C::Cp,
+        ctx: &mut Ctx,
+    ) -> ResolveResult<Resolving<C>> {
         if self.options.extension_alias.is_empty() {
             return Ok(None);
         }
@@ -1175,22 +1193,27 @@ impl<C: Cache> ResolverGeneric<C> {
     /// defaults to context configuration option.
     ///
     /// On non-Windows systems these requests are resolved as an absolute path first.
-    fn load_roots(&self, cached_path: &C::Cp, specifier: &str, ctx: &mut Ctx) -> Option<C::Cp> {
+    fn load_roots(
+        &self,
+        cached_path: &C::Cp,
+        specifier: &str,
+        ctx: &mut Ctx,
+    ) -> Option<Resolving<C>> {
         if self.options.roots.is_empty() {
             return None;
         }
         if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
             if specifier.is_empty() {
                 if self.options.roots.iter().any(|root| root.as_path() == cached_path.path()) {
-                    if let Ok(path) = self.require_relative(cached_path, "./", ctx) {
-                        return Some(path);
+                    if let Ok(r) = self.require_relative(cached_path, "./", ctx) {
+                        return Some(r);
                     }
                 }
             } else {
                 for root in &self.options.roots {
                     let cached_path = self.cache.value(root);
-                    if let Ok(path) = self.require_relative(&cached_path, specifier, ctx) {
-                        return Some(path);
+                    if let Ok(r) = self.require_relative(&cached_path, specifier, ctx) {
+                        return Some(r);
                     }
                 }
             }
@@ -1251,7 +1274,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         let Some(tsconfig_options) = &self.options.tsconfig else {
             return Ok(None);
         };
@@ -1288,7 +1311,7 @@ impl<C: Cache> ResolverGeneric<C> {
                     ..ResolveOptions::default()
                 })
                 .load_package_self_or_node_modules(directory, specifier, &mut Ctx::default())
-                .map(|p| p.to_path_buf())
+                .map(|r| r.path.to_path_buf())
                 .map_err(|err| match err {
                     ResolveError::NotFound(_) => {
                         ResolveError::TsconfigNotFound(PathBuf::from(specifier))
@@ -1304,7 +1327,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
 
         // 3. If packageSpecifier is a Node.js builtin module name, then
@@ -1331,13 +1354,13 @@ impl<C: Cache> ResolverGeneric<C> {
                         // 5. If pjson is not null and pjson.exports is not null or undefined, then
                         // 1. Return the result of PACKAGE_EXPORTS_RESOLVE(packageURL, packageSubpath, pjson.exports, defaultConditions).
                         for exports in package_json.exports_fields(&self.options.exports_fields) {
-                            if let Some(path) = self.package_exports_resolve(
+                            if let Some(resolving) = self.package_exports_resolve(
                                 &cached_path,
                                 &format!(".{subpath}"),
                                 &exports,
                                 ctx,
                             )? {
-                                return Ok(Some(path));
+                                return Ok(Some(resolving));
                             }
                         }
                         // 6. Otherwise, if packageSubpath is equal to ".", then
@@ -1348,7 +1371,10 @@ impl<C: Cache> ResolverGeneric<C> {
                                 let cached_path =
                                     cached_path.normalize_with(main_field, self.cache.as_ref());
                                 if self.cache.is_file(&cached_path, ctx) {
-                                    return Ok(Some(cached_path));
+                                    return Ok(Some(Resolving {
+                                        path: cached_path,
+                                        package_json: Some(package_json.clone()),
+                                    }));
                                 }
                             }
                         }
@@ -1370,7 +1396,7 @@ impl<C: Cache> ResolverGeneric<C> {
         subpath: &str,
         exports: &Io,
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         let conditions = &self.options.condition_names;
         // 1. If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
         if let Some(map) = exports.as_map() {
@@ -1425,7 +1451,7 @@ impl<C: Cache> ResolverGeneric<C> {
             // 4. If mainExport is not undefined, then
             if let Some(main_export) = main_export {
                 // 1. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, mainExport, null, false, conditions).
-                let resolved = self.package_target_resolve(
+                let maybe_resolving = self.package_target_resolve(
                     package_url,
                     ".",
                     main_export.as_ref(),
@@ -1435,8 +1461,8 @@ impl<C: Cache> ResolverGeneric<C> {
                     ctx,
                 )?;
                 // 2. If resolved is not null or undefined, return resolved.
-                if let Some(path) = resolved {
-                    return Ok(Some(path));
+                if let Some(resolving) = maybe_resolving {
+                    return Ok(Some(resolving));
                 }
             }
         }
@@ -1471,7 +1497,7 @@ impl<C: Cache> ResolverGeneric<C> {
         specifier: &str,
         package_json: &C::Pj,
         ctx: &mut Ctx,
-    ) -> Result<Option<C::Cp>, ResolveError> {
+    ) -> Result<Option<Resolving<C>>, ResolveError> {
         // 1. Assert: specifier begins with "#".
         debug_assert!(specifier.starts_with('#'), "{specifier}");
         //   2. If specifier is exactly equal to "#" or starts with "#/", then
@@ -1495,7 +1521,7 @@ impl<C: Cache> ResolverGeneric<C> {
                     ));
                 }
             }
-            if let Some(path) = self.package_imports_exports_resolve(
+            if let Some(r) = self.package_imports_exports_resolve(
                 specifier,
                 &imports,
                 &self.cache.value(package_json.directory()),
@@ -1504,7 +1530,7 @@ impl<C: Cache> ResolverGeneric<C> {
                 ctx,
             )? {
                 // 2. If resolved is not null or undefined, return resolved.
-                return Ok(Some(path));
+                return Ok(Some(r));
             }
         }
 
@@ -1528,7 +1554,7 @@ impl<C: Cache> ResolverGeneric<C> {
         is_imports: bool,
         conditions: &[String],
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         // enhanced-resolve behaves differently, it throws
         // Error: CachedPath to directories is not possible with the exports field (specifier was ./dist/)
         if match_key.ends_with('/') {
@@ -1615,7 +1641,7 @@ impl<C: Cache> ResolverGeneric<C> {
         is_imports: bool,
         conditions: &[String],
         ctx: &mut Ctx,
-    ) -> ResolveResult<C::Cp> {
+    ) -> ResolveResult<Resolving<C>> {
         fn normalize_string_target<'a>(
             target_key: &'a str,
             target: &'a str,
@@ -1683,7 +1709,10 @@ impl<C: Cache> ResolverGeneric<C> {
             }
             // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
             // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
-            return Ok(Some(package_url.normalize_with(target.as_ref(), self.cache.as_ref())));
+            return Ok(Some(Resolving {
+                path: package_url.normalize_with(target.as_ref(), self.cache.as_ref()),
+                package_json: None,
+            }));
         }
         // 2. Otherwise, if target is a non-null Object, then
         else if let Some(target) = target.as_map() {
