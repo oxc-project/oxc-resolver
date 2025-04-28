@@ -113,6 +113,12 @@ use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specif
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
+struct Resolving<C: Cache> {
+    path: C::Cp,
+
+    package_json: Option<Arc<C::Pj>>,
+}
+
 /// Context returned from the [Resolver::resolve_with_context] API
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
@@ -262,13 +268,12 @@ impl<C: Cache> ResolverGeneric<C> {
     ) -> Result<Resolution<C>, ResolveError> {
         ctx.with_fully_specified(self.options.fully_specified);
         let cached_path = self.cache.value(path);
-        let cached_path = self.require(&cached_path, specifier, ctx)?;
-        let path = self.load_realpath(&cached_path)?;
+        let mut resolving = self.require(&cached_path, specifier, ctx)?;
+        let path = self.load_realpath(&resolving.path)?;
         // enhanced-resolve: restrictions
         self.check_restrictions(&path)?;
-        let package_json =
-            cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?;
-        if let Some((_, package_json)) = &package_json {
+        let package_json = resolving.package_json.take();
+        if let Some(package_json) = &package_json {
             // path must be inside the package.
             debug_assert!(path.starts_with(package_json.directory()));
         }
@@ -276,7 +281,7 @@ impl<C: Cache> ResolverGeneric<C> {
             path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
-            package_json: package_json.map(|(_, p)| p),
+            package_json,
         })
     }
 
@@ -291,7 +296,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
-    ) -> Result<C::Cp, ResolveError> {
+    ) -> Result<Resolving<C>, ResolveError> {
         ctx.test_for_infinite_recursion()?;
 
         // enhanced-resolve: parse
@@ -473,7 +478,7 @@ impl<C: Cache> ResolverGeneric<C> {
         cached_path: &C::Cp,
         specifier: &'s str,
         ctx: &mut Ctx,
-    ) -> Result<(Specifier<'s>, Option<C::Cp>), ResolveError> {
+    ) -> Result<(Specifier<'s>, Option<Resolving<C>>), ResolveError> {
         let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
         ctx.with_query_fragment(parsed.query, parsed.fragment);
 
