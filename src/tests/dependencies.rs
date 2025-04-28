@@ -52,6 +52,7 @@ mod windows {
                     // "/a/b/c/package.json",
                     "/a/b/package.json",
                     "/a/package.json",
+                    "/a/node_modules/package.json",
                     "/package.json",
                     // missing modules directories
                     "/a/b/c",
@@ -99,8 +100,11 @@ mod windows {
             assert_eq!(resolved_path, Ok(PathBuf::from(result)));
             let file_dependencies = file_dependencies.iter().map(PathBuf::from).collect();
             let missing_dependencies = missing_dependencies.iter().map(PathBuf::from).collect();
-            assert_eq!(ctx.file_dependencies, file_dependencies, "{name}");
-            assert_eq!(ctx.missing_dependencies, missing_dependencies, "{name}");
+            assert_eq!(ctx.file_dependencies, file_dependencies, "{name} file_dependencies");
+            assert_eq!(
+                ctx.missing_dependencies, missing_dependencies,
+                "{name} missing_dependencies"
+            );
         }
     }
 }

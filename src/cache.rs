@@ -62,6 +62,8 @@ pub trait CachedPath: Sized {
 
     fn parent(&self) -> Option<&Self>;
 
+    fn node_modules(&self) -> Option<&Self>;
+
     fn module_directory<C: Cache<Cp = Self>>(
         &self,
         module_name: &str,
