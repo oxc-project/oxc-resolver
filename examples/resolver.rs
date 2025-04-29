@@ -12,7 +12,7 @@ fn main() {
 
     let specifier = env::args().nth(2).expect("specifier");
 
-    println!("path: {path:?}");
+    println!("path: {}", path.to_string_lossy());
     println!("specifier: {specifier}");
 
     let options = ResolveOptions {
@@ -29,6 +29,12 @@ fn main() {
 
     match Resolver::new(options).resolve(path, &specifier) {
         Err(error) => println!("Error: {error}"),
-        Ok(resolution) => println!("Resolved: {:?}", resolution.full_path()),
+        Ok(resolution) => {
+            println!("Resolution: {}", resolution.full_path().to_string_lossy());
+            println!(
+                "package json: {:?}",
+                resolution.package_json().map(|p| p.path.to_string_lossy())
+            );
+        }
     }
 }
