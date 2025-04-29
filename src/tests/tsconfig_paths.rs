@@ -236,6 +236,8 @@ fn test_merge_tsconfig() {
     assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
     assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
     assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
+    assert_eq!(compiler_options.target, Some("ESNext".to_string()));
 }
 
 #[test]
