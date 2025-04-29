@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v6.0.2...oxc_resolver-v7.0.0) - 2025-04-29
+
+### <!-- 1 -->Bug Fixes
+
+- return the enclosing `package.json` if it is inside `node_modules` ([#476](https://github.com/oxc-project/oxc-resolver/pull/476))
+
+### <!-- 4 -->Refactor
+
+- add `Debug` to `FsCachedPath` ([#478](https://github.com/oxc-project/oxc-resolver/pull/478))
+
 ## [6.0.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v6.0.0...oxc_resolver-v6.0.1) - 2025-04-25
 
 ### <!-- 1 -->Bug Fixes
