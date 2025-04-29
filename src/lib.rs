@@ -75,7 +75,7 @@ use std::{
     borrow::Cow,
     cmp::Ordering,
     ffi::OsStr,
-    fmt,
+    fmt, iter,
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -266,9 +266,8 @@ impl<C: Cache> ResolverGeneric<C> {
         let path = self.load_realpath(&cached_path)?;
         // enhanced-resolve: restrictions
         self.check_restrictions(&path)?;
-        let package_json =
-            cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?;
-        if let Some((_, package_json)) = &package_json {
+        let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
+        if let Some(package_json) = &package_json {
             // path must be inside the package.
             debug_assert!(path.starts_with(package_json.directory()));
         }
@@ -276,8 +275,40 @@ impl<C: Cache> ResolverGeneric<C> {
             path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
-            package_json: package_json.map(|(_, p)| p),
+            package_json,
         })
+    }
+
+    fn find_package_json_for_a_package(
+        &self,
+        cached_path: &C::Cp,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<C::Pj>>, ResolveError> {
+        // Algorithm:
+        // Find `node_modules/package/package.json`
+        // or the first package.json if the path is not inside node_modules.
+        let inside_node_modules = iter::successors(Some(cached_path), |cp| cp.parent())
+            .any(|cp| cp.node_modules().is_some());
+        if inside_node_modules {
+            let mut last = None;
+            for cp in iter::successors(Some(cached_path), |cp| cp.parent()) {
+                if cp.node_modules().is_some() {
+                    break;
+                }
+                if self.cache.is_dir(cp, ctx) {
+                    if let Some((_, package_json)) =
+                        self.cache.get_package_json(cp, &self.options, ctx)?
+                    {
+                        last = Some(package_json);
+                    }
+                }
+            }
+            Ok(last)
+        } else {
+            cached_path
+                .find_package_json(&self.options, self.cache.as_ref(), ctx)
+                .map(|result| result.map(|(_, p)| p))
+        }
     }
 
     /// require(X) from module at path Y
