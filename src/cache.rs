@@ -8,8 +8,8 @@ use crate::{Ctx, PackageJson, ResolveError, ResolveOptions, TsConfig};
 
 #[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
 pub trait Cache: Sized {
-    type Cp: CachedPath + Clone;
-    type Pj: PackageJson;
+    type Cp: CachedPath + Clone + Debug;
+    type Pj: PackageJson + Debug;
     type Tc: TsConfig + Debug;
 
     /// Clears the cache.
