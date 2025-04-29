@@ -126,8 +126,44 @@ pub trait TsConfig: Sized + Debug {
                 compiler_options.set_jsx_import_source(jsx_import_source.to_string());
             }
         }
-    }
 
+        if compiler_options.verbatim_module_syntax().is_none() {
+            if let Some(verbatim_module_syntax) =
+                tsconfig.compiler_options().verbatim_module_syntax()
+            {
+                compiler_options.set_verbatim_module_syntax(*verbatim_module_syntax);
+            }
+        }
+
+        if compiler_options.preserve_value_imports().is_none() {
+            if let Some(preserve_value_imports) =
+                tsconfig.compiler_options().preserve_value_imports()
+            {
+                compiler_options.set_preserve_value_imports(*preserve_value_imports);
+            }
+        }
+
+        if compiler_options.imports_not_used_as_values().is_none() {
+            if let Some(imports_not_used_as_values) =
+                tsconfig.compiler_options().imports_not_used_as_values()
+            {
+                compiler_options
+                    .set_imports_not_used_as_values(imports_not_used_as_values.to_string());
+            }
+        }
+
+        if compiler_options.target().is_none() {
+            if let Some(target) = tsconfig.compiler_options().target() {
+                compiler_options.set_target(target.to_string());
+            }
+        }
+
+        if compiler_options.module().is_none() {
+            if let Some(module) = tsconfig.compiler_options().module() {
+                compiler_options.set_module(module.to_string());
+            }
+        }
+    }
     /// "Build" the root tsconfig, resolve:
     ///
     /// * `{configDir}` template variable
