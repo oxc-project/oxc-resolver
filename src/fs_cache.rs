@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     convert::AsRef,
+    fmt,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
     ops::Deref,
@@ -454,6 +455,12 @@ impl PartialEq for FsCachedPath {
 }
 
 impl Eq for FsCachedPath {}
+
+impl fmt::Debug for FsCachedPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FsCachedPath").field("path", &self.path).finish()
+    }
+}
 
 struct BorrowedCachedPath<'a> {
     hash: u64,
