@@ -347,6 +347,46 @@ pub trait CompilerOptions {
 
     /// Sets JSX import source.
     fn set_jsx_import_source(&mut self, _jsx_import_source: String) {}
+
+    /// Whether to use verbatim module syntax.
+    fn verbatim_module_syntax(&self) -> Option<&bool> {
+        None
+    }
+
+    /// Sets whether to use verbatim module syntax.
+    fn set_verbatim_module_syntax(&mut self, _verbatim_module_syntax: bool) {}
+
+    /// Whether to preserve value imports.
+    fn preserve_value_imports(&self) -> Option<&bool> {
+        None
+    }
+
+    /// Sets whether to preserve value imports.
+    fn set_preserve_value_imports(&mut self, _preserve_value_imports: bool) {}
+
+    /// Whether to use imports not used as values.
+    fn imports_not_used_as_values(&self) -> Option<&str> {
+        None
+    }
+
+    /// Sets whether to use imports not used as values.
+    fn set_imports_not_used_as_values(&mut self, _imports_not_used_as_values: String) {}
+
+    /// Target.
+    fn target(&self) -> Option<&str> {
+        None
+    }
+
+    /// Sets the target.
+    fn set_target(&mut self, _target: String) {}
+
+    /// Module.
+    fn module(&self) -> Option<&str> {
+        None
+    }
+
+    /// Sets the module.
+    fn set_module(&mut self, _module: String) {}
 }
 
 /// Project Reference.

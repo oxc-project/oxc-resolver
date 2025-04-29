@@ -145,6 +145,9 @@ pub struct CompilerOptionsSerde {
 
     /// <https://www.typescriptlang.org/tsconfig/#target>
     pub target: Option<String>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#module>
+    pub module: Option<String>,
 }
 
 impl CompilerOptions for CompilerOptionsSerde {
@@ -222,6 +225,46 @@ impl CompilerOptions for CompilerOptionsSerde {
 
     fn set_jsx_import_source(&mut self, jsx_import_source: String) {
         self.jsx_import_source = Some(jsx_import_source);
+    }
+
+    fn verbatim_module_syntax(&self) -> Option<&bool> {
+        self.verbatim_module_syntax.as_ref()
+    }
+
+    fn set_verbatim_module_syntax(&mut self, verbatim_module_syntax: bool) {
+        self.verbatim_module_syntax = Some(verbatim_module_syntax);
+    }
+
+    fn preserve_value_imports(&self) -> Option<&bool> {
+        self.preserve_value_imports.as_ref()
+    }
+
+    fn set_preserve_value_imports(&mut self, preserve_value_imports: bool) {
+        self.preserve_value_imports = Some(preserve_value_imports);
+    }
+
+    fn imports_not_used_as_values(&self) -> Option<&str> {
+        self.imports_not_used_as_values.as_deref()
+    }
+
+    fn set_imports_not_used_as_values(&mut self, imports_not_used_as_values: String) {
+        self.imports_not_used_as_values = Some(imports_not_used_as_values);
+    }
+
+    fn target(&self) -> Option<&str> {
+        self.target.as_deref()
+    }
+
+    fn set_target(&mut self, target: String) {
+        self.target = Some(target);
+    }
+
+    fn module(&self) -> Option<&str> {
+        self.module.as_deref()
+    }
+
+    fn set_module(&mut self, module: String) {
+        self.module = Some(module);
     }
 }
 
