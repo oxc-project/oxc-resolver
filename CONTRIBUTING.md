@@ -1,5 +1,11 @@
 # CONTRIBUTING.md
 
+```bash
+just init
+just install
+just ready
+```
+
 ## Rust
 
 ```bash
@@ -10,7 +16,6 @@ just test
 ## Napi
 
 ```bash
-pnpm install
 pnpm run build
 pnpm test
 ```
