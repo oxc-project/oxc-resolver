@@ -52,7 +52,6 @@ mod windows {
                     // "/a/b/c/package.json",
                     "/a/b/package.json",
                     "/a/package.json",
-                    "/a/node_modules/package.json",
                     "/package.json",
                     // missing modules directories
                     "/a/b/c",
