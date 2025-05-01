@@ -189,7 +189,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 
 | Field            | Default                     | Description                                                                                                                                   |
 | ---------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| descriptionFiles | ["package.json"]            | A list of description files to read from                                                                                                                  |
+| descriptionFiles | ["package.json"]            | A list of description files to read from                                                                                                      |
 | modules          | ["node_modules"]            | A list of directories to resolve modules from, can be absolute path or folder name                                                            |
 | cachePredicate   | function() { return true }; | A function which decides whether a request should be cached or not. An object is passed to the function with `path` and `request` properties. |
 | cacheWithContext | true                        | If unsafe cache is enabled, includes `request.context` in the cache key                                                                       |
