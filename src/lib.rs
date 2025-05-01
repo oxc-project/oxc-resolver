@@ -287,13 +287,11 @@ impl<C: Cache> ResolverGeneric<C> {
         // Algorithm:
         // Find `node_modules/package/package.json`
         // or the first package.json if the path is not inside node_modules.
-        // TODO(perf): cache whether a directory is inside `node_modules`?
-        let inside_node_modules = iter::successors(Some(cached_path), |cp| cp.parent())
-            .any(|cp| cp.path().ends_with("node_modules"));
+        let inside_node_modules = cached_path.inside_node_modules();
         if inside_node_modules {
             let mut last = None;
             for cp in iter::successors(Some(cached_path), |cp| cp.parent()) {
-                if cp.path().ends_with("node_modules") {
+                if cp.is_node_modules() {
                     break;
                 }
                 if self.cache.is_dir(cp, ctx) {
