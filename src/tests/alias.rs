@@ -178,13 +178,13 @@ fn absolute_path() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
         alias: vec![(
-            f.join("node_modules/m1").to_str().unwrap().to_string(),
+            f.join("node_modules").join("m1").to_str().unwrap().to_string(),
             vec![AliasValue::Ignore],
         )],
         ..ResolveOptions::default()
     });
     let resolution = resolver.resolve(&f, "m1/a.js");
-    assert_eq!(resolution, Err(ResolveError::Ignored(f.join("node_modules/m1"))));
+    assert_eq!(resolution, Err(ResolveError::Ignored(f.join("node_modules").join("m1"))));
 }
 
 #[test]
