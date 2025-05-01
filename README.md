@@ -190,7 +190,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 
 | Field            | Default                     | Description                                                                                                                                   |
 | ---------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| modules          | ["node_modules"]            | A list of directories to resolve modules from, can be absolute path or folder name                                                                        |
+| modules          | ["node_modules"]            | A list of directories to resolve modules from, can be absolute path or folder name                                                            |
 | cachePredicate   | function() { return true }; | A function which decides whether a request should be cached or not. An object is passed to the function with `path` and `request` properties. |
 | cacheWithContext | true                        | If unsafe cache is enabled, includes `request.context` in the cache key                                                                       |
 | plugins          | []                          | A list of additional resolve plugins which should be applied                                                                                  |
