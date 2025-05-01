@@ -590,30 +590,26 @@ impl<C: Cache> ResolverGeneric<C> {
     }
 
     fn load_as_directory(&self, cached_path: &C::Cp, ctx: &mut Ctx) -> ResolveResult<C::Cp> {
-        // TODO: Only package.json is supported, so warn about having other values
-        // Checking for empty files is needed for omitting checks on package.json
         // 1. If X/package.json is a file,
-        if !self.options.description_files.is_empty() {
-            // a. Parse X/package.json, and look for "main" field.
-            if let Some((_, package_json)) =
-                self.cache.get_package_json(cached_path, &self.options, ctx)?
-            {
-                // b. If "main" is a falsy value, GOTO 2.
-                for main_field in package_json.main_fields(&self.options.main_fields) {
-                    // c. let M = X + (json main field)
-                    let cached_path = cached_path.normalize_with(main_field, self.cache.as_ref());
-                    // d. LOAD_AS_FILE(M)
-                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                        return Ok(Some(path));
-                    }
-                    // e. LOAD_INDEX(M)
-                    if let Some(path) = self.load_index(&cached_path, ctx)? {
-                        return Ok(Some(path));
-                    }
+        // a. Parse X/package.json, and look for "main" field.
+        if let Some((_, package_json)) =
+            self.cache.get_package_json(cached_path, &self.options, ctx)?
+        {
+            // b. If "main" is a falsy value, GOTO 2.
+            for main_field in package_json.main_fields(&self.options.main_fields) {
+                // c. let M = X + (json main field)
+                let cached_path = cached_path.normalize_with(main_field, self.cache.as_ref());
+                // d. LOAD_AS_FILE(M)
+                if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                    return Ok(Some(path));
                 }
-                // f. LOAD_INDEX(X) DEPRECATED
-                // g. THROW "not found"
+                // e. LOAD_INDEX(M)
+                if let Some(path) = self.load_index(&cached_path, ctx)? {
+                    return Ok(Some(path));
+                }
             }
+            // f. LOAD_INDEX(X) DEPRECATED
+            // g. THROW "not found"
         }
         // 2. LOAD_INDEX(X)
         self.load_index(cached_path, ctx)
@@ -1283,7 +1279,6 @@ impl<C: Cache> ResolverGeneric<C> {
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
             _ => self
                 .clone_with_options(ResolveOptions {
-                    description_files: vec![],
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig.json".into()],
                     ..ResolveOptions::default()
