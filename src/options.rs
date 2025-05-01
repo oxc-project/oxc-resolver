@@ -113,11 +113,6 @@ pub struct ResolveOptions {
     /// Default `["index"]`
     pub main_files: Vec<String>,
 
-    /// A list of directories to resolve modules from, can be absolute path or folder name.
-    ///
-    /// Default `["node_modules"]`
-    pub modules: Vec<String>,
-
     /// A manifest loaded from pnp::load_pnp_manifest.
     ///
     /// Default `None`
@@ -328,22 +323,6 @@ impl ResolveOptions {
         self
     }
 
-    /// Adds a module to [ResolveOptions::modules]
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use oxc_resolver::{ResolveOptions};
-    ///
-    /// let options = ResolveOptions::default().with_module("module");
-    /// assert!(options.modules.contains(&"module".to_string()));
-    /// ```
-    #[must_use]
-    pub fn with_module<M: Into<String>>(mut self, module: M) -> Self {
-        self.modules.push(module.into());
-        self
-    }
-
     /// Adds a main file to [ResolveOptions::main_files]
     ///
     /// ## Examples
@@ -474,7 +453,6 @@ impl Default for ResolveOptions {
             fully_specified: false,
             main_fields: vec!["main".into()],
             main_files: vec!["index".into()],
-            modules: vec!["node_modules".into()],
             #[cfg(feature = "yarn_pnp")]
             pnp_manifest: None,
             resolve_to_context: false,
@@ -529,9 +507,6 @@ impl fmt::Display for ResolveOptions {
         }
         if !self.main_files.is_empty() {
             write!(f, "main_files:{:?},", self.main_files)?;
-        }
-        if !self.modules.is_empty() {
-            write!(f, "modules:{:?},", self.modules)?;
         }
         if self.resolve_to_context {
             write!(f, "resolve_to_context:{:?},", self.resolve_to_context)?;
@@ -625,7 +600,6 @@ mod test {
             imports_fields: vec![],
             main_fields: vec![],
             main_files: vec![],
-            modules: vec![],
             #[cfg(feature = "yarn_pnp")]
             pnp_manifest: None,
             prefer_absolute: false,

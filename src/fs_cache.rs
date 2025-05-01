@@ -305,22 +305,17 @@ impl CachedPath for FsCachedPath {
         self.0.parent.as_ref()
     }
 
-    fn module_directory<C: Cache<Cp = Self>>(
-        &self,
-        module_name: &str,
-        cache: &C,
-        ctx: &mut Ctx,
-    ) -> Option<Self> {
-        let cached_path = cache.value(&self.path.join(module_name));
-        cache.is_dir(&cached_path, ctx).then_some(cached_path)
-    }
-
     fn node_modules(&self) -> Option<&Self> {
         self.node_modules.get().and_then(|o| o.as_ref())
     }
 
     fn cached_node_modules<C: Cache<Cp = Self>>(&self, cache: &C, ctx: &mut Ctx) -> Option<Self> {
-        self.node_modules.get_or_init(|| self.module_directory("node_modules", cache, ctx)).clone()
+        self.node_modules
+            .get_or_init(|| {
+                let cached_path = cache.value(&self.path.join("node_modules"));
+                cache.is_dir(&cached_path, ctx).then_some(cached_path)
+            })
+            .clone()
     }
 
     /// Find package.json of a path by traversing parent directories.

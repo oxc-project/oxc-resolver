@@ -179,7 +179,6 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | fullySpecified   | false                     | Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests) |
 | mainFields       | ["main"]                  | A list of main fields in description files                                                                                                                |
 | mainFiles        | ["index"]                 | A list of main files in directories                                                                                                                       |
-| modules          | ["node_modules"]          | A list of directories to resolve modules from, can be absolute path or folder name                                                                        |
 | resolveToContext | false                     | Resolve to a context instead of a file                                                                                                                    |
 | preferRelative   | false                     | Prefer to resolve module requests as relative request and fallback to resolving as module                                                                 |
 | preferAbsolute   | false                     | Prefer to resolve server-relative urls as absolute paths before falling back to resolve in roots                                                          |
@@ -191,6 +190,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 
 | Field            | Default                     | Description                                                                                                                                   |
 | ---------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| modules          | ["node_modules"]            | A list of directories to resolve modules from, can be absolute path or folder name                                                                        |
 | cachePredicate   | function() { return true }; | A function which decides whether a request should be cached or not. An object is passed to the function with `path` and `request` properties. |
 | cacheWithContext | true                        | If unsafe cache is enabled, includes `request.context` in the cache key                                                                       |
 | plugins          | []                          | A list of additional resolve plugins which should be applied                                                                                  |
