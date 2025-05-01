@@ -305,10 +305,6 @@ impl CachedPath for FsCachedPath {
         self.0.parent.as_ref()
     }
 
-    fn node_modules(&self) -> Option<&Self> {
-        self.node_modules.get().and_then(|o| o.as_ref())
-    }
-
     fn cached_node_modules<C: Cache<Cp = Self>>(&self, cache: &C, ctx: &mut Ctx) -> Option<Self> {
         self.node_modules
             .get_or_init(|| {
