@@ -38,11 +38,6 @@ pub struct NapiResolveOptions {
     /// Default `[]`
     pub condition_names: Option<Vec<String>>,
 
-    /// The JSON files to use for descriptions. (There was once a `bower.json`.)
-    ///
-    /// Default `["package.json"]`
-    pub description_files: Option<Vec<String>>,
-
     /// If true, it will not allow extension-less files.
     /// So by default `require('./foo')` works if `./foo` has a `.js` extension,
     /// but with this enabled only `require('./foo.js')` will work.
