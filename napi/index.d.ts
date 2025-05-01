@@ -132,12 +132,6 @@ export interface NapiResolveOptions {
    */
   mainFiles?: Array<string>
   /**
-   * A list of directories to resolve modules from, can be absolute path or folder name.
-   *
-   * Default `["node_modules"]`
-   */
-  modules?: string | string[]
-  /**
    * Resolve to a context instead of a file.
    *
    * Default `false`
