@@ -265,7 +265,6 @@ pub struct CachedPathImpl {
     meta: OnceLock<Option<FileMetadata>>,
     canonicalized: OnceLock<Result<FsCachedPath, ResolveError>>,
     canonicalizing: AtomicU64,
-    node_modules: OnceLock<Option<FsCachedPath>>,
     package_json: OnceLock<Option<(FsCachedPath, Arc<PackageJsonSerde>)>>,
 }
 
@@ -278,7 +277,6 @@ impl CachedPathImpl {
             meta: OnceLock::new(),
             canonicalized: OnceLock::new(),
             canonicalizing: AtomicU64::new(0),
-            node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
         }
     }
@@ -303,15 +301,6 @@ impl CachedPath for FsCachedPath {
 
     fn parent(&self) -> Option<&Self> {
         self.0.parent.as_ref()
-    }
-
-    fn cached_node_modules<C: Cache<Cp = Self>>(&self, cache: &C, ctx: &mut Ctx) -> Option<Self> {
-        self.node_modules
-            .get_or_init(|| {
-                let cached_path = cache.value(&self.path.join("node_modules"));
-                cache.is_dir(&cached_path, ctx).then_some(cached_path)
-            })
-            .clone()
     }
 
     /// Find package.json of a path by traversing parent directories.
