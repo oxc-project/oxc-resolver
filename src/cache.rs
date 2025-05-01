@@ -62,6 +62,10 @@ pub trait CachedPath: Sized {
 
     fn parent(&self) -> Option<&Self>;
 
+    fn is_node_modules(&self) -> bool;
+
+    fn inside_node_modules(&self) -> bool;
+
     /// Find package.json of a path by traversing parent directories.
     #[allow(clippy::type_complexity)]
     fn find_package_json<C: Cache<Cp = Self>>(

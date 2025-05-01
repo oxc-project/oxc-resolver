@@ -67,9 +67,14 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             return entry.clone();
         }
         let parent = path.parent().map(|p| self.value(p));
+        let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
+        let inside_node_modules =
+            is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
         let cached_path = FsCachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
+            is_node_modules,
+            inside_node_modules,
             parent,
         )));
         paths.insert(cached_path.clone());
@@ -262,6 +267,8 @@ pub struct CachedPathImpl {
     hash: u64,
     path: Box<Path>,
     parent: Option<FsCachedPath>,
+    is_node_modules: bool,
+    inside_node_modules: bool,
     meta: OnceLock<Option<FileMetadata>>,
     canonicalized: OnceLock<Result<FsCachedPath, ResolveError>>,
     canonicalizing: AtomicU64,
@@ -269,11 +276,19 @@ pub struct CachedPathImpl {
 }
 
 impl CachedPathImpl {
-    const fn new(hash: u64, path: Box<Path>, parent: Option<FsCachedPath>) -> Self {
+    fn new(
+        hash: u64,
+        path: Box<Path>,
+        is_node_modules: bool,
+        inside_node_modules: bool,
+        parent: Option<FsCachedPath>,
+    ) -> Self {
         Self {
             hash,
             path,
             parent,
+            is_node_modules,
+            inside_node_modules,
             meta: OnceLock::new(),
             canonicalized: OnceLock::new(),
             canonicalizing: AtomicU64::new(0),
@@ -301,6 +316,14 @@ impl CachedPath for FsCachedPath {
 
     fn parent(&self) -> Option<&Self> {
         self.0.parent.as_ref()
+    }
+
+    fn is_node_modules(&self) -> bool {
+        self.is_node_modules
+    }
+
+    fn inside_node_modules(&self) -> bool {
+        self.inside_node_modules
     }
 
     /// Find package.json of a path by traversing parent directories.
