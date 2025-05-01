@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v7.0.1...oxc_resolver-v8.0.0) - 2025-05-01
+
+### <!-- 1 -->Bug Fixes
+
+- fix incorrect return of package.json when a workspace module has `node_modules` ([#482](https://github.com/oxc-project/oxc-resolver/pull/482))
+
+### <!-- 2 -->Performance
+
+- cache whether a path is `node_modules` or inside `node_modules` ([#490](https://github.com/oxc-project/oxc-resolver/pull/490))
+- remove a useless `load_as_directory` call ([#487](https://github.com/oxc-project/oxc-resolver/pull/487))
+
+### <!-- 4 -->Refactor
+
+- [**breaking**] remove `description_files` option ([#488](https://github.com/oxc-project/oxc-resolver/pull/488))
+- [**breaking**] remove `modules` options ([#484](https://github.com/oxc-project/oxc-resolver/pull/484))
+
 ## [7.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v6.0.2...oxc_resolver-v7.0.0) - 2025-04-29
 
 ### <!-- 1 -->Bug Fixes
