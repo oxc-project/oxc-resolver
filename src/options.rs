@@ -582,7 +582,7 @@ mod test {
             ..ResolveOptions::default()
         };
 
-        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,"#;
+        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,"#;
         assert_eq!(format!("{options}"), expected);
 
         let options = ResolveOptions {

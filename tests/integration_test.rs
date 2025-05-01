@@ -108,7 +108,6 @@ fn options_api() {
         .with_fully_specified(true)
         .with_main_field("asdf")
         .with_main_file("main")
-        .with_module("module")
         .with_prefer_absolute(true)
         .with_prefer_relative(true)
         .with_root(PathBuf::new())
