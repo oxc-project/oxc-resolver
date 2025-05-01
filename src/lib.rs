@@ -828,9 +828,6 @@ impl<C: Cache> ResolverGeneric<C> {
             if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                 return Ok(Some(path));
             }
-            if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
-                return Ok(Some(path));
-            }
         }
         Ok(None)
     }
