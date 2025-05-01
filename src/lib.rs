@@ -772,14 +772,10 @@ impl<C: Cache> ResolverGeneric<C> {
         // 2. for each DIR in DIRS:
         for cached_path in std::iter::successors(Some(cached_path), |p| p.parent()) {
             // Skip if /path/to/node_modules does not exist
-            if !self.cache.is_dir(cached_path, ctx) {
+            let cached_path = cached_path.normalize_with("node_modules", self.cache.as_ref());
+            if !self.cache.is_dir(&cached_path, ctx) {
                 continue;
             }
-
-            let Some(cached_path) = cached_path.cached_node_modules(self.cache.as_ref(), ctx)
-            else {
-                continue;
-            };
             // Optimize node_modules lookup by inspecting whether the package exists
             // From LOAD_PACKAGE_EXPORTS(X, DIR)
             // 1. Try to interpret X as a combination of NAME and SUBPATH where the name
@@ -1322,10 +1318,10 @@ impl<C: Cache> ResolverGeneric<C> {
         // 11. While parentURL is not the file system root,
         for cached_path in std::iter::successors(Some(cached_path), |p| p.parent()) {
             // 1. Let packageURL be the URL resolution of "node_modules/" concatenated with packageSpecifier, relative to parentURL.
-            let Some(cached_path) = cached_path.cached_node_modules(self.cache.as_ref(), ctx)
-            else {
+            let cached_path = cached_path.normalize_with("node_modules", self.cache.as_ref());
+            if !self.cache.is_dir(&cached_path, ctx) {
                 continue;
-            };
+            }
             // 2. Set parentURL to the parent folder URL of parentURL.
             let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
             // 3. If the folder at packageURL does not exist, then

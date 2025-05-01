@@ -48,18 +48,14 @@ mod windows {
                 ],
                 vec![
                     // missing package.jsons
-                    // "/a/b/c/package.json",
-                    "/a/b/package.json",
-                    "/a/package.json",
                     "/package.json",
-                    // missing modules directories
-                    "/a/b/c",
-                    // "/a/b/c/node_modules",
-                    // missing single file modules
-                    "/a/b/node_modules/module",
-                    // missing files with alternative extensions
+                    "/a/package.json",
                     "/a/node_modules/module/file",
+                    "/a/b/package.json",
+                    "/a/b/node_modules/module",
                     "/a/node_modules/module/file.json",
+                    "/a/b/c/node_modules",
+                    "/a/b/c",
                 ],
             ),
             (
@@ -78,14 +74,14 @@ mod windows {
                 ],
                 vec![
                     // missing package.jsons
-                    // "/a/b/c/package.json",
-                    "/a/b/c",
-                    "/a/b/package.json",
+                    "/package.json",
                     "/a/package.json",
                     "/a/node_modules/other-module",
+                    "/a/b/package.json",
                     "/a/b/node_modules/other-module",
-                    "/package.json",
                     "/node_modules/other-module/package.json",
+                    "/a/b/c/node_modules",
+                    "/a/b/c",
                 ],
             ),
         ];
