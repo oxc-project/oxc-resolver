@@ -58,12 +58,6 @@ export interface NapiResolveOptions {
    */
   conditionNames?: Array<string>
   /**
-   * The JSON files to use for descriptions. (There was once a `bower.json`.)
-   *
-   * Default `["package.json"]`
-   */
-  descriptionFiles?: Array<string>
-  /**
    * If true, it will not allow extension-less files.
    * So by default `require('./foo')` works if `./foo` has a `.js` extension,
    * but with this enabled only `require('./foo.js')` will work.
