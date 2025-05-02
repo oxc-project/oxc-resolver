@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
-      - uses: taiki-e/install-action@ab3728c7ba6948b9b429627f4d55a68842b27f18 # v2.50.3
+      - uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # v2.50.4
         with:
           tool: zizmor
 
