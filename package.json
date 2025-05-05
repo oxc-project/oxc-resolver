@@ -22,9 +22,9 @@
   ],
   "scripts": {
     "test": "vitest run -r ./napi",
-    "build": "napi build --platform --release --manifest-path napi/Cargo.toml",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
-    "postbuild": "node napi/patch.mjs"
+    "build": "pnpm run build:debug --features allocator --release",
+    "postbuild:debug": "node napi/patch.mjs"
   },
   "devDependencies": {
     "@napi-rs/cli": "3.0.0-alpha.78",
