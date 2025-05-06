@@ -11,6 +11,16 @@ export declare class ResolverFactory {
   sync(directory: string, request: string): ResolveResult
   /** Asynchronously resolve `specifier` at an absolute path to a `directory`. */
   async(directory: string, request: string): Promise<ResolveResult>
+  /**
+   * Resolve `.d.ts` for a package.
+   *
+   * A package `.d.ts` file is resolved from:
+   *
+   * * local package or `node_modules/@types/package`.
+   * * the package's `types` or `typings` main field.
+   * * the package `export`'s `types` or `typings` field.
+   */
+  resolvePackageDts(directory: string, request: string): ResolveResult
 }
 
 export declare const enum EnforceExtension {

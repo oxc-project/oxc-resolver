@@ -262,4 +262,13 @@ test('resolve pnpm package', () => {
       'node_modules/.pnpm/react@19.1.0/node_modules/react/index.js',
     ),
   );
+
+  const googleMaps = resolver.resolvePackageDts(pnpmProjectPath, "@google/maps");
+  assert.deepEqual(
+    googleMaps.path,
+    join(
+      rootDir,
+      'node_modules/.pnpm/@types+google__maps@0.5.20/node_modules/@types/google__maps/index.d.ts',
+    ),
+  );
 });

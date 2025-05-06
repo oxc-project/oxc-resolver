@@ -2,6 +2,7 @@ mod alias;
 mod browser_field;
 mod builtins;
 mod dependencies;
+mod dts;
 mod exports_field;
 mod extension_alias;
 mod extensions;

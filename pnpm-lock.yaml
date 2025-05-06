@@ -32,6 +32,9 @@ importers:
       '@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa':
         specifier: file:./longfilename
         version: file:fixtures/pnpm/longfilename
+      '@types/google__maps':
+        specifier: ^0.5.20
+        version: 0.5.20
       axios:
         specifier: 1.6.2
         version: 1.6.2
@@ -839,6 +842,9 @@ packages:
 
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
+
+  '@types/google__maps@0.5.20':
+    resolution: {integrity: sha512-RQDE03ikUU2WrFtx2aBCweFtu4/QaJFC2ua6yq66IIlYLh016y0+QiA4GWt3kNYo1j4Vy46SGG5UzWgL1bkyOA==}
 
   '@types/node@22.15.3':
     resolution: {integrity: sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw==}
@@ -1988,6 +1994,8 @@ snapshots:
       tslib: 2.8.1
 
   '@types/estree@1.0.7': {}
+
+  '@types/google__maps@0.5.20': {}
 
   '@types/node@22.15.3':
     dependencies:

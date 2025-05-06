@@ -7,14 +7,11 @@
 #[global_allocator]
 static ALLOC: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
 
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 
 use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{PackageJson, ResolveOptions, Resolver};
+use oxc_resolver::{Cache, PackageJson, Resolution, ResolveError, ResolveOptions, Resolver};
 
 use self::{
     options::{NapiResolveOptions, StrOrStrList},
@@ -33,9 +30,9 @@ pub struct ResolveResult {
     pub package_json_path: Option<String>,
 }
 
-fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
-    match resolver.resolve(path, request) {
-        Ok(resolution) => ResolveResult {
+impl<C: Cache> From<Resolution<C>> for ResolveResult {
+    fn from(resolution: Resolution<C>) -> Self {
+        Self {
             path: Some(resolution.full_path().to_string_lossy().to_string()),
             error: None,
             module_type: resolution.package_json().and_then(|p| p.r#type()).map(|t| t.to_string()),
@@ -43,13 +40,27 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
                 .package_json()
                 .and_then(|p| p.path().to_str())
                 .map(|p| p.to_string()),
-        },
-        Err(err) => ResolveResult {
+        }
+    }
+}
+
+impl From<ResolveError> for ResolveResult {
+    fn from(err: ResolveError) -> Self {
+        Self {
             path: None,
             module_type: None,
             error: Some(err.to_string()),
             package_json_path: None,
-        },
+        }
+    }
+}
+
+impl<C: Cache> From<Result<Resolution<C>, ResolveError>> for ResolveResult {
+    fn from(value: Result<Resolution<C>, ResolveError>) -> Self {
+        match value {
+            Ok(resolution) => ResolveResult::from(resolution),
+            Err(err) => ResolveResult::from(err),
+        }
     }
 }
 
@@ -58,7 +69,7 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
 pub fn sync(path: String, request: String) -> ResolveResult {
     let path = PathBuf::from(path);
     let resolver = Resolver::new(ResolveOptions::default());
-    resolve(&resolver, &path, &request)
+    resolver.resolve(&path, &request).into()
 }
 
 pub struct ResolveTask {
@@ -73,7 +84,7 @@ impl Task for ResolveTask {
     type Output = ResolveResult;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        Ok(resolve(&self.resolver, &self.directory, &self.request))
+        Ok(self.resolver.resolve(&self.directory, &self.request).into())
     }
 
     fn resolve(&mut self, _: napi::Env, result: Self::Output) -> napi::Result<Self::JsValue> {
@@ -121,7 +132,7 @@ impl ResolverFactory {
     #[napi]
     pub fn sync(&self, directory: String, request: String) -> ResolveResult {
         let path = PathBuf::from(directory);
-        resolve(&self.resolver, &path, &request)
+        self.resolver.resolve(&path, &request).into()
     }
 
     /// Asynchronously resolve `specifier` at an absolute path to a `directory`.
@@ -131,6 +142,20 @@ impl ResolverFactory {
         let path = PathBuf::from(directory);
         let resolver = self.resolver.clone();
         AsyncTask::new(ResolveTask { resolver, directory: path, request })
+    }
+
+    /// Resolve `.d.ts` for a package.
+    ///
+    /// A package `.d.ts` file is resolved from:
+    ///
+    /// * local package or `node_modules/@types/package`.
+    /// * the package's `types` or `typings` main field.
+    /// * the package `export`'s `types` or `typings` field.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn resolve_package_dts(&self, directory: String, request: String) -> ResolveResult {
+        let path = PathBuf::from(directory);
+        self.resolver.resolve_package_dts(&path, &request).into()
     }
 
     fn normalize_options(op: NapiResolveOptions) -> ResolveOptions {

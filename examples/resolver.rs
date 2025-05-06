@@ -27,14 +27,27 @@ fn main() {
         ..ResolveOptions::default()
     };
 
-    match Resolver::new(options).resolve(path, &specifier) {
+    let resolver = Resolver::new(options);
+
+    println!();
+
+    match resolver.resolve(&path, &specifier) {
         Err(error) => println!("Error: {error}"),
         Ok(resolution) => {
             println!("Resolution: {}", resolution.full_path().to_string_lossy());
             println!(
-                "package json: {:?}",
+                "package.json: {:?}",
                 resolution.package_json().map(|p| p.path.to_string_lossy())
             );
+        }
+    }
+
+    println!();
+
+    match resolver.resolve_package_dts(&path, &specifier) {
+        Err(error) => println!("Error: {error}"),
+        Ok(resolution) => {
+            println!("DTS Resolution: {}", resolution.full_path().to_string_lossy());
         }
     }
 }

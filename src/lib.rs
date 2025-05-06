@@ -210,6 +210,26 @@ impl<C: Cache> ResolverGeneric<C> {
         self.load_tsconfig(true, path, &TsconfigReferences::Auto)
     }
 
+    /// Resolve `.d.ts` for a package.
+    ///
+    /// A package `.d.ts` file is resolved from:
+    ///
+    /// * local package or `node_modules/@types/package`.
+    /// * the package's `types` or `typings` main field.
+    /// * the package `export`'s `types` or `typings` field.
+    ///
+    /// # Errors
+    ///
+    /// * See [ResolveError]
+    pub fn resolve_package_dts<P: AsRef<Path>>(
+        &self,
+        directory: P,
+        specifier: &str,
+    ) -> Result<Resolution<C>, ResolveError> {
+        let directory = directory.as_ref();
+        self.resolve_package_dts_impl(directory, specifier)
+    }
+
     /// Resolve `specifier` at absolute `path` with [ResolveContext]
     ///
     /// # Errors
@@ -1828,5 +1848,104 @@ impl<C: Cache> ResolverGeneric<C> {
         specifier
             .strip_prefix(package_name)
             .filter(|tail| tail.is_empty() || tail.starts_with(SLASH_START))
+    }
+
+    fn resolve_package_dts_impl(
+        &self,
+        directory: &Path,
+        specifier: &str,
+    ) -> Result<Resolution<C>, ResolveError> {
+        let resolver = self.clone_with_options(ResolveOptions {
+            main_fields: vec!["types".into(), "typings".into()],
+            condition_names: vec![
+                "types".into(),
+                "typings".into(),
+                "import".into(),
+                "require".into(),
+            ],
+            extensions: vec![],
+            enforce_extension: EnforceExtension::Enabled,
+            ..ResolveOptions::default()
+        });
+
+        let ctx = &mut Ctx::default();
+        let cache = resolver.cache.as_ref();
+        let options = &resolver.options;
+        let cached_path = cache.value(directory);
+
+        if let Some(c) = Path::new(specifier).components().next() {
+            if matches!(
+                c,
+                Component::RootDir
+                    | Component::Prefix(_)
+                    | Component::CurDir
+                    | Component::ParentDir,
+            ) || (matches!(c, Component::Normal(_)) && specifier.as_bytes()[0] == b'#')
+            {
+                return Err(ResolveError::NotFound(specifier.to_string()));
+            }
+        }
+
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
+
+        if package_name.is_empty() {
+            return Err(ResolveError::NotFound(specifier.to_string()));
+        }
+
+        let mut package_name = Cow::Borrowed(package_name);
+        // For a scoped package, we must look in `@types/foo__bar` instead of `@types/@foo/bar`. */
+        // https://github.com/microsoft/TypeScript/blob/v5.8.3/src/compiler/moduleNameResolver.ts#L3188-L3214
+        if let Some(name) = package_name.strip_prefix('@') {
+            package_name = Cow::Owned(name.replace('/', "__"));
+        }
+
+        for cached_path in std::iter::successors(Some(&cached_path), |p| p.parent()) {
+            let cached_path = cached_path.normalize_with("node_modules/@types", cache);
+            if !resolver.cache.is_dir(&cached_path, ctx) {
+                continue;
+            }
+            let cached_path = cached_path.normalize_with(package_name.as_ref(), cache);
+            if !cache.is_dir(&cached_path, ctx) {
+                continue;
+            }
+            let Some((package_url, package_json)) =
+                cache.get_package_json(&cached_path, options, ctx)?
+            else {
+                continue;
+            };
+            for exports in package_json.exports_fields(&options.exports_fields) {
+                if let Some(cached_path) = resolver.package_exports_resolve(
+                    &package_url,
+                    &format!(".{subpath}"),
+                    &exports,
+                    ctx,
+                )? {
+                    return if cache.is_file(&cached_path, ctx) {
+                        Ok(Resolution {
+                            path: self.load_realpath(&cached_path)?,
+                            query: None,
+                            fragment: None,
+                            package_json: Some(Arc::clone(&package_json)),
+                        })
+                    } else {
+                        Err(ResolveError::NotFound(
+                            cached_path.path().to_string_lossy().to_string(),
+                        ))
+                    };
+                }
+            }
+            for main_field in package_json.main_fields(&resolver.options.main_fields) {
+                let cached_path = cached_path.normalize_with(main_field, cache);
+                if cache.is_file(&cached_path, ctx) {
+                    return Ok(Resolution {
+                        path: self.load_realpath(&cached_path)?,
+                        query: None,
+                        fragment: None,
+                        package_json: Some(Arc::clone(&package_json)),
+                    });
+                }
+            }
+        }
+        Err(ResolveError::NotFound(specifier.to_string()))
     }
 }
