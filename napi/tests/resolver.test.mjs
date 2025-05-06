@@ -263,7 +263,7 @@ test('resolve pnpm package', () => {
     ),
   );
 
-  const googleMaps = resolver.resolvePackageDts(pnpmProjectPath, "@google/maps");
+  const googleMaps = resolver.resolvePackageDts(pnpmProjectPath, '@google/maps');
   assert.deepEqual(
     googleMaps.path,
     join(
