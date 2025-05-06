@@ -463,10 +463,8 @@ impl<C: Cache> ResolverGeneric<C> {
     ) -> Result<C::Cp, ResolveError> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
-        if let Some(path) = self.load_package_imports(cached_path, specifier, ctx)? {
-            return Ok(path);
-        }
-        self.load_package_self_or_node_modules(cached_path, specifier, ctx)
+        self.load_package_imports(cached_path, specifier, ctx)?
+            .map_or_else(|| Err(ResolveError::NotFound(specifier.to_string())), Ok)
     }
 
     fn require_bare(
