@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v8.0.0...oxc_resolver-v9.0.0) - 2025-05-09
+
+### <!-- 1 -->Bug Fixes
+
+- hash import does not need to load from node_modules ([#501](https://github.com/oxc-project/oxc-resolver/pull/501))
+
+### <!-- 7 -->Chore
+
+- publish `oxc_napi_resolver` ([#496](https://github.com/oxc-project/oxc-resolver/pull/496))
+
 ## [8.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v7.0.1...oxc_resolver-v8.0.0) - 2025-05-01
 
 ### <!-- 1 -->Bug Fixes
