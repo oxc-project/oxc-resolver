@@ -97,6 +97,7 @@ criterion2 = { version = "3.0.0", default-features = false }
 normalize-path = { version = "0.2.1" }
 rayon = { version = "1.10.0" }
 vfs = "0.12.1" # for testing with in memory file system
+pico-args = "0.5.0"
 
 [features]
 default = ["fs_cache"]
