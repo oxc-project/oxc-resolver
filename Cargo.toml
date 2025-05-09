@@ -15,6 +15,9 @@ repository = "https://github.com/oxc-project/oxc-resolver"
 rust-version = "1.85.0"
 description = "ESM / CJS module resolution"
 
+[workspace.dependencies]
+oxc_resolver = { version = "9.0.0", path = "." }
+
 [package]
 name = "oxc_resolver"
 version = "9.0.0"

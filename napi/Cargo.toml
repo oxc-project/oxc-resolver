@@ -1,5 +1,5 @@
 [package]
-name = "oxc_napi_resolver"
+name = "oxc_resolver_napi"
 version = "9.0.0"
 authors.workspace = true
 categories.workspace = true
@@ -20,7 +20,7 @@ test = false
 doctest = false
 
 [dependencies]
-oxc_resolver = { path = ".." }
+oxc_resolver = { workspace = true }
 
 napi = { version = "3.0.0-alpha", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3.0.0-alpha" }
