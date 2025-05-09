@@ -15,7 +15,7 @@ rust-version.workspace = true
 description.workspace = true
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
 test = false
 doctest = false
 
