@@ -100,6 +100,12 @@ pub struct NapiResolveOptions {
     /// Default `["index"]`
     pub main_files: Option<Vec<String>>,
 
+    /// A list of directories to resolve modules from, can be absolute path or folder name.
+    ///
+    /// Default `["node_modules"]`
+    #[napi(ts_type = "string | string[]")]
+    pub modules: Option<StrOrStrListType>,
+
     /// Resolve to a context instead of a file.
     ///
     /// Default `false`

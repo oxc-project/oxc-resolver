@@ -21,20 +21,20 @@ fn alias() {
     let f = Path::new("/");
 
     let file_system = MemoryFS::new(&[
-        ("/node_modules/a/index", ""),
-        ("/node_modules/a/dir/index", ""),
-        ("/node_modules/recursive/index", ""),
-        ("/node_modules/recursive/dir/index", ""),
-        ("/node_modules/b/index", ""),
-        ("/node_modules/b/dir/index", ""),
-        ("/node_modules/c/index", ""),
-        ("/node_modules/c/dir/index", ""),
-        ("/node_modules/d/index.js", ""),
-        ("/node_modules/d/dir/.empty", ""),
-        ("/node_modules/e/index", ""),
-        ("/node_modules/e/anotherDir/index", ""),
-        ("/node_modules/e/dir/file", ""),
-        ("/node_modules/dashed-name", ""),
+        ("/a/index", ""),
+        ("/a/dir/index", ""),
+        ("/recursive/index", ""),
+        ("/recursive/dir/index", ""),
+        ("/b/index", ""),
+        ("/b/dir/index", ""),
+        ("/c/index", ""),
+        ("/c/dir/index", ""),
+        ("/d/index.js", ""),
+        ("/d/dir/.empty", ""),
+        ("/e/index", ""),
+        ("/e/anotherDir/index", ""),
+        ("/e/dir/file", ""),
+        ("/dashed-name", ""),
     ]);
 
     let resolver = ResolverGeneric::new_with_cache(
@@ -43,7 +43,7 @@ fn alias() {
             alias: vec![
                 ("aliasA".into(), vec![AliasValue::from("a")]),
                 ("b$".into(), vec![AliasValue::from("a/index")]),
-                ("c$".into(), vec![AliasValue::from("/node_modules/a/index")]),
+                ("c$".into(), vec![AliasValue::from("/a/index")]),
                 (
                     "multiAlias".into(),
                     vec![
@@ -55,82 +55,79 @@ fn alias() {
                     ],
                 ),
                 ("recursive".into(), vec![AliasValue::from("recursive/dir")]),
-                ("/node_modules/d/dir".into(), vec![AliasValue::from("/node_modules/c/dir")]),
-                (
-                    "/node_modules/d/index.js".into(),
-                    vec![AliasValue::from("/node_modules/c/index")],
-                ),
-                ("#".into(), vec![AliasValue::from("/node_modules/c/dir")]),
-                ("@".into(), vec![AliasValue::from("/node_modules/c/dir")]),
+                ("/d/dir".into(), vec![AliasValue::from("/c/dir")]),
+                ("/d/index.js".into(), vec![AliasValue::from("/c/index")]),
+                ("#".into(), vec![AliasValue::from("/c/dir")]),
+                ("@".into(), vec![AliasValue::from("/c/dir")]),
                 ("ignored".into(), vec![AliasValue::Ignore]),
                 // not part of enhanced-resolve, added to make sure query in alias value would work
                 ("alias_query".into(), vec![AliasValue::from("a?query_after")]),
                 ("alias_fragment".into(), vec![AliasValue::from("a#fragment_after")]),
                 ("dash".into(), vec![AliasValue::Ignore]),
-                ("@scope/package-name/file$".into(), vec![AliasValue::from("/node_modules/c/dir")]),
+                ("@scope/package-name/file$".into(), vec![AliasValue::from("/c/dir")]),
                 // wildcard https://github.com/webpack/enhanced-resolve/pull/439
-                ("@adir/*".into(), vec![AliasValue::from("./node_modules/a/")]), // added to test value without wildcard
-                ("@*".into(), vec![AliasValue::from("/node_modules/*")]),
-                ("@e*".into(), vec![AliasValue::from("/node_modules/e/*")]),
-                ("@e*file".into(), vec![AliasValue::from("/node_modules/e*file")]),
+                ("@adir/*".into(), vec![AliasValue::from("./a/")]), // added to test value without wildcard
+                ("@*".into(), vec![AliasValue::from("/*")]),
+                ("@e*".into(), vec![AliasValue::from("/e/*")]),
+                ("@e*file".into(), vec![AliasValue::from("/e*file")]),
             ],
+            modules: vec!["/".into()],
             ..ResolveOptions::default()
         },
     );
 
     #[rustfmt::skip]
     let pass = [
-        ("should resolve a not aliased module 1", "a", "a/index"),
-        ("should resolve a not aliased module 2", "a/index", "a/index"),
-        ("should resolve a not aliased module 3", "a/dir", "a/dir/index"),
-        ("should resolve a not aliased module 4", "a/dir/index", "a/dir/index"),
-        ("should resolve an aliased module 1", "aliasA", "a/index"),
-        ("should resolve an aliased module 2", "aliasA/index", "a/index"),
-        ("should resolve an aliased module 3", "aliasA/dir", "a/dir/index"),
-        ("should resolve an aliased module 4", "aliasA/dir/index", "a/dir/index"),
-        ("should resolve '#' alias 1", "#", "c/dir/index"),
-        ("should resolve '#' alias 2", "#/index", "c/dir/index"),
-        ("should resolve '@' alias 1", "@", "c/dir/index"),
-        ("should resolve '@' alias 2", "@/index", "c/dir/index"),
-        ("should resolve '@' alias 3", "@/", "c/dir/index"),
-        ("should resolve a recursive aliased module 1", "recursive", "recursive/dir/index"),
-        ("should resolve a recursive aliased module 2", "recursive/index", "recursive/dir/index"),
-        ("should resolve a recursive aliased module 3", "recursive/dir", "recursive/dir/index"),
-        ("should resolve a recursive aliased module 4", "recursive/dir/index", "recursive/dir/index"),
-        ("should resolve a file aliased module 1", "b", "a/index"),
-        ("should resolve a file aliased module 2", "c", "a/index"),
-        ("should resolve a file aliased module with a query 1", "b?query", "a/index?query"),
-        ("should resolve a file aliased module with a query 2", "c?query", "a/index?query"),
-        ("should resolve a path in a file aliased module 1", "b/index", "b/index"),
-        ("should resolve a path in a file aliased module 2", "b/dir", "b/dir/index"),
-        ("should resolve a path in a file aliased module 3", "b/dir/index", "b/dir/index"),
-        ("should resolve a path in a file aliased module 4", "c/index", "c/index"),
-        ("should resolve a path in a file aliased module 5", "c/dir", "c/dir/index"),
-        ("should resolve a path in a file aliased module 6", "c/dir/index", "c/dir/index"),
-        ("should resolve a file aliased file 1", "d", "c/index"),
-        ("should resolve a file aliased file 2", "d/dir/index", "c/dir/index"),
-        ("should resolve a file in multiple aliased dirs 1", "multiAlias/dir/file", "e/dir/file"),
-        ("should resolve a file in multiple aliased dirs 2", "multiAlias/anotherDir", "e/anotherDir/index"),
+        ("should resolve a not aliased module 1", "a", "/a/index"),
+        ("should resolve a not aliased module 2", "a/index", "/a/index"),
+        ("should resolve a not aliased module 3", "a/dir", "/a/dir/index"),
+        ("should resolve a not aliased module 4", "a/dir/index", "/a/dir/index"),
+        ("should resolve an aliased module 1", "aliasA", "/a/index"),
+        ("should resolve an aliased module 2", "aliasA/index", "/a/index"),
+        ("should resolve an aliased module 3", "aliasA/dir", "/a/dir/index"),
+        ("should resolve an aliased module 4", "aliasA/dir/index", "/a/dir/index"),
+        ("should resolve '#' alias 1", "#", "/c/dir/index"),
+        ("should resolve '#' alias 2", "#/index", "/c/dir/index"),
+        ("should resolve '@' alias 1", "@", "/c/dir/index"),
+        ("should resolve '@' alias 2", "@/index", "/c/dir/index"),
+        ("should resolve '@' alias 3", "@/", "/c/dir/index"),
+        ("should resolve a recursive aliased module 1", "recursive", "/recursive/dir/index"),
+        ("should resolve a recursive aliased module 2", "recursive/index", "/recursive/dir/index"),
+        ("should resolve a recursive aliased module 3", "recursive/dir", "/recursive/dir/index"),
+        ("should resolve a recursive aliased module 4", "recursive/dir/index", "/recursive/dir/index"),
+        ("should resolve a file aliased module 1", "b", "/a/index"),
+        ("should resolve a file aliased module 2", "c", "/a/index"),
+        ("should resolve a file aliased module with a query 1", "b?query", "/a/index?query"),
+        ("should resolve a file aliased module with a query 2", "c?query", "/a/index?query"),
+        ("should resolve a path in a file aliased module 1", "b/index", "/b/index"),
+        ("should resolve a path in a file aliased module 2", "b/dir", "/b/dir/index"),
+        ("should resolve a path in a file aliased module 3", "b/dir/index", "/b/dir/index"),
+        ("should resolve a path in a file aliased module 4", "c/index", "/c/index"),
+        ("should resolve a path in a file aliased module 5", "c/dir", "/c/dir/index"),
+        ("should resolve a path in a file aliased module 6", "c/dir/index", "/c/dir/index"),
+        ("should resolve a file aliased file 1", "d", "/c/index"),
+        ("should resolve a file aliased file 2", "d/dir/index", "/c/dir/index"),
+        ("should resolve a file in multiple aliased dirs 1", "multiAlias/dir/file", "/e/dir/file"),
+        ("should resolve a file in multiple aliased dirs 2", "multiAlias/anotherDir", "/e/anotherDir/index"),
         // wildcard
-        ("should resolve wildcard alias 1", "@a", "a/index"),
-        ("should resolve wildcard alias 2", "@a/dir", "a/dir/index"),
-        ("should resolve wildcard alias 3", "@e/dir/file", "e/dir/file"),
-        ("should resolve wildcard alias 4", "@e/anotherDir", "e/anotherDir/index"),
-        ("should resolve wildcard alias 5", "@e/dir/file", "e/dir/file"),
+        ("should resolve wildcard alias 1", "@a", "/a/index"),
+        ("should resolve wildcard alias 2", "@a/dir", "/a/dir/index"),
+        ("should resolve wildcard alias 3", "@e/dir/file", "/e/dir/file"),
+        ("should resolve wildcard alias 4", "@e/anotherDir", "/e/anotherDir/index"),
+        ("should resolve wildcard alias 5", "@e/dir/file", "/e/dir/file"),
         // added to test value without wildcard
-        ("should resolve scoped package name with sub dir 1", "@adir/index", "a/index"),
-        ("should resolve scoped package name with sub dir 2", "@adir/dir", "a/index"),
+        ("should resolve scoped package name with sub dir 1", "@adir/index", "/a/index"),
+        ("should resolve scoped package name with sub dir 2", "@adir/dir", "/a/index"),
         // not part of enhanced-resolve, added to make sure query in alias value works
-        ("should resolve query in alias value", "alias_query?query_before", "a/index?query_after"),
-        ("should resolve query in alias value", "alias_fragment#fragment_before", "a/index#fragment_after"),
-        ("should resolve dashed name", "dashed-name", "dashed-name"),
-        ("should resolve scoped package name with sub dir", "@scope/package-name/file", "c/dir/index"),
+        ("should resolve query in alias value", "alias_query?query_before", "/a/index?query_after"),
+        ("should resolve query in alias value", "alias_fragment#fragment_before", "/a/index#fragment_after"),
+        ("should resolve dashed name", "dashed-name", "/dashed-name"),
+        ("should resolve scoped package name with sub dir", "@scope/package-name/file", "/c/dir/index"),
     ];
 
     for (comment, request, expected) in pass {
         let resolved_path = resolver.resolve(f, request).map(|r| r.full_path());
-        let expected = PathBuf::from("/node_modules").join(expected);
-        assert_eq!(resolved_path, Ok(expected), "{comment} {request}");
+        assert_eq!(resolved_path, Ok(PathBuf::from(expected)), "{comment} {request}");
     }
 
     #[rustfmt::skip]
@@ -177,14 +174,12 @@ fn check_slash(path: &Path) {
 fn absolute_path() {
     let f = super::fixture();
     let resolver = Resolver::new(ResolveOptions {
-        alias: vec![(
-            f.join("node_modules").join("m1").to_str().unwrap().to_string(),
-            vec![AliasValue::Ignore],
-        )],
+        alias: vec![(f.join("foo").to_str().unwrap().to_string(), vec![AliasValue::Ignore])],
+        modules: vec![f.clone().to_str().unwrap().to_string()],
         ..ResolveOptions::default()
     });
-    let resolution = resolver.resolve(&f, "m1/a.js");
-    assert_eq!(resolution, Err(ResolveError::Ignored(f.join("node_modules").join("m1"))));
+    let resolution = resolver.resolve(&f, "foo/index");
+    assert_eq!(resolution, Err(ResolveError::Ignored(f.join("foo"))));
 }
 
 #[test]

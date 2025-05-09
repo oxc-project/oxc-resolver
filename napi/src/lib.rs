@@ -202,6 +202,7 @@ impl ResolverFactory {
                 .map(|o| StrOrStrList(o).into())
                 .unwrap_or(default.main_fields),
             main_files: op.main_files.unwrap_or(default.main_files),
+            modules: op.modules.map(|o| StrOrStrList(o).into()).unwrap_or(default.modules),
             resolve_to_context: op.resolve_to_context.unwrap_or(default.resolve_to_context),
             prefer_relative: op.prefer_relative.unwrap_or(default.prefer_relative),
             prefer_absolute: op.prefer_absolute.unwrap_or(default.prefer_absolute),

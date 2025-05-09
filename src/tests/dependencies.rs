@@ -12,7 +12,7 @@ mod windows {
             ("/a/b/node_modules/some-module/index.js", ""),
             ("/a/node_modules/module/package.json", r#"{"main":"entry.js"}"#),
             ("/a/node_modules/module/file.js", r#"{"main":"entry.js"}"#),
-            ("/node_modules/other-module/file.js", ""),
+            ("/modules/other-module/file.js", ""),
         ])
     }
 
@@ -24,6 +24,7 @@ mod windows {
             Arc::new(FsCache::new(file_system)),
             ResolveOptions {
                 extensions: vec![".json".into(), ".js".into()],
+                modules: vec!["/modules".into(), "node_modules".into()],
                 ..ResolveOptions::default()
             },
         );
@@ -48,40 +49,44 @@ mod windows {
                 ],
                 vec![
                     // missing package.jsons
-                    "/package.json",
-                    "/a/package.json",
-                    "/a/node_modules/module/file",
+                    // "/a/b/c/package.json",
                     "/a/b/package.json",
-                    "/a/b/node_modules/module",
-                    "/a/node_modules/module/file.json",
-                    "/a/b/c/node_modules",
+                    "/a/package.json",
+                    "/package.json",
+                    // missing modules directories
                     "/a/b/c",
+                    // "/a/b/c/node_modules",
+                    // missing single file modules
+                    "/modules/module",
+                    "/a/b/node_modules/module",
+                    // missing files with alternative extensions
+                    "/a/node_modules/module/file",
+                    "/a/node_modules/module/file.json",
                 ],
             ),
             (
                 "fast found module",
                 "/a/b/c",
                 "other-module/file.js",
-                "/node_modules/other-module/file.js",
+                "/modules/other-module/file.js",
                 // These dependencies are different from enhanced-resolve due to different code path to
                 // querying the file system
                 vec![
                     // symlink checks
-                    "/node_modules/other-module/file.js",
+                    "/modules/other-module/file.js",
                     // "/modules/other-module",
                     // "/modules",
                     // "/",
                 ],
                 vec![
                     // missing package.jsons
-                    "/package.json",
-                    "/a/package.json",
-                    "/a/node_modules/other-module",
-                    "/a/b/package.json",
-                    "/a/b/node_modules/other-module",
-                    "/node_modules/other-module/package.json",
-                    "/a/b/c/node_modules",
+                    // "/a/b/c/package.json",
                     "/a/b/c",
+                    "/a/b/package.json",
+                    "/a/package.json",
+                    "/package.json",
+                    "/modules/other-module/package.json",
+                    "/modules/package.json",
                 ],
             ),
         ];
