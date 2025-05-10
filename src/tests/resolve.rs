@@ -1,6 +1,6 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/resolve.test.js>
 
-use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::{PackageType, Resolution, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn resolve() {
@@ -75,6 +75,23 @@ fn issue238_resolve() {
     let resolved_path =
         resolver.resolve(f.join("src/common"), "config/myObjectFile").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/common/config/myObjectFile.js")),);
+}
+
+#[test]
+#[should_panic(expected = "assertion `left == right` failed")]
+fn nested_package_resolve() {
+    let f = super::fixture().join("nested_package");
+    let resolver = Resolver::default();
+
+    let resolution = resolver.resolve(f.join("node_modules/a/cjs"), "./mod").unwrap();
+    let package_json = resolution.package_json().unwrap();
+    assert_eq!(package_json.path.clone(), f.join("node_modules/a/cjs/package.json"));
+    assert_eq!(package_json.r#type, Some(PackageType::CommonJs));
+
+    let resolution = resolver.resolve(f.join("node_modules/a/cjs2"), "./mod").unwrap();
+    let package_json = resolution.package_json().unwrap();
+    assert_eq!(package_json.path.clone(), f.join("node_modules/a/cjs2/package.json"));
+    assert_eq!(package_json.r#type, None);
 }
 
 #[test]
