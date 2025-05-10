@@ -78,25 +78,20 @@ fn issue238_resolve() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "assertion `left == right` failed")]
 fn nested_package_resolve() {
     let f = super::fixture().join("nested_package");
     let resolver = Resolver::default();
-    let module_type = resolver
-        .resolve(f.join("node_modules/a/cjs"), "./mod")
-        .unwrap()
-        .package_json()
-        .unwrap()
-        .r#type;
-    assert_eq!(module_type, Some(PackageType::CommonJs));
 
-    let module_type = resolver
-        .resolve(f.join("node_modules/a/cjs2"), "./mod")
-        .unwrap()
-        .package_json()
-        .unwrap()
-        .r#type;
-    assert_eq!(module_type, Some(PackageType::CommonJs));
+    let resolution = resolver.resolve(f.join("node_modules/a/cjs"), "./mod").unwrap();
+    let package_json = resolution.package_json().unwrap();
+    assert_eq!(package_json.path.clone(), f.join("node_modules/a/cjs/package.json"));
+    assert_eq!(package_json.r#type, Some(PackageType::CommonJs));
+
+    let resolution = resolver.resolve(f.join("node_modules/a/cjs2"), "./mod").unwrap();
+    let package_json = resolution.package_json().unwrap();
+    assert_eq!(package_json.path.clone(), f.join("node_modules/a/cjs2/package.json"));
+    assert_eq!(package_json.r#type, None);
 }
 
 #[test]
