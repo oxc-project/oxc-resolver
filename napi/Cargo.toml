@@ -5,6 +5,7 @@ authors.workspace = true
 categories.workspace = true
 edition.workspace = true
 homepage.workspace = true
+include = ["src", "build.rs"]
 keywords.workspace = true
 license.workspace = true
 publish = true
@@ -12,7 +13,6 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 description.workspace = true
-include = ["src", "build.rs"]
 
 [lib]
 crate-type = ["cdylib", "lib"]
