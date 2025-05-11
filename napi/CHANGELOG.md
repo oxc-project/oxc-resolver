@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.2](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver_napi-v9.0.1...oxc_resolver_napi-v9.0.2) - 2025-05-11
+
+### <!-- 7 -->Chore
+
+- *(napi)* include build.rs ([#510](https://github.com/oxc-project/oxc-resolver/pull/510))
+
 ## [9.0.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver_napi-v9.0.0...oxc_resolver_napi-v9.0.1) - 2025-05-09
 
 ### <!-- 1 -->Bug Fixes
