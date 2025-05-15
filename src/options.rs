@@ -374,7 +374,7 @@ impl ResolveOptions {
 }
 
 /// Value for [ResolveOptions::enforce_extension]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum EnforceExtension {
     Auto,
     Enabled,
@@ -383,17 +383,17 @@ pub enum EnforceExtension {
 
 impl EnforceExtension {
     #[must_use]
-    pub const fn is_auto(&self) -> bool {
+    pub const fn is_auto(self) -> bool {
         matches!(self, Self::Auto)
     }
 
     #[must_use]
-    pub const fn is_enabled(&self) -> bool {
+    pub const fn is_enabled(self) -> bool {
         matches!(self, Self::Enabled)
     }
 
     #[must_use]
-    pub const fn is_disabled(&self) -> bool {
+    pub const fn is_disabled(self) -> bool {
         matches!(self, Self::Disabled)
     }
 }
