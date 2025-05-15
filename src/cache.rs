@@ -93,7 +93,7 @@ pub trait CachedPath: Sized {
     /// Returns a new path by resolving the given subpath (including "." and
     /// ".." components) with this path.
     #[must_use]
-    fn normalize_with<C: Cache<Cp = Self>>(&self, subpath: impl AsRef<Path>, cache: &C) -> Self;
+    fn normalize_with<C: Cache<Cp = Self>, P: AsRef<Path>>(&self, subpath: P, cache: &C) -> Self;
 
     #[must_use]
     fn normalize_root<C: Cache<Cp = Self>>(&self, _cache: &C) -> Self;

@@ -346,7 +346,7 @@ impl CachedPath for FsCachedPath {
     ///
     /// # Errors
     ///
-    /// * [ResolveError::JSON]
+    /// * [ResolveError::Json]
     fn find_package_json<C: Cache<Cp = Self>>(
         &self,
         options: &ResolveOptions,
@@ -399,7 +399,7 @@ impl CachedPath for FsCachedPath {
     }
 
     /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
-    fn normalize_with<C: Cache<Cp = Self>>(&self, subpath: impl AsRef<Path>, cache: &C) -> Self {
+    fn normalize_with<C: Cache<Cp = Self>, P: AsRef<Path>>(&self, subpath: P, cache: &C) -> Self {
         let subpath = subpath.as_ref();
         let mut components = subpath.components();
         let Some(head) = components.next() else { return cache.value(subpath) };
