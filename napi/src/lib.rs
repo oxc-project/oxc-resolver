@@ -1,8 +1,6 @@
 #[cfg(all(
     feature = "allocator",
-    not(target_arch = "arm"),
-    not(target_os = "freebsd"),
-    not(target_family = "wasm")
+    not(any(target_arch = "arm", target_os = "freebsd", target_family = "wasm"))
 ))]
 #[global_allocator]
 static ALLOC: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
