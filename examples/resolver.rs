@@ -12,8 +12,8 @@ fn main() {
     let path = args.free_from_str::<PathBuf>().expect("path");
     let specifier = args.free_from_str::<String>().expect("specifier");
 
-    assert!(path.is_dir(), "{path:?} must be a directory that will be resolved against.");
-    assert!(path.is_absolute(), "{path:?} must be an absolute path.",);
+    assert!(path.is_dir(), "{} must be a directory that will be resolved against.", path.display());
+    assert!(path.is_absolute(), "{} must be an absolute path.", path.display());
 
     println!("path: {}", path.to_string_lossy());
     println!("specifier: {specifier}");

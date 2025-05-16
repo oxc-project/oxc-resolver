@@ -243,8 +243,8 @@ impl<Fs: FileSystem> FsCache<Fs> {
                                 }
                                 debug_assert!(
                                     false,
-                                    "Failed to get path parent for {:?}.",
-                                    normalized.path()
+                                    "Failed to get path parent for {}.",
+                                    normalized.path().display()
                                 );
                             }
 
