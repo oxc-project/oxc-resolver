@@ -1,8 +1,8 @@
 import {
-  instantiateNapiModuleSync as __emnapiInstantiateNapiModuleSync,
-  getDefaultContext as __emnapiGetDefaultContext,
-  WASI as __WASI,
   createOnMessage as __wasmCreateOnMessageForFsProxy,
+  getDefaultContext as __emnapiGetDefaultContext,
+  instantiateNapiModuleSync as __emnapiInstantiateNapiModuleSync,
+  WASI as __WASI,
 } from '@napi-rs/wasm-runtime'
 import { memfs } from '@napi-rs/wasm-runtime/fs'
 import __wasmUrl from './resolver.wasm32-wasi.wasm?url'
@@ -60,6 +60,7 @@ const {
     }
   },
 })
+export default __napiModule.exports
 export const ResolverFactory = __napiModule.exports.ResolverFactory
 export const EnforceExtension = __napiModule.exports.EnforceExtension
 export const sync = __napiModule.exports.sync
