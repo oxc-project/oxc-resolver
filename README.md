@@ -21,14 +21,15 @@
 
 Rust port of [enhanced-resolve].
 
-- released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://www.npmjs.com/package/oxc-resolver).
-- built-in [tsconfig-paths-webpack-plugin]
+- Released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://www.npmjs.com/package/oxc-resolver).
+- Implements the [ESM](https://nodejs.org/api/esm.html#resolution-algorithm) and [CommonJS](https://nodejs.org/api/modules.html#all-together) module resolution algorithm specification.
+- Built-in [tsconfig-paths-webpack-plugin]
   - support extending tsconfig defined in `tsconfig.extends`
   - support paths alias defined in `tsconfig.compilerOptions.paths`
   - support project references defined `tsconfig.references`
   - support [template variable ${configDir} for substitution of config files directory path](https://github.com/microsoft/TypeScript/pull/58042)
-- supports in-memory file system via the `FileSystem` trait
-- contains `tracing` instrumentation
+- Supports in-memory file system via the `FileSystem` trait.
+- Contains `tracing` instrumentation.
 
 ## Usage
 
