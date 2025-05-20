@@ -11,3 +11,4 @@ changelog_include = ["oxc_resolver_napi"]
 [[package]]
 name = "oxc_resolver_napi"
 version_group = "group"
+changelog_update = false

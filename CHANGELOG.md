@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v9.0.2...oxc_resolver-v10.0.0) - 2025-05-20
+
+### <!-- 0 -->Features
+
+- *(napi)* upgrade NAPI-RS to 3.0.0-beta.1 ([#525](https://github.com/oxc-project/oxc-resolver/pull/525))
+
+### <!-- 4 -->Refactor
+
+- [**breaking**] set clippy `avoid-breaking-exported-api = false` ([#519](https://github.com/oxc-project/oxc-resolver/pull/519))
+
+### <!-- 7 -->Chore
+
+- *(deps)* lock file maintenance ([#523](https://github.com/oxc-project/oxc-resolver/pull/523))
+- *(deps)* update dependency rust to v1.87.0 ([#520](https://github.com/oxc-project/oxc-resolver/pull/520))
+- sync napi cfg on global_allocator
+- *(napi)* adjust mimalloc features ([#515](https://github.com/oxc-project/oxc-resolver/pull/515))
+
 ## [9.0.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v9.0.0...oxc_resolver-v9.0.1) - 2025-05-09
 
 ### <!-- 1 -->Bug Fixes
