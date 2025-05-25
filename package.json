@@ -11,12 +11,12 @@
     "test": "vitest run -r ./napi"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.0.0-alpha.78",
+    "@napi-rs/cli": "3.0.0-alpha.80",
     "@napi-rs/wasm-runtime": "^0.2.9",
     "@types/node": "^22.15.2",
     "emnapi": "^1.4.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"
   },
-  "packageManager": "pnpm@10.10.0"
+  "packageManager": "pnpm@10.11.0"
 }
