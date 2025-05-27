@@ -12,11 +12,11 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "3.0.0-alpha.80",
-    "@napi-rs/wasm-runtime": "^0.2.9",
-    "@types/node": "^22.15.2",
+    "@napi-rs/wasm-runtime": "^0.2.10",
+    "@types/node": "^22.15.21",
     "emnapi": "^1.4.3",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.2"
+    "vitest": "^3.1.4"
   },
   "packageManager": "pnpm@10.11.0"
 }

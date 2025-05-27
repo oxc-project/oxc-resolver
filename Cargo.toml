@@ -78,7 +78,7 @@ thiserror = "2.0.12"
 tracing = "0.1.41"
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
-pnp = { version = "0.9.3", optional = true }
+pnp = { version = "0.9.4", optional = true }
 
 document-features = { version = "0.2.11", optional = true }
 

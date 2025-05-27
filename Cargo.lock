@@ -575,10 +575,11 @@ dependencies = [
 
 [[package]]
 name = "libmimalloc-sys2"
-version = "0.1.47"
+version = "0.1.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8fafa21713ec3fb5eb3e7774bf88e545225f1a85eae6881ca3ffb1f7aaee1d0"
+checksum = "1fa6026099ae10574813598dc3e113eee5a86fbdae5ba859831c0029f9c88b62"
 dependencies = [
+ "cc",
  "cmake",
  "libc",
 ]
@@ -624,9 +625,9 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "mimalloc-safe"
-version = "0.1.51"
+version = "0.1.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d3e28f6a7b2f19aa1257bfabd5ade912dd5b980d2d72456db73586343bd9016"
+checksum = "29e4168fdbae0edf7511ecc95d261abe7d4189e08d945f728f60a28d20675f9f"
 dependencies = [
  "libmimalloc-sys2",
 ]
@@ -642,9 +643,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "3.0.0-alpha.33"
+version = "3.0.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c857a2b38c994db8bec785554ab4216d45ad63469832070c86a992be0b5491ad"
+checksum = "3357a01f87a8c7a1b060067212436b0ab9d3b1f06084406edb926a64b7400985"
 dependencies = [
  "bitflags",
  "ctor",
@@ -656,17 +657,18 @@ dependencies = [
 
 [[package]]
 name = "napi-build"
-version = "2.1.6"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e28acfa557c083f6e254a786e01ba253fc56f18ee000afcd4f79af735f73a6da"
+checksum = "03acbfa4f156a32188bfa09b86dc11a431b5725253fc1fc6f6df5bed273382c4"
 
 [[package]]
 name = "napi-derive"
-version = "3.0.0-alpha.29"
+version = "3.0.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7165d931d54f68115e651330d5fe0ae0081133d3f4ee3ab55b0b808f0c23f71"
+checksum = "cb71c236fe23004d7abf4a00ad5e86332ea3468f6c48935d283a5d71aa7cca0c"
 dependencies = [
  "convert_case",
+ "ctor",
  "napi-derive-backend",
  "proc-macro2",
  "quote",
@@ -675,9 +677,9 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "2.0.0-alpha.28"
+version = "2.0.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce3f36354262054df8e1c3a73bdcd36ea13f130feb1e4d86b67cab9e10d6ef6d"
+checksum = "6aeebae33f1d5d0ad2b65d97e4fa1266d46454dd1a74dc4a9f1f406e7358f5eb"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -780,9 +782,9 @@ checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 
 [[package]]
 name = "pnp"
-version = "0.9.3"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55ca72ffa69ef4e4d800cf9079e1bfd05132b2c3bae5b8228d5317cd936f13dc"
+checksum = "6add7fe3063e1c9b9a2b9780fba7047187617a37823a6541a62160f4e972cc91"
 dependencies = [
  "arca",
  "byteorder",
