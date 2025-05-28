@@ -132,6 +132,21 @@ fn prefer_file_over_dir() {
     }
 }
 
+#[test]
+fn resolve_dot() {
+    let f = super::fixture_root().join("dot");
+    let dot = f.join("dot.js");
+    let resolver = Resolver::default();
+    let data = [
+        ("dot", dot.clone(), ".", f.join("index.js")),
+        ("dot slash", dot, "./", f.join("index.js")),
+    ];
+    for (comment, path, request, expected) in data {
+        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+}
+
 #[cfg(windows)]
 #[test]
 fn resolve_normalized_on_windows() {

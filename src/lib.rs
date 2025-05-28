@@ -341,7 +341,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
             Some(Component::RootDir | Component::Prefix(_)) => {
                 self.require_absolute(cached_path, specifier, ctx)
             }
-            // 3. If X begins with './' or '/' or '../'
+            // 3. If X is '.' or begins with './' or '/' or '../'
             Some(Component::CurDir | Component::ParentDir) => {
                 self.require_relative(cached_path, specifier, ctx)
             }
@@ -420,7 +420,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
-    // 3. If X begins with './' or '/' or '../'
+    // 3. If X is '.' or begins with './' or '/' or '../'
     fn require_relative(
         &self,
         cached_path: &C::Cp,
@@ -435,6 +435,16 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
         // a. LOAD_AS_FILE(Y + X)
         // b. LOAD_AS_DIRECTORY(Y + X)
+        if specifier == "." || specifier == "./" {
+            let cached_path =
+                cached_path.clone().normalize_with("../index.js", self.cache.as_ref());
+            if self.cache.is_file(&cached_path, ctx) {
+                return Ok(cached_path);
+            }
+            if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                return Ok(path);
+            }
+        }
         if let Some(path) = self.load_as_file_or_directory(&cached_path, specifier, ctx)? {
             return Ok(path);
         }
@@ -1353,7 +1363,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
             let cached_path = self.cache.value(&path);
-            if let Ok(path) = self.require_relative(&cached_path, ".", ctx) {
+            if let Some(path) = self.load_as_file_or_directory(&cached_path, ".", ctx)? {
                 return Ok(Some(path));
             }
         }
