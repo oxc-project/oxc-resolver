@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.4](https://github.com/unrs/unrs-resolver/compare/v1.7.3...v1.7.4) - 2025-05-28
+
+### <!-- 1 -->Bug Fixes
+
+- prefer file over package dir in `node_modules` ([#116](https://github.com/unrs/unrs-resolver/pull/116))
+
 ## [1.7.3](https://github.com/unrs/unrs-resolver/compare/v1.7.2...v1.7.3) - 2025-05-28
 
 ### <!-- 1 -->Bug Fixes
