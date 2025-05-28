@@ -1,4 +1,4 @@
-# Changelog for `oxc-resolver` and `rspack-resolver`
+# Changelog for `oxc-resolver`
 
 All notable changes to this project will be documented in this file.
 

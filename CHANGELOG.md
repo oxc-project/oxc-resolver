@@ -255,6 +255,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0](https://github.com/unrs/unrs-resolver/releases/tag/unrspack-resolver-v1.0.0) - 2025-03-15
 
-## Old Changelog for `oxc-resolver` and `rspack-resolver`
+## Old Changelog for `oxc-resolver`
 
-[CHANGELOG_OLD](CHANGELOG_OLD)
+[CHANGELOG_OLD](CHANGELOG_OLD.md)
