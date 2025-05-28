@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.3](https://github.com/unrs/unrs-resolver/compare/v1.7.2...v1.7.3) - 2025-05-28
+
+### <!-- 1 -->Bug Fixes
+
+- custom `condition_names` should take higher priority than target in package.json ([#115](https://github.com/unrs/unrs-resolver/pull/115))
+
 ## [1.7.2](https://github.com/unrs/unrs-resolver/compare/v1.7.1...v1.7.2) - 2025-04-27
 
 ### <!-- 1 -->Bug Fixes
