@@ -1,6 +1,7 @@
 packages:
   - npm
   - napi
+  - fixtures/dual-condition-names
   - fixtures/pnpm
   - fixtures/pnpm-workspace/**
 

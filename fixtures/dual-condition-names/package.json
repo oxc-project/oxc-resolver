@@ -1,0 +1,6 @@
+{
+  "name": "dual-condition-names",
+  "dependencies": {
+    "zod": "~3.24.4"
+  }
+}

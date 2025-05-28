@@ -27,6 +27,12 @@ importers:
         specifier: ^3.1.4
         version: 3.1.4(@types/node@22.15.21)
 
+  fixtures/dual-condition-names:
+    dependencies:
+      zod:
+        specifier: ~3.24.4
+        version: 3.24.4
+
   fixtures/pnpm:
     devDependencies:
       '@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa':
@@ -1472,6 +1478,9 @@ packages:
     resolution: {integrity: sha512-cYVsTjKl8b+FrnidjibDWskAv7UKOfcwaVZdp/it9n1s9fU3IkgDbhdIRKCW4JDsAlECJY0ytoVPT3sK6kideA==}
     engines: {node: '>=18'}
 
+  zod@3.24.4:
+    resolution: {integrity: sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg==}
+
 snapshots:
 
   '@babel/runtime@7.27.0':
@@ -2614,3 +2623,5 @@ snapshots:
       strip-ansi: 6.0.1
 
   yoctocolors-cjs@2.1.2: {}
+
+  zod@3.24.4: {}

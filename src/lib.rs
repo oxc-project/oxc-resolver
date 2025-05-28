@@ -1766,11 +1766,16 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         }
         // 2. Otherwise, if target is a non-null Object, then
         else if let Some(target) = target.as_map() {
+            let mut conditions_with_default = conditions.to_vec();
+            // `default` condition should always be present as fallback.
+            if !conditions_with_default.iter().any(|condition| condition == "default") {
+                conditions_with_default.push("default".into());
+            }
             // 1. If exports contains any index property keys, as defined in ECMA-262 6.1.7 Array Index, throw an Invalid Package Configuration error.
-            // 2. For each property p of target, in object insertion order as,
-            for (key, target_value) in target.iter() {
+            // 2. For each property p of conditions, in object insertion order as,
+            for condition in conditions_with_default {
                 // 1. If p equals "default" or conditions contains an entry for p, then
-                if key == "default" || conditions.iter().any(|condition| condition == key) {
+                if let Some((_, target_value)) = target.iter().find(|(key, _)| condition == *key) {
                     // 1. Let targetValue be the value of the p property in target.
                     // 2. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions).
                     let resolved = self.package_target_resolve(

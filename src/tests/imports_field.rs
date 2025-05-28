@@ -517,7 +517,7 @@ fn test_cases() {
         },
         TestCase {
             name: "Direct mapping #7",
-            expect: Some(vec!["./src/index.js"]), // `enhanced_resolve` is `None`
+            expect: Some(vec!["./index.js"]), // `enhanced_resolve` is `None`
             imports_field: imports_field(json!({
               "#a": {
                 "default": "./src/index.js",
@@ -905,7 +905,7 @@ fn test_cases() {
               }
             })),
             request: "#a/index.mjs",
-            condition_names: vec!["browser", "webpack"],
+            condition_names: vec!["webpack", "browser"],
         },
         TestCase {
             name: "incorrect exports field #1",
