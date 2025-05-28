@@ -781,13 +781,6 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                 //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
                 if !package_name.is_empty() {
                     let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
-                    // file is preferred over directory when specifier doesn't contains a slash which indicates a dir
-                    // node_modules/bar.js vs node_modules/bar/index.js
-                    if !specifier.contains('/') {
-                        if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                            return Ok(Some(path));
-                        }
-                    }
                     // Try foo/node_modules/package_name
                     if self.cache.is_dir(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -823,6 +816,19 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                 if self.options.resolve_to_context {
                     return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
                 }
+
+                if self.options.alias_fields.is_empty() && self.cache.is_file(&cached_path, ctx) {
+                    return Ok(Some(cached_path));
+                }
+
+                // `is_file` could be false because no extensions are considered yet,
+                // so we need to try `load_as_file` first when `specifier` does not end with a slash which indicates a dir instead.
+                if !specifier.ends_with('/') {
+                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                        return Ok(Some(path));
+                    }
+                }
+
                 if self.cache.is_dir(&cached_path, ctx) {
                     if let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)? {
                         return Ok(Some(path));
@@ -831,9 +837,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                         return Ok(Some(path));
                     }
                 }
-                if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                    return Ok(Some(path));
-                }
+
                 if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
                     return Ok(Some(path));
                 }
