@@ -43,6 +43,7 @@ fn main() {
         Err(error) => println!("Error: {error}"),
         Ok(resolution) => {
             println!("Resolution: {}", resolution.full_path().to_string_lossy());
+            println!("Module Type: {:?}", resolution.module_type());
             println!(
                 "package json: {:?}",
                 resolution.package_json().map(|p| p.path.to_string_lossy())
