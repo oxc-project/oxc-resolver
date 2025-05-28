@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.5](https://github.com/unrs/unrs-resolver/compare/v1.7.4...v1.7.5) - 2025-05-28
+
+### <!-- 1 -->Bug Fixes
+
+- should try package exports first per spec ([#118](https://github.com/unrs/unrs-resolver/pull/118))
+
 ## [1.7.4](https://github.com/unrs/unrs-resolver/compare/v1.7.3...v1.7.4) - 2025-05-28
 
 ### <!-- 1 -->Bug Fixes
