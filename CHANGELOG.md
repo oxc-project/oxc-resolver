@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v10.0.0...oxc_resolver-v11.0.0) - 2025-05-28
+
+### <!-- 0 -->Features
+
+- implement module type resolution algorithm `ESM_FILE_FORMAT` from the spec ([#535](https://github.com/oxc-project/oxc-resolver/pull/535))
+
+### <!-- 3 -->Documentation
+
+- *(README)* clarify algorithm specification
+
+### <!-- 7 -->Chore
+
+- *(deps)* lock file maintenance rust crates ([#530](https://github.com/oxc-project/oxc-resolver/pull/530))
+
 ## [10.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v9.0.2...oxc_resolver-v10.0.0) - 2025-05-20
 
 ### <!-- 0 -->Features
