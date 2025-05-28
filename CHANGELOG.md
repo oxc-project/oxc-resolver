@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.6](https://github.com/unrs/unrs-resolver/compare/v1.7.5...v1.7.6) - 2025-05-28
+
+### <!-- 1 -->Bug Fixes
+
+- prefer index over current file for `.` and `./` ([#121](https://github.com/unrs/unrs-resolver/pull/121))
+
 ## [1.7.5](https://github.com/unrs/unrs-resolver/compare/v1.7.4...v1.7.5) - 2025-05-28
 
 ### <!-- 1 -->Bug Fixes
