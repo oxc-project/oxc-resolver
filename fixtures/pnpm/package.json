@@ -5,10 +5,11 @@
   "devDependencies": {
     "@oxc-resolver/test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "file:./longfilename",
     "axios": "1.6.2",
+    "decimal.js": "10.4.3",
     "ipaddr.js": "2.2.0",
+    "mathjs": "13.2.0",
     "postcss": "8.4.33",
     "styled-components": "6.1.1",
-    "mathjs": "13.2.0",
-    "decimal.js": "10.4.3"
+    "minimatch": "10.0.1"
   }
 }

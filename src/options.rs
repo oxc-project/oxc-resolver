@@ -157,6 +157,11 @@ pub struct ResolveOptions {
     ///
     /// Default `false`
     pub builtin_modules: bool,
+
+    /// Resolve [crate::Resolution::module_type].
+    ///
+    /// Default: `false`
+    pub module_type: bool,
 }
 
 impl ResolveOptions {
@@ -478,6 +483,7 @@ impl Default for ResolveOptions {
             roots: vec![],
             symlinks: true,
             builtin_modules: false,
+            module_type: false,
         }
     }
 }
@@ -628,6 +634,7 @@ mod test {
             roots: vec![],
             symlinks: false,
             tsconfig: None,
+            module_type: false,
         };
 
         assert_eq!(format!("{options}"), "");

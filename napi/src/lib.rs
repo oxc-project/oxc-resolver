@@ -26,8 +26,16 @@ mod tracing;
 pub struct ResolveResult {
     pub path: Option<String>,
     pub error: Option<String>,
-    /// "type" field in the package.json file
-    pub module_type: Option<String>,
+    /// Module type for this path.
+    ///
+    /// Enable with `ResolveOptions#moduleType`.
+    ///
+    /// The module type is computed `ESM_FILE_FORMAT` from the [ESM resolution algorithm specification](https://nodejs.org/docs/latest/api/esm.html#resolution-algorithm-specification).
+    ///
+    ///  The algorithm uses the file extension or finds the closest `package.json` with the `type` field.
+    pub module_type: Option<ModuleType>,
+
+    /// `package.json` path for the given module.
     pub package_json_path: Option<String>,
 }
 
@@ -36,7 +44,7 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
         Ok(resolution) => ResolveResult {
             path: Some(resolution.full_path().to_string_lossy().to_string()),
             error: None,
-            module_type: resolution.package_json().and_then(|p| p.r#type()).map(|t| t.to_string()),
+            module_type: resolution.module_type().map(ModuleType::from),
             package_json_path: resolution
                 .package_json()
                 .and_then(|p| p.path().to_str())
@@ -48,6 +56,27 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
             error: Some(err.to_string()),
             package_json_path: None,
         },
+    }
+}
+
+#[napi(string_enum = "lowercase")]
+pub enum ModuleType {
+    Module,
+    CommonJs,
+    Json,
+    Wasm,
+    Addon,
+}
+
+impl From<oxc_resolver::ModuleType> for ModuleType {
+    fn from(value: oxc_resolver::ModuleType) -> Self {
+        match value {
+            oxc_resolver::ModuleType::Module => Self::Module,
+            oxc_resolver::ModuleType::CommonJs => Self::CommonJs,
+            oxc_resolver::ModuleType::Json => Self::Json,
+            oxc_resolver::ModuleType::Wasm => Self::Wasm,
+            oxc_resolver::ModuleType::Addon => Self::Addon,
+        }
     }
 }
 
@@ -219,6 +248,7 @@ impl ResolverFactory {
                 .unwrap_or(default.roots),
             symlinks: op.symlinks.unwrap_or(default.symlinks),
             builtin_modules: op.builtin_modules.unwrap_or(default.builtin_modules),
+            module_type: op.module_type.unwrap_or(default.module_type),
         }
     }
 }

@@ -6,17 +6,36 @@ use std::{
 
 use crate::{Cache, PackageJson};
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ModuleType {
+    Module,
+    CommonJs,
+    Json,
+    Wasm,
+    Addon,
+}
+
 /// The final path resolution with optional `?query` and `#fragment`
 pub struct Resolution<C: Cache> {
     pub(crate) path: PathBuf,
 
-    /// path query `?query`, contains `?`.
+    /// Path query `?query`, contains `?`.
     pub(crate) query: Option<String>,
 
-    /// path fragment `#query`, contains `#`.
+    /// Path fragment `#query`, contains `#`.
     pub(crate) fragment: Option<String>,
 
+    /// `package.json` for the given module.
     pub(crate) package_json: Option<Arc<C::Pj>>,
+
+    /// Module type for this path.
+    ///
+    /// Enable with [crate::ResolveOptions::module_type].
+    ///
+    /// The module type is computed `ESM_FILE_FORMAT` from the [ESM resolution algorithm specification](https://nodejs.org/docs/latest/api/esm.html#resolution-algorithm-specification).
+    ///
+    ///  The algorithm uses the file extension or finds the closest `package.json` with the `type` field.
+    pub(crate) module_type: Option<ModuleType>,
 }
 
 impl<C: Cache> Clone for Resolution<C> {
@@ -26,6 +45,7 @@ impl<C: Cache> Clone for Resolution<C> {
             query: self.query.clone(),
             fragment: self.fragment.clone(),
             package_json: self.package_json.clone(),
+            module_type: self.module_type,
         }
     }
 }
@@ -36,6 +56,7 @@ impl<C: Cache> fmt::Debug for Resolution<C> {
             .field("path", &self.path)
             .field("query", &self.query)
             .field("fragment", &self.fragment)
+            .field("module_type", &self.module_type)
             .field("package_json", &self.package_json.as_ref().map(|p| p.path()))
             .finish()
     }
@@ -90,5 +111,11 @@ impl<C: Cache> Resolution<C> {
             path.push(fragment);
         }
         PathBuf::from(path)
+    }
+
+    /// Returns the module type of this path.
+    #[must_use]
+    pub fn module_type(&self) -> Option<ModuleType> {
+        self.module_type
     }
 }

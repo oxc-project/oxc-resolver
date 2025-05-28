@@ -144,6 +144,11 @@ pub struct NapiResolveOptions {
     ///
     /// Default `false`
     pub builtin_modules: Option<bool>,
+
+    /// Resolve [ResolveResult::moduleType].
+    ///
+    /// Default `false`
+    pub module_type: Option<bool>,
 }
 
 #[napi]
