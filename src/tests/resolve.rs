@@ -113,9 +113,18 @@ fn resolve_to_context() {
 #[test]
 fn resolve_hash_as_module() {
     let f = super::fixture();
-    let resolver = Resolver::new(ResolveOptions::default());
+    let resolver = Resolver::default();
     let resolution = resolver.resolve(f, "#a");
     assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
+}
+
+#[test]
+fn prefer_file_over_pkg() {
+    let f = super::fixture_root();
+    let fixture = f.join("prefer-file-over-pkg");
+    let resolver = Resolver::default();
+    let resolved_path = resolver.resolve(fixture.clone(), "bar").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(fixture.join("node_modules/bar.js")));
 }
 
 #[cfg(windows)]
@@ -127,7 +136,7 @@ fn resolve_normalized_on_windows() {
     let absolute = f.join("./foo/index.js").normalize();
     let absolute_str = absolute.to_string_lossy();
     let normalized_absolute = absolute_str.replace('\\', "/");
-    let resolver = Resolver::new(ResolveOptions::default());
+    let resolver = Resolver::default();
 
     let resolution = resolver.resolve(&f, &normalized_absolute).map(|r| r.full_path());
     assert_eq!(

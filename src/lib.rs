@@ -781,6 +781,13 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                 //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
                 if !package_name.is_empty() {
                     let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
+                    // file is preferred over directory when specifier doesn't contains a slash which indicates a dir
+                    // node_modules/bar.js vs node_modules/bar/index.js
+                    if !specifier.contains('/') {
+                        if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                            return Ok(Some(path));
+                        }
+                    }
                     // Try foo/node_modules/package_name
                     if self.cache.is_dir(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
