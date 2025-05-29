@@ -96,6 +96,7 @@ fn postcss() {
     let module_path = path.join("node_modules/postcss");
     let resolver = Resolver::new(ResolveOptions {
         alias_fields: vec![vec!["browser".into()]],
+        symlinks: false,
         ..ResolveOptions::default()
     });
 

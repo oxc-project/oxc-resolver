@@ -196,9 +196,6 @@ fn test_unsupported_targets() {
     let dos_device_temp_path = get_dos_device_path(&temp_path).unwrap();
     assert_eq!(
         resolver_with_symlinks.resolve(&dos_device_temp_path, "./index.js"),
-        // There is `package.json` under fixtures/enhanced_resolve, so in practice the Error will be thrown there.
-        Err(ResolveError::PathNotSupported(
-            dos_device_temp_path.parent().unwrap().parent().unwrap().to_path_buf()
-        ))
+        Err(ResolveError::PathNotSupported(dos_device_temp_path))
     );
 }

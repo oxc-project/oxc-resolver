@@ -254,7 +254,7 @@ fn all_alias_values_are_not_found() {
     let resolution = resolver.resolve(&f, "m1/a.js");
     assert_eq!(
         resolution,
-        Err(ResolveError::MatchedAliasNotFound("m1/a.js".to_string(), "m1".to_string(),))
+        Err(ResolveError::MatchedAliasNotFound("m1/a.js".to_string(), "m1".to_string()))
     );
 }
 

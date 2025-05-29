@@ -278,9 +278,22 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         ctx: &mut Ctx,
     ) -> Result<Resolution<C>, ResolveError> {
         ctx.with_fully_specified(self.options.fully_specified);
-        let cached_path = self.cache.value(path);
+
+        let cached_path = if self.options.symlinks {
+            self.load_realpath(&self.cache.value(path))?
+        } else {
+            path.to_path_buf()
+        };
+
+        let cached_path = self.cache.value(&cached_path);
         let cached_path = self.require(&cached_path, specifier, ctx)?;
-        let path = self.load_realpath(&cached_path)?;
+
+        let path = if self.options.symlinks {
+            self.load_realpath(&cached_path)?
+        } else {
+            cached_path.to_path_buf()
+        };
+
         // enhanced-resolve: restrictions
         self.check_restrictions(&path)?;
         let package_json =
