@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.7](https://github.com/unrs/unrs-resolver/compare/v1.7.6...v1.7.7) - 2025-05-29
+
+### <!-- 1 -->Bug Fixes
+
+- resolve dir index with dot specifier correctly ([#123](https://github.com/unrs/unrs-resolver/pull/123))
+
 ## [1.7.6](https://github.com/unrs/unrs-resolver/compare/v1.7.5...v1.7.6) - 2025-05-28
 
 ### <!-- 1 -->Bug Fixes
