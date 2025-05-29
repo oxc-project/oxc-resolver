@@ -5,18 +5,7 @@ description: Install pnpm
 runs:
   using: composite
   steps:
-    - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
-
-    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-      with:
-        node-version-file: .node-version
-        cache: pnpm
-
-    - name: pnpm
-      shell: bash
-      run: |
-        corepack enable
-        pnpm install
+    - uses: oxc-project/setup-node@f42e3bda950c7454575e78ee4eaac880a077700c # v1.0.0
 
     - name: yarn
       shell: bash
