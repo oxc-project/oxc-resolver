@@ -135,11 +135,15 @@ fn prefer_file_over_dir() {
 #[test]
 fn resolve_dot() {
     let f = super::fixture_root().join("dot");
-    let dot = f.join("dot.js");
+    let foo_dir: std::path::PathBuf = f.join("foo");
+    let foo_dir_foo = foo_dir.join("foo.js");
     let resolver = Resolver::default();
+    let foo_index = foo_dir.join("index.js");
     let data = [
-        ("dot", dot.clone(), ".", f.join("index.js")),
-        ("dot slash", dot, "./", f.join("index.js")),
+        ("dot file", foo_dir_foo.clone(), ".", foo_index.clone()),
+        ("dot file slash", foo_dir_foo, "./", foo_index.clone()),
+        ("dot dir", foo_dir.clone(), ".", foo_index.clone()),
+        ("dot dir slash", foo_dir, "./", foo_index),
     ];
     for (comment, path, request, expected) in data {
         let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
