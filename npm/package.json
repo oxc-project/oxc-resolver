@@ -6,7 +6,7 @@
   "repository": "git+https://github.com/unrs/unrs-resolver.git",
   "homepage": "https://github.com/unrs/unrs-resolver#readme",
   "author": "JounQin <admin@1stg.me> (https://www.1stG.me)",
-  "funding": "https://github.com/sponsors/JounQin",
+  "funding": "https://opencollective.com/unrs-resolver",
   "license": "MIT",
   "main": "index.js",
   "browser": "browser.js",

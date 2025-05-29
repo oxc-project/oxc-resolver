@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "repository": "git+https://github.com/unrs/unrs-resolver.git",
-  "funding": "https://github.com/sponsors/JounQin",
+  "funding": "https://opencollective.com/unrs-resolver",
   "scripts": {
     "build": "napi build --platform --release --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
     "build:debug": "napi build --platform --package-json-path npm/package.json --manifest-path napi/Cargo.toml",
