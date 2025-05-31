@@ -1874,10 +1874,10 @@ impl<C: Cache> ResolverGeneric<C> {
         match ext {
             // 2. If url ends in ".mjs", then
             //   1. Return "module".
-            Some("mjs") | Some("mts") => Ok(Some(ModuleType::Module)),
+            Some("mjs" | "mts") => Ok(Some(ModuleType::Module)),
             // 3. If url ends in ".cjs", then
             //   1. Return "commonjs".
-            Some("cjs") | Some("cts") => Ok(Some(ModuleType::CommonJs)),
+            Some("cjs" | "cts") => Ok(Some(ModuleType::CommonJs)),
             // 4. If url ends in ".json", then
             //   1. Return "json".
             Some("json") => Ok(Some(ModuleType::Json)),
@@ -1890,7 +1890,7 @@ impl<C: Cache> ResolverGeneric<C> {
             // 11. If url ends in ".js", then
             //   1. If packageType is not null, then
             //     1. Return packageType.
-            Some("js") | Some("ts") => {
+            Some("js" | "ts") => {
                 // 7. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(url).
                 // 8. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
                 let package_json =
