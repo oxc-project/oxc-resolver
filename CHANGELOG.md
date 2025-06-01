@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.0.0...oxc_resolver-v11.1.0) - 2025-06-01
+
+### <!-- 0 -->Features
+
+- support module type for TS files ([#538](https://github.com/oxc-project/oxc-resolver/pull/538))
+
 ## [11.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v10.0.0...oxc_resolver-v11.0.0) - 2025-05-28
 
 ### <!-- 0 -->Features
