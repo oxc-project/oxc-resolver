@@ -11,7 +11,7 @@
     "test": "vitest run -r ./napi"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.0.0-alpha.80",
+    "@napi-rs/cli": "3.0.0-alpha.81",
     "@napi-rs/wasm-runtime": "^0.2.10",
     "@types/node": "^22.15.21",
     "emnapi": "^1.4.3",
