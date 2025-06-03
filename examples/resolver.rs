@@ -7,12 +7,12 @@ use unrs_resolver::{AliasValue, ResolveOptions, Resolver};
 fn main() {
     let path = PathBuf::from(env::args().nth(1).expect("path"));
 
-    assert!(path.is_dir(), "{path:?} must be a directory that will be resolved against.");
-    assert!(path.is_absolute(), "{path:?} must be an absolute path.");
+    assert!(path.is_dir(), "{} must be a directory that will be resolved against.", path.display());
+    assert!(path.is_absolute(), "{} must be an absolute path.", path.display());
 
     let specifier = env::args().nth(2).expect("specifier");
 
-    println!("path: {path:?}");
+    println!("path: {}", path.to_string_lossy());
     println!("specifier: {specifier}");
 
     let options = ResolveOptions {
@@ -29,6 +29,6 @@ fn main() {
 
     match Resolver::new(options).resolve(path, &specifier) {
         Err(error) => println!("Error: {error}"),
-        Ok(resolution) => println!("Resolved: {:?}", resolution.full_path()),
+        Ok(resolution) => println!("Resolved: {}", resolution.full_path().display()),
     }
 }

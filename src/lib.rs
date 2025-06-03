@@ -872,10 +872,12 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
 
     #[cfg(feature = "yarn_pnp")]
     fn find_pnp_manifest(&self, cached_path: &C::Cp) -> Ref<'_, C::Cp, Option<pnp::Manifest>> {
-        let entry = self
-            .pnp_cache
-            .entry(cached_path.clone())
-            .or_insert_with(|| pnp::find_pnp_manifest(cached_path.path()).unwrap());
+        let entry = self.pnp_cache.entry(cached_path.clone()).or_insert_with(|| {
+            if let Some(path) = pnp::find_pnp_manifest(cached_path.path()).unwrap() {
+                return Some(path);
+            }
+            self.options.roots.iter().find_map(|root| pnp::find_pnp_manifest(root).unwrap())
+        });
 
         entry.downgrade()
     }

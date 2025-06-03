@@ -148,7 +148,7 @@ fn bench_resolver(c: &mut Criterion) {
 
     // check validity
     for (path, request) in &data {
-        assert!(unrs_resolver().resolve(path, request).is_ok(), "{path:?} {request}");
+        assert!(unrs_resolver().resolve(path, request).is_ok(), "{:?} {request}", path.display());
     }
 
     let symlink_test_dir = create_symlinks().expect("Create symlink fixtures failed");

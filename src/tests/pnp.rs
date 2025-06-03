@@ -131,3 +131,39 @@ fn resolve_pnp_nested_package_json() {
         ))
     );
 }
+
+// Windows is blocked by upstream
+// see also https://github.com/yarnpkg/pnp-rs/pull/10
+#[cfg(not(windows))]
+#[test]
+fn resolve_global_cache() {
+    let home_dir = dirs::home_dir().unwrap();
+
+    #[cfg(windows)]
+    let global_cache = home_dir.join("AppData\\Local\\Yarn\\Berry");
+    #[cfg(not(windows))]
+    let global_cache = home_dir.join(".yarn/berry/cache");
+
+    let resolver = Resolver::new(ResolveOptions {
+        roots: vec![super::fixture_root().join("global-pnp")],
+        ..ResolveOptions::default()
+    });
+
+    assert_eq!(
+        resolver
+            .resolve(
+                global_cache
+                    .join("source-map-support-npm-0.5.21-09ca99e250-10c0.zip")
+                    .join("node_modules")
+                    .join("source-map-support")
+                    .join(""),
+                "source-map"
+            )
+            .map(|r| r.full_path()),
+        Ok(global_cache
+            .join("source-map-npm-0.6.1-1a3621db16-10c0.zip")
+            .join("node_modules")
+            .join("source-map")
+            .join("source-map.js")),
+    );
+}
