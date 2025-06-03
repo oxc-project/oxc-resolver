@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.9](https://github.com/unrs/unrs-resolver/compare/v1.7.8...v1.7.9) - 2025-06-03
+
+### <!-- 1 -->Bug Fixes
+
+- pnp global cache should be supported ([#129](https://github.com/unrs/unrs-resolver/pull/129))
+
+   Windows global cache is still unsupported due to upstream
+
+   see also <https://github.com/yarnpkg/pnp-rs/pull/10>
+
 ## [1.7.8](https://github.com/unrs/unrs-resolver/compare/v1.7.7...v1.7.8) - 2025-05-29
 
 ### <!-- 1 -->Bug Fixes
