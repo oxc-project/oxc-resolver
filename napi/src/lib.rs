@@ -14,12 +14,10 @@ use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
 use oxc_resolver::{PackageJson, ResolveOptions, Resolver};
 
-use self::{
-    options::{NapiResolveOptions, StrOrStrList},
-    tracing::init_tracing,
-};
+use self::options::{NapiResolveOptions, StrOrStrList};
 
 mod options;
+#[cfg(feature = "tracing-subscriber")]
 mod tracing;
 
 #[napi(object)]
@@ -117,7 +115,10 @@ pub struct ResolverFactory {
 impl ResolverFactory {
     #[napi(constructor)]
     pub fn new(options: Option<NapiResolveOptions>) -> Self {
-        init_tracing();
+        #[cfg(feature = "tracing-subscriber")]
+        {
+            tracing::init_tracing();
+        }
         let options = options.map_or_else(ResolveOptions::default, Self::normalize_options);
         Self { resolver: Arc::new(Resolver::new(options)) }
     }
