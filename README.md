@@ -224,12 +224,6 @@ OXC_LOG=DEBUG your_program
 RD_LOG='oxc_resolver' rolldown build
 ```
 
-### Rspack
-
-```bash
-RSPACK_PROFILE='TRACE=filter=oxc_resolver=trace&layer=logger' rspack build
-```
-
 ## Test
 
 Tests are ported from
