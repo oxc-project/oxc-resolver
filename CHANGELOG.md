@@ -7,15 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.10](https://github.com/unrs/unrs-resolver/compare/v1.7.9...v1.7.10) - 2025-06-05
+
+### <!-- 1 -->Bug Fixes
+
+- Revert "fix: custom `condition_names` should take higher priority than target in package.json ([#115](https://github.com/unrs/unrs-resolver/pull/115))" ([#131](https://github.com/unrs/unrs-resolver/pull/131))
+
+### Other
+
+- chore: bump napi v3.0.0-beta.7 ([#133](https://github.com/unrs/unrs-resolver/pull/133))
+
 ## [1.7.9](https://github.com/unrs/unrs-resolver/compare/v1.7.8...v1.7.9) - 2025-06-03
 
 ### <!-- 1 -->Bug Fixes
 
 - pnp global cache should be supported ([#129](https://github.com/unrs/unrs-resolver/pull/129))
 
-   Windows global cache is still unsupported due to upstream
+  Windows global cache is still unsupported due to upstream
 
-   see also <https://github.com/yarnpkg/pnp-rs/pull/10>
+  see also <https://github.com/yarnpkg/pnp-rs/pull/10>
 
 ## [1.7.8](https://github.com/unrs/unrs-resolver/compare/v1.7.7...v1.7.8) - 2025-05-29
 
@@ -153,7 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - handle query and fragment in pacakge.json `exports` and `imports` field ([#443](https://github.com/oxc-project/oxc-resolver/pull/443))
 - resolve emitDecoratorMetadata in tsconfig ([#439](https://github.com/oxc-project/oxc-resolver/pull/439))
-- *(napi)* add mimalloc ([#423](https://github.com/oxc-project/oxc-resolver/pull/423))
+- _(napi)_ add mimalloc ([#423](https://github.com/oxc-project/oxc-resolver/pull/423))
 - [**breaking**] Rust Edition 2024 ([#402](https://github.com/oxc-project/oxc-resolver/pull/402))
 - deserialize `verbatim_module_syntax` from compilerOptions ([#411](https://github.com/oxc-project/oxc-resolver/pull/411))
 - support wildcard `*` in alias plugin ([#388](https://github.com/oxc-project/oxc-resolver/pull/388))
@@ -181,7 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - use `fs::canonicalize` to cover symlink edge cases ([#284](https://github.com/oxc-project/oxc-resolver/pull/284))
 - extensionAlias cannot resolve mathjs ([#273](https://github.com/oxc-project/oxc-resolver/pull/273))
 - resolve module `ipaddr.js` correctly when `extensionAlias` is provided ([#228](https://github.com/oxc-project/oxc-resolver/pull/228))
-- *(napi)* update buggy NAPI-RS versions ([#225](https://github.com/oxc-project/oxc-resolver/pull/225))
+- _(napi)_ update buggy NAPI-RS versions ([#225](https://github.com/oxc-project/oxc-resolver/pull/225))
 - remove `#[cfg(target_os = "windows")]` logic in `canonicalize` ([#221](https://github.com/oxc-project/oxc-resolver/pull/221))
 
 ### <!-- 2 -->Performance
@@ -203,7 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - fix an incorrect comment on `Context::missing_dependencies`
 - mention extension must start with a `.` in `with_extension` ([#313](https://github.com/oxc-project/oxc-resolver/pull/313))
-- *(README)* should be `new ResolverFactory`
+- _(README)_ should be `new ResolverFactory`
 
 ### <!-- 4 -->Refactor
 
@@ -251,13 +261,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### <!-- 1 -->Bug Fixes
 
-- *(pnp)* support `pnpapi` core module and package deep link ([#24](https://github.com/unrs/unrs-resolver/pull/24))
+- _(pnp)_ support `pnpapi` core module and package deep link ([#24](https://github.com/unrs/unrs-resolver/pull/24))
 
 ## [1.2.0](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.1.2...unrspack-resolver-v2.0.0) - 2025-03-18
 
 ### <!-- 0 -->Features
 
-- *(napi)* add mimalloc ([#423](https://github.com/unrs/unrs-resolver/pull/423)) ([#18](https://github.com/unrs/unrs-resolver/pull/18))
+- _(napi)_ add mimalloc ([#423](https://github.com/unrs/unrs-resolver/pull/423)) ([#18](https://github.com/unrs/unrs-resolver/pull/18))
 - merge from upstream `oxc-project/oxc-resolver` ([#15](https://github.com/unrs/unrs-resolver/pull/15))
 
 ## [1.1.2](https://github.com/unrs/unrs-resolver/compare/unrspack-resolver-v1.1.1...unrspack-resolver-v1.1.2) - 2025-03-16
