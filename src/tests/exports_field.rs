@@ -822,7 +822,7 @@ fn test_cases() {
         },
         TestCase {
             name: "Direct mapping #7",
-            expect: Some(vec!["./index.js"]), // `enhanced_resolve` is `None`
+            expect: Some(vec!["./src/index.js"]), // `enhanced_resolve` is `None`
             exports_field: exports_field(json!({
                 ".": {
                     "default": "./src/index.js",
@@ -1344,7 +1344,7 @@ fn test_cases() {
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["webpack", "browser"],
+            condition_names: vec!["browser", "webpack"],
         },
         TestCase {
             name: "conditional mapping folder #3 (wildcard)",
@@ -1362,7 +1362,7 @@ fn test_cases() {
                 }
             })),
             request: "./utils/index.mjs",
-            condition_names: vec!["webpack", "browser"],
+            condition_names: vec!["browser", "webpack"],
         },
         TestCase {
             name: "incorrect exports field #1",

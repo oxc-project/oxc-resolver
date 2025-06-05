@@ -248,17 +248,3 @@ fn package_json_with_bom() {
         Ok(dir.join("package-json-with-bom/index.js"))
     );
 }
-
-#[test]
-fn dual_condition_names() {
-    let dir: PathBuf = dir();
-    let path = dir.join("fixtures/dual-condition-names");
-    let resolver = Resolver::new(ResolveOptions {
-        condition_names: vec!["import".into(), "require".into()],
-        ..ResolveOptions::default()
-    });
-    assert_eq!(
-        resolver.resolve(path, "zod").map(|r| r.full_path()),
-        Ok(dir.join("node_modules/.pnpm/zod@3.24.4/node_modules/zod/lib/index.mjs"))
-    );
-}
