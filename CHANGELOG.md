@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.11](https://github.com/unrs/unrs-resolver/compare/v1.7.10...v1.7.11) - 2025-06-05
+
+### <!-- 1 -->Bug Fixes
+
+- remove invalid file cache due to extension alias ([#136](https://github.com/unrs/unrs-resolver/pull/136))
+
 ## [1.7.10](https://github.com/unrs/unrs-resolver/compare/v1.7.9...v1.7.10) - 2025-06-05
 
 ### <!-- 1 -->Bug Fixes
