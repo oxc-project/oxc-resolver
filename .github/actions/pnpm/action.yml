@@ -36,3 +36,6 @@ runs:
 
         cd ../global-pnp
         yarn install
+
+        cd ../yarn
+        yarn install

@@ -33,6 +33,16 @@ fn extension_alias() {
     let resolution = resolver.resolve(&f, "./index.mjs").unwrap_err();
     let expected = ResolveError::ExtensionAlias("index.mjs".into(), "index.mts".into(), f);
     assert_eq!(resolution, expected);
+
+    let resolver = Resolver::new(ResolveOptions {
+        extension_alias: vec![(".js".into(), vec![".ts".into(), ".d.ts".into()])],
+        ..ResolveOptions::default()
+    });
+
+    let f = super::fixture_root().join("yarn");
+
+    let resolution = resolver.resolve(&f, "typescript/lib/typescript.js").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("node_modules/typescript/lib/typescript.d.ts")));
 }
 
 // should not apply extension alias to extensions or mainFiles field

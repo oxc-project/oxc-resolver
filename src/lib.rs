@@ -841,10 +841,6 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                     return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
                 }
 
-                if self.options.alias_fields.is_empty() && self.cache.is_file(&cached_path, ctx) {
-                    return Ok(Some(cached_path));
-                }
-
                 // `is_file` could be false because no extensions are considered yet,
                 // so we need to try `load_as_file` first when `specifier` does not end with a slash which indicates a dir instead.
                 if !specifier.ends_with('/') {
