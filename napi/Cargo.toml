@@ -11,8 +11,8 @@ test = false
 doctest = false
 
 [dependencies]
-napi = { version = "3.0.0-beta.2", default-features = false, features = ["napi3", "serde-json"] }
-napi-derive = { version = "3.0.0-beta.2" }
+napi = { version = "3.0.0-beta.7", default-features = false, features = ["napi3", "serde-json"] }
+napi-derive = { version = "3.0.0-beta.6" }
 oxc_resolver = { path = "..", package = "unrs_resolver" }
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 
@@ -26,4 +26,4 @@ mimalloc-safe = { version = "0.1.52", features = ["skip_collect_on_exit", "local
 mimalloc-safe = { version = "0.1.52", features = ["skip_collect_on_exit", "local_dynamic_tls", "no_opt_arch"] }
 
 [build-dependencies]
-napi-build = "2.2.0"
+napi-build = "2.2.1"
