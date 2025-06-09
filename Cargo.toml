@@ -114,6 +114,16 @@ yarn_pnp = ["pnp"]
 # For codspeed benchmark
 codspeed = ["criterion2/codspeed"]
 
+[profile.dev]
+# Disabling debug info speeds up local and CI builds,
+# and we don't rely on it for debugging that much.
+debug = false
+
+[profile.test]
+# Disabling debug info speeds up local and CI builds,
+# and we don't rely on it for debugging that much.
+debug = false
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
