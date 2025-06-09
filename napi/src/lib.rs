@@ -250,6 +250,8 @@ impl ResolverFactory {
             symlinks: op.symlinks.unwrap_or(default.symlinks),
             builtin_modules: op.builtin_modules.unwrap_or(default.builtin_modules),
             module_type: op.module_type.unwrap_or(default.module_type),
+            #[cfg(feature = "yarn_pnp")]
+            pnp_manifest: default.pnp_manifest,
         }
     }
 }
