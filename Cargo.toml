@@ -91,7 +91,7 @@ simdutf8 = { version = "0.1" }
 thiserror = "2"
 tracing = "0.1"
 
-pnp = { version = "0.9.1", optional = true }
+pnp = { version = "0.9.4", optional = true }
 
 document-features = { version = "0.2.11", optional = true }
 
