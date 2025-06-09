@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.12](https://github.com/unrs/unrs-resolver/compare/v1.7.11...v1.7.12) - 2025-06-09
+
+### <!-- 1 -->Bug Fixes
+
+- npm protocol alias with pnp should be supported ([#139](https://github.com/unrs/unrs-resolver/pull/139))
+
 ## [1.7.11](https://github.com/unrs/unrs-resolver/compare/v1.7.10...v1.7.11) - 2025-06-05
 
 ### <!-- 1 -->Bug Fixes

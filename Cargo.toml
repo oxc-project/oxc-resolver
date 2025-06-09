@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "unrs_resolver"
-version = "1.7.11"
+version = "1.7.12"
 authors = ["JounQin <admin@1stg.me> (https://www.1stG.me)"]
 categories = ["development-tools"]
 edition = "2024"
