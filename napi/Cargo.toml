@@ -42,3 +42,4 @@ napi-build = "2.2.1"
 default = ["tracing-subscriber"]
 allocator = ["dep:mimalloc-safe"]
 tracing-subscriber = ["dep:tracing-subscriber"]
+yarn_pnp = ["oxc_resolver/yarn_pnp"]
