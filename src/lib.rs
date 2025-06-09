@@ -915,7 +915,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                     let pkg_name = cached_path_string.rsplit_once("node_modules/").map_or(
                         "",
                         // remove trailing slash
-                        |last| last.1.strip_suffix("/").unwrap_or(last.1),
+                        |(_, last)| last.strip_suffix('/').unwrap_or(last),
                     );
 
                     let inner_request = if pkg_name.is_empty() {
@@ -927,6 +927,15 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                             },
                         )
                     } else {
+                        let (first, rest) = specifier.split_once('/').unwrap_or((specifier, ""));
+                        // the original `pkg_name` in cached path could be different with specifier
+                        // due to alias like `"custom-minimist": "npm:minimist@^1.2.8"`
+                        // in this case, `specifier` is `pkg_name`'s source of truth
+                        let pkg_name = if first.starts_with('@') {
+                            &format!("{first}/{}", rest.split_once('/').unwrap_or((rest, "")).0)
+                        } else {
+                            first
+                        };
                         let inner_specifier = specifier.strip_prefix(pkg_name).unwrap();
                         String::from("./")
                             + inner_specifier.strip_prefix("/").unwrap_or(inner_specifier)

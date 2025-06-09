@@ -132,6 +132,34 @@ fn resolve_pnp_nested_package_json() {
     );
 }
 
+#[test]
+fn resolve_npm_protocol_alias() {
+    let fixture = super::fixture_root().join("pnp");
+
+    let resolver = Resolver::default();
+
+    assert_eq!(
+        resolver.resolve(&fixture, "custom-minimist").map(|r| r.full_path()),
+        Ok(fixture.join(
+            ".yarn/cache/minimist-npm-1.2.8-d7af7b1dce-19d3fcdca0.zip/node_modules/minimist/index.js"
+        ))
+    );
+
+    assert_eq!(
+        resolver.resolve(&fixture, "@custom/pragmatic-drag-and-drop").map(|r| r.full_path()),
+        Ok(fixture.join(
+            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.5.2-3241d4f843-1dace49fa3.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/cjs/index.js"
+        ))
+    );
+
+    assert_eq!(
+        resolver.resolve(&fixture, "pragmatic-drag-and-drop").map(|r| r.full_path()),
+        Ok(fixture.join(
+            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.5.2-3241d4f843-1dace49fa3.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/cjs/index.js"
+        ))
+    );
+}
+
 // Windows is blocked by upstream
 // see also https://github.com/yarnpkg/pnp-rs/pull/10
 #[cfg(not(windows))]

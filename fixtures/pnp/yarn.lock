@@ -5,7 +5,7 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@atlaskit/pragmatic-drag-and-drop@npm:^1.5.2":
+"@atlaskit/pragmatic-drag-and-drop@npm:^1.5.2, @custom/pragmatic-drag-and-drop@npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2, pragmatic-drag-and-drop@npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2":
   version: 1.5.2
   resolution: "@atlaskit/pragmatic-drag-and-drop@npm:1.5.2"
   dependencies:
@@ -185,6 +185,13 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 10c0/053ea8b2135caff68a9e81470e845613e374e7309a47731e81639de3eaeb90c3d01af0e0b44d2ab9d50b43467223b88567dfeb3262db942dc063b9976718ffc1
+  languageName: node
+  linkType: hard
+
+"custom-minimist@npm:minimist@^1.2.8":
+  version: 1.2.8
+  resolution: "minimist@npm:1.2.8"
+  checksum: 10c0/19d3fcdca050087b84c2029841a093691a91259a47def2f18222f41e7645a0b7c44ef4b40e88a1e58a40c84d2ef0ee6047c55594d298146d0eb3f6b737c20ce6
   languageName: node
   linkType: hard
 
@@ -682,11 +689,14 @@ __metadata:
   resolution: "pnp@workspace:."
   dependencies:
     "@atlaskit/pragmatic-drag-and-drop": "npm:^1.5.2"
+    "@custom/pragmatic-drag-and-drop": "npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2"
     beachball: "npm:^2.52.0"
+    custom-minimist: "npm:minimist@^1.2.8"
     is-even: "npm:^1.0.0"
     is-odd: "npm:^3.0.1"
     lib: "link:./shared"
     lodash.zip: "npm:^4.2.0"
+    pragmatic-drag-and-drop: "npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2"
     preact: "npm:^10.26.5"
   languageName: unknown
   linkType: soft
