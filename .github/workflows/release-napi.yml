@@ -8,7 +8,7 @@ on:
     branches:
       - main
     paths:
-      - npm/package.json # Please only commit this file, so we don't need to wait for test CI to pass.
+      - package.json
 
 env:
   DEBUG: napi:*
@@ -32,7 +32,7 @@ jobs:
         with:
           static-checking: localIsNew
           file-url: https://unpkg.com/unrs-resolver@latest/package.json
-          file-name: npm/package.json
+          file-name: package.json
 
       - name: Set version name
         if: steps.version.outputs.changed == 'true'
@@ -102,7 +102,7 @@ jobs:
             target: wasm32-wasip1-threads
             build: pnpm build
 
-    name: Package ${{ matrix.target }}
+    name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
@@ -148,10 +148,10 @@ jobs:
           RUSTUP_IO_THREADS: 1
         with:
           operating_system: freebsd
-          version: "14.2"
+          version: 14.2
           memory: 8G
           cpu_count: 3
-          environment_variables: "DEBUG RUSTUP_IO_THREADS"
+          environment_variables: DEBUG RUSTUP_IO_THREADS
           shell: bash
           run: |
             sudo pkg install -y -f curl libnghttp2 node22 npm cmake
@@ -211,18 +211,15 @@ jobs:
 
       - name: Prepare dirs and artifacts
         run: |
-          pnpm napi create-npm-dirs --package-json-path npm/package.json
-          pnpm napi artifacts --package-json-path npm/package.json --build-output-dir napi
+          cp package.json napi/package.json
+          pnpm napi create-npm-dirs
+          pnpm napi artifacts --npm-dir npm --build-output-dir napi
 
       - name: Publish npm packages as latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        shell: bash
         run: |
-          cp napi/index.js npm/index.js
-          cp napi/index.d.ts npm/index.d.ts
-          cp napi/browser.js npm/browser.js
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          pnpm napi pre-publish --no-gh-release -t npm --package-json-path npm/package.json
-          npm publish npm/ --tag latest --provenance --access public
+          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
+          npm publish napi/ --tag latest --provenance --access public

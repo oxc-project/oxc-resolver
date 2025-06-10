@@ -55,6 +55,52 @@ Rust port of [enhanced-resolve].
 
 ## Usage
 
+### npm package
+
+See `index.d.ts` for `resolveSync` and `ResolverFactory` API.
+
+Quick example:
+
+```javascript
+import assert from 'node:assert';
+import path from 'node:path';
+
+import resolve, { ResolverFactory } from 'unrs-resolver';
+
+// `resolve`
+assert(resolve.sync(process.cwd(), './index.js').path, path.resolve('index.js'));
+
+// `ResolverFactory`
+const resolver = new ResolverFactory();
+assert(resolver.sync(process.cwd(), './index.js').path, path.resolve('index.js'));
+```
+
+### Rust
+
+See [docs.rs/unrs_resolver](https://docs.rs/unrs_resolver/latest/unrs_resolver/).
+
+## Terminology
+
+### `directory`
+
+An **absolute** path to a directory where the specifier is resolved against.
+
+For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
+
+For ECMAScript modules, it is the value of `import.meta.url`.
+
+Behavior is undefined when given a path to a file.
+
+### `specifier`
+
+The string passed to `require` or `import`, i.e. `require("specifier")` or `import "specifier"`
+
+## Errors and Trouble Shooting
+
+- `Error: Package subpath '.' is not defined by "exports" in` - occurs when resolving without `conditionNames`.
+
+## Configuration
+
 The following usages apply to both Rust and Node.js; the code snippets are written in JavaScript.
 
 To handle the `exports` field in `package.json`, ESM and CJS need to be differentiated.
@@ -131,10 +177,6 @@ Quoting esbuild's documentation:
 - `main` - This is [the standard field](https://docs.npmjs.com/files/package.json#main) for all packages that are meant to be used with node. The name main is hard-coded in to node's module resolution logic itself. Because it's intended for use with node, it's reasonable to expect that the file path in this field is a CommonJS-style module.
 - `module` - This field came from a [proposal](https://github.com/dherman/defense-of-dot-js/blob/f31319be735b21739756b87d551f6711bd7aa283/proposal.md) for how to integrate ECMAScript modules into node. Because of this, it's reasonable to expect that the file path in this field is an ECMAScript-style module. This proposal wasn't adopted by node (node uses "type": "module" instead) but it was adopted by major bundlers because ECMAScript-style modules lead to better tree shaking, or dead code removal.
 - `browser` - This field came from a [proposal](https://gist.github.com/defunctzombie/4339901/49493836fb873ddaa4b8a7aa0ef2352119f69211) that allows bundlers to replace node-specific files or modules with their browser-friendly versions. It lets you specify an alternate browser-specific entry point. Note that it is possible for a package to use both the browser and module field together (see the note below).
-
-## Errors & Trouble Shooting
-
-- `Error: Package subpath '.' is not defined by "exports" in` - occurs when resolving without `conditionNames`.
 
 ## Options
 

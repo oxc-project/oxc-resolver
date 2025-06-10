@@ -363,6 +363,14 @@ if (!nativeBinding || process.env.NAPI_RS_FORCE_WASI) {
   }
 }
 
+if (!nativeBinding && process.env.SKIP_UNRS_RESOLVER_FALLBACK !== '1') {
+  try {
+    nativeBinding = require('./fallback.js');
+  } catch (err) {
+    loadErrors.push(err)
+  }
+}
+
 if (!nativeBinding) {
   if (loadErrors.length > 0) {
     // TODO Link to documentation with potential fixes
