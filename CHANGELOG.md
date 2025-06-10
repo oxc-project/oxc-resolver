@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.13](https://github.com/unrs/unrs-resolver/compare/v1.7.12...v1.7.13) - 2025-06-10
+
+### <!-- 1 -->Bug Fixes
+
+- support extends in referenced project ([#142](https://github.com/unrs/unrs-resolver/pull/142))
+
 ## [1.7.12](https://github.com/unrs/unrs-resolver/compare/v1.7.11...v1.7.12) - 2025-06-09
 
 ### <!-- 1 -->Bug Fixes
