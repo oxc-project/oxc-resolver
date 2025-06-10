@@ -11,8 +11,8 @@ test = false
 doctest = false
 
 [dependencies]
-napi = { version = "3.0.0-beta.7", default-features = false, features = ["napi3", "serde-json"] }
-napi-derive = { version = "3.0.0-beta.6" }
+napi = { version = "3.0.0-beta.8", default-features = false, features = ["napi3", "serde-json"] }
+napi-derive = { version = "3.0.0-beta.8" }
 oxc_resolver = { path = "..", package = "unrs_resolver" }
 tracing-subscriber = { version = "0.3.19", default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 

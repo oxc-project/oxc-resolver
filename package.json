@@ -8,7 +8,7 @@
   "author": "JounQin <admin@1stg.me> (https://www.1stG.me)",
   "funding": "https://opencollective.com/unrs-resolver",
   "license": "MIT",
-  "packageManager": "pnpm@10.11.1",
+  "packageManager": "pnpm@10.12.1",
   "main": "index.js",
   "browser": "browser.js",
   "files": [
@@ -29,15 +29,15 @@
     "napi-postinstall": "^0.2.2"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.0.0-alpha.87",
-    "@napi-rs/wasm-runtime": "^0.2.10",
-    "@types/node": "^22.15.29",
+    "@napi-rs/cli": "3.0.0-alpha.88",
+    "@napi-rs/wasm-runtime": "^0.2.11",
+    "@types/node": "^22.15.31",
     "clean-pkg-json": "^1.3.0",
     "emnapi": "^1.4.3",
     "prettier": "^3.5.3",
     "prettier-plugin-pkg": "^0.21.1",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.1"
+    "vitest": "^3.2.3"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
