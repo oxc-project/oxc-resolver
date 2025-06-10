@@ -122,14 +122,13 @@ fn broken() {
     });
 
     let resolved_path = resolver.resolve(&f, "/");
-    let _error = ResolveError::JSON(JSONError {
+    let error = ResolveError::Json(JSONError {
         path: f.join("tsconfig_broken.json"),
         message: String::from("EOF while parsing an object at line 2 column 0"),
         line: 2,
         column: 0,
-        content: Some("{\n".to_string()),
     });
-    assert!(matches!(resolved_path, Err(ResolveError::JSON(_))));
+    assert_eq!(resolved_path, Err(error));
 }
 
 // <https://github.com/parcel-bundler/parcel/blob/c8f5c97a01f643b4d5c333c02d019ef2618b44a5/packages/utils/node-resolver-rs/src/tsconfig.rs#L193C12-L193C12>
@@ -239,6 +238,8 @@ fn test_merge_tsconfig() {
     assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
     assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
     assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
+    assert_eq!(compiler_options.target, Some("ESNext".to_string()));
 }
 
 #[test]

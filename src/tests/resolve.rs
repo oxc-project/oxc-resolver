@@ -1,6 +1,6 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/resolve.test.js>
 
-use crate::{ResolveError, ResolveOptions, Resolver};
+use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn resolve() {
@@ -53,8 +53,14 @@ fn resolve() {
     ];
 
     for (comment, path, request, expected) in pass {
-        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+        let resolution = resolver.resolve(&path, request).ok();
+        let resolved_path = resolution.as_ref().map(Resolution::full_path);
+        let resolved_package_json =
+            resolution.as_ref().and_then(|r| r.package_json()).map(|p| p.path.clone());
+        if expected.to_str().unwrap().contains("node_modules") {
+            assert!(resolved_package_json.is_some(), "{comment} {path:?} {request}");
+        }
+        assert_eq!(resolved_path, Some(expected), "{comment} {path:?} {request}");
     }
 }
 

@@ -18,9 +18,9 @@
     "index.js"
   ],
   "scripts": {
-    "build": "pnpm build:debug --release",
+    "build": "pnpm build:debug --features allocator --release",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
-    "postbuild:debug": "node napi/patch.mjs",
+    "postbuild": "node napi/patch.mjs",
     "postinstall": "napi-postinstall unrs-resolver 1.7.13 check",
     "prepublishOnly": "clean-pkg-json",
     "test": "vitest run -r ./napi"

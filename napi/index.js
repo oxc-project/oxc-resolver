@@ -385,4 +385,5 @@ if (!nativeBinding) {
 module.exports = nativeBinding
 module.exports.ResolverFactory = nativeBinding.ResolverFactory
 module.exports.EnforceExtension = nativeBinding.EnforceExtension
+module.exports.ModuleType = nativeBinding.ModuleType
 module.exports.sync = nativeBinding.sync

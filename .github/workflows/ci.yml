@@ -102,3 +102,5 @@ jobs:
         run: pnpm run test
         env:
           WASI_TEST: 1
+
+      - run: git diff --exit-code # Must commit index.d.ts

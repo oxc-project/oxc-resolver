@@ -42,11 +42,13 @@ body = """
 """
 
 commit_parsers = [
-  { message = "^doc", group = "<!-- 3 -->Documentation" },
   { message = "^feat", group = "<!-- 0 -->Features" },
   { message = "^fix", group = "<!-- 1 -->Bug Fixes" },
   { message = "^perf", group = "<!-- 2 -->Performance" },
+  { message = "^doc", group = "<!-- 3 -->Documentation" },
   { message = "^refactor", group = "<!-- 4 -->Refactor" },
   { message = "^style", group = "<!-- 5 -->Styling" },
   { message = "^test", group = "<!-- 6 -->Testing" },
+  { message = "^chore", group = "<!-- 7 -->Chore" },
+  { message = "^ci", group = "<!-- 8 -->CI" },
 ]

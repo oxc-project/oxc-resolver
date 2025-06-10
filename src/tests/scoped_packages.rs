@@ -1,6 +1,6 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/scoped-packages.test.js>
 
-use crate::{ResolveOptions, Resolver};
+use crate::{Resolution, ResolveOptions, Resolver};
 
 #[test]
 fn scoped_packages() {
@@ -13,13 +13,18 @@ fn scoped_packages() {
 
     #[rustfmt::skip]
     let pass = [
-        ("main field should work", f.clone(), "@scope/pack1", f.join("./node_modules/@scope/pack1/main.js")),
-        ("browser field should work", f.clone(), "@scope/pack2", f.join("./node_modules/@scope/pack2/main.js")),
-        ("folder request should work", f.clone(), "@scope/pack2/lib", f.join("./node_modules/@scope/pack2/lib/index.js"))
+        ("main field should work", f.clone(), "@scope/pack1", "@scope/pack1", f.join("./node_modules/@scope/pack1/main.js")),
+        ("browser field should work", f.clone(), "@scope/pack2", "@scope/pack2", f.join("./node_modules/@scope/pack2/main.js")),
+        ("folder request should work", f.clone(), "@scope/pack2/lib", "@scope/pack2", f.join("./node_modules/@scope/pack2/lib/index.js"))
     ];
 
-    for (comment, path, request, expected) in pass {
-        let resolved_path = resolver.resolve(&f, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    for (comment, path, request, package, expected) in pass {
+        let resolution = resolver.resolve(&path, request).ok();
+        let resolved_path = resolution.as_ref().map(Resolution::full_path);
+        let resolved_package_json =
+            resolution.as_ref().and_then(|r| r.package_json()).map(|p| p.path.clone());
+        assert_eq!(resolved_path, Some(expected), "{comment} {path:?} {request}");
+        let package_json_path = f.join("node_modules").join(package).join("package.json");
+        assert_eq!(resolved_package_json, Some(package_json_path), "{path:?} {request}");
     }
 }

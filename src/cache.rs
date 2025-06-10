@@ -8,8 +8,8 @@ use crate::{Ctx, PackageJson, ResolveError, ResolveOptions, TsConfig};
 
 #[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error
 pub trait Cache: Sized {
-    type Cp: CachedPath + Clone;
-    type Pj: PackageJson;
+    type Cp: CachedPath + Clone + Debug;
+    type Pj: PackageJson + Debug;
     type Tc: TsConfig + Debug;
 
     /// Clears the cache.
@@ -62,6 +62,10 @@ pub trait CachedPath: Sized {
 
     fn parent(&self) -> Option<&Self>;
 
+    fn is_node_modules(&self) -> bool;
+
+    fn inside_node_modules(&self) -> bool;
+
     fn module_directory<C: Cache<Cp = Self>>(
         &self,
         module_name: &str,
@@ -89,7 +93,7 @@ pub trait CachedPath: Sized {
     /// Returns a new path by resolving the given subpath (including "." and
     /// ".." components) with this path.
     #[must_use]
-    fn normalize_with<C: Cache<Cp = Self>>(&self, subpath: impl AsRef<Path>, cache: &C) -> Self;
+    fn normalize_with<C: Cache<Cp = Self>, P: AsRef<Path>>(&self, subpath: P, cache: &C) -> Self;
 
     #[must_use]
     fn normalize_root<C: Cache<Cp = Self>>(&self, _cache: &C) -> Self;

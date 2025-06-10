@@ -1,4 +1,7 @@
-#[cfg(not(any(target_arch = "arm", target_os = "freebsd", target_family = "wasm")))]
+#[cfg(all(
+    feature = "allocator",
+    not(any(target_arch = "arm", target_os = "freebsd", target_family = "wasm"))
+))]
 #[global_allocator]
 static ALLOC: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
 
@@ -9,22 +12,28 @@ use std::{
 
 use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{PackageJson, ResolveOptions, Resolver};
+use unrs_resolver::{PackageJson, ResolveOptions, Resolver};
 
-use self::{
-    options::{NapiResolveOptions, StrOrStrList},
-    tracing::init_tracing,
-};
+use self::options::{NapiResolveOptions, StrOrStrList};
 
 mod options;
+#[cfg(feature = "tracing-subscriber")]
 mod tracing;
 
 #[napi(object)]
 pub struct ResolveResult {
     pub path: Option<String>,
     pub error: Option<String>,
-    /// "type" field in the package.json file
-    pub module_type: Option<String>,
+    /// Module type for this path.
+    ///
+    /// Enable with `ResolveOptions#moduleType`.
+    ///
+    /// The module type is computed `ESM_FILE_FORMAT` from the [ESM resolution algorithm specification](https://nodejs.org/docs/latest/api/esm.html#resolution-algorithm-specification).
+    ///
+    ///  The algorithm uses the file extension or finds the closest `package.json` with the `type` field.
+    pub module_type: Option<ModuleType>,
+
+    /// `package.json` path for the given module.
     pub package_json_path: Option<String>,
 }
 
@@ -33,7 +42,7 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
         Ok(resolution) => ResolveResult {
             path: Some(resolution.full_path().to_string_lossy().to_string()),
             error: None,
-            module_type: resolution.package_json().and_then(|p| p.r#type()).map(|t| t.to_string()),
+            module_type: resolution.module_type().map(ModuleType::from),
             package_json_path: resolution
                 .package_json()
                 .and_then(|p| p.path().to_str())
@@ -45,6 +54,27 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
             error: Some(err.to_string()),
             package_json_path: None,
         },
+    }
+}
+
+#[napi(string_enum = "lowercase")]
+pub enum ModuleType {
+    Module,
+    CommonJs,
+    Json,
+    Wasm,
+    Addon,
+}
+
+impl From<unrs_resolver::ModuleType> for ModuleType {
+    fn from(value: unrs_resolver::ModuleType) -> Self {
+        match value {
+            unrs_resolver::ModuleType::Module => Self::Module,
+            unrs_resolver::ModuleType::CommonJs => Self::CommonJs,
+            unrs_resolver::ModuleType::Json => Self::Json,
+            unrs_resolver::ModuleType::Wasm => Self::Wasm,
+            unrs_resolver::ModuleType::Addon => Self::Addon,
+        }
     }
 }
 
@@ -85,7 +115,10 @@ pub struct ResolverFactory {
 impl ResolverFactory {
     #[napi(constructor)]
     pub fn new(options: Option<NapiResolveOptions>) -> Self {
-        init_tracing();
+        #[cfg(feature = "tracing-subscriber")]
+        {
+            tracing::init_tracing();
+        }
         let options = options.map_or_else(ResolveOptions::default, Self::normalize_options);
         Self { resolver: Arc::new(Resolver::new(options)) }
     }
@@ -143,8 +176,8 @@ impl ResolverFactory {
                             let v = v
                                 .into_iter()
                                 .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::from(path),
-                                    None => oxc_resolver::AliasValue::Ignore,
+                                    Some(path) => unrs_resolver::AliasValue::from(path),
+                                    None => unrs_resolver::AliasValue::Ignore,
                                 })
                                 .collect();
                             (k, v)
@@ -184,8 +217,8 @@ impl ResolverFactory {
                             let v = v
                                 .into_iter()
                                 .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::from(path),
-                                    None => oxc_resolver::AliasValue::Ignore,
+                                    Some(path) => unrs_resolver::AliasValue::from(path),
+                                    None => unrs_resolver::AliasValue::Ignore,
                                 })
                                 .collect();
                             (k, v)
@@ -218,6 +251,9 @@ impl ResolverFactory {
                 .unwrap_or(default.roots),
             symlinks: op.symlinks.unwrap_or(default.symlinks),
             builtin_modules: op.builtin_modules.unwrap_or(default.builtin_modules),
+            module_type: op.module_type.unwrap_or(default.module_type),
+            #[cfg(feature = "yarn_pnp")]
+            enable_pnp: true,
         }
     }
 }

@@ -63,4 +63,5 @@ const {
 export default __napiModule.exports
 export const ResolverFactory = __napiModule.exports.ResolverFactory
 export const EnforceExtension = __napiModule.exports.EnforceExtension
+export const ModuleType = __napiModule.exports.ModuleType
 export const sync = __napiModule.exports.sync

@@ -4,6 +4,8 @@
     "jsx": "react-jsx",
     "jsxFactory": "h",
     "jsxFragmentFactory": "Fragment",
-    "jsxImportSource": "xxx"
+    "jsxImportSource": "xxx",
+    "module": "ESNext",
+    "target": "ESNext"
   }
 }

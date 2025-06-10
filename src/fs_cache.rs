@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     convert::AsRef,
+    fmt,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
     ops::Deref,
@@ -66,9 +67,14 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             return entry.clone();
         }
         let parent = path.parent().map(|p| self.value(p));
+        let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
+        let inside_node_modules =
+            is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
         let cached_path = FsCachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
+            is_node_modules,
+            inside_node_modules,
             parent,
         )));
         paths.insert(cached_path.clone());
@@ -128,13 +134,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
                 };
                 PackageJsonSerde::parse(package_json_path.clone(), real_path, &package_json_string)
                     .map(|package_json| Some((path.clone(), (Arc::new(package_json)))))
-                    .map_err(|error| {
-                        ResolveError::from_serde_json_error(
-                            package_json_path,
-                            &error,
-                            Some(package_json_string),
-                        )
-                    })
+                    .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
             })
             .cloned();
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
@@ -183,11 +183,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
         let mut tsconfig = TsConfigSerde::parse(root, &tsconfig_path, &mut tsconfig_string)
             .map_err(|error| {
-                ResolveError::from_serde_json_error(
-                    tsconfig_path.to_path_buf(),
-                    &error,
-                    Some(tsconfig_string),
-                )
+                ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
         callback(&mut tsconfig)?;
         let tsconfig = Arc::new(tsconfig.build());
@@ -285,6 +281,8 @@ pub struct CachedPathImpl {
     hash: u64,
     path: Box<Path>,
     parent: Option<FsCachedPath>,
+    is_node_modules: bool,
+    inside_node_modules: bool,
     meta: OnceLock<Option<FileMetadata>>,
     canonicalized: OnceLock<Result<FsCachedPath, ResolveError>>,
     canonicalizing: AtomicU64,
@@ -293,11 +291,19 @@ pub struct CachedPathImpl {
 }
 
 impl CachedPathImpl {
-    const fn new(hash: u64, path: Box<Path>, parent: Option<FsCachedPath>) -> Self {
+    fn new(
+        hash: u64,
+        path: Box<Path>,
+        is_node_modules: bool,
+        inside_node_modules: bool,
+        parent: Option<FsCachedPath>,
+    ) -> Self {
         Self {
             hash,
             path,
             parent,
+            is_node_modules,
+            inside_node_modules,
             meta: OnceLock::new(),
             canonicalized: OnceLock::new(),
             canonicalizing: AtomicU64::new(0),
@@ -328,6 +334,14 @@ impl CachedPath for FsCachedPath {
         self.0.parent.as_ref()
     }
 
+    fn is_node_modules(&self) -> bool {
+        self.is_node_modules
+    }
+
+    fn inside_node_modules(&self) -> bool {
+        self.inside_node_modules
+    }
+
     fn module_directory<C: Cache<Cp = Self>>(
         &self,
         module_name: &str,
@@ -346,7 +360,7 @@ impl CachedPath for FsCachedPath {
     ///
     /// # Errors
     ///
-    /// * [ResolveError::JSON]
+    /// * [ResolveError::Json]
     fn find_package_json<C: Cache<Cp = Self>>(
         &self,
         options: &ResolveOptions,
@@ -399,7 +413,7 @@ impl CachedPath for FsCachedPath {
     }
 
     /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
-    fn normalize_with<C: Cache<Cp = Self>>(&self, subpath: impl AsRef<Path>, cache: &C) -> Self {
+    fn normalize_with<C: Cache<Cp = Self>, P: AsRef<Path>>(&self, subpath: P, cache: &C) -> Self {
         let subpath = subpath.as_ref();
         let mut components = subpath.components();
         let Some(head) = components.next() else { return cache.value(subpath) };
@@ -474,6 +488,12 @@ impl PartialEq for FsCachedPath {
 }
 
 impl Eq for FsCachedPath {}
+
+impl fmt::Debug for FsCachedPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FsCachedPath").field("path", &self.path).finish()
+    }
+}
 
 struct BorrowedCachedPath<'a> {
     hash: u64,

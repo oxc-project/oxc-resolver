@@ -77,7 +77,7 @@ use std::{
     borrow::Cow,
     cmp::Ordering,
     ffi::OsStr,
-    fmt,
+    fmt, iter,
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -106,7 +106,7 @@ pub use crate::{
         PackageJson, PackageType,
     },
     path::PathUtil,
-    resolution::Resolution,
+    resolution::{ModuleType, Resolution},
     tsconfig::{CompilerOptions, CompilerOptionsPathsMap, ProjectReference, TsConfig},
 };
 use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier};
@@ -296,18 +296,50 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
 
         // enhanced-resolve: restrictions
         self.check_restrictions(&path)?;
-        let package_json =
-            cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?;
-        if let Some((_, package_json)) = &package_json {
+        let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
+        if let Some(package_json) = &package_json {
             // path must be inside the package.
             debug_assert!(path.starts_with(package_json.directory()));
         }
+        let module_type = self.esm_file_format(&cached_path, ctx)?;
         Ok(Resolution {
             path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
-            package_json: package_json.map(|(_, p)| p),
+            package_json,
+            module_type,
         })
+    }
+
+    fn find_package_json_for_a_package(
+        &self,
+        cached_path: &C::Cp,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<C::Pj>>, ResolveError> {
+        // Algorithm:
+        // Find `node_modules/package/package.json`
+        // or the first package.json if the path is not inside node_modules.
+        let inside_node_modules = cached_path.inside_node_modules();
+        if inside_node_modules {
+            let mut last = None;
+            for cp in iter::successors(Some(cached_path), |cp| cp.parent()) {
+                if cp.is_node_modules() {
+                    break;
+                }
+                if self.cache.is_dir(cp, ctx) {
+                    if let Some((_, package_json)) =
+                        self.cache.get_package_json(cp, &self.options, ctx)?
+                    {
+                        last = Some(package_json);
+                    }
+                }
+            }
+            Ok(last)
+        } else {
+            cached_path
+                .find_package_json(&self.options, self.cache.as_ref(), ctx)
+                .map(|result| result.map(|(_, p)| p))
+        }
     }
 
     /// require(X) from module at path Y
@@ -474,10 +506,8 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
     ) -> Result<C::Cp, ResolveError> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
-        if let Some(path) = self.load_package_imports(cached_path, specifier, ctx)? {
-            return Ok(path);
-        }
-        self.load_package_self_or_node_modules(cached_path, specifier, ctx)
+        self.load_package_imports(cached_path, specifier, ctx)?
+            .map_or_else(|| Err(ResolveError::NotFound(specifier.to_string())), Ok)
     }
 
     fn require_bare(
@@ -1965,5 +1995,60 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         specifier
             .strip_prefix(package_name)
             .filter(|tail| tail.is_empty() || tail.starts_with(SLASH_START))
+    }
+
+    /// ESM_FILE_FORMAT(url)
+    ///
+    /// <https://nodejs.org/docs/latest/api/esm.html#resolution-algorithm-specification>
+    fn esm_file_format(
+        &self,
+        cached_path: &C::Cp,
+        ctx: &mut Ctx,
+    ) -> Result<Option<ModuleType>, ResolveError> {
+        if !self.options.module_type {
+            return Ok(None);
+        }
+        // 1. Assert: url corresponds to an existing file.
+        let ext = cached_path.path().extension().and_then(|ext| ext.to_str());
+        match ext {
+            // 2. If url ends in ".mjs", then
+            //   1. Return "module".
+            Some("mjs" | "mts") => Ok(Some(ModuleType::Module)),
+            // 3. If url ends in ".cjs", then
+            //   1. Return "commonjs".
+            Some("cjs" | "cts") => Ok(Some(ModuleType::CommonJs)),
+            // 4. If url ends in ".json", then
+            //   1. Return "json".
+            Some("json") => Ok(Some(ModuleType::Json)),
+            // 5. If --experimental-wasm-modules is enabled and url ends in ".wasm", then
+            //   1. Return "wasm".
+            Some("wasm") => Ok(Some(ModuleType::Wasm)),
+            // 6. If --experimental-addon-modules is enabled and url ends in ".node", then
+            //   1. Return "addon".
+            Some("node") => Ok(Some(ModuleType::Addon)),
+            // 11. If url ends in ".js", then
+            //   1. If packageType is not null, then
+            //     1. Return packageType.
+            Some("js" | "ts") => {
+                // 7. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(url).
+                // 8. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
+                let package_json =
+                    cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?;
+                // 9. Let packageType be null.
+                if let Some((_, package_json)) = package_json {
+                    // 10. If pjson?.type is "module" or "commonjs", then
+                    //   1. Set packageType to pjson.type.
+                    if let Some(ty) = package_json.r#type() {
+                        return Ok(Some(match ty {
+                            PackageType::Module => ModuleType::Module,
+                            PackageType::CommonJs => ModuleType::CommonJs,
+                        }));
+                    }
+                }
+                Ok(None)
+            }
+            // Step 11.2 .. 12 omitted, which involves detecting file content.
+            _ => Ok(None),
+        }
     }
 }

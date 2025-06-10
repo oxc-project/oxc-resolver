@@ -87,4 +87,5 @@ const { instance: __napiInstance, module: __wasiModule, napiModule: __napiModule
 module.exports = __napiModule.exports
 module.exports.ResolverFactory = __napiModule.exports.ResolverFactory
 module.exports.EnforceExtension = __napiModule.exports.EnforceExtension
+module.exports.ModuleType = __napiModule.exports.ModuleType
 module.exports.sync = __napiModule.exports.sync

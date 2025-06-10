@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use unrs_resolver::{Resolution, ResolveError, ResolveOptions, Resolver};
+use unrs_resolver::{ModuleType, Resolution, ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -189,6 +189,37 @@ fn decimal_js_from_mathjs() {
         let resolution = resolver.resolve(&path, "decimal.js").map(|r| r.full_path());
         assert_eq!(resolution, Ok(module_path.clone()));
     }
+}
+
+#[test]
+fn minimatch() {
+    let dir = dir();
+    let path = dir.join("fixtures/pnpm");
+    let esm_resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into()],
+        module_type: true,
+        ..ResolveOptions::default()
+    });
+    let resolution = esm_resolver.resolve(&path, "minimatch").unwrap();
+    assert_eq!(
+        resolution.full_path(),
+        dir.join("node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/esm/index.js")
+    );
+    assert_eq!(resolution.module_type(), Some(ModuleType::Module));
+
+    let cjs_resolver = esm_resolver.clone_with_options(ResolveOptions {
+        condition_names: vec!["require".into()],
+        module_type: true,
+        ..ResolveOptions::default()
+    });
+    let resolution = cjs_resolver.resolve(&path, "minimatch").unwrap();
+    assert_eq!(
+        resolution.full_path(),
+        dir.join(
+            "node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/commonjs/index.js"
+        )
+    );
+    assert_eq!(resolution.module_type(), Some(ModuleType::CommonJs));
 }
 
 #[test]

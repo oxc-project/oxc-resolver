@@ -71,7 +71,7 @@ pub enum ResolveError {
 
     /// JSON parse error
     #[error("{0:?}")]
-    JSON(JSONError),
+    Json(JSONError),
 
     /// Restricted by `ResolveOptions::restrictions`
     #[error(r#"Path "{0}" restricted by {0}"#)]
@@ -114,17 +114,12 @@ impl ResolveError {
 
     #[must_use]
     #[cfg(feature = "fs_cache")]
-    pub fn from_serde_json_error(
-        path: PathBuf,
-        error: &serde_json::Error,
-        content: Option<String>,
-    ) -> Self {
-        Self::JSON(JSONError {
+    pub fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
+        Self::Json(JSONError {
             path,
             message: error.to_string(),
             line: error.line(),
             column: error.column(),
-            content,
         })
     }
 }
@@ -143,7 +138,6 @@ pub struct JSONError {
     pub message: String,
     pub line: usize,
     pub column: usize,
-    pub content: Option<String>,
 }
 
 #[derive(Debug, Clone, Error)]

@@ -19,6 +19,14 @@ export declare const enum EnforceExtension {
   Disabled = 2
 }
 
+export declare const enum ModuleType {
+  Module = 'module',
+  CommonJs = 'commonjs',
+  Json = 'json',
+  Wasm = 'wasm',
+  Addon = 'addon'
+}
+
 /**
  * Module Resolution Options
  *
@@ -183,13 +191,28 @@ export interface NapiResolveOptions {
    * Default `false`
    */
   builtinModules?: boolean
+  /**
+   * Resolve [ResolveResult::moduleType].
+   *
+   * Default `false`
+   */
+  moduleType?: boolean
 }
 
 export interface ResolveResult {
   path?: string
   error?: string
-  /** "type" field in the package.json file */
-  moduleType?: string
+  /**
+   * Module type for this path.
+   *
+   * Enable with `ResolveOptions#moduleType`.
+   *
+   * The module type is computed `ESM_FILE_FORMAT` from the [ESM resolution algorithm specification](https://nodejs.org/docs/latest/api/esm.html#resolution-algorithm-specification).
+   *
+   *  The algorithm uses the file extension or finds the closest `package.json` with the `type` field.
+   */
+  moduleType?: ModuleType
+  /** `package.json` path for the given module. */
   packageJsonPath?: string
 }
 

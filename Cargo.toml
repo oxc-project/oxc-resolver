@@ -2,9 +2,7 @@
 members = ["napi"]
 resolver = "2"
 
-[package]
-name = "unrs_resolver"
-version = "1.7.13"
+[workspace.package]
 authors = ["JounQin <admin@1stg.me> (https://www.1stG.me)"]
 categories = ["development-tools"]
 edition = "2024"
@@ -16,6 +14,24 @@ readme = "README.md"
 repository = "https://github.com/unrs/unrs-resolver"
 rust-version = "1.85.0"
 description = "ESM / CJS module resolution"
+
+[workspace.dependencies]
+unrs_resolver = { version = "1.7.13", path = "." }
+
+[package]
+name = "unrs_resolver"
+version = "1.7.13"
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+include.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description.workspace = true
 
 [lib]
 doctest = false
@@ -86,6 +102,7 @@ document-features = { version = "0.2.11", optional = true }
 criterion2 = { version = "3.0.0", default-features = false }
 dirs = { version = "6.0.0" }
 normalize-path = { version = "0.2.1" }
+pico-args = "0.5.0"
 rayon = { version = "1.10.0" }
 vfs = "0.12.1" # for testing with in memory file system
 
@@ -100,6 +117,16 @@ package_json_raw_json_api = []
 yarn_pnp = ["pnp"]
 # For codspeed benchmark
 codspeed = ["criterion2/codspeed"]
+
+[profile.dev]
+# Disabling debug info speeds up local and CI builds,
+# and we don't rely on it for debugging that much.
+debug = false
+
+[profile.test]
+# Disabling debug info speeds up local and CI builds,
+# and we don't rely on it for debugging that much.
+debug = false
 
 [package.metadata.docs.rs]
 all-features = true

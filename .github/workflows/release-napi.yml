@@ -187,13 +187,10 @@ jobs:
     needs:
       - build
       - build-freebsd
-    env:
-      COREPACK_INTEGRITY_KEYS: 0
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
-      - name: Install pnpm
-        run: corepack enable
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -222,4 +219,8 @@ jobs:
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
+
+          # Publish root package
+          cp package.json napi/package.json
+          cp README.md napi/README.md
           npm publish napi/ --tag latest --provenance --access public

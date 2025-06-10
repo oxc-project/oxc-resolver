@@ -177,6 +177,11 @@ pub struct ResolveOptions {
     ///
     /// Default `false`
     pub builtin_modules: bool,
+
+    /// Resolve [crate::Resolution::module_type].
+    ///
+    /// Default: `false`
+    pub module_type: bool,
 }
 
 impl ResolveOptions {
@@ -394,7 +399,7 @@ impl ResolveOptions {
 }
 
 /// Value for [ResolveOptions::enforce_extension]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum EnforceExtension {
     Auto,
     Enabled,
@@ -403,17 +408,17 @@ pub enum EnforceExtension {
 
 impl EnforceExtension {
     #[must_use]
-    pub const fn is_auto(&self) -> bool {
+    pub const fn is_auto(self) -> bool {
         matches!(self, Self::Auto)
     }
 
     #[must_use]
-    pub const fn is_enabled(&self) -> bool {
+    pub const fn is_enabled(self) -> bool {
         matches!(self, Self::Enabled)
     }
 
     #[must_use]
-    pub const fn is_disabled(&self) -> bool {
+    pub const fn is_disabled(self) -> bool {
         matches!(self, Self::Disabled)
     }
 }
@@ -498,6 +503,7 @@ impl Default for ResolveOptions {
             roots: vec![],
             symlinks: true,
             builtin_modules: false,
+            module_type: false,
         }
     }
 }
@@ -649,6 +655,7 @@ mod test {
             roots: vec![],
             symlinks: false,
             tsconfig: None,
+            module_type: false,
         };
 
         assert_eq!(format!("{options}"), "");
