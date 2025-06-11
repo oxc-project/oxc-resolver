@@ -6,6 +6,9 @@ inputs:
   architecture:
     description: The architecture to use
     required: false
+  cpu:
+    description: The cpu architecture to use
+    required: false
 
 runs:
   using: composite
@@ -18,9 +21,11 @@ runs:
         architecture: ${{ inputs.architecture }}
         cache: pnpm
 
-    - if: ${{ inputs.architecture == 'x86' }}
+    - if: ${{ inputs.cpu }}
       shell: bash
-      run: pnpm config set supportedArchitectures.cpu "ia32"
+      run: pnpm config set supportedArchitectures.cpu "${CPU_ARCH}"
+      env:
+        CPU_ARCH: ${{ inputs.cpu }}
 
     - name: pnpm
       shell: bash
