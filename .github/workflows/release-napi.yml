@@ -78,7 +78,7 @@ jobs:
             build: pnpm build --use-napi-cross
           - os: ubuntu-latest
             target: armv7-linux-androideabi
-            architecture: x86
+            architecture: x64
             build: pnpm build
           - os: ubuntu-latest
             target: armv7-unknown-linux-musleabihf
