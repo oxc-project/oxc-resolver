@@ -1,5 +1,7 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/resolve.test.js>
 
+use url::Url;
+
 use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
 
 #[test]
@@ -10,9 +12,12 @@ fn resolve() {
 
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
 
+    let file_protocol_path = Url::from_file_path(main1_js_path.clone()).unwrap();
+
     #[rustfmt::skip]
     let pass = [
         ("absolute path", f.clone(), main1_js_path.as_str(), f.join("main1.js")),
+        ("file protocol absolute path", f.clone(), file_protocol_path.as_str(), f.join("main1.js")),
         ("file with .js", f.clone(), "./main1.js", f.join("main1.js")),
         ("file without extension", f.clone(), "./main1", f.join("main1.js")),
         ("another file with .js", f.clone(), "./a.js", f.join("a.js")),
@@ -62,6 +67,13 @@ fn resolve() {
         }
         assert_eq!(resolved_path, Some(expected), "{comment} {path:?} {request}");
     }
+
+    #[cfg(windows)]
+    let resolve_error = ResolveError::NotFound("\\\\.\\main.js".into());
+    #[cfg(not(windows))]
+    let resolve_error = ResolveError::PathNotSupported("file://./main.js".into());
+
+    assert_eq!(resolver.resolve(f, "file://./main.js"), Err(resolve_error));
 }
 
 #[test]

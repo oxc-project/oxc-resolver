@@ -81,6 +81,7 @@ use std::{
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
+use url::Url;
 
 #[cfg(feature = "fs_cache")]
 pub use crate::{
@@ -379,6 +380,23 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         // enhanced-resolve: try alias
         if let Some(path) = self.load_alias(cached_path, specifier, &self.options.alias, ctx)? {
             return Ok(path);
+        }
+
+        #[allow(unused_assignments)]
+        let mut specifier_owned: Option<String> = None;
+        let mut specifier = specifier;
+
+        if specifier.starts_with("file://") {
+            let unsupported_error = ResolveError::PathNotSupported(specifier.into());
+
+            let path = Url::parse(specifier)
+                .map_err(|_| unsupported_error.clone())?
+                .to_file_path()
+                .map_err(|()| unsupported_error)?;
+
+            let owned = path.to_string_lossy().into_owned();
+            specifier_owned = Some(owned);
+            specifier = specifier_owned.as_deref().unwrap();
         }
 
         let result = match Path::new(specifier).components().next() {
