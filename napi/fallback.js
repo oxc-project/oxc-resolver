@@ -1,6 +1,9 @@
 const { execFileSync } = require('node:child_process')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
 
-const pkg = require('unrs-resolver/package.json')
+const { version } = require('unrs-resolver/package.json')
 
 const userAgent =
   (process.env.npm_config_user_agent || '').split('/')[0] || 'npm'
@@ -33,10 +36,52 @@ function constructCommand(value, args) {
   }
 }
 
+if (process.versions.webcontainer) {
+  const baseDir = path.resolve(os.tmpdir(), `unrs-resolver-${version}`)
+
+  const bindingPkgName = '@unrs/resolver-binding-wasm32-wasi'
+
+  const bindingEntry = path.resolve(
+    baseDir,
+    `node_modules/${bindingPkgName}/resolver.wasi.cjs`,
+  )
+
+  if (!fs.existsSync(bindingEntry)) {
+    fs.rmSync(baseDir, { recursive: true, force: true })
+    fs.mkdirSync(baseDir, { recursive: true })
+
+    fs.writeFileSync(path.resolve(baseDir, 'package.json'), JSON.stringify({}))
+
+    const bindingPkg = `${bindingPkgName}@${version}`
+
+    console.log(
+      `[unrs-resolver] Downloading \`${bindingPkg}\` on WebContainer...`,
+    )
+
+    const installer =
+      userAgent === 'npm'
+        ? [userAgent, 'i']
+        : userAgent === 'deno'
+          ? (args) => ['deno', 'add', `npm:${args[0]}`, ...args.slice(1)]
+          : [userAgent, 'add']
+
+    const { command, args } = constructCommand(installer, [bindingPkg])
+
+    execFileSync(command, args, {
+      cwd: baseDir,
+      stdio: 'inherit',
+    })
+  }
+
+  module.exports = require(bindingEntry)
+
+  return
+}
+
 const { command, args } = constructCommand(executor, [
   'napi-postinstall',
   'unrs-resolver',
-  pkg.version,
+  version,
   'check',
 ])
 

@@ -16,7 +16,8 @@ test('simple', () => {
 
   assert.isAbove(resolver.sync(cwd, './ts').error.length, 0);
 
-  resolver.async(cwd, './ts')
+  resolver
+    .async(cwd, './ts')
     .then((result) => assert.isAbove(result.error.length, 0));
 
   // Test API
@@ -32,12 +33,18 @@ test('module_type', () => {
     moduleType: true,
   });
 
-  assert.equal(esmResolver.sync(dir, 'minimatch').moduleType, ModuleType.Module);
+  assert.equal(
+    esmResolver.sync(dir, 'minimatch').moduleType,
+    ModuleType.Module,
+  );
 
   const cjsResolver = esmResolver.cloneWithOptions({
     conditionNames: ['node', 'require'],
     moduleType: true,
   });
 
-  assert.equal(cjsResolver.sync(dir, 'minimatch').moduleType, ModuleType.CommonJs);
+  assert.equal(
+    cjsResolver.sync(dir, 'minimatch').moduleType,
+    ModuleType.CommonJs,
+  );
 });
