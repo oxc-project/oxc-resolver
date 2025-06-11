@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1](https://github.com/unrs/unrs-resolver/compare/v1.8.0...v1.8.1) - 2025-06-11
+
+### <!-- 1 -->Bug Fixes
+
+- keep `napi` property in `package.json` for `napi-postinstall` ([#148](https://github.com/unrs/unrs-resolver/pull/148)) (by @JounQin)
+
+### Contributors
+
+* @JounQin
+
 ## [1.8.0](https://github.com/unrs/unrs-resolver/compare/v1.7.13...v1.8.0) - 2025-06-11
 
 ### <!-- 0 -->Features
