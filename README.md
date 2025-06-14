@@ -167,14 +167,14 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 
 | Field            | Default                   | Description                                                                                                                                               |
 | ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| alias            | []                        | A list of module alias configurations or an object which maps key to value                                                                                |
+| alias            |                           | An object of module alias configurations                                                                                                                  |
 | aliasFields      | []                        | A list of alias fields in description files                                                                                                               |
 | extensionAlias   | {}                        | An object which maps extension to extension aliases                                                                                                       |
 | conditionNames   | []                        | A list of exports field condition names                                                                                                                   |
 | enforceExtension | false                     | Enforce that a extension from extensions must be used                                                                                                     |
 | exportsFields    | ["exports"]               | A list of exports fields in description files                                                                                                             |
 | extensions       | [".js", ".json", ".node"] | A list of extensions which should be tried for files                                                                                                      |
-| fallback         | []                        | Same as `alias`, but only used if default resolving fails                                                                                                 |
+| fallback         |                           | Same as `alias`, but only used if default resolving fails                                                                                                 |
 | fileSystem       |                           | The file system which should be used                                                                                                                      |
 | fullySpecified   | false                     | Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests) |
 | mainFields       | ["main"]                  | A list of main fields in description files                                                                                                                |
