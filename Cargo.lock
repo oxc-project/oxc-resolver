@@ -719,7 +719,7 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "oxc_resolver"
-version = "11.2.0"
+version = "11.2.1"
 dependencies = [
  "cfg-if",
  "criterion2",
@@ -743,7 +743,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_resolver_napi"
-version = "11.2.0"
+version = "11.2.1"
 dependencies = [
  "mimalloc-safe",
  "napi",
