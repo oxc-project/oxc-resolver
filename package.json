@@ -1,6 +1,6 @@
 {
   "name": "unrs-resolver",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "type": "commonjs",
   "description": "UnRS Resolver Node API with PNP support",
   "repository": "git+https://github.com/unrs/unrs-resolver.git",
@@ -21,7 +21,7 @@
     "build": "pnpm build:debug --features allocator --release",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
     "postbuild": "node napi/patch.mjs",
-    "postinstall": "napi-postinstall unrs-resolver 1.9.0 check",
+    "postinstall": "napi-postinstall unrs-resolver 1.9.1 check",
     "prepublishOnly": "clean-pkg-json -k napi",
     "test": "vitest run -r ./napi"
   },

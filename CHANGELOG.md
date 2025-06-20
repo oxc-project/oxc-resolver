@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1](https://github.com/unrs/unrs-resolver/compare/v1.9.0...v1.9.1) - 2025-06-20
+
+### <!-- 1 -->Bug Fixes
+
+- *(deps)* update all dependencies ([#157](https://github.com/unrs/unrs-resolver/pull/157)) (by @renovate[bot])
+
+### Contributors
+
+* @renovate[bot]
+
 ## [1.9.0](https://github.com/unrs/unrs-resolver/compare/v1.8.1...v1.9.0) - 2025-06-11
 
 ### <!-- 0 -->Features
