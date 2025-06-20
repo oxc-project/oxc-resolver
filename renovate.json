@@ -1,5 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>1stG/configs"],
+  "packageRules": [
+    {
+      "groupName": "ignored crates",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["windows-sys"],
+      "enabled": false
+    }
+  ],
   "ignorePaths": ["**/node_modules/**", "**/fixtures/**"]
 }

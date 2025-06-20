@@ -54,14 +54,14 @@ fn pnp_basic() {
     assert_eq!(
         resolver.resolve(&fixture, "preact").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/preact-npm-10.26.5-d46ec4e2ac-542a924009.zip/node_modules/preact/dist/preact.mjs"
+            ".yarn/cache/preact-npm-10.26.9-90e1df1a58-15f187e327.zip/node_modules/preact/dist/preact.mjs"
         )),
     );
 
     assert_eq!(
         resolver.resolve(&fixture, "preact/devtools").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/preact-npm-10.26.5-d46ec4e2ac-542a924009.zip/node_modules/preact/devtools/dist/devtools.mjs"
+            ".yarn/cache/preact-npm-10.26.9-90e1df1a58-15f187e327.zip/node_modules/preact/devtools/dist/devtools.mjs"
         )),
     );
 
@@ -108,7 +108,7 @@ fn resolve_package_deep_link() {
     assert_eq!(
         resolver.resolve(fixture.join("shared"), "beachball/lib/commands/bump.js").map(|r| r.full_path()),
         Ok(fixture.join(
-          ".yarn/cache/beachball-npm-2.52.0-ee48e46454-96b8c49193.zip/node_modules/beachball/lib/commands/bump.js"
+          ".yarn/cache/beachball-npm-2.54.0-050eafd5c8-4dd08576af.zip/node_modules/beachball/lib/commands/bump.js"
       )),
     );
 }
@@ -127,7 +127,7 @@ fn resolve_pnp_nested_package_json() {
     assert_eq!(
         resolver.resolve(&fixture, "@atlaskit/pragmatic-drag-and-drop/combine").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.5.2-3241d4f843-1dace49fa3.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/esm/entry-point/combine.js"
+            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.7.3-a09c04b71c-d7c6e1a2e4.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/esm/entry-point/combine.js"
         ))
     );
 }
@@ -148,14 +148,14 @@ fn resolve_npm_protocol_alias() {
     assert_eq!(
         resolver.resolve(&fixture, "@custom/pragmatic-drag-and-drop").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.5.2-3241d4f843-1dace49fa3.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/cjs/index.js"
+            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.7.3-a09c04b71c-d7c6e1a2e4.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/cjs/index.js"
         ))
     );
 
     assert_eq!(
         resolver.resolve(&fixture, "pragmatic-drag-and-drop").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.5.2-3241d4f843-1dace49fa3.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/cjs/index.js"
+            ".yarn/cache/@atlaskit-pragmatic-drag-and-drop-npm-1.7.3-a09c04b71c-d7c6e1a2e4.zip/node_modules/@atlaskit/pragmatic-drag-and-drop/dist/cjs/index.js"
         ))
     );
 }
