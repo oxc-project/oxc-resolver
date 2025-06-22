@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.2.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.0...oxc_resolver-v11.2.1) - 2025-06-22
+
+### <!-- 1 -->Bug Fixes
+
+- *(napi)* ensure `pnp_manifest` is included with `yarn_pnp` feature ([#555](https://github.com/oxc-project/oxc-resolver/pull/555))
+
+### <!-- 3 -->Documentation
+
+- update `alias` and `fallback` options type and description ([#557](https://github.com/oxc-project/oxc-resolver/pull/557))
+
+### <!-- 7 -->Chore
+
+- *(deps)* lock file maintenance rust crates ([#563](https://github.com/oxc-project/oxc-resolver/pull/563))
+- *(deps)* lock file maintenance rust crates ([#552](https://github.com/oxc-project/oxc-resolver/pull/552))
+
 ## [11.2.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.1.0...oxc_resolver-v11.2.0) - 2025-06-05
 
 ### <!-- 0 -->Features
