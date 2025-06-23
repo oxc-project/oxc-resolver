@@ -63,6 +63,7 @@ mod path;
 mod resolution;
 mod specifier;
 mod tsconfig;
+mod tsconfig_context;
 #[cfg(feature = "fs_cache")]
 mod tsconfig_serde;
 #[cfg(target_os = "windows")]
@@ -109,7 +110,10 @@ pub use crate::{
     resolution::{ModuleType, Resolution},
     tsconfig::{CompilerOptions, CompilerOptionsPathsMap, ProjectReference, TsConfig},
 };
-use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier};
+use crate::{
+    context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
+    tsconfig_context::TsconfigResolveContext,
+};
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
@@ -207,7 +211,12 @@ impl<C: Cache> ResolverGeneric<C> {
     /// * See [ResolveError]
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<C::Tc>, ResolveError> {
         let path = path.as_ref();
-        self.load_tsconfig(true, path, &TsconfigReferences::Auto)
+        self.load_tsconfig(
+            true,
+            path,
+            &TsconfigReferences::Auto,
+            &mut TsconfigResolveContext::default(),
+        )
     }
 
     /// Resolve `specifier` at absolute `path` with [ResolveContext]
@@ -1224,23 +1233,36 @@ impl<C: Cache> ResolverGeneric<C> {
         root: bool,
         path: &Path,
         references: &TsconfigReferences,
+        ctx: &mut TsconfigResolveContext,
     ) -> Result<Arc<C::Tc>, ResolveError> {
         self.cache.get_tsconfig(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
+
+            if ctx.is_already_extended(tsconfig.path()) {
+                return Err(ResolveError::TsconfigCircularExtend(
+                    ctx.get_extended_configs_with(tsconfig.path().to_path_buf()).into(),
+                ));
+            }
 
             // Extend tsconfig
             let extended_tsconfig_paths = tsconfig
                 .extends()
                 .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
                 .collect::<Result<Vec<_>, _>>()?;
-            for extended_tsconfig_path in extended_tsconfig_paths {
-                let extended_tsconfig = self.load_tsconfig(
-                    /* root */ false,
-                    &extended_tsconfig_path,
-                    &TsconfigReferences::Disabled,
-                )?;
-                tsconfig.extend_tsconfig(&extended_tsconfig);
+            if !extended_tsconfig_paths.is_empty() {
+                ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
+                    for extended_tsconfig_path in extended_tsconfig_paths {
+                        let extended_tsconfig = self.load_tsconfig(
+                            /* root */ false,
+                            &extended_tsconfig_path,
+                            &TsconfigReferences::Disabled,
+                            ctx,
+                        )?;
+                        tsconfig.extend_tsconfig(&extended_tsconfig);
+                    }
+                    Result::Ok::<(), ResolveError>(())
+                })?;
             }
 
             if tsconfig.load_references(references) {
@@ -1280,6 +1302,7 @@ impl<C: Cache> ResolverGeneric<C> {
             /* root */ true,
             &tsconfig_options.config_file,
             &tsconfig_options.references,
+            &mut TsconfigResolveContext::default(),
         )?;
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {

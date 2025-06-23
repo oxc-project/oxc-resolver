@@ -1,4 +1,9 @@
-use std::{io, path::PathBuf, sync::Arc};
+use std::{
+    fmt::{self, Debug, Display},
+    io,
+    path::PathBuf,
+    sync::Arc,
+};
 
 use thiserror::Error;
 
@@ -37,6 +42,10 @@ pub enum ResolveError {
     /// Tsconfig's project reference path points to it self
     #[error("Tsconfig's project reference path points to this tsconfig {0}")]
     TsconfigSelfReference(PathBuf),
+
+    /// Occurs when tsconfig extends configs circularly
+    #[error("Tsconfig extends configs circularly: {0}")]
+    TsconfigCircularExtend(CircularPathBufs),
 
     #[error("{0}")]
     IOError(IOError),
@@ -159,6 +168,27 @@ impl From<IOError> for io::Error {
 impl From<io::Error> for ResolveError {
     fn from(err: io::Error) -> Self {
         Self::IOError(IOError(Arc::new(err)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CircularPathBufs(Vec<PathBuf>);
+
+impl Display for CircularPathBufs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, path) in self.0.iter().enumerate() {
+            if i != 0 {
+                write!(f, " -> ")?;
+            }
+            path.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl From<Vec<PathBuf>> for CircularPathBufs {
+    fn from(value: Vec<PathBuf>) -> Self {
+        Self(value)
     }
 }
 
