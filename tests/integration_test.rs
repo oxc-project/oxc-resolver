@@ -3,7 +3,7 @@
 use std::{env, path::PathBuf};
 
 use oxc_resolver::{
-    EnforceExtension, FileSystemOs, FsCache, PackageJson, Resolution, ResolveContext,
+    EnforceExtension, FileSystemOs, FsCache, PackageJson, Resolution, ResolveContext, ResolveError,
     ResolveOptions, Resolver,
 };
 
@@ -50,6 +50,39 @@ fn tsconfig() {
     let tsconfig = resolver.resolve_tsconfig("./tests").unwrap();
     assert!(tsconfig.root);
     assert_eq!(tsconfig.path, PathBuf::from("./tests/tsconfig.json"));
+}
+
+#[test]
+fn tsconfig_extends_self_reference() {
+    let resolver = Resolver::new(ResolveOptions::default());
+    let err = resolver.resolve_tsconfig("./tests/tsconfig_self_reference.json").unwrap_err();
+    assert_eq!(
+        err,
+        ResolveError::TsconfigCircularExtend(
+            vec![
+                "./tests/tsconfig_self_reference.json".into(),
+                "./tests/tsconfig_self_reference.json".into()
+            ]
+            .into()
+        )
+    );
+}
+
+#[test]
+fn tsconfig_extends_circular_reference() {
+    let resolver = Resolver::new(ResolveOptions::default());
+    let err = resolver.resolve_tsconfig("./tests/tsconfig_circular_reference_a.json").unwrap_err();
+    assert_eq!(
+        err,
+        ResolveError::TsconfigCircularExtend(
+            vec![
+                "./tests/tsconfig_circular_reference_a.json".into(),
+                "./tests/tsconfig_circular_reference_b.json".into(),
+                "./tests/tsconfig_circular_reference_a.json".into(),
+            ]
+            .into()
+        )
+    );
 }
 
 #[cfg(feature = "package_json_raw_json_api")]

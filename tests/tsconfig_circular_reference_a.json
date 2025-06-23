@@ -1,0 +1,3 @@
+{
+  "extends": "./tsconfig_circular_reference_b.json"
+}
