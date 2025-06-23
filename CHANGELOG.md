@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.2.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.0...oxc_resolver-v11.2.1) - 2025-06-23
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- avoid crash when encountering tsconfig circular extends ([#570](https://github.com/oxc-project/oxc-resolver/pull/570))
+- *(napi)* ensure `pnp_manifest` is included with `yarn_pnp` feature ([#555](https://github.com/oxc-project/oxc-resolver/pull/555))
+
+### <!-- 10 -->💼 Other
+
+- *(rust)* `debug = false` in `[profile.dev]` and `[profile.test]` ([#554](https://github.com/oxc-project/oxc-resolver/pull/554))
+
+### <!-- 3 -->📚 Documentation
+
+- add ts config
+- update `alias` and `fallback` options type and description ([#557](https://github.com/oxc-project/oxc-resolver/pull/557))
+
 ## [11.2.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.1.0...oxc_resolver-v11.2.0) - 2025-06-05
 
 ### <!-- 0 -->Features
