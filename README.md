@@ -187,6 +187,14 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | roots            | []                        | A list of root paths                                                                                                                                      |
 | symlinks         | true                      | Whether to resolve symlinks to their symlinked location                                                                                                   |
 
+### TypeScript Configuration
+
+| Field               | Default | Description                                                                                                                                                                         |
+|---------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| tsconfig            | None    | TypeScript related config for resolver                                                                                                                                                                            |
+| tsconfig.configFile |         | A relative path to the tsconfig file based on `cwd`, or an absolute path of tsconfig file.                                                                                                                                                                               |
+| tsconfig.references | `[]`    | - 'auto': inherits from TypeScript config <br/> - `string []`: relative path (based on directory of the referencing tsconfig file) or absolute path of referenced project's tsconfig                                                                                                    |
+
 ### Unimplemented Options
 
 | Field            | Default                     | Description                                                                                                                                   |
