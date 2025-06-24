@@ -8,7 +8,7 @@
   "author": "JounQin <admin@1stg.me> (https://www.1stG.me)",
   "funding": "https://opencollective.com/unrs-resolver",
   "license": "MIT",
-  "packageManager": "pnpm@10.12.2",
+  "packageManager": "pnpm@10.12.3",
   "main": "index.js",
   "browser": "browser.js",
   "files": [
