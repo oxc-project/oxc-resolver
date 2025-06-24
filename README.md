@@ -187,15 +187,15 @@ See [index.d.ts](https://github.com/unrs/unrs-resolver/blob/main/napi/index.d.ts
 
 | Field            | Default                   | Description                                                                                                                                               |
 | ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| alias            | []                        | A list of module alias configurations or an object which maps key to value                                                                                |
+| alias            | {}                        | A hash map of module alias configurations                                                                                                                 |
 | aliasFields      | []                        | A list of alias fields in description files                                                                                                               |
 | extensionAlias   | {}                        | An object which maps extension to extension aliases                                                                                                       |
 | conditionNames   | []                        | A list of exports field condition names                                                                                                                   |
 | descriptionFiles | ["package.json"]          | A list of description files to read from                                                                                                                  |
-| enforceExtension | false                     | Enforce that a extension from extensions must be used                                                                                                     |
+| enforceExtension | false                     | Enforce that an extension from extensions must be used                                                                                                    |
 | exportsFields    | ["exports"]               | A list of exports fields in description files                                                                                                             |
 | extensions       | [".js", ".json", ".node"] | A list of extensions which should be tried for files                                                                                                      |
-| fallback         | []                        | Same as `alias`, but only used if default resolving fails                                                                                                 |
+| fallback         | {}                        | Same as `alias`, but only used if default resolving fails                                                                                                 |
 | fileSystem       |                           | The file system which should be used                                                                                                                      |
 | fullySpecified   | false                     | Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests) |
 | mainFields       | ["main"]                  | A list of main fields in description files                                                                                                                |

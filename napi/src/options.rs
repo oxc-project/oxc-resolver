@@ -22,6 +22,7 @@ pub struct NapiResolveOptions {
     /// AliasValue::Path(String)`
     /// Create aliases to import or require certain modules more easily.
     /// A trailing $ can also be added to the given object's keys to signify an exact match.
+    /// Default `{}`
     pub alias: Option<HashMap<String, Vec<Option<String>>>>,
 
     /// A list of alias fields in description files.
@@ -84,7 +85,7 @@ pub struct NapiResolveOptions {
 
     /// Redirect module requests when normal resolving fails.
     ///
-    /// Default `[]`
+    /// Default `{}`
     pub fallback: Option<HashMap<String, Vec<Option<String>>>>,
 
     /// Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests).
