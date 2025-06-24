@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.2](https://github.com/unrs/unrs-resolver/compare/v1.9.1...v1.9.2) - 2025-06-24
+
+### <!-- 1 -->Bug Fixes
+
+- requiring `.` or `./` should respect `mainFiles` option ([#163](https://github.com/unrs/unrs-resolver/pull/163)) (by @JounQin) - #163
+
+### <!-- 3 -->Documentation
+
+- update `alias` and `fallback` options type and description ([#161](https://github.com/unrs/unrs-resolver/pull/161)) (by @JounQin) - #161
+
+### <!-- 7 -->Chore
+
+- *(deps)* update all dependencies ([#164](https://github.com/unrs/unrs-resolver/pull/164)) (by @renovate[bot])
+
+### Contributors
+
+* @renovate[bot]
+* @JounQin
+
 ## [1.9.1](https://github.com/unrs/unrs-resolver/compare/v1.9.0...v1.9.1) - 2025-06-20
 
 ### <!-- 1 -->Bug Fixes
