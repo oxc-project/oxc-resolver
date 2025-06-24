@@ -235,13 +235,7 @@ The input values are `options`, `path` and `specifier`, the returned value is `r
 ### NAPI
 
 ```
-OXC_LOG=DEBUG your_program
-```
-
-### Rolldown
-
-```bash
-RD_LOG='oxc_resolver' rolldown build
+UNRS_LOG=DEBUG your_program
 ```
 
 ## Test
