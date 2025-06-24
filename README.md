@@ -88,7 +88,7 @@ An **absolute** path to a directory where the specifier is resolved against.
 
 For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
 
-For ECMAScript modules, it is the value of `import.meta.url`.
+For ECMAScript modules, it is the value of `import.meta.dirname`.
 
 Behavior is undefined when given a path to a file.
 

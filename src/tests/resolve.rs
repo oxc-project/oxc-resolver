@@ -154,18 +154,26 @@ fn prefer_file_over_dir() {
 fn resolve_dot() {
     let f = super::fixture_root().join("dot");
     let foo_dir: std::path::PathBuf = f.join("foo");
-    let foo_dir_foo = foo_dir.join("foo.js");
     let resolver = Resolver::default();
     let foo_index = foo_dir.join("index.js");
     let data = [
-        ("dot file", foo_dir_foo.clone(), ".", foo_index.clone()),
-        ("dot file slash", foo_dir_foo, "./", foo_index.clone()),
         ("dot dir", foo_dir.clone(), ".", foo_index.clone()),
-        ("dot dir slash", foo_dir, "./", foo_index),
+        ("dot dir slash", foo_dir.clone(), "./", foo_index),
     ];
     for (comment, path, request, expected) in data {
         let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
         assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+
+    let resolver =
+        Resolver::new(ResolveOptions { main_files: vec![], ..ResolveOptions::default() });
+    let data = [
+        ("dot dir", foo_dir.clone(), ".", ResolveError::NotFound(".".into())),
+        ("dot dir slash", foo_dir, "./", ResolveError::NotFound("./".into())),
+    ];
+    for (comment, path, request, expected) in data {
+        let resolve_error = resolver.resolve(&path, request);
+        assert_eq!(resolve_error, Err(expected), "{comment} {path:?} {request}");
     }
 }
 

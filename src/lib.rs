@@ -498,18 +498,12 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
         // a. LOAD_AS_FILE(Y + X)
         // b. LOAD_AS_DIRECTORY(Y + X)
-        if !self.options.fully_specified && (specifier == "." || specifier == "./") {
-            let sub_path =
-                if self.cache.is_dir(&cached_path, ctx) { "./index.js" } else { "../index.js" };
-            let cached_path = cached_path.clone().normalize_with(sub_path, self.cache.as_ref());
-            if self.cache.is_file(&cached_path, ctx) {
-                return Ok(cached_path);
-            }
-            if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                return Ok(path);
-            }
-        }
-        if let Some(path) = self.load_as_file_or_directory(&cached_path, specifier, ctx)? {
+        if let Some(path) = self.load_as_file_or_directory(
+            &cached_path,
+            // ensure resolve directory only when specifier is `.`
+            if specifier == "." { "./" } else { specifier },
+            ctx,
+        )? {
             return Ok(path);
         }
         // c. THROW "not found"

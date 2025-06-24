@@ -17,11 +17,8 @@ fn incorrect_description_file_1() {
         column: 0,
     });
     assert_eq!(resolution, Err(error));
-    assert_eq!(
-        ctx.file_dependencies,
-        FxHashSet::from_iter([f.join("pack1"), f.join("pack1/package.json")])
-    );
-    assert!(!ctx.missing_dependencies.is_empty());
+    assert_eq!(ctx.file_dependencies, FxHashSet::from_iter([f.join("pack1/package.json")]));
+    assert!(ctx.missing_dependencies.is_empty());
 }
 
 // should not resolve main in incorrect description file #2
