@@ -13,7 +13,7 @@ commit_parsers = [
   { message = "^chore|^ci|^deps", skip = true },
   { body = ".*security", group = "<!-- 7 -->🛡️ Security" },
   { message = "^revert", group = "<!-- 8 -->◀️ Revert" },
-  { message = ".*", group = "<!-- 10 -->💼 Other" },
+  { message = ".*", group = "<!-- 9 -->💼 Other" },
 ]
 # protect breaking changes from being skipped due to matching a skipping commit_parser
 protect_breaking_commits = false
