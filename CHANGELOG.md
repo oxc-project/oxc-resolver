@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.1...oxc_resolver-v12.0.0) - 2025-06-26
+
+### <!-- 0 -->🚀 Features
+
+- *(resolver)* allow `exports` field in `require('../directory')` ([#572](https://github.com/oxc-project/oxc-resolver/pull/572))
+
 ## [11.2.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.0...oxc_resolver-v11.2.1) - 2025-06-23
 
 ### <!-- 1 -->🐛 Bug Fixes
