@@ -13,6 +13,22 @@ export declare class ResolverFactory {
   async(directory: string, request: string): Promise<ResolveResult>
 }
 
+/** Node.js builtin module when `Options::builtin_modules` is enabled. */
+export interface Builtin {
+  /**
+   * Resolved module.
+   *
+   * Always prefixed with "node:" in compliance with the ESM specification.
+   */
+  resolved: string
+  /**
+   * Whether the request was prefixed with `node:` or not.
+   * `fs` -> `false`.
+   * `node:fs` returns `true`.
+   */
+  isRuntimeModule: boolean
+}
+
 export declare const enum EnforceExtension {
   Auto = 0,
   Enabled = 1,
@@ -207,6 +223,7 @@ export interface NapiResolveOptions {
 export interface ResolveResult {
   path?: string
   error?: string
+  builtin?: Builtin
   /**
    * Module type for this path.
    *

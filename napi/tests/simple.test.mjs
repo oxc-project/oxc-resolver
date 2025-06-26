@@ -41,3 +41,17 @@ test('module_type', () => {
 
   assert.equal(cjsResolver.sync(dir, 'minimatch').moduleType, ModuleType.CommonJs);
 });
+
+test('builtin', () => {
+  const resolver = new ResolverFactory({
+    builtinModules: true,
+  });
+  assert.deepEqual(resolver.sync('/', 'fs').builtin, {
+    resolved: 'node:fs',
+    isRuntimeModule: false,
+  });
+  assert.deepEqual(resolver.sync('/', 'node:fs').builtin, {
+    resolved: 'node:fs',
+    isRuntimeModule: true,
+  });
+});
