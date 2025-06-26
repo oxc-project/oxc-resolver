@@ -19,6 +19,7 @@ install:
 # When ready, run the same CI commands
 ready:
   git diff --exit-code --quiet
+  just install
   typos
   cargo fmt
   just check
@@ -52,6 +53,8 @@ check:
 # Run all the tests
 test:
   cargo test --all-features
+  node --run build
+  node --run test
 
 # Lint the whole project
 lint:
