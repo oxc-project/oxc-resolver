@@ -72,8 +72,6 @@ doc_markdown = "allow"
 nursery = { level = "warn", priority = -1 }
 literal_string_with_formatting_args = "allow"
 missing_const_for_fn = "allow"
-# cargo
-multiple_crate_versions = "allow"
 
 [[example]]
 name = "resolver"
@@ -91,7 +89,7 @@ simdutf8 = { version = "0.1" }
 thiserror = "2"
 tracing = "0.1"
 
-pnp = { version = "0.9.4", optional = true }
+pnp = { version = "0.11.0", optional = true }
 
 document-features = { version = "0.2.11", optional = true }
 
@@ -139,3 +137,9 @@ codegen-units = 1
 strip = "symbols" # set to `false` for debug information
 debug = false # set to `true` for debug information
 panic = "abort" # Let it crash and force ourselves to write safe Rust.
+
+[profile.release.package.regex-automata]
+opt-level = "z"  # Optimize for size.
+
+[profile.release.package.regex-syntax]
+opt-level = "z"  # Optimize for size.
