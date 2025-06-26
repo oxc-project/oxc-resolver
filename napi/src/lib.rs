@@ -279,7 +279,7 @@ impl ResolverFactory {
                 .allow_package_exports_in_directory_resolve
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
             #[cfg(feature = "yarn_pnp")]
-            pnp_manifest: default.pnp_manifest,
+            yarn_pnp: op.yarn_pnp.unwrap_or(default.yarn_pnp),
         }
     }
 }

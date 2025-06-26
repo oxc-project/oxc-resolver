@@ -113,11 +113,11 @@ pub struct ResolveOptions {
     /// Default `["node_modules"]`
     pub modules: Vec<String>,
 
-    /// A manifest loaded from pnp::load_pnp_manifest.
+    /// Whether the resolver should check for the presence of a .pnp.cjs file up the dependency tree.
     ///
-    /// Default `None`
+    /// Default `true`
     #[cfg(feature = "yarn_pnp")]
-    pub pnp_manifest: Option<pnp::Manifest>,
+    pub yarn_pnp: bool,
 
     /// Resolve to a context instead of a file.
     ///
@@ -485,7 +485,7 @@ impl Default for ResolveOptions {
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
             #[cfg(feature = "yarn_pnp")]
-            pnp_manifest: None,
+            yarn_pnp: true,
             resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
@@ -645,7 +645,7 @@ mod test {
             main_files: vec![],
             modules: vec![],
             #[cfg(feature = "yarn_pnp")]
-            pnp_manifest: None,
+            yarn_pnp: true,
             prefer_absolute: false,
             prefer_relative: false,
             resolve_to_context: false,

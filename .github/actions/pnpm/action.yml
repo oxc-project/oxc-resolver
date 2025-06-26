@@ -13,3 +13,6 @@ runs:
         cd fixtures/pnp
         corepack enable
         yarn install
+
+        cd ../global-pnp
+        yarn install
