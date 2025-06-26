@@ -191,6 +191,17 @@ export interface NapiResolveOptions {
    * Default `false`
    */
   moduleType?: boolean
+  /**
+   * Allow `exports` field in `require('../directory')`.
+   *
+   * This is not part of the spec but some vite projects rely on this behavior.
+   * See
+   * * <https://github.com/vitejs/vite/pull/20252>
+   * * <https://github.com/nodejs/node/issues/58827>
+   *
+   * Default: `false`
+   */
+  allowPackageExportsInDirectoryResolve?: boolean
 }
 
 export interface ResolveResult {

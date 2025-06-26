@@ -162,6 +162,16 @@ pub struct ResolveOptions {
     ///
     /// Default: `false`
     pub module_type: bool,
+
+    /// Allow `exports` field in `require('../directory')`.
+    ///
+    /// This is not part of the spec but some vite projects rely on this behavior.
+    /// See
+    /// * <https://github.com/vitejs/vite/pull/20252>
+    /// * <https://github.com/nodejs/node/issues/58827>
+    ///
+    /// Default: `false`
+    pub allow_package_exports_in_directory_resolve: bool,
 }
 
 impl ResolveOptions {
@@ -484,6 +494,7 @@ impl Default for ResolveOptions {
             symlinks: true,
             builtin_modules: false,
             module_type: false,
+            allow_package_exports_in_directory_resolve: false,
         }
     }
 }
@@ -554,6 +565,13 @@ impl fmt::Display for ResolveOptions {
         if self.builtin_modules {
             write!(f, "builtin_modules:{:?},", self.builtin_modules)?;
         }
+        if self.allow_package_exports_in_directory_resolve {
+            write!(
+                f,
+                "allow_package_exports_in_directory_resolve:{:?},",
+                self.allow_package_exports_in_directory_resolve
+            )?;
+        }
         Ok(())
     }
 }
@@ -604,10 +622,11 @@ mod test {
             restrictions: vec![Restriction::Path(PathBuf::from("restrictions"))],
             roots: vec![PathBuf::from("roots")],
             builtin_modules: true,
+            allow_package_exports_in_directory_resolve: true,
             ..ResolveOptions::default()
         };
 
-        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,"#;
+        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,"#;
         assert_eq!(format!("{options}"), expected);
 
         let options = ResolveOptions {
@@ -635,6 +654,7 @@ mod test {
             symlinks: false,
             tsconfig: None,
             module_type: false,
+            allow_package_exports_in_directory_resolve: false,
         };
 
         assert_eq!(format!("{options}"), "");

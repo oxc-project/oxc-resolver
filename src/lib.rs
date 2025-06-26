@@ -617,6 +617,21 @@ impl<C: Cache> ResolverGeneric<C> {
             }
             // f. LOAD_INDEX(X) DEPRECATED
             // g. THROW "not found"
+
+            // Allow `exports` field in `require('../directory')`.
+            // This is not part of the spec but some vite projects rely on this behavior.
+            // See
+            // * <https://github.com/vitejs/vite/pull/20252>
+            // * <https://github.com/nodejs/node/issues/58827>
+            if self.options.allow_package_exports_in_directory_resolve {
+                for exports in package_json.exports_fields(&self.options.exports_fields) {
+                    if let Some(path) =
+                        self.package_exports_resolve(cached_path, ".", &exports, ctx)?
+                    {
+                        return Ok(Some(path));
+                    }
+                }
+            }
         }
         // 2. LOAD_INDEX(X)
         self.load_index(cached_path, ctx)
