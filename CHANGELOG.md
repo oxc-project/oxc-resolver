@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.3.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.1...oxc_resolver-v11.3.0) - 2025-06-26
+
+### <!-- 0 -->🚀 Features
+
+- align yarn pnp implementation ([#576](https://github.com/oxc-project/oxc-resolver/pull/576)) (by @Boshen) - #576
+- *(resolver)* allow `exports` field in `require('../directory')` ([#572](https://github.com/oxc-project/oxc-resolver/pull/572)) (by @Boshen)
+- *(napi)* add `ResolveResult::builtin` information ([#575](https://github.com/oxc-project/oxc-resolver/pull/575)) (by @Boshen)
+
+### <!-- 3 -->📚 Documentation
+
+- document `allowPackageExportsInDirectoryResolve` (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.2.1](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.0...oxc_resolver-v11.2.1) - 2025-06-23
 
 ### <!-- 1 -->🐛 Bug Fixes
