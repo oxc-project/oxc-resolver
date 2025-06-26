@@ -287,6 +287,18 @@ fn extension_alias_throw_error() {
     }
 }
 
+#[test]
+fn directory() {
+    let f = super::fixture();
+    let resolver = Resolver::new(ResolveOptions {
+        allow_package_exports_in_directory_resolve: true,
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve(f.join("foo"), "../exports-field");
+    let path = resolution.unwrap().full_path();
+    assert_eq!(path, f.join("exports-field").join("a.js"));
+}
+
 // Small script for generating the test cases from enhanced-resolve
 // for (c of testCases) {
 //  console.log("TestCase {")

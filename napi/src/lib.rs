@@ -252,6 +252,9 @@ impl ResolverFactory {
             module_type: op.module_type.unwrap_or(default.module_type),
             #[cfg(feature = "yarn_pnp")]
             pnp_manifest: default.pnp_manifest,
+            allow_package_exports_in_directory_resolve: op
+                .allow_package_exports_in_directory_resolve
+                .unwrap_or(default.allow_package_exports_in_directory_resolve),
         }
     }
 }
