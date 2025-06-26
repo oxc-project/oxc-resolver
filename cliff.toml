@@ -4,20 +4,3 @@
 [bump]
 features_always_bump_minor = true
 breaking_always_bump_major = false
-
-[git]
-commit_parsers = [
-  { message = "^feat", group = "<!-- 0 -->🚀 Features" },
-  { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
-  { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
-  { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
-  { message = "^perf", group = "<!-- 4 -->⚡ Performance" },
-  { message = "^style", group = "<!-- 5 -->🎨 Styling" },
-  { message = "^test", group = "<!-- 6 -->🧪 Testing" },
-  { message = "^chore|^ci|^deps", skip = true },
-  { body = ".*security", group = "<!-- 7 -->🛡️ Security" },
-  { message = "^revert", group = "<!-- 8 -->◀️ Revert" },
-  { message = ".*", group = "<!-- 9 -->💼 Other" },
-]
-# protect breaking changes from being skipped due to matching a skipping commit_parser
-protect_breaking_commits = false
