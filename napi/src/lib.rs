@@ -12,7 +12,7 @@ use std::{
 
 use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{PackageJson, ResolveOptions, Resolver};
+use oxc_resolver::{PackageJson, ResolveError, ResolveOptions, Resolver};
 
 use self::options::{NapiResolveOptions, StrOrStrList};
 
@@ -24,6 +24,7 @@ mod tracing;
 pub struct ResolveResult {
     pub path: Option<String>,
     pub error: Option<String>,
+    pub builtin: Option<Builtin>,
     /// Module type for this path.
     ///
     /// Enable with `ResolveOptions#moduleType`.
@@ -37,23 +38,47 @@ pub struct ResolveResult {
     pub package_json_path: Option<String>,
 }
 
+/// Node.js builtin module when `Options::builtin_modules` is enabled.
+#[napi(object)]
+pub struct Builtin {
+    /// Resolved module.
+    ///
+    /// Always prefixed with "node:" in compliance with the ESM specification.
+    pub resolved: String,
+
+    /// Whether the request was prefixed with `node:` or not.
+    /// `fs` -> `false`.
+    /// `node:fs` returns `true`.
+    pub is_runtime_module: bool,
+}
+
 fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
     match resolver.resolve(path, request) {
         Ok(resolution) => ResolveResult {
             path: Some(resolution.full_path().to_string_lossy().to_string()),
             error: None,
+            builtin: None,
             module_type: resolution.module_type().map(ModuleType::from),
             package_json_path: resolution
                 .package_json()
                 .and_then(|p| p.path().to_str())
                 .map(|p| p.to_string()),
         },
-        Err(err) => ResolveResult {
-            path: None,
-            module_type: None,
-            error: Some(err.to_string()),
-            package_json_path: None,
-        },
+        Err(err) => {
+            let error = err.to_string();
+            ResolveResult {
+                path: None,
+                builtin: match err {
+                    ResolveError::Builtin { resolved, is_runtime_module } => {
+                        Some(Builtin { resolved, is_runtime_module })
+                    }
+                    _ => None,
+                },
+                module_type: None,
+                error: Some(error),
+                package_json_path: None,
+            }
+        }
     }
 }
 
@@ -250,11 +275,11 @@ impl ResolverFactory {
             symlinks: op.symlinks.unwrap_or(default.symlinks),
             builtin_modules: op.builtin_modules.unwrap_or(default.builtin_modules),
             module_type: op.module_type.unwrap_or(default.module_type),
-            #[cfg(feature = "yarn_pnp")]
-            pnp_manifest: default.pnp_manifest,
             allow_package_exports_in_directory_resolve: op
                 .allow_package_exports_in_directory_resolve
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
+            #[cfg(feature = "yarn_pnp")]
+            pnp_manifest: default.pnp_manifest,
         }
     }
 }
