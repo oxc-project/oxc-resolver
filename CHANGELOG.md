@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [12.0.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.1...oxc_resolver-v12.0.0) - 2025-06-26
+## [11.3.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.1...oxc_resolver-v11.3.0) - 2025-06-26
 
 ### <!-- 0 -->🚀 Features
 
