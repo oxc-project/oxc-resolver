@@ -139,7 +139,7 @@ debug = false # set to `true` for debug information
 panic = "abort" # Let it crash and force ourselves to write safe Rust.
 
 [profile.release.package.regex-automata]
-opt-level = "z"  # Optimize for size.
+opt-level = "z" # Optimize for size.
 
 [profile.release.package.regex-syntax]
-opt-level = "z"  # Optimize for size.
+opt-level = "z" # Optimize for size.
