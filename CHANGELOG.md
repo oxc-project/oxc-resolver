@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.4.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.3.0...oxc_resolver-v11.4.0) - 2025-07-01
+
+### <!-- 0 -->🚀 Features
+
+- bump `pnp` to 0.11.0 ([#577](https://github.com/oxc-project/oxc-resolver/pull/577)) (by @Boshen) - #577
+
+### Contributors
+
+* @Boshen
+
 ## [11.3.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.2.1...oxc_resolver-v11.3.0) - 2025-06-26
 
 ### <!-- 0 -->🚀 Features
