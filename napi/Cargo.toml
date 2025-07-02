@@ -22,8 +22,8 @@ doctest = false
 [dependencies]
 unrs_resolver = { workspace = true }
 
-napi = { version = "3.0.0-beta.9", default-features = false, features = ["napi3", "serde-json"] }
-napi-derive = { version = "3.0.0-beta.9" }
+napi = { version = "3.0.0-beta.11", default-features = false, features = ["napi3", "serde-json"] }
+napi-derive = { version = "3.0.0-beta.11" }
 tracing-subscriber = { version = "0.3.19", optional = true, default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 
 [target.'cfg(not(any(target_os = "linux", target_os = "freebsd", target_arch = "arm", target_family = "wasm")))'.dependencies]
@@ -36,7 +36,7 @@ mimalloc-safe = { version = "0.1.53", optional = true, features = ["skip_collect
 mimalloc-safe = { version = "0.1.53", optional = true, features = ["skip_collect_on_exit", "local_dynamic_tls", "no_opt_arch"] }
 
 [build-dependencies]
-napi-build = "2.2.1"
+napi-build = "2.2.2"
 
 [features]
 default = ["tracing-subscriber"]
