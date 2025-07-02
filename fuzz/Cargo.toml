@@ -1,7 +1,7 @@
 [package]
 name = "resolver_fuzz"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 # Use independent workspace for fuzzers
@@ -20,4 +20,4 @@ bench = false
 
 [dependencies]
 libfuzzer-sys = "0.4.7"
-oxc_resolver = { path = ".." }
+unrs_resolver = { path = ".." }

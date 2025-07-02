@@ -76,6 +76,10 @@ const resolver = new ResolverFactory();
 assert(resolver.sync(process.cwd(), './index.js').path, path.resolve('index.js'));
 ```
 
+### Supports WASM
+
+See https://stackblitz.com/edit/unrs-resolver for usage example.
+
 ### Rust
 
 See [docs.rs/unrs_resolver](https://docs.rs/unrs_resolver/latest/unrs_resolver/).
@@ -220,14 +224,14 @@ See [index.d.ts](https://github.com/unrs/unrs-resolver/blob/main/napi/index.d.ts
 
 ## Debugging
 
-The following environment variable emits tracing information for the `oxc_resolver::resolve` function.
+The following environment variable emits tracing information for the `unrs_resolver::resolve` function.
 
 e.g.
 
 ```
-2024-06-11T07:12:20.003537Z DEBUG oxc_resolver: options: ResolveOptions { ... }, path: "...", specifier: "...", ret: "..."
-    at /path/to/oxc_resolver-1.8.1/src/lib.rs:212
-    in oxc_resolver::resolve with path: "...", specifier: "..."
+2024-06-11T07:12:20.003537Z DEBUG unrs_resolver: options: ResolveOptions { ... }, path: "...", specifier: "...", ret: "..."
+    at /path/to/unrs_resolver-1.8.1/src/lib.rs:212
+    in unrs_resolver::resolve with path: "...", specifier: "..."
 ```
 
 The input values are `options`, `path` and `specifier`, the returned value is `ret`.
@@ -255,11 +259,11 @@ Test cases are located in `./src/tests`, fixtures are located in `./tests`
 - [x] extensions.test.js
 - [x] fallback.test.js
 - [x] fullSpecified.test.js
-- [x] identifier.test.js (see unit test in `crates/oxc_resolver/src/request.rs`)
+- [x] identifier.test.js (see unit test in `crates/unrs_resolver/src/request.rs`)
 - [x] importsField.test.js
 - [x] incorrect-description-file.test.js (need to add ctx.fileDependencies)
 - [x] missing.test.js
-- [x] path.test.js (see unit test in `crates/oxc_resolver/src/path.rs`)
+- [x] path.test.js (see unit test in `crates/unrs_resolver/src/path.rs`)
 - [ ] plugins.test.js
 - [ ] pnp.test.js
 - [x] resolve.test.js
