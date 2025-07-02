@@ -10,7 +10,7 @@ data = data.replace(
     `
 if (!nativeBinding && process.env.SKIP_UNRS_RESOLVER_FALLBACK !== '1') {
   try {
-    nativeBinding = require('napi-postinstall/fallback')(require.resolve('../package.json'), true)
+    nativeBinding = require('napi-postinstall/fallback')(require.resolve('./package.json'), true)
   } catch (err) {
     loadErrors.push(err)
   }
