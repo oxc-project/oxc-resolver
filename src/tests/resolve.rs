@@ -193,6 +193,63 @@ fn symlink_with_nested_node_modules() {
     );
 }
 
+#[test]
+fn abnormal_relative() {
+    let f = super::fixture_root().join("abnormal-relative-with-node_modules");
+
+    let base = f.join("foo/bar/baz");
+
+    let resolver = Resolver::default();
+
+    let data = [
+        ("2-level abnormal relative path 1", "jest-runner-../../.."),
+        ("2-level abnormal relative path 2", "jest-runner-../../../"),
+        ("2-level abnormal relative path 3", "jest-runner-/../.."),
+        ("2-level abnormal relative path 4", "jest-runner-/../../"),
+    ];
+
+    for (comment, request) in data {
+        let resolved_path = resolver.resolve(&base, request).map(|r| r.full_path()).unwrap();
+        assert_eq!(resolved_path, f.join("runner.js"), "{comment} {}", resolved_path.display());
+    }
+
+    let data = [
+        ("1-level abnormal relative path 1", "jest-runner-../.."),
+        ("1-level abnormal relative path 2", "jest-runner-../../"),
+        ("1-level abnormal relative path 3", "jest-runner-/.."),
+        ("1-level abnormal relative path 4", "jest-runner-/../"),
+    ];
+
+    for (comment, request) in data {
+        let resolved_path = resolver.resolve(&base, request);
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::NotFound(request.into())),
+            "{comment} {request}"
+        );
+    }
+
+    let f = super::fixture_root().join("abnormal-relative-without-node_modules");
+
+    let base = f.join("foo/bar/baz");
+
+    let data = [
+        ("2-level abnormal relative path 1", "jest-runner-../../.."),
+        ("2-level abnormal relative path 2", "jest-runner-../../../"),
+        ("2-level abnormal relative path 3", "jest-runner-/../.."),
+        ("2-level abnormal relative path 4", "jest-runner-/../../"),
+    ];
+
+    for (comment, request) in data {
+        let resolved_path = resolver.resolve(&base, request);
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::NotFound(request.into())),
+            "{comment} {request}"
+        );
+    }
+}
+
 #[cfg(windows)]
 #[test]
 fn resolve_normalized_on_windows() {

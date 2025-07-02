@@ -593,6 +593,38 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         {
             return Ok(path);
         }
+
+        // TODO: add a new option for this legacy behavior?
+        // abnormal relative specifier like `jest-runner-../../..`
+        // which only works with `require` not ESM
+        // see also https://github.com/jestjs/jest/issues/15712
+        // it's kind of bug feature
+        if specifier.contains("/../..") || specifier.contains("../../") {
+            let path = Path::new(specifier).normalize_relative();
+            let mut owned = path.to_string_lossy().into_owned();
+
+            if specifier.ends_with('/') {
+                owned += "/";
+            }
+
+            let specifier_owned = Some(owned);
+            let normalized_specifier = specifier_owned.as_deref().unwrap();
+
+            let (package_name, subpath) = Self::parse_package_specifier(normalized_specifier);
+
+            if package_name == ".." {
+                if let Some(path) = self.load_node_modules(
+                    cached_path,
+                    normalized_specifier,
+                    package_name,
+                    subpath,
+                    ctx,
+                )? {
+                    return Ok(path);
+                }
+            }
+        }
+
         // 7. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
     }
