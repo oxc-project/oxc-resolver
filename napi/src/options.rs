@@ -16,6 +16,9 @@ pub struct NapiResolveOptions {
     /// Default `None`
     pub tsconfig: Option<TsconfigOptions>,
 
+    /// Enable Yarn Plug'n'Play
+    pub yarn_pnp: Option<bool>,
+
     /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].
     ///
     /// For the second value of the tuple, `None -> AliasValue::Ignore`, Some(String) ->
@@ -155,6 +158,16 @@ pub struct NapiResolveOptions {
     ///
     /// Default `false`
     pub module_type: Option<bool>,
+
+    /// Allow `exports` field in `require('../directory')`.
+    ///
+    /// This is not part of the spec but some vite projects rely on this behavior.
+    /// See
+    /// * <https://github.com/vitejs/vite/pull/20252>
+    /// * <https://github.com/nodejs/node/issues/58827>
+    ///
+    /// Default: `false`
+    pub allow_package_exports_in_directory_resolve: Option<bool>,
 }
 
 #[napi]

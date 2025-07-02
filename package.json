@@ -19,7 +19,7 @@
   "scripts": {
     "build": "pnpm build:debug --features allocator --release",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
-    "postbuild": "node napi/patch.mjs",
+    "postbuild:debug": "node napi/patch.mjs",
     "postinstall": "napi-postinstall unrs-resolver 1.9.2 check",
     "prepublishOnly": "clean-pkg-json -k napi",
     "test": "vitest run -r ./napi"

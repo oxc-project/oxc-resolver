@@ -63,6 +63,7 @@ mod path;
 mod resolution;
 mod specifier;
 mod tsconfig;
+mod tsconfig_context;
 #[cfg(feature = "fs_cache")]
 mod tsconfig_serde;
 #[cfg(target_os = "windows")]
@@ -71,7 +72,6 @@ mod windows;
 #[cfg(test)]
 mod tests;
 
-use dashmap::{DashMap, mapref::one::Ref};
 use rustc_hash::FxHashSet;
 use std::{
     borrow::Cow,
@@ -110,7 +110,10 @@ pub use crate::{
     resolution::{ModuleType, Resolution},
     tsconfig::{CompilerOptions, CompilerOptionsPathsMap, ProjectReference, TsConfig},
 };
-use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier};
+use crate::{
+    context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
+    tsconfig_context::TsconfigResolveContext,
+};
 
 type ResolveResult<Cp> = Result<Option<Cp>, ResolveError>;
 
@@ -133,7 +136,7 @@ pub struct ResolverGeneric<C: Cache> {
     options: ResolveOptions,
     cache: Arc<C>,
     #[cfg(feature = "yarn_pnp")]
-    pnp_cache: Arc<DashMap<FsCachedPath, Option<pnp::Manifest>>>,
+    pnp_cache: Arc<papaya::HashMap<C::Cp, Option<pnp::Manifest>>>,
 }
 
 impl<C: Cache> fmt::Debug for ResolverGeneric<C> {
@@ -155,7 +158,7 @@ impl<C: Cache + Default> ResolverGeneric<C> {
             options: options.sanitize(),
             cache: Arc::new(C::default()),
             #[cfg(feature = "yarn_pnp")]
-            pnp_cache: Arc::new(DashMap::default()),
+            pnp_cache: Arc::new(papaya::HashMap::default()),
         }
     }
 }
@@ -166,7 +169,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
             cache,
             options: options.sanitize(),
             #[cfg(feature = "yarn_pnp")]
-            pnp_cache: Arc::new(DashMap::default()),
+            pnp_cache: Arc::new(papaya::HashMap::default()),
         }
     }
 
@@ -225,7 +228,12 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
     /// * See [ResolveError]
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<C::Tc>, ResolveError> {
         let path = path.as_ref();
-        self.load_tsconfig(true, path, &TsconfigReferences::Auto)
+        self.load_tsconfig(
+            true,
+            path,
+            &TsconfigReferences::Auto,
+            &mut TsconfigResolveContext::default(),
+        )
     }
 
     /// Resolve `specifier` at absolute `path` with [ResolveContext]
@@ -705,6 +713,21 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                 }
                 // f. LOAD_INDEX(X) DEPRECATED
                 // g. THROW "not found"
+
+                // Allow `exports` field in `require('../directory')`.
+                // This is not part of the spec but some vite projects rely on this behavior.
+                // See
+                // * <https://github.com/vitejs/vite/pull/20252>
+                // * <https://github.com/nodejs/node/issues/58827>
+                if self.options.allow_package_exports_in_directory_resolve {
+                    for exports in package_json.exports_fields(&self.options.exports_fields) {
+                        if let Some(path) =
+                            self.package_exports_resolve(cached_path, ".", &exports, ctx)?
+                        {
+                            return Ok(Some(path));
+                        }
+                    }
+                }
             }
         }
         // 2. LOAD_INDEX(X)
@@ -854,7 +877,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         ctx: &mut Ctx,
     ) -> ResolveResult<C::Cp> {
         #[cfg(feature = "yarn_pnp")]
-        if self.options.enable_pnp {
+        if self.options.yarn_pnp {
             if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
                 return Ok(Some(resolved_path));
             }
@@ -941,25 +964,19 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
     }
 
     #[cfg(feature = "yarn_pnp")]
-    fn find_pnp_manifest(&self, cached_path: &C::Cp) -> Ref<'_, C::Cp, Option<pnp::Manifest>> {
-        let entry = self.pnp_cache.entry(cached_path.clone()).or_insert_with(|| {
-            if let Some(path) = pnp::find_pnp_manifest(cached_path.path()).unwrap() {
-                return Some(path);
-            }
-            self.options.roots.iter().find_map(|root| pnp::find_pnp_manifest(root).unwrap())
-        });
-
-        entry.downgrade()
-    }
-
-    #[cfg(feature = "yarn_pnp")]
     fn load_pnp(
         &self,
         cached_path: &C::Cp,
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<Option<C::Cp>, ResolveError> {
-        let pnp_manifest = self.find_pnp_manifest(cached_path);
+        let pnp_cache = self.pnp_cache.pin();
+        let pnp_manifest = pnp_cache.get_or_insert_with(cached_path.clone(), || {
+            if let Some(path) = pnp::find_pnp_manifest(cached_path.path()).unwrap() {
+                return Some(path);
+            }
+            self.options.roots.iter().find_map(|root| pnp::find_pnp_manifest(root).unwrap())
+        });
 
         if let Some(pnp_manifest) = pnp_manifest.as_ref() {
             // "pnpapi" in a P'n'P builtin module
@@ -1398,12 +1415,37 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         root: bool,
         path: &Path,
         references: &TsconfigReferences,
+        ctx: &mut TsconfigResolveContext,
     ) -> Result<Arc<C::Tc>, ResolveError> {
         self.cache.get_tsconfig(root, path, |tsconfig| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
-            self.extend_tsconfig(&directory, tsconfig)?;
+            if ctx.is_already_extended(tsconfig.path()) {
+                return Err(ResolveError::TsconfigCircularExtend(
+                    ctx.get_extended_configs_with(tsconfig.path().to_path_buf()).into(),
+                ));
+            }
+
+            // Extend tsconfig
+            let extended_tsconfig_paths = tsconfig
+                .extends()
+                .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
+                .collect::<Result<Vec<_>, _>>()?;
+            if !extended_tsconfig_paths.is_empty() {
+                ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
+                    for extended_tsconfig_path in extended_tsconfig_paths {
+                        let extended_tsconfig = self.load_tsconfig(
+                            /* root */ false,
+                            &extended_tsconfig_path,
+                            &TsconfigReferences::Disabled,
+                            ctx,
+                        )?;
+                        tsconfig.extend_tsconfig(&extended_tsconfig);
+                    }
+                    Result::Ok::<(), ResolveError>(())
+                })?;
+            }
 
             if tsconfig.load_references(references) {
                 let path = tsconfig.path().to_path_buf();
@@ -1422,6 +1464,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                             self.extend_tsconfig(
                                 &self.cache.value(reference_tsconfig.directory()),
                                 reference_tsconfig,
+                                ctx,
                             )?;
                             Ok(())
                         },
@@ -1433,7 +1476,12 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         })
     }
 
-    fn extend_tsconfig(&self, directory: &C::Cp, tsconfig: &mut C::Tc) -> Result<(), ResolveError> {
+    fn extend_tsconfig(
+        &self,
+        directory: &C::Cp,
+        tsconfig: &mut C::Tc,
+        ctx: &mut TsconfigResolveContext,
+    ) -> Result<(), ResolveError> {
         let extended_tsconfig_paths = tsconfig
             .extends()
             .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
@@ -1443,6 +1491,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
                 /* root */ false,
                 &extended_tsconfig_path,
                 &TsconfigReferences::Disabled,
+                ctx,
             )?;
             tsconfig.extend_tsconfig(&extended_tsconfig);
         }
@@ -1462,6 +1511,7 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
             /* root */ true,
             &tsconfig_options.config_file,
             &tsconfig_options.references,
+            &mut TsconfigResolveContext::default(),
         )?;
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {

@@ -48,3 +48,17 @@ test('module_type', () => {
     ModuleType.CommonJs,
   );
 });
+
+test('builtin', () => {
+  const resolver = new ResolverFactory({
+    builtinModules: true,
+  });
+  assert.deepEqual(resolver.sync('/', 'fs').builtin, {
+    resolved: 'node:fs',
+    isRuntimeModule: false,
+  });
+  assert.deepEqual(resolver.sync('/', 'node:fs').builtin, {
+    resolved: 'node:fs',
+    isRuntimeModule: true,
+  });
+});

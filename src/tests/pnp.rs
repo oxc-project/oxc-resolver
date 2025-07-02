@@ -91,7 +91,7 @@ fn resolve_in_pnp_linked_folder() {
 fn resolve_pnp_pkg_should_failed_while_disable_pnp_mode() {
     let fixture = super::fixture_root().join("pnp");
 
-    let resolver = Resolver::new(ResolveOptions { enable_pnp: false, ..ResolveOptions::default() });
+    let resolver = Resolver::new(ResolveOptions { yarn_pnp: false, ..ResolveOptions::default() });
 
     assert_eq!(
         resolver.resolve(&fixture, "is-even").map(|r| r.full_path()),

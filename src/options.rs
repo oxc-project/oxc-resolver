@@ -46,12 +46,6 @@ pub struct ResolveOptions {
     /// Default `["package.json"]`
     pub description_files: Vec<String>,
 
-    /// Whether the resolver should check for the presence of a .pnp.cjs file up the dependency tree.
-    ///
-    /// Default `true`
-    #[cfg(feature = "yarn_pnp")]
-    pub enable_pnp: bool,
-
     /// Set to [EnforceExtension::Enabled] for [ESM Mandatory file extensions](https://nodejs.org/api/esm.html#mandatory-file-extensions).
     ///
     /// If `enforce_extension` is set to [EnforceExtension::Enabled], resolution will not allow extension-less files.
@@ -124,6 +118,12 @@ pub struct ResolveOptions {
     /// Default `["node_modules"]`
     pub modules: Vec<String>,
 
+    /// Whether the resolver should check for the presence of a .pnp.cjs file up the dependency tree.
+    ///
+    /// Default `true`
+    #[cfg(feature = "yarn_pnp")]
+    pub yarn_pnp: bool,
+
     /// Resolve to a context instead of a file.
     ///
     /// Default `false`
@@ -182,6 +182,16 @@ pub struct ResolveOptions {
     ///
     /// Default: `false`
     pub module_type: bool,
+
+    /// Allow `exports` field in `require('../directory')`.
+    ///
+    /// This is not part of the spec but some vite projects rely on this behavior.
+    /// See
+    /// * <https://github.com/vitejs/vite/pull/20252>
+    /// * <https://github.com/nodejs/node/issues/58827>
+    ///
+    /// Default: `false`
+    pub allow_package_exports_in_directory_resolve: bool,
 }
 
 impl ResolveOptions {
@@ -495,7 +505,8 @@ impl Default for ResolveOptions {
             main_fields: vec!["main".into()],
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            enable_pnp: true,
+            #[cfg(feature = "yarn_pnp")]
+            yarn_pnp: true,
             resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
@@ -504,6 +515,7 @@ impl Default for ResolveOptions {
             symlinks: true,
             builtin_modules: false,
             module_type: false,
+            allow_package_exports_in_directory_resolve: false,
         }
     }
 }
@@ -574,6 +586,13 @@ impl fmt::Display for ResolveOptions {
         if self.builtin_modules {
             write!(f, "builtin_modules:{:?},", self.builtin_modules)?;
         }
+        if self.allow_package_exports_in_directory_resolve {
+            write!(
+                f,
+                "allow_package_exports_in_directory_resolve:{:?},",
+                self.allow_package_exports_in_directory_resolve
+            )?;
+        }
         Ok(())
     }
 }
@@ -624,10 +643,11 @@ mod test {
             restrictions: vec![Restriction::Path(PathBuf::from("restrictions"))],
             roots: vec![PathBuf::from("roots")],
             builtin_modules: true,
+            allow_package_exports_in_directory_resolve: true,
             ..ResolveOptions::default()
         };
 
-        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,"#;
+        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,"#;
         assert_eq!(format!("{options}"), expected);
 
         let options = ResolveOptions {
@@ -636,8 +656,6 @@ mod test {
             builtin_modules: false,
             condition_names: vec![],
             description_files: vec![],
-            #[cfg(feature = "yarn_pnp")]
-            enable_pnp: true,
             enforce_extension: EnforceExtension::Disabled,
             exports_fields: vec![],
             extension_alias: vec![],
@@ -648,6 +666,8 @@ mod test {
             main_fields: vec![],
             main_files: vec![],
             modules: vec![],
+            #[cfg(feature = "yarn_pnp")]
+            yarn_pnp: true,
             prefer_absolute: false,
             prefer_relative: false,
             resolve_to_context: false,
@@ -656,6 +676,7 @@ mod test {
             symlinks: false,
             tsconfig: None,
             module_type: false,
+            allow_package_exports_in_directory_resolve: false,
         };
 
         assert_eq!(format!("{options}"), "");
