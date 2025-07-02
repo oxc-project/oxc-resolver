@@ -365,7 +365,7 @@ if (!nativeBinding || process.env.NAPI_RS_FORCE_WASI) {
 
 if (!nativeBinding && process.env.SKIP_UNRS_RESOLVER_FALLBACK !== '1') {
   try {
-    nativeBinding = require('./fallback.js');
+    nativeBinding = require('napi-postinstall/fallback')(require.resolve('../package.json'), true)
   } catch (err) {
     loadErrors.push(err)
   }
