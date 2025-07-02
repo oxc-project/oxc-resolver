@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0](https://github.com/unrs/unrs-resolver/compare/v1.9.2...v1.10.0) - 2025-07-02
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- support resolving abnormal relative paths with `node_modules` ([#171](https://github.com/unrs/unrs-resolver/pull/171)) (by @JounQin) - #171
+- *(deps)* update all dependencies ([#168](https://github.com/unrs/unrs-resolver/pull/168)) (by @renovate[bot])
+
+### <!-- 9 -->💼 Other
+
+- Merge remote-tracking branch 'upstream/main' into chore/merge_upstream (by @JounQin) - #174
+
+### Contributors
+
+* @JounQin
+* @renovate[bot]
+
 ## [1.9.2](https://github.com/unrs/unrs-resolver/compare/v1.9.1...v1.9.2) - 2025-06-24
 
 ### <!-- 1 -->Bug Fixes
