@@ -135,8 +135,6 @@ pub type Resolver = ResolverGeneric<FsCache<FileSystemOs>>;
 pub struct ResolverGeneric<C: Cache> {
     options: ResolveOptions,
     cache: Arc<C>,
-    #[cfg(feature = "yarn_pnp")]
-    pnp_cache: Arc<papaya::HashMap<C::Cp, Option<pnp::Manifest>>>,
 }
 
 impl<C: Cache> fmt::Debug for ResolverGeneric<C> {
@@ -154,34 +152,19 @@ impl<C: Cache + Default> Default for ResolverGeneric<C> {
 impl<C: Cache + Default> ResolverGeneric<C> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
-        Self {
-            options: options.sanitize(),
-            cache: Arc::new(C::default()),
-            #[cfg(feature = "yarn_pnp")]
-            pnp_cache: Arc::new(papaya::HashMap::default()),
-        }
+        Self { options: options.sanitize(), cache: Arc::new(C::default()) }
     }
 }
 
 impl<C: Cache> ResolverGeneric<C> {
     pub fn new_with_cache(cache: Arc<C>, options: ResolveOptions) -> Self {
-        Self {
-            cache,
-            options: options.sanitize(),
-            #[cfg(feature = "yarn_pnp")]
-            pnp_cache: Arc::new(papaya::HashMap::default()),
-        }
+        Self { cache, options: options.sanitize() }
     }
 
     /// Clone the resolver using the same underlying cache.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
-        Self {
-            options: options.sanitize(),
-            cache: Arc::clone(&self.cache),
-            #[cfg(feature = "yarn_pnp")]
-            pnp_cache: Arc::clone(&self.pnp_cache),
-        }
+        Self { options: options.sanitize(), cache: Arc::clone(&self.cache) }
     }
 
     /// Returns the options.
@@ -883,92 +866,81 @@ impl<C: Cache> ResolverGeneric<C> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<Option<C::Cp>, ResolveError> {
-        let pnp_cache = self.pnp_cache.pin();
-        let pnp_manifest = pnp_cache.get_or_insert_with(cached_path.clone(), || {
-            if let Some(path) = pnp::find_pnp_manifest(cached_path.path()).unwrap() {
-                return Some(path);
-            }
-            self.options.roots.iter().find_map(|root| pnp::find_pnp_manifest(root).unwrap())
-        });
+        let pnp_manifest = self.cache.get_yarn_pnp_manifest(self.options.cwd.as_deref())?;
 
-        if let Some(pnp_manifest) = pnp_manifest.as_ref() {
-            // "pnpapi" in a P'n'P builtin module
-            if specifier == "pnpapi" {
-                return Ok(Some(self.cache.value(pnp_manifest.manifest_path.as_path())));
-            }
+        // "pnpapi" in a P'n'P builtin module
+        if specifier == "pnpapi" {
+            return Ok(Some(self.cache.value(pnp_manifest.manifest_path.as_path())));
+        }
 
-            // `resolve_to_unqualified` requires a trailing slash
-            let mut path = cached_path.to_path_buf();
-            path.push("");
+        // `resolve_to_unqualified` requires a trailing slash
+        let mut path = cached_path.to_path_buf();
+        path.push("");
 
-            let resolution =
-                pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, path);
+        let resolution = pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, path);
 
-            match resolution {
-                Ok(pnp::Resolution::Resolved(path, subpath)) => {
-                    let cached_path = self.cache.value(&path);
-                    let cached_path_string = cached_path.path().to_string_lossy();
+        match resolution {
+            Ok(pnp::Resolution::Resolved(path, subpath)) => {
+                let cached_path = self.cache.value(&path);
+                let cached_path_string = cached_path.path().to_string_lossy();
 
-                    let export_resolution = self.load_package_self(&cached_path, specifier, ctx)?;
-                    // can be found in pnp cached folder
-                    if export_resolution.is_some() {
-                        return Ok(export_resolution);
-                    }
-
-                    // symbol linked package doesn't have node_modules structure
-                    let pkg_name = cached_path_string.rsplit_once("node_modules/").map_or(
-                        "",
-                        // remove trailing slash
-                        |(_, last)| last.strip_suffix('/').unwrap_or(last),
-                    );
-
-                    let inner_request = if pkg_name.is_empty() {
-                        subpath.map_or_else(
-                            || ".".to_string(),
-                            |mut p| {
-                                p.insert_str(0, "./");
-                                p
-                            },
-                        )
-                    } else {
-                        let (first, rest) = specifier.split_once('/').unwrap_or((specifier, ""));
-                        // the original `pkg_name` in cached path could be different with specifier
-                        // due to alias like `"custom-minimist": "npm:minimist@^1.2.8"`
-                        // in this case, `specifier` is `pkg_name`'s source of truth
-                        let pkg_name = if first.starts_with('@') {
-                            &format!("{first}/{}", rest.split_once('/').unwrap_or((rest, "")).0)
-                        } else {
-                            first
-                        };
-                        let inner_specifier = specifier.strip_prefix(pkg_name).unwrap();
-                        String::from("./")
-                            + inner_specifier.strip_prefix("/").unwrap_or(inner_specifier)
-                    };
-
-                    // it could be a directory with `package.json` that redirects to another file,
-                    // take `@atlaskit/pragmatic-drag-and-drop` for example, as described at import-js/eslint-import-resolver-typescript#409
-                    if let Ok(Some(result)) = self.load_as_directory(
-                        &self.cache.value(&path.join(inner_request.clone()).normalize()),
-                        ctx,
-                    ) {
-                        return Ok(Some(result));
-                    }
-
-                    let inner_resolver = self.clone_with_options(self.options().clone());
-
-                    // try as file or directory `path` in the pnp folder
-                    let Ok(inner_resolution) = inner_resolver.resolve(&path, &inner_request) else {
-                        return Err(ResolveError::NotFound(specifier.to_string()));
-                    };
-
-                    Ok(Some(self.cache.value(inner_resolution.path())))
+                let export_resolution = self.load_package_self(&cached_path, specifier, ctx)?;
+                // can be found in pnp cached folder
+                if export_resolution.is_some() {
+                    return Ok(export_resolution);
                 }
 
-                Ok(pnp::Resolution::Skipped) => Ok(None),
-                Err(_) => Err(ResolveError::NotFound(specifier.to_string())),
+                // symbol linked package doesn't have node_modules structure
+                let pkg_name = cached_path_string.rsplit_once("node_modules/").map_or(
+                    "",
+                    // remove trailing slash
+                    |(_, last)| last.strip_suffix('/').unwrap_or(last),
+                );
+
+                let inner_request = if pkg_name.is_empty() {
+                    subpath.map_or_else(
+                        || ".".to_string(),
+                        |mut p| {
+                            p.insert_str(0, "./");
+                            p
+                        },
+                    )
+                } else {
+                    let (first, rest) = specifier.split_once('/').unwrap_or((specifier, ""));
+                    // the original `pkg_name` in cached path could be different with specifier
+                    // due to alias like `"custom-minimist": "npm:minimist@^1.2.8"`
+                    // in this case, `specifier` is `pkg_name`'s source of truth
+                    let pkg_name = if first.starts_with('@') {
+                        &format!("{first}/{}", rest.split_once('/').unwrap_or((rest, "")).0)
+                    } else {
+                        first
+                    };
+                    let inner_specifier = specifier.strip_prefix(pkg_name).unwrap();
+                    String::from("./")
+                        + inner_specifier.strip_prefix("/").unwrap_or(inner_specifier)
+                };
+
+                // it could be a directory with `package.json` that redirects to another file,
+                // take `@atlaskit/pragmatic-drag-and-drop` for example, as described at import-js/eslint-import-resolver-typescript#409
+                if let Ok(Some(result)) = self.load_as_directory(
+                    &self.cache.value(&path.join(inner_request.clone()).normalize()),
+                    ctx,
+                ) {
+                    return Ok(Some(result));
+                }
+
+                let inner_resolver = self.clone_with_options(self.options().clone());
+
+                // try as file or directory `path` in the pnp folder
+                let Ok(inner_resolution) = inner_resolver.resolve(&path, &inner_request) else {
+                    return Err(ResolveError::NotFound(specifier.to_string()));
+                };
+
+                Ok(Some(self.cache.value(inner_resolution.path())))
             }
-        } else {
-            Ok(None)
+
+            Ok(pnp::Resolution::Skipped) => Ok(None),
+            Err(_) => Err(ResolveError::NotFound(specifier.to_string())),
         }
     }
 

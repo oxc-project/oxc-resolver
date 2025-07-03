@@ -52,6 +52,9 @@ pub trait Cache: Sized {
         path: &Path,
         callback: F,
     ) -> Result<Arc<Self::Tc>, ResolveError>;
+
+    #[cfg(feature = "yarn_pnp")]
+    fn get_yarn_pnp_manifest(&self, cwd: Option<&Path>) -> Result<&pnp::Manifest, ResolveError>;
 }
 
 #[allow(clippy::missing_errors_doc)] // trait impls should be free to return any typesafe error

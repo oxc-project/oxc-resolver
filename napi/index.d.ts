@@ -57,8 +57,6 @@ export interface NapiResolveOptions {
    * Default `None`
    */
   tsconfig?: TsconfigOptions
-  /** Enable Yarn Plug'n'Play */
-  yarnPnp?: boolean
   /**
    * Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].
    *
