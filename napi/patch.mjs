@@ -15,4 +15,9 @@ if (!nativeBinding && globalThis.process?.versions?.["webcontainer"]) {
 }
 ` + s,
 );
+data = data + `
+if (process.versions.pnp) {
+  process.env.OXC_RESOLVER_YARN_PNP = '1'
+}
+`
 fs.writeFileSync(filename, data);

@@ -151,8 +151,7 @@ impl ResolverFactory {
     #[napi]
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
-        let default_options = ResolveOptions::default();
-        Self { resolver: Arc::new(Resolver::new(default_options)) }
+        Self { resolver: Arc::new(Resolver::new(ResolveOptions::default())) }
     }
 
     /// Clone the resolver using the same underlying cache.
@@ -190,6 +189,7 @@ impl ResolverFactory {
         let default = ResolveOptions::default();
         // merging options
         ResolveOptions {
+            cwd: None,
             tsconfig: op.tsconfig.map(|tsconfig| tsconfig.into()),
             alias: op
                 .alias
@@ -279,7 +279,7 @@ impl ResolverFactory {
                 .allow_package_exports_in_directory_resolve
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
             #[cfg(feature = "yarn_pnp")]
-            yarn_pnp: op.yarn_pnp.unwrap_or(default.yarn_pnp),
+            yarn_pnp: default.yarn_pnp,
         }
     }
 }

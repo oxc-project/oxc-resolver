@@ -41,6 +41,8 @@ pub struct FsCache<Fs> {
     pub(crate) fs: Fs,
     paths: HashSet<FsCachedPath, BuildHasherDefault<IdentityHasher>>,
     tsconfigs: HashMap<PathBuf, Arc<TsConfigSerde>, BuildHasherDefault<FxHasher>>,
+    #[cfg(feature = "yarn_pnp")]
+    yarn_pnp_manifest: OnceLock<pnp::Manifest>,
 }
 
 impl<Fs: FileSystem> Cache for FsCache<Fs> {
@@ -190,6 +192,18 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
         Ok(tsconfig)
     }
+
+    #[cfg(feature = "yarn_pnp")]
+    fn get_yarn_pnp_manifest(&self, cwd: Option<&Path>) -> Result<&pnp::Manifest, ResolveError> {
+        self.yarn_pnp_manifest.get_or_try_init(|| {
+            // TODO: map to proper error
+            let cwd =
+                cwd.map_or_else(|| Cow::Owned(std::env::current_dir().unwrap()), Cow::Borrowed);
+            // TODO: map to proper error
+            let manifest = pnp::find_pnp_manifest(&cwd).unwrap().unwrap();
+            Ok(manifest)
+        })
+    }
 }
 
 impl<Fs: FileSystem> FsCache<Fs> {
@@ -204,6 +218,8 @@ impl<Fs: FileSystem> FsCache<Fs> {
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
+            #[cfg(feature = "yarn_pnp")]
+            yarn_pnp_manifest: OnceLock::new(),
         }
     }
 
