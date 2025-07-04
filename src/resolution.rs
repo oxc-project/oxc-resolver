@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{Cache, PackageJson};
+use crate::PackageJson;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ModuleType {
@@ -16,7 +16,7 @@ pub enum ModuleType {
 }
 
 /// The final path resolution with optional `?query` and `#fragment`
-pub struct Resolution<C: Cache> {
+pub struct Resolution {
     pub(crate) path: PathBuf,
 
     /// Path query `?query`, contains `?`.
@@ -26,7 +26,7 @@ pub struct Resolution<C: Cache> {
     pub(crate) fragment: Option<String>,
 
     /// `package.json` for the given module.
-    pub(crate) package_json: Option<Arc<C::Pj>>,
+    pub(crate) package_json: Option<Arc<PackageJson>>,
 
     /// Module type for this path.
     ///
@@ -38,7 +38,7 @@ pub struct Resolution<C: Cache> {
     pub(crate) module_type: Option<ModuleType>,
 }
 
-impl<C: Cache> Clone for Resolution<C> {
+impl Clone for Resolution {
     fn clone(&self) -> Self {
         Self {
             path: self.path.clone(),
@@ -50,7 +50,7 @@ impl<C: Cache> Clone for Resolution<C> {
     }
 }
 
-impl<C: Cache> fmt::Debug for Resolution<C> {
+impl fmt::Debug for Resolution {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Resolution")
             .field("path", &self.path)
@@ -62,14 +62,14 @@ impl<C: Cache> fmt::Debug for Resolution<C> {
     }
 }
 
-impl<C: Cache> PartialEq for Resolution<C> {
+impl PartialEq for Resolution {
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path && self.query == other.query && self.fragment == other.fragment
     }
 }
-impl<C: Cache> Eq for Resolution<C> {}
+impl Eq for Resolution {}
 
-impl<C: Cache> Resolution<C> {
+impl Resolution {
     /// Returns the path without query and fragment
     #[must_use]
     pub fn path(&self) -> &Path {
@@ -96,7 +96,7 @@ impl<C: Cache> Resolution<C> {
 
     /// Returns serialized package_json
     #[must_use]
-    pub const fn package_json(&self) -> Option<&Arc<C::Pj>> {
+    pub fn package_json(&self) -> Option<&Arc<PackageJson>> {
         self.package_json.as_ref()
     }
 

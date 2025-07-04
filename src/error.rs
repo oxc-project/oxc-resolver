@@ -121,7 +121,6 @@ impl ResolveError {
     }
 
     #[must_use]
-    #[cfg(feature = "fs_cache")]
     pub fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
         Self::Json(JSONError {
             path,

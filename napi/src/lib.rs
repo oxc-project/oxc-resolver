@@ -12,7 +12,7 @@ use std::{
 
 use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{PackageJson, ResolveError, ResolveOptions, Resolver};
+use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
 
 use self::options::{NapiResolveOptions, StrOrStrList};
 

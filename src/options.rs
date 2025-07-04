@@ -1,5 +1,5 @@
 use std::{
-    env, fmt,
+    fmt,
     path::{Path, PathBuf},
 };
 
@@ -500,7 +500,7 @@ impl Default for ResolveOptions {
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
             #[cfg(feature = "yarn_pnp")]
-            yarn_pnp: env::var("OXC_RESOLVER_YARN_PNP").is_ok(),
+            yarn_pnp: std::env::var("OXC_RESOLVER_YARN_PNP").is_ok(),
         }
     }
 }
