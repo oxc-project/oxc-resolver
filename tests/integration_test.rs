@@ -3,15 +3,14 @@
 use std::{env, path::PathBuf};
 
 use oxc_resolver::{
-    EnforceExtension, FileSystemOs, FsCache, PackageJson, Resolution, ResolveContext, ResolveError,
-    ResolveOptions, Resolver,
+    EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
 };
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
 }
 
-fn resolve(specifier: &str) -> Resolution<FsCache<FileSystemOs>> {
+fn resolve(specifier: &str) -> Resolution {
     let path = dir();
     Resolver::new(ResolveOptions::default()).resolve(path, specifier).unwrap()
 }

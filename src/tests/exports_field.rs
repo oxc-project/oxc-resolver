@@ -7,8 +7,7 @@ use std::path::Path;
 use serde_json::json;
 
 use crate::{
-    Cache, Ctx, PathUtil, ResolveError, ResolveOptions, Resolver, cache::CachedPath,
-    package_json_serde::ImportsExportsSerdeEntry,
+    Ctx, PathUtil, ResolveError, ResolveOptions, Resolver, package_json::ImportsExportsEntry,
 };
 
 #[test]
@@ -316,15 +315,15 @@ fn directory() {
 struct TestCase {
     name: &'static str,
     expect: Option<Vec<&'static str>>,
-    exports_field: ImportsExportsSerdeEntry<'static>,
+    exports_field: ImportsExportsEntry<'static>,
     request: &'static str,
     condition_names: Vec<&'static str>,
 }
 
-fn exports_field(value: serde_json::Value) -> ImportsExportsSerdeEntry<'static> {
+fn exports_field(value: serde_json::Value) -> ImportsExportsEntry<'static> {
     // Don't do this at home:
     let value = Box::leak::<'static>(Box::new(value));
-    ImportsExportsSerdeEntry(value)
+    ImportsExportsEntry(value)
 }
 
 #[test]

@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    JSONError, ResolveError, ResolveOptions, Resolver, TsConfig, TsConfigSerde, TsconfigOptions,
+    JSONError, ResolveError, ResolveOptions, Resolver, TsConfig, TsconfigOptions,
     TsconfigReferences,
 };
 
@@ -146,7 +146,7 @@ fn test_paths() {
         }
     })
     .to_string();
-    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap().build();
+    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap().build();
 
     let data = [
         ("jquery", vec!["/foo/node_modules/jquery/dist/jquery"]),
@@ -176,7 +176,7 @@ fn test_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap().build();
+    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap().build();
 
     let data = [
         ("foo", vec!["/foo/src/foo"]),
@@ -207,7 +207,7 @@ fn test_paths_and_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfigSerde::parse(true, path, &mut tsconfig_json).unwrap().build();
+    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap().build();
 
     let data = [
         ("test", vec!["/foo/src/generated/test", "/foo/src/test"]),
@@ -290,14 +290,11 @@ fn test_template_variable() {
 
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows_test {
-    use std::{
-        path::{Path, PathBuf},
-        sync::Arc,
-    };
+    use std::path::{Path, PathBuf};
 
     use super::super::memory_fs::MemoryFS;
     use crate::{
-        FsCache, ResolveError, ResolveOptions, ResolverGeneric, TsconfigOptions, TsconfigReferences,
+        ResolveError, ResolveOptions, ResolverGeneric, TsconfigOptions, TsconfigReferences,
     };
 
     struct OneTest {
@@ -340,7 +337,7 @@ mod windows_test {
     }
 
     impl OneTest {
-        fn resolver(&self, root: &Path) -> ResolverGeneric<FsCache<MemoryFS>> {
+        fn resolver(&self, root: &Path) -> ResolverGeneric<MemoryFS> {
             let mut file_system = MemoryFS::default();
 
             file_system.add_file(&root.join("tsconfig.json"), &self.tsconfig);
@@ -363,7 +360,7 @@ mod windows_test {
                 options.main_fields.clone_from(main_fields);
             }
 
-            ResolverGeneric::new_with_cache(Arc::new(FsCache::new(file_system)), options)
+            ResolverGeneric::new_with_file_system(file_system, options)
         }
     }
 
