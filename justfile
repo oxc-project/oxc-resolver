@@ -26,6 +26,7 @@ ready:
   just check
   just test
   just lint
+  just doc
   git status
 
 watch *args='':
