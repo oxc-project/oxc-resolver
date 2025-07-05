@@ -9,6 +9,12 @@ use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
 /// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem: Send + Sync {
+    #[cfg(feature = "yarn_pnp")]
+    fn new(yarn_pnp: bool) -> Self;
+
+    #[cfg(not(feature = "yarn_pnp"))]
+    fn new() -> Self;
+
     /// See [std::fs::read_to_string]
     ///
     /// # Errors
@@ -95,25 +101,13 @@ impl From<fs::Metadata> for FileMetadata {
     }
 }
 
-/// Operating System
-#[cfg(feature = "yarn_pnp")]
-pub struct FileSystemOs {
-    pnp_lru: LruZipCache<Vec<u8>>,
-}
-
 #[cfg(not(feature = "yarn_pnp"))]
 pub struct FileSystemOs;
 
-impl Default for FileSystemOs {
-    fn default() -> Self {
-        cfg_if! {
-            if #[cfg(feature = "yarn_pnp")] {
-                Self { pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p) }
-            } else {
-                Self
-            }
-        }
-    }
+#[cfg(feature = "yarn_pnp")]
+pub struct FileSystemOs {
+    pnp_lru: LruZipCache<Vec<u8>>,
+    yarn_pnp: bool,
 }
 
 impl FileSystemOs {
@@ -171,38 +165,51 @@ impl FileSystemOs {
 }
 
 impl FileSystem for FileSystemOs {
+    #[cfg(feature = "yarn_pnp")]
+    fn new(yarn_pnp: bool) -> Self {
+        Self { pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p), yarn_pnp }
+    }
+
+    #[cfg(not(feature = "yarn_pnp"))]
+    fn new() -> Self {
+        Self
+    }
+
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                match VPath::from(path)? {
-                    VPath::Zip(info) => {
-                        self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                if self.yarn_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => {
+                            self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                        }
+                        VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
+                        VPath::Native(path) => Self::read_to_string(&path),
                     }
-                    VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
-                    VPath::Native(path) => Self::read_to_string(&path),
                 }
-            } else {
-                Self::read_to_string(path)
             }
         }
+        Self::read_to_string(path)
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                match VPath::from(path)? {
-                    VPath::Zip(info) => self
-                        .pnp_lru
-                        .file_type(info.physical_base_path(), info.zip_path)
-                        .map(FileMetadata::from),
-                    VPath::Virtual(info) => {
-                        Self::metadata(&info.physical_base_path())
+                if self.yarn_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => self
+                            .pnp_lru
+                            .file_type(info.physical_base_path(), info.zip_path)
+                            .map(FileMetadata::from),
+                        VPath::Virtual(info) => {
+                            Self::metadata(&info.physical_base_path())
+                        }
+                        VPath::Native(path) => Self::metadata(&path),
                     }
-                    VPath::Native(path) => Self::metadata(&path),
                 }
-            } else {
-                Self::metadata(path)}
+            }
         }
+        Self::metadata(path)
     }
 
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
@@ -212,15 +219,16 @@ impl FileSystem for FileSystemOs {
     fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                match VPath::from(path)? {
-                    VPath::Zip(info) => Self::read_link(&info.physical_base_path().join(info.zip_path)),
-                    VPath::Virtual(info) => Self::read_link(&info.physical_base_path()),
-                    VPath::Native(path) => Self::read_link(&path),
+                if self.yarn_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => Self::read_link(&info.physical_base_path().join(info.zip_path)),
+                        VPath::Virtual(info) => Self::read_link(&info.physical_base_path()),
+                        VPath::Native(path) => Self::read_link(&path),
+                    }
                 }
-            } else {
-                Self::read_link(path)
             }
         }
+        Self::read_link(path)
     }
 }
 
