@@ -125,16 +125,24 @@ impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
     }
 }
 
-impl<Fs: FileSystem + Default> Default for ResolverGeneric<Fs> {
+impl<Fs: FileSystem> Default for ResolverGeneric<Fs> {
     fn default() -> Self {
         Self::new(ResolveOptions::default())
     }
 }
 
-impl<Fs: FileSystem + Default> ResolverGeneric<Fs> {
+impl<Fs: FileSystem> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
-        Self { options: options.sanitize(), cache: Arc::new(Cache::new(Fs::default())) }
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                let fs = Fs::new(options.yarn_pnp);
+            } else {
+                let fs = Fs::new();
+            }
+        }
+        let cache = Arc::new(Cache::new(fs));
+        Self { options: options.sanitize(), cache }
     }
 }
 
