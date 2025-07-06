@@ -84,6 +84,13 @@ See https://stackblitz.com/edit/unrs-resolver for usage example.
 
 See [docs.rs/unrs_resolver](https://docs.rs/unrs_resolver/latest/unrs_resolver/).
 
+### [Yarn Plug'n'Play](https://yarnpkg.com/features/pnp)
+
+- For node.js, yarn pnp should work without any configuration, given the following conditions:
+  - the program is called with the `yarn` command, where the value [`process.versions.pnp`](https://yarnpkg.com/advanced/pnpapi#processversionspnp) is set.
+  - `.pnp.cjs` manifest file exists in the closest directory, searched from the current working directory,
+  - no multi-project setup, per second bullet point in [FIND_PNP_MANIFEST](https://yarnpkg.com/advanced/pnp-spec#find_pnp_manifest)
+
 ## Terminology
 
 ### `directory`

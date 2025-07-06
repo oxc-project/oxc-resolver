@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use crate::{FsCache, Resolution, tests::memory_fs::MemoryFS};
+use crate::Resolution;
 
 #[test]
 fn test() {
-    let resolution: Resolution<FsCache<MemoryFS>> = Resolution {
+    let resolution = Resolution {
         path: PathBuf::from("foo"),
         query: Some("?query".to_string()),
         fragment: Some("#fragment".to_string()),

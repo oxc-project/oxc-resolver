@@ -39,7 +39,7 @@ mimalloc-safe = { version = "0.1.53", optional = true, features = ["skip_collect
 napi-build = "2.2.2"
 
 [features]
-default = ["tracing-subscriber"]
+default = ["tracing-subscriber", "yarn_pnp"]
 allocator = ["dep:mimalloc-safe"]
 tracing-subscriber = ["dep:tracing-subscriber"]
 yarn_pnp = ["unrs_resolver/yarn_pnp"]

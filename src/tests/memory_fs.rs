@@ -42,6 +42,16 @@ impl MemoryFS {
 }
 
 impl FileSystem for MemoryFS {
+    #[cfg(not(feature = "yarn_pnp"))]
+    fn new() -> Self {
+        Self::default()
+    }
+
+    #[cfg(feature = "yarn_pnp")]
+    fn new(_yarn_pnp: bool) -> Self {
+        Self::default()
+    }
+
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         use vfs::FileSystem;
         let mut file = self

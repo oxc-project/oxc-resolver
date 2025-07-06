@@ -11,6 +11,8 @@ fn pnp_basic() {
     let fixture = super::fixture_root().join("pnp");
 
     let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixture.clone()),
+        yarn_pnp: true,
         extensions: vec![".js".into()],
         condition_names: vec!["import".into()],
         ..ResolveOptions::default()
@@ -76,6 +78,8 @@ fn resolve_in_pnp_linked_folder() {
     let fixture = super::fixture_root().join("pnp");
 
     let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixture.clone()),
+        yarn_pnp: true,
         extensions: vec![".js".into()],
         condition_names: vec!["import".into()],
         ..ResolveOptions::default()
@@ -91,7 +95,7 @@ fn resolve_in_pnp_linked_folder() {
 fn resolve_pnp_pkg_should_failed_while_disable_pnp_mode() {
     let fixture = super::fixture_root().join("pnp");
 
-    let resolver = Resolver::new(ResolveOptions { yarn_pnp: false, ..ResolveOptions::default() });
+    let resolver = Resolver::default();
 
     assert_eq!(
         resolver.resolve(&fixture, "is-even").map(|r| r.full_path()),
@@ -103,7 +107,11 @@ fn resolve_pnp_pkg_should_failed_while_disable_pnp_mode() {
 fn resolve_package_deep_link() {
     let fixture = super::fixture_root().join("pnp");
 
-    let resolver = Resolver::new(ResolveOptions::default());
+    let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixture.clone()),
+        yarn_pnp: true,
+        ..ResolveOptions::default()
+    });
 
     assert_eq!(
         resolver.resolve(fixture.join("shared"), "beachball/lib/commands/bump.js").map(|r| r.full_path()),
@@ -117,11 +125,11 @@ fn resolve_package_deep_link() {
 fn resolve_pnp_nested_package_json() {
     let fixture = super::fixture_root().join("pnp");
 
-    let resolver = Resolver::new({
-        ResolveOptions {
-            main_fields: vec!["module".into(), "main".into()],
-            ..ResolveOptions::default()
-        }
+    let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixture.clone()),
+        yarn_pnp: true,
+        main_fields: vec!["module".into(), "main".into()],
+        ..ResolveOptions::default()
     });
 
     assert_eq!(
@@ -136,7 +144,11 @@ fn resolve_pnp_nested_package_json() {
 fn resolve_npm_protocol_alias() {
     let fixture = super::fixture_root().join("pnp");
 
-    let resolver = Resolver::default();
+    let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixture.clone()),
+        yarn_pnp: true,
+        ..ResolveOptions::default()
+    });
 
     assert_eq!(
         resolver.resolve(&fixture, "custom-minimist").map(|r| r.full_path()),
@@ -172,8 +184,10 @@ fn resolve_global_cache() {
     #[cfg(not(windows))]
     let global_cache = home_dir.join(".yarn/berry/cache");
 
+    let fixture = super::fixture_root().join("global-pnp");
     let resolver = Resolver::new(ResolveOptions {
-        roots: vec![super::fixture_root().join("global-pnp")],
+        cwd: Some(fixture),
+        yarn_pnp: true,
         ..ResolveOptions::default()
     });
 

@@ -113,6 +113,14 @@ pub enum ResolveError {
     /// Occurs when alias paths reference each other.
     #[error("Recursion in resolving")]
     Recursion,
+
+    #[cfg(feature = "yarn_pnp")]
+    #[error("Failed to find yarn pnp manifest in {0}.")]
+    FailedToFindYarnPnpManifest(PathBuf),
+
+    #[cfg(feature = "yarn_pnp")]
+    #[error("{0}")]
+    YarnPnpError(pnp::Error),
 }
 
 impl ResolveError {
@@ -122,7 +130,6 @@ impl ResolveError {
     }
 
     #[must_use]
-    #[cfg(feature = "fs_cache")]
     pub fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
         Self::Json(JSONError {
             path,

@@ -16,9 +16,6 @@ pub struct NapiResolveOptions {
     /// Default `None`
     pub tsconfig: Option<TsconfigOptions>,
 
-    /// Enable Yarn Plug'n'Play
-    pub yarn_pnp: Option<bool>,
-
     /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].
     ///
     /// For the second value of the tuple, `None -> AliasValue::Ignore`, Some(String) ->

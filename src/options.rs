@@ -11,6 +11,9 @@ use std::{
 #[expect(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
+    /// Current working directory, used for testing purposes.
+    pub cwd: Option<PathBuf>,
+
     /// Path to TypeScript configuration file.
     ///
     /// Default `None`
@@ -118,12 +121,6 @@ pub struct ResolveOptions {
     /// Default `["node_modules"]`
     pub modules: Vec<String>,
 
-    /// Whether the resolver should check for the presence of a .pnp.cjs file up the dependency tree.
-    ///
-    /// Default `true`
-    #[cfg(feature = "yarn_pnp")]
-    pub yarn_pnp: bool,
-
     /// Resolve to a context instead of a file.
     ///
     /// Default `false`
@@ -192,6 +189,14 @@ pub struct ResolveOptions {
     ///
     /// Default: `false`
     pub allow_package_exports_in_directory_resolve: bool,
+
+    /// Enable Yarn Plug'n'Play?.
+    ///
+    /// Pass in `!!process.versions.pnp` if called from node.js.
+    ///
+    /// Default: when env var `UNRS_RESOLVER_YARN_PNP` is set.
+    #[cfg(feature = "yarn_pnp")]
+    pub yarn_pnp: bool,
 }
 
 impl ResolveOptions {
@@ -490,6 +495,7 @@ pub enum TsconfigReferences {
 impl Default for ResolveOptions {
     fn default() -> Self {
         Self {
+            cwd: None,
             tsconfig: None,
             alias: vec![],
             alias_fields: vec![],
@@ -505,8 +511,6 @@ impl Default for ResolveOptions {
             main_fields: vec!["main".into()],
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            #[cfg(feature = "yarn_pnp")]
-            yarn_pnp: true,
             resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
@@ -516,6 +520,8 @@ impl Default for ResolveOptions {
             builtin_modules: false,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
+            #[cfg(feature = "yarn_pnp")]
+            yarn_pnp: std::env::var("UNRS_RESOLVER_YARN_PNP").is_ok(),
         }
     }
 }
@@ -651,6 +657,7 @@ mod test {
         assert_eq!(format!("{options}"), expected);
 
         let options = ResolveOptions {
+            cwd: None,
             alias: vec![],
             alias_fields: vec![],
             builtin_modules: false,
@@ -667,7 +674,7 @@ mod test {
             main_files: vec![],
             modules: vec![],
             #[cfg(feature = "yarn_pnp")]
-            yarn_pnp: true,
+            yarn_pnp: false,
             prefer_absolute: false,
             prefer_relative: false,
             resolve_to_context: false,

@@ -27,6 +27,7 @@ ready:
   just check
   just test
   just lint
+  just doc
   git status
 
 watch *args='':
@@ -54,9 +55,11 @@ check:
 
 # Run all the tests
 test:
+  cargo test
   cargo test --all-features
   node --run build
   node --run test
+  cd fixtures/pnp && yarn test
 
 # Lint the whole project
 lint:

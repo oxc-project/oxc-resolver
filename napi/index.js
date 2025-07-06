@@ -388,3 +388,7 @@ module.exports.ResolverFactory = nativeBinding.ResolverFactory
 module.exports.EnforceExtension = nativeBinding.EnforceExtension
 module.exports.ModuleType = nativeBinding.ModuleType
 module.exports.sync = nativeBinding.sync
+
+if (process.versions.pnp) {
+  process.env.UNRS_RESOLVER_YARN_PNP = '1'
+}

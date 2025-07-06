@@ -10,13 +10,10 @@ use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions
 #[test]
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 fn alias() {
-    use std::{
-        path::{Path, PathBuf},
-        sync::Arc,
-    };
+    use std::path::{Path, PathBuf};
 
     use super::memory_fs::MemoryFS;
-    use crate::{FsCache, ResolverGeneric};
+    use crate::ResolverGeneric;
 
     let f = Path::new("/");
 
@@ -37,8 +34,8 @@ fn alias() {
         ("/dashed-name", ""),
     ]);
 
-    let resolver = ResolverGeneric::new_with_cache(
-        Arc::new(FsCache::new(file_system)),
+    let resolver = ResolverGeneric::new_with_file_system(
+        file_system,
         ResolveOptions {
             alias: vec![
                 ("aliasA".into(), vec![AliasValue::from("a")]),

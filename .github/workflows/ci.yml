@@ -43,11 +43,10 @@ jobs:
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
+          tools: just
       - uses: ./.github/actions/pnpm
       - run: cargo check --all-features --locked
-      - run: cargo test --doc
-      - run: cargo test --all-features
-      - run: pnpm run build:debug && pnpm run test
+      - run: just test
         if: ${{ matrix.os  != 'windows-latest' }}
 
   lint:

@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 
-const fileUrl = new URL('index.js', import.meta.url)
+const filename = new URL('index.js', import.meta.url)
 
-let data = fs.readFileSync(fileUrl, 'utf-8')
+let data = fs.readFileSync(filename, 'utf-8')
 
 data = data.replace(
   '\nif (!nativeBinding) {',
@@ -18,4 +18,10 @@ if (!nativeBinding && process.env.SKIP_UNRS_RESOLVER_FALLBACK !== '1') {
 ` + value,
 )
 
-fs.writeFileSync(fileUrl, data)
+data = data + `
+if (process.versions.pnp) {
+  process.env.UNRS_RESOLVER_YARN_PNP = '1'
+}
+`
+
+fs.writeFileSync(filename, data)

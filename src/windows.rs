@@ -41,7 +41,7 @@ pub fn strip_windows_prefix(path: PathBuf) -> Result<PathBuf, ResolveError> {
 }
 
 #[test]
-fn test_try_strip_windows_prefix() {
+fn test_strip_windows_prefix() {
     let pass = [
         (r"C:\Users\user\Documents\", r"C:\Users\user\Documents\"),
         (r"C:\Users\user\Documents\file1.txt", r"C:\Users\user\Documents\file1.txt"),
