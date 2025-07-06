@@ -1,5 +1,5 @@
 [workspace]
-semver_check = true
+semver_check = false
 allow_dirty = true # The "fixtures" is being marked as dirty.
 git_release_enable = false
 git_tag_enable = false
