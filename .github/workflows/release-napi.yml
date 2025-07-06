@@ -31,7 +31,7 @@ jobs:
         id: version
         with:
           static-checking: localIsNew
-          file-url: https://unpkg.com/unrs-resolver@latest/package.json
+          file-url: https://unpkg.com/oxc-resolver@latest/package.json
           file-name: package.json
 
       - name: Set version name

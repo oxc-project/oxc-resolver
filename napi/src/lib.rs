@@ -12,7 +12,7 @@ use std::{
 
 use napi::{Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use unrs_resolver::{ResolveError, ResolveOptions, Resolver};
+use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
 
 use self::options::{NapiResolveOptions, StrOrStrList};
 
@@ -91,14 +91,14 @@ pub enum ModuleType {
     Addon,
 }
 
-impl From<unrs_resolver::ModuleType> for ModuleType {
-    fn from(value: unrs_resolver::ModuleType) -> Self {
+impl From<oxc_resolver::ModuleType> for ModuleType {
+    fn from(value: oxc_resolver::ModuleType) -> Self {
         match value {
-            unrs_resolver::ModuleType::Module => Self::Module,
-            unrs_resolver::ModuleType::CommonJs => Self::CommonJs,
-            unrs_resolver::ModuleType::Json => Self::Json,
-            unrs_resolver::ModuleType::Wasm => Self::Wasm,
-            unrs_resolver::ModuleType::Addon => Self::Addon,
+            oxc_resolver::ModuleType::Module => Self::Module,
+            oxc_resolver::ModuleType::CommonJs => Self::CommonJs,
+            oxc_resolver::ModuleType::Json => Self::Json,
+            oxc_resolver::ModuleType::Wasm => Self::Wasm,
+            oxc_resolver::ModuleType::Addon => Self::Addon,
         }
     }
 }
@@ -200,8 +200,8 @@ impl ResolverFactory {
                             let v = v
                                 .into_iter()
                                 .map(|item| match item {
-                                    Some(path) => unrs_resolver::AliasValue::from(path),
-                                    None => unrs_resolver::AliasValue::Ignore,
+                                    Some(path) => oxc_resolver::AliasValue::from(path),
+                                    None => oxc_resolver::AliasValue::Ignore,
                                 })
                                 .collect();
                             (k, v)
@@ -241,8 +241,8 @@ impl ResolverFactory {
                             let v = v
                                 .into_iter()
                                 .map(|item| match item {
-                                    Some(path) => unrs_resolver::AliasValue::from(path),
-                                    None => unrs_resolver::AliasValue::Ignore,
+                                    Some(path) => oxc_resolver::AliasValue::from(path),
+                                    None => oxc_resolver::AliasValue::Ignore,
                                 })
                                 .collect();
                             (k, v)

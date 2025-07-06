@@ -13,7 +13,6 @@
   "excludes": [
     "fixtures/**",
     "CHANGELOG.md",
-    "CHANGELOG_OLD.md",
     "pnpm-workspace.yaml",
     "pnpm-lock.yaml",
     "napi/*.{cjs,js,mjs,d.ts}",

@@ -1,50 +1,52 @@
 {
-  "name": "unrs-resolver",
-  "version": "1.11.0",
-  "type": "commonjs",
-  "description": "UnRS Resolver Node API with PNP support",
-  "repository": "git+https://github.com/unrs/unrs-resolver.git",
-  "homepage": "https://github.com/unrs/unrs-resolver#readme",
-  "author": "JounQin <admin@1stg.me> (https://www.1stG.me)",
-  "funding": "https://opencollective.com/unrs-resolver",
+  "name": "oxc-resolver",
+  "version": "11.5.0",
   "license": "MIT",
+  "description": "Oxc Resolver Node API",
   "packageManager": "pnpm@10.12.4",
+  "homepage": "https://oxc.rs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oxc-project/oxc-resolver.git"
+  },
+  "funding": {
+    "url": "https://github.com/sponsors/Boshen"
+  },
   "main": "index.js",
   "browser": "browser.js",
   "files": [
-    "browser.js",
     "index.d.ts",
-    "index.js"
+    "index.js",
+    "browser.js",
+    "webcontainer-fallback.js"
   ],
   "scripts": {
-    "build": "pnpm build:debug --features allocator --release",
+    "test": "vitest run -r ./napi",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
-    "postbuild:debug": "node napi/patch.mjs",
-    "postinstall": "napi-postinstall unrs-resolver 1.11.0 check",
-    "prepublishOnly": "clean-pkg-json -k napi",
-    "test": "vitest run -r ./napi"
+    "build": "pnpm run build:debug --features allocator --release",
+    "postinstall": "napi-postinstall oxc-resolver 11.5.0 check",
+    "postbuild:debug": "node napi/patch.mjs"
   },
   "dependencies": {
     "napi-postinstall": "^0.3.0"
   },
   "devDependencies": {
     "@napi-rs/cli": "3.0.0-alpha.91",
-    "@napi-rs/wasm-runtime": "^0.2.11",
-    "@types/node": "^22.16.0",
-    "clean-pkg-json": "^1.3.0",
-    "emnapi": "^1.4.3",
+    "@napi-rs/wasm-runtime": "^0.2.7",
+    "@types/node": "^24.0.0",
+    "emnapi": "^1.3.1",
     "prettier": "^3.6.2",
     "prettier-plugin-pkg": "^0.21.1",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
   },
   "publishConfig": {
-    "registry": "https://registry.npmjs.org",
+    "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "napi": {
     "binaryName": "resolver",
-    "packageName": "@unrs/resolver-binding",
+    "packageName": "@oxc-resolver/binding",
     "wasm": {
       "browser": {
         "fs": true

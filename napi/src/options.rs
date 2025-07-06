@@ -218,14 +218,14 @@ pub struct TsconfigOptions {
     pub references: Option<Either<String, Vec<String>>>,
 }
 
-impl From<Restriction> for unrs_resolver::Restriction {
+impl From<Restriction> for oxc_resolver::Restriction {
     fn from(val: Restriction) -> Self {
         match (val.path, val.regex) {
             (None, None) => {
                 panic!("Should specify path or regex")
             }
-            (None, Some(regex)) => unrs_resolver::Restriction::RegExp(regex),
-            (Some(path), None) => unrs_resolver::Restriction::Path(PathBuf::from(path)),
+            (None, Some(regex)) => oxc_resolver::Restriction::RegExp(regex),
+            (Some(path), None) => oxc_resolver::Restriction::Path(PathBuf::from(path)),
             (Some(_), Some(_)) => {
                 panic!("Restriction can't be path and regex at the same time")
             }
@@ -233,31 +233,31 @@ impl From<Restriction> for unrs_resolver::Restriction {
     }
 }
 
-impl From<EnforceExtension> for unrs_resolver::EnforceExtension {
+impl From<EnforceExtension> for oxc_resolver::EnforceExtension {
     fn from(val: EnforceExtension) -> Self {
         match val {
-            EnforceExtension::Auto => unrs_resolver::EnforceExtension::Auto,
-            EnforceExtension::Enabled => unrs_resolver::EnforceExtension::Enabled,
-            EnforceExtension::Disabled => unrs_resolver::EnforceExtension::Disabled,
+            EnforceExtension::Auto => oxc_resolver::EnforceExtension::Auto,
+            EnforceExtension::Enabled => oxc_resolver::EnforceExtension::Enabled,
+            EnforceExtension::Disabled => oxc_resolver::EnforceExtension::Disabled,
         }
     }
 }
 
-impl From<TsconfigOptions> for unrs_resolver::TsconfigOptions {
+impl From<TsconfigOptions> for oxc_resolver::TsconfigOptions {
     fn from(val: TsconfigOptions) -> Self {
-        unrs_resolver::TsconfigOptions {
+        oxc_resolver::TsconfigOptions {
             config_file: PathBuf::from(val.config_file),
             references: match val.references {
                 Some(Either::A(string)) if string.as_str() == "auto" => {
-                    unrs_resolver::TsconfigReferences::Auto
+                    oxc_resolver::TsconfigReferences::Auto
                 }
                 Some(Either::A(opt)) => {
                     panic!("`{}` is not a valid option for  tsconfig references", opt)
                 }
-                Some(Either::B(paths)) => unrs_resolver::TsconfigReferences::Paths(
+                Some(Either::B(paths)) => oxc_resolver::TsconfigReferences::Paths(
                     paths.into_iter().map(PathBuf::from).collect::<Vec<_>>(),
                 ),
-                None => unrs_resolver::TsconfigReferences::Disabled,
+                None => oxc_resolver::TsconfigReferences::Disabled,
             },
         }
     }

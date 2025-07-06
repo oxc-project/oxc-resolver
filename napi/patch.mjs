@@ -8,7 +8,7 @@ data = data.replace(
   '\nif (!nativeBinding) {',
   (value) =>
     `
-if (!nativeBinding && process.env.SKIP_UNRS_RESOLVER_FALLBACK !== '1') {
+if (!nativeBinding && process.env.SKIP_OXC_RESOLVER_FALLBACK !== '1') {
   try {
     nativeBinding = require('napi-postinstall/fallback')(require.resolve('./package.json'), true)
   } catch (err) {
@@ -20,7 +20,7 @@ if (!nativeBinding && process.env.SKIP_UNRS_RESOLVER_FALLBACK !== '1') {
 
 data = data + `
 if (process.versions.pnp) {
-  process.env.UNRS_RESOLVER_YARN_PNP = '1'
+  process.env.OXC_RESOLVER_YARN_PNP = '1'
 }
 `
 

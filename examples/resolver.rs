@@ -1,9 +1,9 @@
-// See documentation at <https://docs.rs/unrs_resolver>
+// See documentation at <https://docs.rs/oxc_resolver>
 
 use std::path::PathBuf;
 
+use oxc_resolver::{AliasValue, ResolveOptions, Resolver, TsconfigOptions, TsconfigReferences};
 use pico_args::Arguments;
-use unrs_resolver::{AliasValue, ResolveOptions, Resolver, TsconfigOptions, TsconfigReferences};
 
 fn main() {
     let mut args = Arguments::from_env();

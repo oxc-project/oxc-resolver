@@ -1,8 +1,8 @@
-//! # UnRS Resolver
+//! # Oxc Resolver
 //!
 //! Node.js [CommonJS][cjs] and [ECMAScript][esm] Module Resolution.
 //!
-//! Released on [crates.io](https://crates.io/crates/unrs_resolver) and [npm](https://www.npmjs.com/package/unrs-resolver).
+//! Released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://www.npmjs.com/package/oxc-resolver).
 //!
 //! A module resolution is the process of finding the file referenced by a module specifier in
 //! `import "specifier"` or `require("specifier")`.

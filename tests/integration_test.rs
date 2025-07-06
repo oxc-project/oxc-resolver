@@ -2,7 +2,7 @@
 
 use std::{env, path::PathBuf};
 
-use unrs_resolver::{
+use oxc_resolver::{
     EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
 };
 

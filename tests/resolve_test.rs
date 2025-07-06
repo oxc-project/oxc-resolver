@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use unrs_resolver::{ModuleType, Resolution, ResolveError, ResolveOptions, Resolver};
+use oxc_resolver::{ModuleType, Resolution, ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -46,7 +46,7 @@ fn styled_components() {
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(unrs_resolver::Resolution::into_path_buf),
+        resolution.map(oxc_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist").join("styled-components.browser.esm.js"))
     );
 }
@@ -62,7 +62,7 @@ fn axios() {
     let options = ResolveOptions::default();
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(unrs_resolver::Resolution::into_path_buf),
+        resolution.map(oxc_resolver::Resolution::into_path_buf),
         Ok(module_path.join("index.js"))
     );
 
@@ -73,7 +73,7 @@ fn axios() {
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(unrs_resolver::Resolution::into_path_buf),
+        resolution.map(oxc_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist/browser/axios.cjs"))
     );
 
@@ -84,7 +84,7 @@ fn axios() {
     };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(unrs_resolver::Resolution::into_path_buf),
+        resolution.map(oxc_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist/node/axios.cjs"))
     );
 }
@@ -231,14 +231,14 @@ fn nested_symlinks() {
         Resolver::new(ResolveOptions::default())
             // ./apps/web/nm/@repo/typescript-config is a symlink
             .resolve(&dir, "./apps/web/nm/@repo/typescript-config/index.js")
-            .map(unrs_resolver::Resolution::into_path_buf),
+            .map(oxc_resolver::Resolution::into_path_buf),
         Ok(dir.join("nm/index.js"))
     );
     assert_eq!(
         Resolver::new(ResolveOptions::default())
             // ./apps/tooling is a symlink
             .resolve(&dir, "./apps/tooling/typescript-config/index.js")
-            .map(unrs_resolver::Resolution::into_path_buf),
+            .map(oxc_resolver::Resolution::into_path_buf),
         Ok(dir.join("nm/index.js"))
     );
 }

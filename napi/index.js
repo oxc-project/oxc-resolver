@@ -78,7 +78,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-android-arm64')
+        return require('@oxc-resolver/binding-android-arm64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -90,7 +90,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-android-arm-eabi')
+        return require('@oxc-resolver/binding-android-arm-eabi')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -106,7 +106,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-win32-x64-msvc')
+        return require('@oxc-resolver/binding-win32-x64-msvc')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -118,7 +118,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-win32-ia32-msvc')
+        return require('@oxc-resolver/binding-win32-ia32-msvc')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -130,7 +130,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-win32-arm64-msvc')
+        return require('@oxc-resolver/binding-win32-arm64-msvc')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -145,7 +145,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-darwin-universal')
+        return require('@oxc-resolver/binding-darwin-universal')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -157,7 +157,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-darwin-x64')
+        return require('@oxc-resolver/binding-darwin-x64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -169,7 +169,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-darwin-arm64')
+        return require('@oxc-resolver/binding-darwin-arm64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -185,7 +185,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-freebsd-x64')
+        return require('@oxc-resolver/binding-freebsd-x64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -197,7 +197,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-freebsd-arm64')
+        return require('@oxc-resolver/binding-freebsd-arm64')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -214,7 +214,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-x64-musl')
+        return require('@oxc-resolver/binding-linux-x64-musl')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -226,7 +226,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-x64-gnu')
+        return require('@oxc-resolver/binding-linux-x64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -240,7 +240,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-arm64-musl')
+        return require('@oxc-resolver/binding-linux-arm64-musl')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -252,7 +252,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-arm64-gnu')
+        return require('@oxc-resolver/binding-linux-arm64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -266,7 +266,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-arm-musleabihf')
+        return require('@oxc-resolver/binding-linux-arm-musleabihf')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -278,7 +278,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-arm-gnueabihf')
+        return require('@oxc-resolver/binding-linux-arm-gnueabihf')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -292,7 +292,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-riscv64-musl')
+        return require('@oxc-resolver/binding-linux-riscv64-musl')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -304,7 +304,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-riscv64-gnu')
+        return require('@oxc-resolver/binding-linux-riscv64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -317,7 +317,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-ppc64-gnu')
+        return require('@oxc-resolver/binding-linux-ppc64-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -329,7 +329,7 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@unrs/resolver-binding-linux-s390x-gnu')
+        return require('@oxc-resolver/binding-linux-s390x-gnu')
       } catch (e) {
         loadErrors.push(e)
       }
@@ -354,7 +354,7 @@ if (!nativeBinding || process.env.NAPI_RS_FORCE_WASI) {
   }
   if (!nativeBinding) {
     try {
-      nativeBinding = require('@unrs/resolver-binding-wasm32-wasi')
+      nativeBinding = require('@oxc-resolver/binding-wasm32-wasi')
     } catch (err) {
       if (process.env.NAPI_RS_FORCE_WASI) {
         loadErrors.push(err)
@@ -363,7 +363,7 @@ if (!nativeBinding || process.env.NAPI_RS_FORCE_WASI) {
   }
 }
 
-if (!nativeBinding && process.env.SKIP_UNRS_RESOLVER_FALLBACK !== '1') {
+if (!nativeBinding && process.env.SKIP_OXC_RESOLVER_FALLBACK !== '1') {
   try {
     nativeBinding = require('napi-postinstall/fallback')(require.resolve('./package.json'), true)
   } catch (err) {
@@ -390,5 +390,5 @@ module.exports.ModuleType = nativeBinding.ModuleType
 module.exports.sync = nativeBinding.sync
 
 if (process.versions.pnp) {
-  process.env.UNRS_RESOLVER_YARN_PNP = '1'
+  process.env.OXC_RESOLVER_YARN_PNP = '1'
 }

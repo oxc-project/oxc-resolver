@@ -1,30 +1,6 @@
-> [!NOTE]
->
-> This is a fork of [oxc-resolver] and [rspack-resolver], and will be used in [eslint-plugin-import-x] and [eslint-import-resolver-typescript] cause 100% compatible with [enhanced-resolve] is the non-goal of [oxc-resolver] itself, we add [enhanced-resolve] specific features like [`pnp support`](https://github.com/web-infra-dev/rspack/issues/2236).
->
-> We also fix several bugs reported by [eslint-plugin-import-x] and [eslint-import-resolver-typescript] users:
->
-> - takes `paths` and `references` into account [at the same time](https://github.com/unrs/unrs-resolver/pull/12)
-> - `references` should [take higher priority](https://github.com/unrs/unrs-resolver/pull/13)
-> - support `pnpapi` core module and [package deep link](https://github.com/un-ts/eslint-plugin-import-x/issues/253)
-> - enable [more targets](https://github.com/unrs/unrs-resolver/pull/29) support
-> - absolute path aliasing [should not be skipped](https://github.com/import-js/eslint-import-resolver-typescript/issues/401)
-> - use [napi-postinstall] for [legacy npm versions](https://github.com/unrs/unrs-resolver/issues/56)
-> - Raspberry PI 4 aarch64 [compatibility issue](https://github.com/unrs/unrs-resolver/issues/64) and [import-js/eslint-import-resolver-typescript#406](https://github.com/import-js/eslint-import-resolver-typescript/issues/406) due to [mimalloc-safe]
-> - support `load_as_directory` for [`pnp` mode](https://github.com/import-js/eslint-import-resolver-typescript/issues/409)
-> - [resolve parent base url correctly](https://github.com/import-js/eslint-import-resolver-typescript/issues/437) by normalizing as absolute path
->
-> The list could be longer in the future, but we don't want to make it too long here.
->
-> We also sync with [oxc-resolver] and [rspack-resolver] regularly to keep up with the latest changes:
->
-> - `oxc-resolver`: [#15](https://github.com/unrs/unrs-resolver/pull/15), [#49](https://github.com/unrs/unrs-resolver/pull/49), [#62](https://github.com/unrs/unrs-resolver/pull/62), [#86](https://github.com/unrs/unrs-resolver/pull/86) and [#94](https://github.com/unrs/unrs-resolver/pull/94)
-> - `rspack-resolver`(planned): [#59](https://github.com/unrs/unrs-resolver/issues/59)
->
-> Last but not least, we prepare some bug fix PRs first on our side and PR back into upstream projects, and we will keep doing this in the future:
->
-> - `oxc-resolver`: [#84](https://github.com/unrs/unrs-resolver/pull/84) with [oxc-resolver#455](https://github.com/oxc-project/oxc-resolver/pull/455)
-> - `rspack-resolver`: [#7](https://github.com/unrs/unrs-resolver/pull/7) with [rspack-resolver#54](https://github.com/web-infra-dev/rspack-resolver/pull/54), which is eventually replaced by [oxc-resolver#443](https://github.com/oxc-project/oxc-resolver/pull/443)
+<p align="center">
+  <img alt="OXC Logo" src="https://cdn.jsdelivr.net/gh/oxc-project/oxc-assets/preview-universal.png" width="700">
+</p>
 
 <div align="center">
 
@@ -36,15 +12,16 @@
 [![Code Coverage][code-coverage-badge]][code-coverage-url]
 [![CodSpeed Badge][codspeed-badge]][codspeed-url]
 [![Sponsors][sponsors-badge]][sponsors-url]
+[![Discord chat][discord-badge]][discord-url]
 [![MIT licensed][license-badge]][license-url]
 
 </div>
 
-# UnRS Resolver
+# Oxc Resolver
 
 Rust port of [enhanced-resolve].
 
-- Released on [crates.io][crates-url] and [npm][npm-url].
+- Released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://www.npmjs.com/package/oxc-resolver).
 - Implements the [ESM](https://nodejs.org/api/esm.html#resolution-algorithm) and [CommonJS](https://nodejs.org/api/modules.html#all-together) module resolution algorithm specification.
 - Built-in [tsconfig-paths-webpack-plugin]
   - support extending tsconfig defined in `tsconfig.extends`
@@ -58,31 +35,30 @@ Rust port of [enhanced-resolve].
 
 ### npm package
 
-See `index.d.ts` for `resolveSync` and `ResolverFactory` API.
+See index.d.ts for `resolveSync` and `ResolverFactory` API.
 
 Quick example:
 
 ```javascript
-import assert from 'node:assert';
-import path from 'node:path';
-
-import resolve, { ResolverFactory } from 'unrs-resolver';
+import assert from 'assert';
+import path from 'path';
+import resolve, { ResolverFactory } from './index.js';
 
 // `resolve`
-assert(resolve.sync(process.cwd(), './index.js').path, path.resolve('index.js'));
+assert(resolve.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
 
 // `ResolverFactory`
 const resolver = new ResolverFactory();
-assert(resolver.sync(process.cwd(), './index.js').path, path.resolve('index.js'));
+assert(resolver.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
 ```
 
-### Supports WASM
+#### Supports WASM
 
-See https://stackblitz.com/edit/unrs-resolver for usage example.
+See https://stackblitz.com/edit/oxc-resolver for usage example.
 
 ### Rust
 
-See [docs.rs/unrs_resolver](https://docs.rs/unrs_resolver/latest/unrs_resolver/).
+See [docs.rs/oxc_resolver](https://docs.rs/oxc_resolver/latest/oxc_resolver).
 
 ### [Yarn Plug'n'Play](https://yarnpkg.com/features/pnp)
 
@@ -99,7 +75,7 @@ An **absolute** path to a directory where the specifier is resolved against.
 
 For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
 
-For ECMAScript modules, it is the value of `import.meta.dirname`.
+For ECMAScript modules, it is the value of `import.meta.url`.
 
 Behavior is undefined when given a path to a file.
 
@@ -194,7 +170,7 @@ Quoting esbuild's documentation:
 
 The following options are aligned with [enhanced-resolve], and is implemented for Rust crate usage.
 
-See [index.d.ts](https://github.com/unrs/unrs-resolver/blob/main/napi/index.d.ts) for Node.js usage.
+See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/index.d.ts) for Node.js usage.
 
 | Field                                 | Default                   | Description                                                                                                                                               |
 | ------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -231,6 +207,7 @@ See [index.d.ts](https://github.com/unrs/unrs-resolver/blob/main/napi/index.d.ts
 
 | Field            | Default                     | Description                                                                                                                                   |
 | ---------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| descriptionFiles | ["package.json"]            | A list of description files to read from                                                                                                      |
 | cachePredicate   | function() { return true }; | A function which decides whether a request should be cached or not. An object is passed to the function with `path` and `request` properties. |
 | cacheWithContext | true                        | If unsafe cache is enabled, includes `request.context` in the cache key                                                                       |
 | plugins          | []                          | A list of additional resolve plugins which should be applied                                                                                  |
@@ -239,14 +216,14 @@ See [index.d.ts](https://github.com/unrs/unrs-resolver/blob/main/napi/index.d.ts
 
 ## Debugging
 
-The following environment variable emits tracing information for the `unrs_resolver::resolve` function.
+The following environment variable emits tracing information for the `oxc_resolver::resolve` function.
 
 e.g.
 
 ```
-2024-06-11T07:12:20.003537Z DEBUG unrs_resolver: options: ResolveOptions { ... }, path: "...", specifier: "...", ret: "..."
-    at /path/to/unrs_resolver-1.8.1/src/lib.rs:212
-    in unrs_resolver::resolve with path: "...", specifier: "..."
+2024-06-11T07:12:20.003537Z DEBUG oxc_resolver: options: ResolveOptions { ... }, path: "...", specifier: "...", ret: "..."
+    at /path/to/oxc_resolver-1.8.1/src/lib.rs:212
+    in oxc_resolver::resolve with path: "...", specifier: "..."
 ```
 
 The input values are `options`, `path` and `specifier`, the returned value is `ret`.
@@ -254,7 +231,13 @@ The input values are `options`, `path` and `specifier`, the returned value is `r
 ### NAPI
 
 ```
-UNRS_LOG=DEBUG your_program
+OXC_LOG=DEBUG your_program
+```
+
+### Rolldown
+
+```bash
+RD_LOG='oxc_resolver' rolldown build
 ```
 
 ## Test
@@ -274,11 +257,11 @@ Test cases are located in `./src/tests`, fixtures are located in `./tests`
 - [x] extensions.test.js
 - [x] fallback.test.js
 - [x] fullSpecified.test.js
-- [x] identifier.test.js (see unit test in `crates/unrs_resolver/src/request.rs`)
+- [x] identifier.test.js (see unit test in `crates/oxc_resolver/src/request.rs`)
 - [x] importsField.test.js
 - [x] incorrect-description-file.test.js (need to add ctx.fileDependencies)
 - [x] missing.test.js
-- [x] path.test.js (see unit test in `crates/unrs_resolver/src/path.rs`)
+- [x] path.test.js (see unit test in `crates/oxc_resolver/src/path.rs`)
 - [ ] plugins.test.js
 - [ ] pnp.test.js
 - [x] resolve.test.js
@@ -298,58 +281,44 @@ Irrelevant tests
 - unsafe-cache.test.js
 - yield.test.js
 
-## [Sponsored By](https://github.com/sponsors/JounQin)
+## [Sponsored By](https://github.com/sponsors/Boshen)
 
-[![Sponsors](https://raw.githubusercontent.com/1stG/static/master/sponsors.svg)](https://github.com/sponsors/JounQin)
-
-### Sponsors
-
-| 1stG                                                                                                                               | UnRs                                                                                                                               | UnTS                                                                                                                               |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [![1stG Open Collective backers and sponsors](https://opencollective.com/1stG/organizations.svg)](https://opencollective.com/1stG) | [![UnRs Open Collective backers and sponsors](https://opencollective.com/unrs/organizations.svg)](https://opencollective.com/unrs) | [![UnTS Open Collective backers and sponsors](https://opencollective.com/unts/organizations.svg)](https://opencollective.com/unts) |
-
-### Backers
-
-| 1stG                                                                                                                             | UnRs                                                                                                                             | UnTS                                                                                                                             |
-| -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| [![1stG Open Collective backers and sponsors](https://opencollective.com/1stG/individuals.svg)](https://opencollective.com/1stG) | [![UnRs Open Collective backers and sponsors](https://opencollective.com/unrs/individuals.svg)](https://opencollective.com/unrs) | [![UnTS Open Collective backers and sponsors](https://opencollective.com/unts/individuals.svg)](https://opencollective.com/unts) |
+<p align="center">
+  <a href="https://github.com/sponsors/Boshen">
+    <img src="https://raw.githubusercontent.com/Boshen/sponsors/main/sponsors.svg" alt="My sponsors" />
+  </a>
+</p>
 
 ## 📖 License
 
-`unrs_resolver` is free and open-source software licensed under the [MIT License](./LICENSE).
+`oxc_resolver` is free and open-source software licensed under the [MIT License](./LICENSE).
 
-UnRS partially copies code from the following projects.
+Oxc partially copies code from the following projects.
 
-| Project                                                                           | License                                                                      |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)           | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)         |
-| [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)               | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)         |
-| [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)                 | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)              |
-| [tmccombs/json-comments-rs](https://github.com/tmccombs/json-comments-rs)         | [Apache 2.0](https://github.com/tmccombs/json-comments-rs/blob/main/LICENSE) |
-| [oxc-project/oxc-resolver](https://github.com/oxc-project/oxc-resolver)           | [MIT](https://github.com/oxc-project/oxc-resolver/blob/main/LICENSE)         |
-| [web-infra-dev/rspack-resolver](https://github.com/web-infra-dev/rspack-resolver) | [MIT](https://github.com/web-infra-dev/rspack-resolver/blob/main/LICENSE)    |
+| Project                                                                   | License                                                                      |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)   | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)         |
+| [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)       | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)         |
+| [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)         | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)              |
+| [tmccombs/json-comments-rs](https://github.com/tmccombs/json-comments-rs) | [Apache 2.0](https://github.com/tmccombs/json-comments-rs/blob/main/LICENSE) |
 
 [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
-[oxc-resolver]: https://github.com/oxc-project/oxc-resolver
-[rspack-resolver]: https://github.com/web-infra-dev/rspack-resolver
-[eslint-plugin-import-x]: https://github.com/un-ts/eslint-plugin-import-x
-[eslint-import-resolver-typescript]: https://github.com/import-js/eslint-import-resolver-typescript
-[napi-postinstall]: https://github.com/un-ts/napi-postinstall
-[mimalloc-safe]: https://github.com/napi-rs/mimalloc-safe
 [tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
+[discord-badge]: https://img.shields.io/discord/1079625926024900739?logo=discord&label=Discord
+[discord-url]: https://discord.gg/9uXCAwqQZW
 [license-badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[license-url]: https://github.com/unrs/unrs-resolver/blob/main/LICENSE
-[ci-badge]: https://github.com/unrs/unrs-resolver/actions/workflows/ci.yml/badge.svg?event=push&branch=main
-[ci-url]: https://github.com/unrs/unrs-resolver/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain
-[code-coverage-badge]: https://codecov.io/github/unrs/unrs-resolver/branch/main/graph/badge.svg
-[code-coverage-url]: https://codecov.io/gh/unrs/unrs-resolver
-[sponsors-badge]: https://img.shields.io/github/sponsors/JounQin
-[sponsors-url]: https://github.com/sponsors/JounQin
+[license-url]: https://github.com/oxc-project/oxc-resolver/blob/main/LICENSE
+[ci-badge]: https://github.com/oxc-project/oxc-resolver/actions/workflows/ci.yml/badge.svg?event=push&branch=main
+[ci-url]: https://github.com/oxc-project/oxc-resolver/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain
+[code-coverage-badge]: https://codecov.io/github/oxc-project/oxc-resolver/branch/main/graph/badge.svg
+[code-coverage-url]: https://codecov.io/gh/oxc-project/oxc-resolver
+[sponsors-badge]: https://img.shields.io/github/sponsors/Boshen
+[sponsors-url]: https://github.com/sponsors/Boshen
 [codspeed-badge]: https://img.shields.io/endpoint?url=https://codspeed.io/badge.json
-[codspeed-url]: https://codspeed.io/unrs/unrs-resolver
-[crates-badge]: https://img.shields.io/crates/d/unrs_resolver?label=crates.io
-[crates-url]: https://crates.io/crates/unrs_resolver
-[docs-badge]: https://img.shields.io/docsrs/unrs_resolver
-[docs-url]: https://docs.rs/unrs_resolver
-[npm-badge]: https://img.shields.io/npm/dw/unrs-resolver?label=npm
-[npm-url]: https://www.npmjs.com/package/unrs-resolver
+[codspeed-url]: https://codspeed.io/oxc-project/oxc-resolver
+[crates-badge]: https://img.shields.io/crates/dr/oxc_resolver
+[crates-url]: https://crates.io/crates/oxc_resolver
+[docs-badge]: https://img.shields.io/docsrs/oxc_resolver
+[docs-url]: https://docs.rs/oxc_resolver/latest/oxc_resolver
+[npm-badge]: https://img.shields.io/npm/dw/oxc-resolver?label=npm
+[npm-url]: https://www.npmjs.com/package/oxc-resolver

@@ -1,6 +1,6 @@
 [package]
-name = "unrs_resolver_napi"
-version = "0.0.0"
+name = "oxc_resolver_napi"
+version = "11.5.0"
 authors.workspace = true
 categories.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ homepage.workspace = true
 include = ["src", "build.rs"]
 keywords.workspace = true
 license.workspace = true
-publish = false
+publish = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
@@ -20,7 +20,7 @@ test = false
 doctest = false
 
 [dependencies]
-unrs_resolver = { workspace = true }
+oxc_resolver = { workspace = true }
 
 napi = { version = "3.0.0-beta.11", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3.0.0-beta.11" }
@@ -42,4 +42,4 @@ napi-build = "2.2.2"
 default = ["tracing-subscriber", "yarn_pnp"]
 allocator = ["dep:mimalloc-safe"]
 tracing-subscriber = ["dep:tracing-subscriber"]
-yarn_pnp = ["unrs_resolver/yarn_pnp"]
+yarn_pnp = ["oxc_resolver/yarn_pnp"]

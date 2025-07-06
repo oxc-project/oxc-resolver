@@ -101,8 +101,8 @@ fn create_symlinks() -> io::Result<PathBuf> {
     Ok(temp_path)
 }
 
-fn unrs_resolver() -> unrs_resolver::Resolver {
-    use unrs_resolver::{AliasValue, ResolveOptions, Resolver};
+fn oxc_resolver() -> oxc_resolver::Resolver {
+    use oxc_resolver::{AliasValue, ResolveOptions, Resolver};
     let alias_value = AliasValue::from("./");
     Resolver::new(ResolveOptions {
         extensions: vec![".ts".into(), ".js".into()],
@@ -148,7 +148,7 @@ fn bench_resolver(c: &mut Criterion) {
 
     // check validity
     for (path, request) in &data {
-        assert!(unrs_resolver().resolve(path, request).is_ok(), "{} {request}", path.display());
+        assert!(oxc_resolver().resolve(path, request).is_ok(), "{} {request}", path.display());
     }
 
     let symlink_test_dir = create_symlinks().expect("Create symlink fixtures failed");
@@ -157,7 +157,7 @@ fn bench_resolver(c: &mut Criterion) {
 
     for i in symlinks_range.clone() {
         assert!(
-            unrs_resolver().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
+            oxc_resolver().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
             "file{i}.js"
         );
     }
@@ -165,19 +165,19 @@ fn bench_resolver(c: &mut Criterion) {
     let mut group = c.benchmark_group("resolver");
 
     group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &data, |b, data| {
-        let unrs_resolver = unrs_resolver();
+        let oxc_resolver = oxc_resolver();
         b.iter(|| {
             for (path, request) in data {
-                _ = unrs_resolver.resolve(path, request);
+                _ = oxc_resolver.resolve(path, request);
             }
         });
     });
 
     group.bench_with_input(BenchmarkId::from_parameter("multi-thread"), &data, |b, data| {
-        let unrs_resolver = unrs_resolver();
+        let oxc_resolver = oxc_resolver();
         b.iter(|| {
             data.par_iter().for_each(|(path, request)| {
-                _ = unrs_resolver.resolve(path, request);
+                _ = oxc_resolver.resolve(path, request);
             });
         });
     });
@@ -186,11 +186,11 @@ fn bench_resolver(c: &mut Criterion) {
         BenchmarkId::from_parameter("resolve from symlinks"),
         &symlinks_range,
         |b, data| {
-            let unrs_resolver = unrs_resolver();
+            let oxc_resolver = oxc_resolver();
             b.iter(|| {
                 for i in data.clone() {
                     assert!(
-                        unrs_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
+                        oxc_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
                         "file{i}.js"
                     );
                 }

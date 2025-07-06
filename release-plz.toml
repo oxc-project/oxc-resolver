@@ -1,8 +1,22 @@
 [workspace]
 semver_check = false
 allow_dirty = true # The "fixtures" is being marked as dirty.
+git_tag_enable = false
+git_release_enable = false
+
+[[package]]
+name = "oxc_resolver"
+version_group = "group"
+changelog_include = ["oxc_resolver_napi"]
+git_tag_enable = true
+git_release_enable = true
 git_tag_name = "v{{ version }}"
 git_release_name = "v{{ version }}"
+
+[[package]]
+name = "oxc_resolver_napi"
+version_group = "group"
+changelog_update = false
 
 [changelog]
 body = """

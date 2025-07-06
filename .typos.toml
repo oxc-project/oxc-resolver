@@ -5,5 +5,4 @@
 [files]
 extend-exclude = [
   "CHANGELOG.md",
-  "CHANGELOG_OLD.md",
 ]
