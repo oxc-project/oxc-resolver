@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0](https://github.com/unrs/unrs-resolver/compare/v1.10.1...v1.11.0) - 2025-07-06
+
+### <!-- 0 -->🚀 Features
+
+- return proper errors when failed to find or read yarn pnp manifest ([#590](https://github.com/unrs/unrs-resolver/pull/590)) (by @Boshen) - #178
+- add `yarn_pnp` logic to `FileSystem` ([#589](https://github.com/unrs/unrs-resolver/pull/589)) (by @Boshen) - #178
+- *(resolver)* rework yarn manifest file look up ([#586](https://github.com/unrs/unrs-resolver/pull/586)) (by @Boshen)
+
+### <!-- 2 -->🚜 Refactor
+
+- remove `fs_cache` feature flag ([#588](https://github.com/unrs/unrs-resolver/pull/588)) (by @Boshen) - #178
+
+### <!-- 9 -->💼 Other
+
+- Merge remote-tracking branch 'upstream/main' into chore/merge_upstream (by @JounQin) - #178
+
+### Contributors
+
+* @JounQin
+* @oxc-bot
+* @Boshen
+
 ## [1.10.1](https://github.com/unrs/unrs-resolver/compare/v1.10.0...v1.10.1) - 2025-07-02
 
 ### <!-- 1 -->🐛 Bug Fixes
