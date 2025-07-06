@@ -192,11 +192,22 @@ impl<Fs: FileSystem> Cache<Fs> {
         cwd: Option<&Path>,
     ) -> Result<&pnp::Manifest, ResolveError> {
         self.yarn_pnp_manifest.get_or_try_init(|| {
-            // TODO: map to proper error
-            let cwd =
-                cwd.map_or_else(|| Cow::Owned(std::env::current_dir().unwrap()), Cow::Borrowed);
-            // TODO: map to proper error
-            let manifest = pnp::find_pnp_manifest(&cwd).unwrap().unwrap();
+            let cwd = match cwd {
+                Some(path) => Cow::Borrowed(path),
+                None => match std::env::current_dir() {
+                    Ok(path) => Cow::Owned(path),
+                    Err(err) => return Err(ResolveError::from(err)),
+                },
+            };
+            let manifest = match pnp::find_pnp_manifest(&cwd) {
+                Ok(manifest) => match manifest {
+                    Some(manifest) => manifest,
+                    None => {
+                        return Err(ResolveError::FailedToFindYarnPnpManifest(cwd.to_path_buf()));
+                    }
+                },
+                Err(err) => return Err(ResolveError::YarnPnpError(err)),
+            };
             Ok(manifest)
         })
     }

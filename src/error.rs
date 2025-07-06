@@ -112,6 +112,14 @@ pub enum ResolveError {
     /// Occurs when alias paths reference each other.
     #[error("Recursion in resolving")]
     Recursion,
+
+    #[cfg(feature = "yarn_pnp")]
+    #[error("Failed to find yarn pnp manifest in {0}.")]
+    FailedToFindYarnPnpManifest(PathBuf),
+
+    #[cfg(feature = "yarn_pnp")]
+    #[error("{0}")]
+    YarnPnpError(pnp::Error),
 }
 
 impl ResolveError {
