@@ -214,7 +214,6 @@ impl ResolverFactory {
                 .map(|o| o.into_iter().map(|x| StrOrStrList(x).into()).collect::<Vec<_>>())
                 .unwrap_or(default.alias_fields),
             condition_names: op.condition_names.unwrap_or(default.condition_names),
-            description_files: op.description_files.unwrap_or(default.description_files),
             enforce_extension: op
                 .enforce_extension
                 .map(|enforce_extension| enforce_extension.into())

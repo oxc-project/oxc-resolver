@@ -44,11 +44,6 @@ pub struct ResolveOptions {
     /// Default `[]`
     pub condition_names: Vec<String>,
 
-    /// The JSON files to use for descriptions. (There was once a `bower.json`.)
-    ///
-    /// Default `["package.json"]`
-    pub description_files: Vec<String>,
-
     /// Set to [EnforceExtension::Enabled] for [ESM Mandatory file extensions](https://nodejs.org/api/esm.html#mandatory-file-extensions).
     ///
     /// If `enforce_extension` is set to [EnforceExtension::Enabled], resolution will not allow extension-less files.
@@ -500,7 +495,6 @@ impl Default for ResolveOptions {
             alias: vec![],
             alias_fields: vec![],
             condition_names: vec![],
-            description_files: vec!["package.json".into()],
             enforce_extension: EnforceExtension::Auto,
             extension_alias: vec![],
             exports_fields: vec![vec!["exports".into()]],
@@ -662,7 +656,6 @@ mod test {
             alias_fields: vec![],
             builtin_modules: false,
             condition_names: vec![],
-            description_files: vec![],
             enforce_extension: EnforceExtension::Disabled,
             exports_fields: vec![],
             extension_alias: vec![],

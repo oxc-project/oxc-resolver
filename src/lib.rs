@@ -655,52 +655,50 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_as_directory(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
         // 1. If X/package.json is a file,
-        if !self.options.description_files.is_empty() {
-            // a. Parse X/package.json, and look for "main" field.
-            if let Some((_, package_json)) =
-                self.cache.get_package_json(cached_path, &self.options, ctx)?
-            {
-                // b. If "main" is a falsy value, GOTO 2.
-                for main_field in package_json.main_fields(&self.options.main_fields) {
-                    // ref https://github.com/webpack/enhanced-resolve/blob/main/lib/MainFieldPlugin.js#L66-L67
-                    let main_field =
-                        if main_field.starts_with("./") || main_field.starts_with("../") {
-                            Cow::Borrowed(main_field)
-                        } else {
-                            Cow::Owned(format!("./{main_field}"))
-                        };
+        // a. Parse X/package.json, and look for "main" field.
+        if let Some((_, package_json)) =
+            self.cache.get_package_json(cached_path, &self.options, ctx)?
+        {
+            // b. If "main" is a falsy value, GOTO 2.
+            for main_field in package_json.main_fields(&self.options.main_fields) {
+                // ref https://github.com/webpack/enhanced-resolve/blob/main/lib/MainFieldPlugin.js#L66-L67
+                let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
+                    Cow::Borrowed(main_field)
+                } else {
+                    Cow::Owned(format!("./{main_field}"))
+                };
 
-                    // c. let M = X + (json main field)
-                    let cached_path =
-                        cached_path.normalize_with(main_field.as_ref(), self.cache.as_ref());
-                    // d. LOAD_AS_FILE(M)
-                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                        return Ok(Some(path));
-                    }
-                    // e. LOAD_INDEX(M)
-                    if let Some(path) = self.load_index(&cached_path, ctx)? {
-                        return Ok(Some(path));
-                    }
+                // c. let M = X + (json main field)
+                let cached_path =
+                    cached_path.normalize_with(main_field.as_ref(), self.cache.as_ref());
+                // d. LOAD_AS_FILE(M)
+                if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                    return Ok(Some(path));
                 }
-                // f. LOAD_INDEX(X) DEPRECATED
-                // g. THROW "not found"
+                // e. LOAD_INDEX(M)
+                if let Some(path) = self.load_index(&cached_path, ctx)? {
+                    return Ok(Some(path));
+                }
+            }
+            // f. LOAD_INDEX(X) DEPRECATED
+            // g. THROW "not found"
 
-                // Allow `exports` field in `require('../directory')`.
-                // This is not part of the spec but some vite projects rely on this behavior.
-                // See
-                // * <https://github.com/vitejs/vite/pull/20252>
-                // * <https://github.com/nodejs/node/issues/58827>
-                if self.options.allow_package_exports_in_directory_resolve {
-                    for exports in package_json.exports_fields(&self.options.exports_fields) {
-                        if let Some(path) =
-                            self.package_exports_resolve(cached_path, ".", &exports, ctx)?
-                        {
-                            return Ok(Some(path));
-                        }
+            // Allow `exports` field in `require('../directory')`.
+            // This is not part of the spec but some vite projects rely on this behavior.
+            // See
+            // * <https://github.com/vitejs/vite/pull/20252>
+            // * <https://github.com/nodejs/node/issues/58827>
+            if self.options.allow_package_exports_in_directory_resolve {
+                for exports in package_json.exports_fields(&self.options.exports_fields) {
+                    if let Some(path) =
+                        self.package_exports_resolve(cached_path, ".", &exports, ctx)?
+                    {
+                        return Ok(Some(path));
                     }
                 }
             }
         }
+
         // 2. LOAD_INDEX(X)
         self.load_index(cached_path, ctx)
     }
@@ -1495,7 +1493,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
             _ => self
                 .clone_with_options(ResolveOptions {
-                    description_files: vec![],
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig.json".into()],
                     ..ResolveOptions::default()
