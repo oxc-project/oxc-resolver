@@ -58,6 +58,7 @@ test:
   cargo test --all-features
   node --run build
   node --run test
+  cd fixtures/pnp && yarn test
 
 # Lint the whole project
 lint:

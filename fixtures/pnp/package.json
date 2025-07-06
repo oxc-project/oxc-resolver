@@ -1,6 +1,9 @@
 {
   "name": "pnp",
   "packageManager": "yarn@4.9.2",
+  "scripts": {
+    "test": "yarn node index.test.mjs"
+  },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.5.2",
     "@custom/pragmatic-drag-and-drop": "npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2",
