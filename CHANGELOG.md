@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.5.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.4.0...oxc_resolver-v11.5.0) - 2025-07-06
+
+### <!-- 0 -->🚀 Features
+
+- return proper errors when failed to find or read yarn pnp manifest ([#590](https://github.com/oxc-project/oxc-resolver/pull/590)) (by @Boshen) - #590
+- add `yarn_pnp` logic to `FileSystem` ([#589](https://github.com/oxc-project/oxc-resolver/pull/589)) (by @Boshen) - #589
+- *(resolver)* rework yarn manifest file look up ([#586](https://github.com/oxc-project/oxc-resolver/pull/586)) (by @Boshen)
+
+### <!-- 2 -->🚜 Refactor
+
+- remove `fs_cache` feature flag ([#588](https://github.com/oxc-project/oxc-resolver/pull/588)) (by @Boshen) - #588
+
+### Contributors
+
+* @Boshen
+
 ## [11.4.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.3.0...oxc_resolver-v11.4.0) - 2025-07-01
 
 ### <!-- 0 -->🚀 Features
