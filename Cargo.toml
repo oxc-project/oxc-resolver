@@ -83,7 +83,7 @@ cfg-if = "1"
 indexmap = { version = "2", features = ["serde"] }
 json-strip-comments = "1"
 once_cell = "1" # Use `std::sync::OnceLock::get_or_try_init` when it is stable.
-papaya = "0.2.1"
+papaya = "0.2"
 rustc-hash = { version = "2" }
 serde = { version = "1", features = ["derive"] } # derive for Deserialize from package.json
 serde_json = { version = "1", features = ["preserve_order"] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`

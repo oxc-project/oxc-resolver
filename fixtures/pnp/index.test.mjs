@@ -4,7 +4,7 @@ import pnpapi from 'pnpapi'
 
 import { ResolverFactory } from '../../napi/index.js'
 
-test('resolver', (_) => {
+test('resolver', () => {
   const resolver = new ResolverFactory()
   const directory = import.meta.dirname
   const resolution = resolver.sync(directory, 'is-even')
