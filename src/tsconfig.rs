@@ -136,16 +136,29 @@ impl TsConfig {
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
         let compiler_options = self.compiler_options_mut();
 
+        let tsconfig_dir = tsconfig.directory();
+
         if compiler_options.base_url().is_none() {
             if let Some(base_url) = tsconfig.compiler_options().base_url() {
-                compiler_options.set_base_url(base_url.to_path_buf());
+                compiler_options.set_base_url(if base_url.starts_with(TEMPLATE_VARIABLE) {
+                    base_url.to_path_buf()
+                } else {
+                    tsconfig_dir.join(base_url).normalize()
+                });
             }
         }
 
         if compiler_options.paths().is_none() {
-            let paths_base = compiler_options
-                .base_url()
-                .map_or_else(|| tsconfig.directory().to_path_buf(), Path::to_path_buf);
+            let paths_base = compiler_options.base_url().map_or_else(
+                || tsconfig_dir.to_path_buf(),
+                |path| {
+                    if path.starts_with(TEMPLATE_VARIABLE) {
+                        path.to_path_buf()
+                    } else {
+                        tsconfig_dir.join(path).normalize()
+                    }
+                },
+            );
             compiler_options.set_paths_base(paths_base);
             compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
         }
@@ -243,7 +256,7 @@ impl TsConfig {
         }
 
         if self.compiler_options().paths().is_some() {
-            // `bases_base` should use config dir if it is not resolved with base url nor extended
+            // `paths_base` should use config dir if it is not resolved with base url nor extended
             // with another tsconfig.
             if let Some(base_url) = self.compiler_options().base_url().map(Path::to_path_buf) {
                 self.compiler_options_mut().set_paths_base(base_url);
@@ -284,18 +297,13 @@ impl TsConfig {
     /// `specifier` can be either a real path or an alias.
     #[must_use]
     pub(crate) fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
-        if path.starts_with(self.base_path()) {
-            let paths = self.resolve_path_alias(specifier);
-            if !paths.is_empty() {
-                return paths;
-            }
-        }
+        let paths = self.resolve_path_alias(specifier);
         for tsconfig in self.references().filter_map(ProjectReference::tsconfig) {
             if path.starts_with(tsconfig.base_path()) {
-                return tsconfig.resolve_path_alias(specifier);
+                return [tsconfig.resolve_path_alias(specifier), paths].concat();
             }
         }
-        Vec::new()
+        paths
     }
 
     /// Resolves the given `specifier` within the project configured by this
@@ -306,7 +314,7 @@ impl TsConfig {
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
     #[must_use]
     pub(crate) fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
-        if specifier.starts_with(['/', '.']) {
+        if specifier.starts_with('.') {
             return Vec::new();
         }
 

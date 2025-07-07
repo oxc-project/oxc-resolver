@@ -1,23 +1,27 @@
-import fs from 'node:fs';
+import fs from 'node:fs'
 
-const filename = './napi/index.js';
-let data = fs.readFileSync(filename, 'utf-8');
+const filename = new URL('index.js', import.meta.url)
+
+let data = fs.readFileSync(filename, 'utf-8')
+
 data = data.replace(
   '\nif (!nativeBinding) {',
-  (s) =>
+  (value) =>
     `
-if (!nativeBinding && globalThis.process?.versions?.["webcontainer"]) {
+if (!nativeBinding && process.env.SKIP_OXC_RESOLVER_FALLBACK !== '1') {
   try {
-    nativeBinding = require('./webcontainer-fallback.js');
+    nativeBinding = require('napi-postinstall/fallback')(require.resolve('./package.json'), true)
   } catch (err) {
     loadErrors.push(err)
   }
 }
-` + s,
-);
+` + value,
+)
+
 data = data + `
 if (process.versions.pnp) {
   process.env.OXC_RESOLVER_YARN_PNP = '1'
 }
 `
-fs.writeFileSync(filename, data);
+
+fs.writeFileSync(filename, data)

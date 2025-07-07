@@ -16,6 +16,9 @@ pub trait PathUtil {
     /// However, this does not resolve links.
     fn normalize(&self) -> PathBuf;
 
+    /// Like `normalize`, but don't require the path to be absolute.
+    fn normalize_relative(&self) -> PathBuf;
+
     /// Normalize with subpath assuming this path is normalized without performing I/O.
     ///
     /// All redundant separator and up-level references are collapsed.
@@ -57,6 +60,22 @@ impl PathUtil for Path {
         }
 
         ret
+    }
+
+    fn normalize_relative(&self) -> PathBuf {
+        let mut normalized = PathBuf::new();
+        for comp in self.components() {
+            match comp {
+                Component::ParentDir => {
+                    if !normalized.pop() {
+                        normalized.push(Component::ParentDir);
+                    }
+                }
+                Component::CurDir => {}
+                comp => normalized.push(comp),
+            }
+        }
+        normalized
     }
 
     // https://github.com/parcel-bundler/parcel/blob/e0b99c2a42e9109a9ecbd6f537844a1b33e7faf5/packages/utils/node-resolver-rs/src/path.rs#L37
@@ -129,4 +148,12 @@ fn normalize() {
     assert_eq!(Path::new("C://").normalize(), Path::new("C://"));
     assert_eq!(Path::new("C:").normalize(), Path::new("C:"));
     assert_eq!(Path::new(r"\\server\share").normalize(), Path::new(r"\\server\share"));
+}
+
+#[test]
+fn normalize_relative() {
+    assert_eq!(Path::new("foo/../../foo/").normalize_relative(), Path::new("../foo"));
+    assert_eq!(Path::new("foo/.././foo/").normalize_relative(), Path::new("foo"));
+    assert_eq!(Path::new("foo../../..").normalize_relative(), Path::new(".."));
+    assert_eq!(Path::new("jest-runner-../../").normalize_relative(), Path::new(""));
 }

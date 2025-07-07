@@ -7,6 +7,8 @@ use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
+use crate::ResolveError;
+
 /// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem: Send + Sync {
     #[cfg(feature = "yarn_pnp")]
@@ -53,9 +55,13 @@ pub trait FileSystem: Send + Sync {
     /// Returns the resolution of a symbolic link.
     ///
     /// # Errors
+    /// * Returns an error of [`ResolveError::IOError`] kind if there is an IO error invoking [`std::fs::read_link`].
+    /// * Returns an error of [`ResolveError::PathNotSupported`] kind if the symlink target cannot be represented
+    ///   as a path that can be consumed by the `import`/`require` syntax of Node.js.
+    ///   Caller should not try to follow the symlink in this case.
     ///
     /// See [std::fs::read_link]
-    fn read_link(&self, path: &Path) -> io::Result<PathBuf>;
+    fn read_link(&self, path: &Path) -> Result<PathBuf, ResolveError>;
 }
 
 /// Metadata information about a file
@@ -148,15 +154,11 @@ impl FileSystemOs {
     ///
     /// See [std::fs::read_link]
     #[inline]
-    pub fn read_link(path: &Path) -> io::Result<PathBuf> {
+    pub fn read_link(path: &Path) -> Result<PathBuf, ResolveError> {
         let path = fs::read_link(path)?;
         cfg_if! {
             if #[cfg(target_os = "windows")] {
-                match crate::windows::try_strip_windows_prefix(path) {
-                    // We won't follow the link if we cannot represent its target properly.
-                    Ok(p) | Err(crate::ResolveError::PathNotSupported(p)) => Ok(p),
-                    _ => unreachable!(),
-                }
+                crate::windows::strip_windows_prefix(path)
             } else {
                 Ok(path)
             }
@@ -216,7 +218,7 @@ impl FileSystem for FileSystemOs {
         Self::symlink_metadata(path)
     }
 
-    fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+    fn read_link(&self, path: &Path) -> Result<PathBuf, ResolveError> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 if self.yarn_pnp {

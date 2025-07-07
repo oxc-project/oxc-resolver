@@ -5,7 +5,9 @@ permissions: {}
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, synchronize]
+    types:
+      - opened
+      - synchronize
     paths-ignore:
       - "**/*.md"
       - "!.github/workflows/ci.yml"
@@ -17,8 +19,8 @@ on:
       - "!.github/workflows/ci.yml"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.ref_name != 'main' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 defaults:
   run:
@@ -74,8 +76,8 @@ jobs:
 
       - name: Check
         run: |
-          rustup target add wasm32-unknown-unknown
-          cargo check --all-features --target wasm32-unknown-unknown
+          rustup target add wasm32-wasip1
+          cargo check --all-features --target wasm32-wasip1
 
   wasi:
     name: Test wasi target

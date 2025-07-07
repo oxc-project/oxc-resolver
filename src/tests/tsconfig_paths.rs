@@ -26,6 +26,7 @@ fn tsconfig_resolve() {
         (f.join("cases/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
         (f.join("cases/extends-paths"), Some("src"), "@/index", f.join("cases/extends-paths/src/index.js")),
         (f.join("cases/extends-multiple"), None, "foo", f.join("cases/extends-multiple/foo.js")),
+        (f.join("cases/absolute-alias"), None, "/images/foo.js", f.join("cases/absolute-alias/public/images/foo.ts")),
     ];
 
     for (dir, subdir, request, expected) in pass {
@@ -34,6 +35,7 @@ fn tsconfig_resolve() {
                 config_file: dir.join("tsconfig.json"),
                 references: TsconfigReferences::Auto,
             }),
+            extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
             ..ResolveOptions::default()
         });
         let path = subdir.map_or(dir.clone(), |subdir| dir.join(subdir));
@@ -285,6 +287,54 @@ fn test_template_variable() {
         });
         let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {tsconfig} {dir:?}");
+    }
+}
+
+#[test]
+fn test_paths_nested_base() {
+    let f = super::fixture_root().join("tsconfig");
+    let f2 = f.join("cases").join("paths-nested-base");
+
+    #[rustfmt::skip]
+    let pass = [
+        (f2.join("other"), "tsconfig.json", "foo", f2.join("root/foo.ts")),
+        (f2.join("root"), "tsconfig.json", "other/bar", f2.join("other/bar.ts")),
+    ];
+
+    for (dir, tsconfig, request, expected) in pass {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigOptions {
+                config_file: dir.parent().unwrap().join(tsconfig),
+                references: TsconfigReferences::Auto,
+            }),
+            ..ResolveOptions::default().with_extension(String::from(".ts"))
+        });
+        let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{request} {tsconfig} {dir:?}");
+    }
+}
+
+#[test]
+fn test_parent_base_url() {
+    let f = super::fixture_root().join("tsconfig");
+    let f2 = f.join("cases").join("parent-base-url");
+
+    #[rustfmt::skip]
+    let pass = [
+        (f2.join("test"), "tsconfig.json", ".", Err(ResolveError::NotFound(".".into()))),
+        (f2.join("test"), "tsconfig.json", "index", Ok(f2.join("src/index.ts"))),
+    ];
+
+    for (dir, tsconfig, request, expected) in pass {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigOptions {
+                config_file: dir.parent().unwrap().join(tsconfig),
+                references: TsconfigReferences::Auto,
+            }),
+            ..ResolveOptions::default().with_extension(String::from(".ts"))
+        });
+        let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
+        assert_eq!(resolved_path, expected, "{request} {tsconfig} {dir:?}");
     }
 }
 

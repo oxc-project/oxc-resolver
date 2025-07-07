@@ -65,6 +65,7 @@ mod windows;
 #[cfg(test)]
 mod tests;
 
+use rustc_hash::FxHashSet;
 use std::{
     borrow::Cow,
     cmp::Ordering,
@@ -73,8 +74,7 @@ use std::{
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
-
-use rustc_hash::FxHashSet;
+use url::Url;
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
@@ -260,9 +260,22 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<Resolution, ResolveError> {
         ctx.with_fully_specified(self.options.fully_specified);
-        let cached_path = self.cache.value(path);
+
+        let cached_path = if self.options.symlinks {
+            self.load_realpath(&self.cache.value(path))?
+        } else {
+            path.to_path_buf()
+        };
+
+        let cached_path = self.cache.value(&cached_path);
         let cached_path = self.require(&cached_path, specifier, ctx)?;
-        let path = self.load_realpath(&cached_path)?;
+
+        let path = if self.options.symlinks {
+            self.load_realpath(&cached_path)?
+        } else {
+            cached_path.to_path_buf()
+        };
+
         // enhanced-resolve: restrictions
         self.check_restrictions(&path)?;
         let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
@@ -350,12 +363,29 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(path);
         }
 
+        #[allow(unused_assignments)]
+        let mut specifier_owned: Option<String> = None;
+        let mut specifier = specifier;
+
+        if specifier.starts_with("file://") {
+            let unsupported_error = ResolveError::PathNotSupported(specifier.into());
+
+            let path = Url::parse(specifier)
+                .map_err(|_| unsupported_error.clone())?
+                .to_file_path()
+                .map_err(|()| unsupported_error)?;
+
+            let owned = path.to_string_lossy().into_owned();
+            specifier_owned = Some(owned);
+            specifier = specifier_owned.as_deref().unwrap();
+        }
+
         let result = match Path::new(specifier).components().next() {
             // 2. If X begins with '/'
             Some(Component::RootDir | Component::Prefix(_)) => {
                 self.require_absolute(cached_path, specifier, ctx)
             }
-            // 3. If X begins with './' or '/' or '../'
+            // 3. If X is '.' or begins with './' or '/' or '../'
             Some(Component::CurDir | Component::ParentDir) => {
                 self.require_relative(cached_path, specifier, ctx)
             }
@@ -434,7 +464,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
-    // 3. If X begins with './' or '/' or '../'
+    // 3. If X is '.' or begins with './' or '/' or '../'
     fn require_relative(
         &self,
         cached_path: &CachedPath,
@@ -449,7 +479,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
         // a. LOAD_AS_FILE(Y + X)
         // b. LOAD_AS_DIRECTORY(Y + X)
-        if let Some(path) = self.load_as_file_or_directory(&cached_path, specifier, ctx)? {
+        if let Some(path) = self.load_as_file_or_directory(
+            &cached_path,
+            // ensure resolve directory only when specifier is `.`
+            if specifier == "." { "./" } else { specifier },
+            ctx,
+        )? {
             return Ok(path);
         }
         // c. THROW "not found"
@@ -539,6 +574,38 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         {
             return Ok(path);
         }
+
+        // TODO: add a new option for this legacy behavior?
+        // abnormal relative specifier like `jest-runner-../../..`
+        // which only works with `require` not ESM
+        // see also https://github.com/jestjs/jest/issues/15712
+        // it's kind of bug feature
+        if specifier.contains("/../..") || specifier.contains("../../") {
+            let path = Path::new(specifier).normalize_relative();
+            let mut owned = path.to_string_lossy().into_owned();
+
+            if specifier.ends_with('/') {
+                owned += "/";
+            }
+
+            let specifier_owned = Some(owned);
+            let normalized_specifier = specifier_owned.as_deref().unwrap();
+
+            let (package_name, subpath) = Self::parse_package_specifier(normalized_specifier);
+
+            if package_name == ".." {
+                if let Some(path) = self.load_node_modules(
+                    cached_path,
+                    normalized_specifier,
+                    package_name,
+                    subpath,
+                    ctx,
+                )? {
+                    return Ok(path);
+                }
+            }
+        }
+
         // 7. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
     }
@@ -594,8 +661,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         {
             // b. If "main" is a falsy value, GOTO 2.
             for main_field in package_json.main_fields(&self.options.main_fields) {
+                // ref https://github.com/webpack/enhanced-resolve/blob/main/lib/MainFieldPlugin.js#L66-L67
+                let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
+                    Cow::Borrowed(main_field)
+                } else {
+                    Cow::Owned(format!("./{main_field}"))
+                };
+
                 // c. let M = X + (json main field)
-                let cached_path = cached_path.normalize_with(main_field, self.cache.as_ref());
+                let cached_path =
+                    cached_path.normalize_with(main_field.as_ref(), self.cache.as_ref());
                 // d. LOAD_AS_FILE(M)
                 if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                     return Ok(Some(path));
@@ -623,6 +698,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 }
             }
         }
+
         // 2. LOAD_INDEX(X)
         self.load_index(cached_path, ctx)
     }
@@ -830,6 +906,15 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if self.options.resolve_to_context {
                     return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
                 }
+
+                // `is_file` could be false because no extensions are considered yet,
+                // so we need to try `load_as_file` first when `specifier` does not end with a slash which indicates a dir instead.
+                if !specifier.ends_with('/') {
+                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                        return Ok(Some(path));
+                    }
+                }
+
                 if self.cache.is_dir(&cached_path, ctx) {
                     if let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)? {
                         return Ok(Some(path));
@@ -838,9 +923,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         return Ok(Some(path));
                     }
                 }
-                if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                    return Ok(Some(path));
-                }
+
                 if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
                     return Ok(Some(path));
                 }
@@ -1034,6 +1117,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if let Some(path) = self.load_as_file_or_directory(cached_path, "", ctx)? {
             return Ok(Some(path));
         }
+
         // 3. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
     }
@@ -1335,6 +1419,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                                     reference_tsconfig.path().to_path_buf(),
                                 ));
                             }
+                            self.extend_tsconfig(
+                                &self.cache.value(reference_tsconfig.directory()),
+                                reference_tsconfig,
+                                ctx,
+                            )?;
                             Ok(())
                         },
                     )?;
@@ -1343,6 +1432,28 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             Ok(())
         })
+    }
+
+    fn extend_tsconfig(
+        &self,
+        directory: &CachedPath,
+        tsconfig: &mut TsConfig,
+        ctx: &mut TsconfigResolveContext,
+    ) -> Result<(), ResolveError> {
+        let extended_tsconfig_paths = tsconfig
+            .extends()
+            .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
+            .collect::<Result<Vec<_>, _>>()?;
+        for extended_tsconfig_path in extended_tsconfig_paths {
+            let extended_tsconfig = self.load_tsconfig(
+                /* root */ false,
+                &extended_tsconfig_path,
+                &TsconfigReferences::Disabled,
+                ctx,
+            )?;
+            tsconfig.extend_tsconfig(&extended_tsconfig);
+        }
+        Ok(())
     }
 
     fn load_tsconfig_paths(
@@ -1363,7 +1474,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
             let cached_path = self.cache.value(&path);
-            if let Ok(path) = self.require_relative(&cached_path, ".", ctx) {
+            if let Some(path) = self.load_as_file_or_directory(&cached_path, ".", ctx)? {
                 return Ok(Some(path));
             }
         }
@@ -1665,8 +1776,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         && !pattern_trailer.contains('*')
                         // 2. If patternTrailer has zero length, or if matchKey ends with patternTrailer and the length of matchKey is greater than or equal to the length of expansionKey, then
                         && (pattern_trailer.is_empty()
-                            || (match_key.len() >= expansion_key.len()
-                                && match_key.ends_with(pattern_trailer)))
+                        || (match_key.len() >= expansion_key.len()
+                        && match_key.ends_with(pattern_trailer)))
                         && Self::pattern_key_compare(best_key, expansion_key).is_gt()
                     {
                         // 1. Let target be the value of matchObj[expansionKey].

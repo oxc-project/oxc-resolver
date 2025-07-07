@@ -1,5 +1,7 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/resolve.test.js>
 
+use url::Url;
+
 use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
 
 #[test]
@@ -10,9 +12,12 @@ fn resolve() {
 
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
 
+    let file_protocol_path = Url::from_file_path(main1_js_path.clone()).unwrap();
+
     #[rustfmt::skip]
     let pass = [
         ("absolute path", f.clone(), main1_js_path.as_str(), f.join("main1.js")),
+        ("file protocol absolute path", f.clone(), file_protocol_path.as_str(), f.join("main1.js")),
         ("file with .js", f.clone(), "./main1.js", f.join("main1.js")),
         ("file without extension", f.clone(), "./main1", f.join("main1.js")),
         ("another file with .js", f.clone(), "./a.js", f.join("a.js")),
@@ -62,6 +67,13 @@ fn resolve() {
         }
         assert_eq!(resolved_path, Some(expected), "{comment} {path:?} {request}");
     }
+
+    #[cfg(windows)]
+    let resolve_error = ResolveError::NotFound("\\\\.\\main.js".into());
+    #[cfg(not(windows))]
+    let resolve_error = ResolveError::PathNotSupported("file://./main.js".into());
+
+    assert_eq!(resolver.resolve(f, "file://./main.js"), Err(resolve_error));
 }
 
 #[test]
@@ -74,7 +86,7 @@ fn issue238_resolve() {
     });
     let resolved_path =
         resolver.resolve(f.join("src/common"), "config/myObjectFile").map(|r| r.full_path());
-    assert_eq!(resolved_path, Ok(f.join("src/common/config/myObjectFile.js")),);
+    assert_eq!(resolved_path, Ok(f.join("src/common/config/myObjectFile.js")));
 }
 
 #[test]
@@ -119,9 +131,123 @@ fn resolve_to_context() {
 #[test]
 fn resolve_hash_as_module() {
     let f = super::fixture();
-    let resolver = Resolver::new(ResolveOptions::default());
+    let resolver = Resolver::default();
     let resolution = resolver.resolve(f, "#a");
     assert_eq!(resolution, Err(ResolveError::NotFound("#a".into())));
+}
+
+#[test]
+fn prefer_file_over_dir() {
+    let f = super::fixture_root().join("prefer-file-over-dir");
+    let resolver = Resolver::default();
+    let data = [
+        ("one level package name", f.clone(), "bar", f.join("node_modules/bar.js")),
+        ("scoped level package name", f.clone(), "@foo/bar", f.join("node_modules/@foo/bar.js")),
+    ];
+    for (comment, path, request, expected) in data {
+        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+}
+
+#[test]
+fn resolve_dot() {
+    let f = super::fixture_root().join("dot");
+    let foo_dir: std::path::PathBuf = f.join("foo");
+    let resolver = Resolver::default();
+    let foo_index = foo_dir.join("index.js");
+    let data = [
+        ("dot dir", foo_dir.clone(), ".", foo_index.clone()),
+        ("dot dir slash", foo_dir.clone(), "./", foo_index),
+    ];
+    for (comment, path, request, expected) in data {
+        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+
+    let resolver =
+        Resolver::new(ResolveOptions { main_files: vec![], ..ResolveOptions::default() });
+    let data = [
+        ("dot dir", foo_dir.clone(), ".", ResolveError::NotFound(".".into())),
+        ("dot dir slash", foo_dir, "./", ResolveError::NotFound("./".into())),
+    ];
+    for (comment, path, request, expected) in data {
+        let resolve_error = resolver.resolve(&path, request);
+        assert_eq!(resolve_error, Err(expected), "{comment} {path:?} {request}");
+    }
+}
+
+#[test]
+fn symlink_with_nested_node_modules() {
+    let f = super::fixture_root().join("symlink-with-nested-node_modules");
+
+    let resolver = Resolver::default();
+    let resolved_path =
+        resolver.resolve(f.join("bar/node_modules/foo"), "dep").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("foo/node_modules/dep/index.js")));
+
+    let resolver = Resolver::new(ResolveOptions { symlinks: false, ..ResolveOptions::default() });
+    assert_eq!(
+        resolver.resolve(f.join("bar/node_modules/foo"), "dep"),
+        Err(ResolveError::NotFound("dep".into()))
+    );
+}
+
+#[test]
+fn abnormal_relative() {
+    let f = super::fixture_root().join("abnormal-relative-with-node_modules");
+
+    let base = f.join("foo/bar/baz");
+
+    let resolver = Resolver::default();
+
+    let data = [
+        ("2-level abnormal relative path 1", "jest-runner-../../.."),
+        ("2-level abnormal relative path 2", "jest-runner-../../../"),
+        ("2-level abnormal relative path 3", "jest-runner-/../.."),
+        ("2-level abnormal relative path 4", "jest-runner-/../../"),
+    ];
+
+    for (comment, request) in data {
+        let resolved_path = resolver.resolve(&base, request).map(|r| r.full_path()).unwrap();
+        assert_eq!(resolved_path, f.join("runner.js"), "{comment} {}", resolved_path.display());
+    }
+
+    let data = [
+        ("1-level abnormal relative path 1", "jest-runner-../.."),
+        ("1-level abnormal relative path 2", "jest-runner-../../"),
+        ("1-level abnormal relative path 3", "jest-runner-/.."),
+        ("1-level abnormal relative path 4", "jest-runner-/../"),
+    ];
+
+    for (comment, request) in data {
+        let resolved_path = resolver.resolve(&base, request);
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::NotFound(request.into())),
+            "{comment} {request}"
+        );
+    }
+
+    let f = super::fixture_root().join("abnormal-relative-without-node_modules");
+
+    let base = f.join("foo/bar/baz");
+
+    let data = [
+        ("2-level abnormal relative path 1", "jest-runner-../../.."),
+        ("2-level abnormal relative path 2", "jest-runner-../../../"),
+        ("2-level abnormal relative path 3", "jest-runner-/../.."),
+        ("2-level abnormal relative path 4", "jest-runner-/../../"),
+    ];
+
+    for (comment, request) in data {
+        let resolved_path = resolver.resolve(&base, request);
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::NotFound(request.into())),
+            "{comment} {request}"
+        );
+    }
 }
 
 #[cfg(windows)]
@@ -133,7 +259,7 @@ fn resolve_normalized_on_windows() {
     let absolute = f.join("./foo/index.js").normalize();
     let absolute_str = absolute.to_string_lossy();
     let normalized_absolute = absolute_str.replace('\\', "/");
-    let resolver = Resolver::new(ResolveOptions::default());
+    let resolver = Resolver::default();
 
     let resolution = resolver.resolve(&f, &normalized_absolute).map(|r| r.full_path());
     assert_eq!(

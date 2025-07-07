@@ -2,17 +2,45 @@ name: Pnpm
 
 description: Install pnpm
 
+inputs:
+  architecture:
+    description: The architecture to use
+    required: false
+  cpu:
+    description: The cpu architecture to use
+    required: false
+
 runs:
   using: composite
   steps:
-    - uses: oxc-project/setup-node@f42e3bda950c7454575e78ee4eaac880a077700c # v1.0.0
+    - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
 
-    - name: yarn
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version-file: .node-version
+        architecture: ${{ inputs.architecture }}
+        cache: pnpm
+
+    - if: ${{ inputs.cpu }}
+      shell: bash
+      run: pnpm config set supportedArchitectures.cpu "${CPU_ARCH}"
+      env:
+        CPU_ARCH: ${{ inputs.cpu }}
+
+    - name: pnpm
+      shell: bash
+      run: |
+        corepack enable
+        pnpm install
+
+    - name: yarn pnp
       shell: bash
       run: |
         cd fixtures/pnp
-        corepack enable
         yarn install
 
         cd ../global-pnp
+        yarn install
+
+        cd ../yarn
         yarn install

@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{ModuleType, ResolveError, ResolveOptions, Resolver};
+use oxc_resolver::{ModuleType, Resolution, ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
@@ -12,7 +12,7 @@ fn chinese() {
     let specifier = "./fixtures/misc/中文/中文.js";
     let resolution = Resolver::new(ResolveOptions::default()).resolve(&dir, specifier);
     assert_eq!(
-        resolution.map(oxc_resolver::Resolution::into_path_buf),
+        resolution.map(Resolution::into_path_buf),
         Ok(dir.join("fixtures/misc/中文/中文.js"))
     );
 }
@@ -24,7 +24,7 @@ fn styled_components() {
     let module_path = dir
         .join("node_modules")
         .join(".pnpm")
-        .join("styled-components@6.1.1_react-dom@19.1.0_react@19.1.0__react@19.1.0")
+        .join("styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0")
         .join("node_modules")
         .join("styled-components");
     let specifier = "styled-components";
@@ -34,7 +34,7 @@ fn styled_components() {
         ResolveOptions { alias_fields: vec![vec!["browser".into()]], ..ResolveOptions::default() };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(oxc_resolver::Resolution::into_path_buf),
+        resolution.map(Resolution::into_path_buf),
         Ok(module_path.join("dist").join("styled-components.browser.cjs.js"))
     );
 
@@ -55,7 +55,7 @@ fn styled_components() {
 fn axios() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
-    let module_path = dir.join("node_modules/.pnpm/axios@1.6.2/node_modules/axios");
+    let module_path = dir.join("node_modules/.pnpm/axios@1.8.4/node_modules/axios");
     let specifier = "axios";
 
     // default
@@ -96,6 +96,7 @@ fn postcss() {
     let module_path = path.join("node_modules/postcss");
     let resolver = Resolver::new(ResolveOptions {
         alias_fields: vec![vec!["browser".into()]],
+        symlinks: false,
         ..ResolveOptions::default()
     });
 
@@ -141,7 +142,7 @@ fn decimal_js() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
     let module_path =
-        dir.join("node_modules/.pnpm/decimal.js@10.4.3/node_modules/decimal.js/decimal.mjs");
+        dir.join("node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
 
     let resolvers = [
         // with `extension_alias`
@@ -168,7 +169,7 @@ fn decimal_js_from_mathjs() {
     let dir = dir();
     let path = dir.join("node_modules/.pnpm/mathjs@13.2.0/node_modules/mathjs/lib/esm");
     let module_path =
-        dir.join("node_modules/.pnpm/decimal.js@10.4.3/node_modules/decimal.js/decimal.mjs");
+        dir.join("node_modules/.pnpm/decimal.js@10.5.0/node_modules/decimal.js/decimal.mjs");
 
     let resolvers = [
         // with `extension_alias`
@@ -202,7 +203,7 @@ fn minimatch() {
     let resolution = esm_resolver.resolve(&path, "minimatch").unwrap();
     assert_eq!(
         resolution.full_path(),
-        dir.join("node_modules/.pnpm//minimatch@10.0.1/node_modules/minimatch/dist/esm/index.js")
+        dir.join("node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/esm/index.js")
     );
     assert_eq!(resolution.module_type(), Some(ModuleType::Module));
 
@@ -215,7 +216,7 @@ fn minimatch() {
     assert_eq!(
         resolution.full_path(),
         dir.join(
-            "node_modules/.pnpm//minimatch@10.0.1/node_modules/minimatch/dist/commonjs/index.js"
+            "node_modules/.pnpm/minimatch@10.0.1/node_modules/minimatch/dist/commonjs/index.js"
         )
     );
     assert_eq!(resolution.module_type(), Some(ModuleType::CommonJs));
@@ -274,7 +275,7 @@ fn package_json_with_bom() {
     assert_eq!(
         Resolver::new(ResolveOptions::default())
             .resolve(&dir, "./package-json-with-bom")
-            .map(oxc_resolver::Resolution::into_path_buf),
+            .map(Resolution::into_path_buf),
         Ok(dir.join("package-json-with-bom/index.js"))
     );
 }

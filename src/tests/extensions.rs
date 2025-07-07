@@ -89,12 +89,14 @@ fn multi_dot_extension() {
     let resolver = Resolver::new(ResolveOptions {
         // Test for `.d.ts`, not part of enhanced-resolve.
         extensions: vec![".a.b.c".into(), ".d.ts".into(), ".ts".into(), ".js".into()],
+        extension_alias: vec![(".ts".into(), vec![".ts".into(), ".d.ts".into()])],
         ..ResolveOptions::default()
     });
 
     #[rustfmt::skip]
     let pass = [
         ("should resolve according to order of provided extensions", "./foo", "foo.ts"),
+        ("should resolve .d.ts for .ts", "./bar.ts", "bar.d.ts"),
         ("should resolve file with extension", "./app.module", "app.module.js")
     ];
 

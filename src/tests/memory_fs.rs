@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{FileMetadata, FileSystem};
+use crate::{FileMetadata, FileSystem, ResolveError};
 
 #[derive(Default)]
 pub struct MemoryFS {
@@ -78,7 +78,7 @@ impl FileSystem for MemoryFS {
         self.metadata(path)
     }
 
-    fn read_link(&self, _path: &Path) -> io::Result<PathBuf> {
-        Err(io::Error::new(io::ErrorKind::NotFound, "not a symlink"))
+    fn read_link(&self, _path: &Path) -> Result<PathBuf, ResolveError> {
+        Err(io::Error::new(io::ErrorKind::NotFound, "not a symlink").into())
     }
 }

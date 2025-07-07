@@ -1,3 +1,6 @@
 # created by symlink.rs
+/temp.*
+
+# Currently not used.
 /temp
 /temp_symlinks

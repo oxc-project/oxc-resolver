@@ -81,7 +81,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         let path = cached_path.to_path_buf();
         cfg_if! {
             if #[cfg(target_os = "windows")] {
-                crate::windows::try_strip_windows_prefix(path)
+                crate::windows::strip_windows_prefix(path)
             } else {
                 Ok(path)
             }

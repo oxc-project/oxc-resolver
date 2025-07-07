@@ -1,7 +1,13 @@
 packages:
-  - 'npm'
-  - 'napi'
-  - 'fixtures/pnpm'
+  - npm
+  - napi
+  - fixtures/pnpm
+  - fixtures/pnpm-workspace/**
+
+ignoredBuiltDependencies:
+  - esbuild
+
+ignoreScripts: true
 
 # For `windows_symlinked_longfilename` in tests/resolve_test.rs
 virtualStoreDirMaxLength: 1024

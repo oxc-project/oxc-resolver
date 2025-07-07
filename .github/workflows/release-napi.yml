@@ -10,12 +10,12 @@ on:
     paths:
       - package.json
 
+env:
+  DEBUG: napi:*
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  DEBUG: "napi:*"
 
 jobs:
   check:
@@ -49,68 +49,66 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            build: |
-              pnpm build --target x86_64-pc-windows-msvc
-
+            build: pnpm build
           - os: windows-latest
             target: aarch64-pc-windows-msvc
-            build: |
-              pnpm build --target aarch64-pc-windows-msvc
-
+            build: pnpm build
+          - os: windows-latest
+            target: i686-pc-windows-msvc
+            architecture: x86
+            cpu: ia32
+            build: pnpm build
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            build: |
-              pnpm build --target x86_64-unknown-linux-gnu --use-napi-cross
-
+            build: pnpm build --use-napi-cross
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            build: |
-              pnpm build --target x86_64-unknown-linux-musl -x
-
+            build: pnpm build -x
+          - os: ubuntu-latest
+            target: aarch64-linux-android
+            build: pnpm build
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            build: |
-              pnpm build --target aarch64-unknown-linux-gnu --use-napi-cross
-
+            build: pnpm build --use-napi-cross
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            build: |
-              pnpm build --target aarch64-unknown-linux-musl -x
-
+            build: pnpm build -x
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
-            build: |
-              pnpm build --target armv7-unknown-linux-gnueabihf --use-napi-cross
-
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            build: |
-              pnpm build --target x86_64-apple-darwin
-
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            build: |
-              pnpm build --target aarch64-apple-darwin
-
+            build: pnpm build --use-napi-cross
           - os: ubuntu-latest
-            target: wasm32-wasip1-threads
-            build: |
-              pnpm build --target wasm32-wasip1-threads
-
+            target: armv7-linux-androideabi
+            architecture: x64
+            build: pnpm build
           - os: ubuntu-latest
-            target: s390x-unknown-linux-gnu
-            build: |
-              export CFLAGS="-fuse-ld=lld"
-              pnpm build --target s390x-unknown-linux-gnu --use-napi-cross
-
+            target: armv7-unknown-linux-musleabihf
+            build: pnpm build -x
+          - os: ubuntu-latest
+            target: powerpc64le-unknown-linux-gnu
+            build: pnpm build --use-napi-cross
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
-            build: |
-              sudo apt-get update
-              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
-              export CC=riscv64-linux-gnu-gcc
-              export CXX=riscv64-linux-gnu-g++
-              pnpm build --target riscv64gc-unknown-linux-gnu
+            build: |-
+              sudo apt-get update &&
+              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y &&
+              export CC=riscv64-linux-gnu-gcc &&
+              export CXX=riscv64-linux-gnu-g++ &&
+              pnpm build
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-musl
+            build: pnpm build -x
+          - os: ubuntu-latest
+            target: s390x-unknown-linux-gnu
+            build: export CFLAGS="-fuse-ld=lld" && pnpm build --use-napi-cross
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            build: pnpm build
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            build: pnpm build
+          - os: ubuntu-latest
+            target: wasm32-wasip1-threads
+            build: pnpm build
 
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -118,6 +116,9 @@ jobs:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
       - uses: ./.github/actions/pnpm
+        with:
+          architecture: ${{ matrix.architecture }}
+          cpu: ${{ matrix.cpu }}
 
       - run: rustup target add ${{ matrix.target }}
 
@@ -127,7 +128,7 @@ jobs:
           version: 0.13.0
 
       - name: Build
-        run: ${{ matrix.build }}
+        run: ${{ matrix.build }} --target ${{ matrix.target }}
         shell: bash
         env:
           CC: clang # for mimalloc
@@ -135,7 +136,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          if-no-files-found: "error"
+          if-no-files-found: error
           name: bindings-${{ matrix.target }}
           path: |
             napi/*.node
@@ -156,10 +157,10 @@ jobs:
           RUSTUP_IO_THREADS: 1
         with:
           operating_system: freebsd
-          version: "14.0"
+          version: 14.2
           memory: 8G
           cpu_count: 3
-          environment_variables: "DEBUG RUSTUP_IO_THREADS"
+          environment_variables: DEBUG RUSTUP_IO_THREADS
           shell: bash
           run: |
             sudo pkg install -y -f curl libnghttp2 node22 npm cmake
@@ -198,15 +199,27 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
-      - uses: oxc-project/setup-node@f42e3bda950c7454575e78ee4eaac880a077700c # v1.0.0
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: artifacts
 
-      - run: pnpm napi create-npm-dirs --package-json-path package.json
-
-      - run: pnpm napi artifacts --package-json-path package.json --npm-dir npm --build-output-dir napi
+      - name: Prepare dirs and artifacts
+        run: |
+          cp package.json napi/package.json
+          pnpm napi create-npm-dirs
+          pnpm napi artifacts --npm-dir npm --build-output-dir napi
 
       - name: Publish npm packages as latest
         env:
@@ -214,7 +227,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          pnpm napi pre-publish --no-gh-release --tagstyle npm --package-json-path package.json --npm-dir npm
+          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
 
           # Publish root package
           cp package.json napi/package.json
