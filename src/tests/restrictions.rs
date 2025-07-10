@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use regex::Regex;
+use fancy_regex::Regex;
 
 use crate::{ResolveError, ResolveOptions, Resolver, Restriction};
 
@@ -14,7 +14,7 @@ fn should_respect_regexp_restriction() {
     let resolver1 = Resolver::new(ResolveOptions {
         extensions: vec![".js".into()],
         restrictions: vec![Restriction::Fn(Arc::new(move |path| {
-            path.as_os_str().to_str().is_some_and(|s| re.is_match(s))
+            path.as_os_str().to_str().is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
         ..ResolveOptions::default()
     });
@@ -32,7 +32,7 @@ fn should_try_to_find_alternative_1() {
         extensions: vec![".js".into(), ".css".into()],
         main_files: vec!["index".into()],
         restrictions: vec![Restriction::Fn(Arc::new(move |path| {
-            path.as_os_str().to_str().is_some_and(|s| re.is_match(s))
+            path.as_os_str().to_str().is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
         ..ResolveOptions::default()
     });
@@ -65,7 +65,7 @@ fn should_try_to_find_alternative_2() {
         extensions: vec![".js".into(), ".css".into()],
         main_fields: vec!["main".into(), "style".into()],
         restrictions: vec![Restriction::Fn(Arc::new(move |path| {
-            path.as_os_str().to_str().is_some_and(|s| re.is_match(s))
+            path.as_os_str().to_str().is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
         ..ResolveOptions::default()
     });
@@ -83,7 +83,7 @@ fn should_try_to_find_alternative_3() {
         extensions: vec![".js".into()],
         main_fields: vec!["main".into(), "module".into(), "style".into()],
         restrictions: vec![Restriction::Fn(Arc::new(move |path| {
-            path.as_os_str().to_str().is_some_and(|s| re.is_match(s))
+            path.as_os_str().to_str().is_some_and(|s| re.is_match(s).unwrap_or(false))
         }))],
         ..ResolveOptions::default()
     });
