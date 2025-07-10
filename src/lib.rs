@@ -950,7 +950,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let mut path = cached_path.to_path_buf();
         path.push("");
 
-        let resolution = pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, path);
+        let resolution = pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, &path);
 
         match resolution {
             Ok(pnp::Resolution::Resolved(path, subpath)) => {
