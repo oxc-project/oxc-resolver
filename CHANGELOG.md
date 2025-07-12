@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.5.3](https://github.com/oxc-project/oxc-resolver/compare/v11.5.2...v11.5.3) - 2025-07-12
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- support for resolving empty tsconfig file ([#602](https://github.com/oxc-project/oxc-resolver/pull/602)) (by @JounQin) - #602
+
+### <!-- 9 -->💼 Other
+
+- Expose the `ExtendsField` enum of TsConfig ([#607](https://github.com/oxc-project/oxc-resolver/pull/607)) (by @ostenbom) - #607
+
+### Contributors
+
+* @JounQin
+* @ostenbom
+* @Boshen
+
 ## [11.5.0](https://github.com/oxc-project/oxc-resolver/compare/oxc_resolver-v11.4.0...oxc_resolver-v11.5.0) - 2025-07-06
 
 ### <!-- 0 -->🚀 Features
