@@ -735,6 +735,7 @@ dependencies = [
  "criterion2",
  "dirs",
  "document-features",
+ "fancy-regex",
  "indexmap",
  "json-strip-comments",
  "normalize-path",
@@ -757,6 +758,7 @@ dependencies = [
 name = "oxc_resolver_napi"
 version = "11.5.2"
 dependencies = [
+ "fancy-regex",
  "mimalloc-safe",
  "napi",
  "napi-build",
