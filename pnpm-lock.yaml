@@ -13,8 +13,8 @@ importers:
         version: 0.3.0
     devDependencies:
       '@napi-rs/cli':
-        specifier: 3.0.0-alpha.94
-        version: 3.0.0-alpha.94(@emnapi/runtime@1.4.4)(@types/node@24.0.13)(emnapi@1.4.4)
+        specifier: ^3.0.0
+        version: 3.0.0(@emnapi/runtime@1.4.4)(@types/node@24.0.13)(emnapi@1.4.4)
       '@napi-rs/wasm-runtime':
         specifier: ^0.2.12
         version: 0.2.12
@@ -389,8 +389,8 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.4':
     resolution: {integrity: sha512-VT2+G1VQs/9oz078bLrYbecdZKs912zQlkelYpuf+SXF+QvZDYJlbx/LSx+meSAwdDFnF8FVXW92AVjjkVmgFw==}
 
-  '@napi-rs/cli@3.0.0-alpha.94':
-    resolution: {integrity: sha512-q/BsqtSCcpT5WNe2xYHW4vjcTfagQ1trYJV2FumLmO3mKkMc9NLCR0Q6bwD+ublidCXsGT2lDDaf/ZgxTTcGjg==}
+  '@napi-rs/cli@3.0.0':
+    resolution: {integrity: sha512-V4xSbP4AnS+1POtAGVRhCt0erOTEyLAsZ2+MJOcI1NXCwgsKZGjp8cf/UmVo8e2jUE8tTkyxvnIPCqzVkT3RjQ==}
     engines: {node: '>= 16'}
     hasBin: true
     peerDependencies:
@@ -1731,7 +1731,7 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.4': {}
 
-  '@napi-rs/cli@3.0.0-alpha.94(@emnapi/runtime@1.4.4)(@types/node@24.0.13)(emnapi@1.4.4)':
+  '@napi-rs/cli@3.0.0(@emnapi/runtime@1.4.4)(@types/node@24.0.13)(emnapi@1.4.4)':
     dependencies:
       '@inquirer/prompts': 7.6.0(@types/node@24.0.13)
       '@napi-rs/cross-toolchain': 0.0.19

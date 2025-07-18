@@ -31,7 +31,7 @@
     "napi-postinstall": "^0.3.0"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.0.0-alpha.94",
+    "@napi-rs/cli": "^3.0.0",
     "@napi-rs/wasm-runtime": "^0.2.12",
     "@types/node": "^24.0.13",
     "emnapi": "^1.4.4",
