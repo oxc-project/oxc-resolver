@@ -7,8 +7,9 @@ on:
   push:
     branches:
       - main
-    paths:
-      - package.json
+      - release-napi
+    # paths:
+      # - package.json
 
 env:
   DEBUG: napi:*
