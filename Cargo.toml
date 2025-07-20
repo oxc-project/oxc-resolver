@@ -97,7 +97,7 @@ document-features = { version = "0.2.11", optional = true }
 [dev-dependencies]
 criterion2 = { version = "3.0.1", default-features = false }
 dirs = { version = "6.0.0" }
-fancy-regex = { version = "^0.14.0", default-features = false, features = ["std"] }
+fancy-regex = { version = "^0.15.0", default-features = false, features = ["std"] }
 normalize-path = { version = "0.2.1" }
 pico-args = "0.5.0"
 rayon = { version = "1.10.0" }
