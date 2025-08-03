@@ -7,6 +7,7 @@ This document provides guidance for AI coding assistants (like GitHub Copilot, C
 oxc-resolver is a Rust port of webpack's enhanced-resolve, providing ESM and CommonJS module resolution. It offers both a Rust crate and Node.js bindings via NAPI.
 
 ### Key Technologies
+
 - **Rust**: Core implementation using Rust 2024 edition (MSRV: 1.85.0)
 - **NAPI**: Node.js bindings for JavaScript/TypeScript usage
 - **WebAssembly**: Browser support
@@ -32,8 +33,8 @@ Rust and `cargo` components `clippy`, `rust-docs` and `rustfmt` has already been
 
 Always run `just ready` as the last step after code has been committed to the repository.
 
-
 ### Common Tasks
+
 ```bash
 just ready     # Run all checks (format, lint, test, build)
 just test      # Run all tests (Rust + Node.js)
@@ -45,6 +46,7 @@ just fmt       # Format code (cargo fmt + dprint)
 ## Code Conventions
 
 ### Rust
+
 - Use Rust 2024 edition features
 - Follow standard Rust formatting (`cargo fmt`)
 - All clippy warnings must be addressed (`cargo clippy -- --deny warnings`)
@@ -52,12 +54,14 @@ just fmt       # Format code (cargo fmt + dprint)
 - Implement `FileSystem` trait for custom file systems
 
 ### Node.js/TypeScript
+
 - Use TypeScript for type definitions (`index.d.ts`)
 - Follow existing API patterns in NAPI bindings
 - Use vitest for testing
 - Support both ESM and CommonJS usage
 
 ### Documentation
+
 - Use rustdoc for Rust APIs
 - Maintain TypeScript definitions for Node.js API
 - Update README.md for significant changes
@@ -66,6 +70,7 @@ just fmt       # Format code (cargo fmt + dprint)
 ## Key APIs
 
 ### Rust
+
 ```rust
 use oxc_resolver::{ResolveOptions, Resolver};
 
@@ -75,6 +80,7 @@ let resolution = resolver.resolve("/path/to/project", "./module");
 ```
 
 ### Node.js
+
 ```javascript
 import resolve, { ResolverFactory } from 'oxc-resolver';
 
@@ -84,13 +90,14 @@ const result = resolve.sync(process.cwd(), './module');
 // Advanced usage
 const resolver = new ResolverFactory({
   conditionNames: ['node', 'import'],
-  extensions: ['.js', '.ts', '.json']
+  extensions: ['.js', '.ts', '.json'],
 });
 ```
 
 ## Testing Strategy
 
 ### Test Categories
+
 1. **Enhanced-resolve compatibility**: Tests ported from webpack/enhanced-resolve
 2. **TypeScript support**: tsconfig-paths functionality
 3. **Yarn PnP**: Plug'n'Play resolution
@@ -98,6 +105,7 @@ const resolver = new ResolverFactory({
 5. **Performance**: Benchmarks against enhanced-resolve
 
 ### Adding Tests
+
 - Add Rust tests in `src/tests/`
 - Add Node.js tests in `napi/`
 - Use existing fixtures in `tests/` directory
@@ -106,6 +114,7 @@ const resolver = new ResolverFactory({
 ## Common Patterns
 
 ### Error Handling
+
 ```rust
 // Use proper error types
 use oxc_resolver::{ResolveError, ResolveErrorKind};
@@ -118,6 +127,7 @@ match resolver.resolve(path, specifier) {
 ```
 
 ### Configuration
+
 ```rust
 // Build options incrementally
 let options = ResolveOptions {
@@ -138,12 +148,14 @@ let options = ResolveOptions {
 ## Debugging
 
 ### Rust
+
 ```bash
 # Enable tracing
 RUST_LOG=oxc_resolver=debug cargo test
 ```
 
 ### Node.js
+
 ```bash
 # Enable tracing
 OXC_LOG=DEBUG node your_program.js
