@@ -1,200 +1,47 @@
 name: Copilot Setup Steps
 
-permissions: {}
+# This workflow defines the setup steps that GitHub Copilot agents will use
+# to prepare the development environment for the oxc project.
+# It preinstalls tools and dependencies needed for Rust and Node.js development.
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
   push:
     branches:
       - main
     paths:
-      - "src/**"
-      - "napi/**"
-      - "examples/**"
-      - "AGENTS.md"
-      - ".github/workflows/copilot-setup-steps.yml"
-  pull_request:
-    paths:
-      - "src/**"
-      - "napi/**"
-      - "examples/**"
-      - "AGENTS.md"
-      - ".github/workflows/copilot-setup-steps.yml"
+      - .github/workflows/copilot-setup-steps.yml
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-defaults:
-  run:
-    shell: bash
+permissions: {}
 
 jobs:
-  setup-ai-context:
-    name: Setup AI Context
+  copilot-setup-steps:
+    name: Setup Development Environment for Copilot
     runs-on: ubuntu-latest
     steps:
-      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      
+      # Checkout full repo for git history.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - uses: oxc-project/setup-rust@cd82e1efec7fef815e2c23d296756f31c7cdc03d # v1.0.0
         with:
-          cache-key: copilot-setup
-          tools: just
-      
+          cache-key: warm
+          save-cache: false
+          tools: just,watchexec-cli,cargo-insta,typos-cli,cargo-shear,dprint
+          components: clippy rust-docs rustfmt
+
+      - uses: oxc-project/setup-node@f42e3bda950c7454575e78ee4eaac880a077700c # v1.0.0
+
       - uses: ./.github/actions/pnpm
 
-      - name: Generate API Documentation
-        run: |
-          # Generate Rust documentation
-          RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features --document-private-items
-          
-          # Create documentation summary for AI assistants
-          echo "# API Documentation Summary" > /tmp/api-summary.md
-          echo "" >> /tmp/api-summary.md
-          echo "## Rust API" >> /tmp/api-summary.md
-          find target/doc -name "*.html" -path "*/oxc_resolver/*" | head -10 | while read file; do
-            echo "- [$(basename "$file" .html)](file://$PWD/$file)" >> /tmp/api-summary.md
-          done
-          
-          echo "" >> /tmp/api-summary.md
-          echo "## Node.js API" >> /tmp/api-summary.md
-          echo "- [TypeScript Definitions](file://$PWD/index.d.ts)" >> /tmp/api-summary.md
-
-      - name: Generate Code Structure Overview
-        run: |
-          echo "# Code Structure Overview" > /tmp/structure.md
-          echo "" >> /tmp/structure.md
-          echo "## Rust Source Files" >> /tmp/structure.md
-          find src -name "*.rs" | head -20 | while read file; do
-            echo "- \`$file\`: $(head -n 5 "$file" | grep -E '^//[^/]' | head -1 | sed 's/^\/\/ *//')" >> /tmp/structure.md
-          done
-          
-          echo "" >> /tmp/structure.md  
-          echo "## Node.js Bindings" >> /tmp/structure.md
-          find napi -name "*.rs" | head -10 | while read file; do
-            echo "- \`$file\`: $(head -n 5 "$file" | grep -E '^//[^/]' | head -1 | sed 's/^\/\/ *//')" >> /tmp/structure.md
-          done
-
-      - name: Extract Key Configuration
-        run: |
-          echo "# Configuration Summary" > /tmp/config.md
-          echo "" >> /tmp/config.md
-          echo "## Cargo.toml" >> /tmp/config.md
-          echo '```toml' >> /tmp/config.md
-          head -30 Cargo.toml >> /tmp/config.md
-          echo '```' >> /tmp/config.md
-          
-          echo "" >> /tmp/config.md
-          echo "## package.json" >> /tmp/config.md
-          echo '```json' >> /tmp/config.md
-          head -30 package.json >> /tmp/config.md
-          echo '```' >> /tmp/config.md
-
-      - name: Generate Test Information
-        run: |
-          echo "# Test Information" > /tmp/tests.md
-          echo "" >> /tmp/tests.md
-          echo "## Test Structure" >> /tmp/tests.md
-          echo "- Rust tests: \`cargo test\`" >> /tmp/tests.md
-          echo "- Node.js tests: \`pnpm test\`" >> /tmp/tests.md
-          echo "- Integration tests in fixtures/" >> /tmp/tests.md
-          echo "" >> /tmp/tests.md
-          echo "## Test Files" >> /tmp/tests.md
-          find src -name "*test*" -o -name "*spec*" | head -10 | while read file; do
-            echo "- \`$file\`" >> /tmp/tests.md
-          done
-
-      - name: Create AI Assistant Context Bundle
-        run: |
-          mkdir -p /tmp/ai-context
-          
-          # Combine all generated information
-          cat /tmp/api-summary.md > /tmp/ai-context/COPILOT_CONTEXT.md
-          echo "" >> /tmp/ai-context/COPILOT_CONTEXT.md
-          cat /tmp/structure.md >> /tmp/ai-context/COPILOT_CONTEXT.md
-          echo "" >> /tmp/ai-context/COPILOT_CONTEXT.md
-          cat /tmp/config.md >> /tmp/ai-context/COPILOT_CONTEXT.md
-          echo "" >> /tmp/ai-context/COPILOT_CONTEXT.md
-          cat /tmp/tests.md >> /tmp/ai-context/COPILOT_CONTEXT.md
-          
-          # Copy key files for AI context
-          cp AGENTS.md /tmp/ai-context/
-          cp README.md /tmp/ai-context/
-          cp CONTRIBUTING.md /tmp/ai-context/
-          
-          # Create a summary
-          echo "Generated AI context bundle with:"
-          ls -la /tmp/ai-context/
-
-      - name: Validate Code Examples
-        run: |
-          # Validate Rust examples compile
-          cargo check --examples
-          
-          # Validate TypeScript definitions
-          if command -v tsc &> /dev/null; then
-            tsc --noEmit index.d.ts
-          fi
-
-      - name: Archive AI Context
-        uses: actions/upload-artifact@v4
+      - name: Restore dprint plugin cache
+        id: cache-restore
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          name: ai-context-bundle
-          path: /tmp/ai-context/
-          retention-days: 30
-
-  validate-agents-md:
-    name: Validate AGENTS.md
-    runs-on: ubuntu-latest
-    steps:
-      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      
-      - name: Check AGENTS.md exists
-        run: |
-          if [ ! -f AGENTS.md ]; then
-            echo "ERROR: AGENTS.md file not found"
-            exit 1
-          fi
-          echo "✓ AGENTS.md exists"
-
-      - name: Validate AGENTS.md structure
-        run: |
-          # Check for required sections
-          required_sections=(
-            "Project Overview"
-            "Development Workflow" 
-            "Code Conventions"
-            "Testing Strategy"
-            "AI Assistant Tips"
-          )
-          
-          for section in "${required_sections[@]}"; do
-            if ! grep -q "$section" AGENTS.md; then
-              echo "WARNING: Missing recommended section: $section"
-            else
-              echo "✓ Found section: $section"
-            fi
-          done
-
-      - name: Check for code examples
-        run: |
-          if grep -q '```rust' AGENTS.md; then
-            echo "✓ Contains Rust code examples"
-          else
-            echo "WARNING: No Rust code examples found"
-          fi
-          
-          if grep -q '```javascript\|```typescript' AGENTS.md; then
-            echo "✓ Contains JavaScript/TypeScript code examples"
-          else
-            echo "WARNING: No JavaScript/TypeScript code examples found"
-          fi
-
-      - name: Lint markdown
-        run: |
-          # Basic markdown validation
-          if command -v markdownlint &> /dev/null; then
-            markdownlint AGENTS.md
-          else
-            echo "markdownlint not available, skipping markdown linting"
-          fi
+          key: dprint-${{ hashFiles('dprint.json') }}
+          path: ~/.cache/dprint

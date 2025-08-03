@@ -26,19 +26,12 @@ oxc-resolver/
 
 ## Development Workflow
 
-### Prerequisites
-```bash
-# Install just (task runner)
-cargo install just
-# Or with cargo-binstall
-cargo binstall just -y
-```
+`just init` has already been run, all tools (`typos-cli`, `cargo-shear`, `dprint`) are already installed, do not run `just init`.
 
-### Setup
-```bash
-just init      # Install development tools
-just install   # Install dependencies (pnpm, yarn for fixtures)
-```
+Rust and `cargo` components `clippy`, `rust-docs` and `rustfmt` has already been installed, do not install them.
+
+Always run `just ready` as the last step after code has been committed to the repository.
+
 
 ### Common Tasks
 ```bash
@@ -48,11 +41,6 @@ just check     # Cargo check with all features
 just lint      # Run clippy with strict settings
 just fmt       # Format code (cargo fmt + dprint)
 ```
-
-### Testing
-- **Rust tests**: `cargo test` and `cargo test --all-features`
-- **Node.js tests**: `node --run test` (uses vitest)
-- **Fixture tests**: Tests in `fixtures/pnp`, `fixtures/global-pnp`, `fixtures/yarn`
 
 ## Code Conventions
 
@@ -111,7 +99,7 @@ const resolver = new ResolverFactory({
 
 ### Adding Tests
 - Add Rust tests in `src/tests/`
-- Add Node.js tests in `napi/` 
+- Add Node.js tests in `napi/`
 - Use existing fixtures in `tests/` directory
 - Ensure tests work on Windows, macOS, and Linux
 
@@ -157,7 +145,7 @@ RUST_LOG=oxc_resolver=debug cargo test
 
 ### Node.js
 ```bash
-# Enable tracing  
+# Enable tracing
 OXC_LOG=DEBUG node your_program.js
 ```
 
