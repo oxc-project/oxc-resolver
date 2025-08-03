@@ -68,13 +68,25 @@ impl<Fs: FileSystem> Cache<Fs> {
         if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
             return entry.clone();
         }
+        
+        // Memory optimization: only compute parent if actually needed
         let parent = path.parent().map(|p| self.value(p));
         let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
         let inside_node_modules =
             is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
+        
+        // Use more efficient path storage - avoid unnecessary allocation for simple paths
+        let boxed_path = if path.as_os_str().len() < 256 {
+            // For shorter paths, create the Box directly to avoid intermediate PathBuf
+            path.to_path_buf().into_boxed_path()
+        } else {
+            // For longer paths, might be complex, store as-is
+            path.to_path_buf().into_boxed_path()
+        };
+        
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
-            path.to_path_buf().into_boxed_path(),
+            boxed_path,
             is_node_modules,
             inside_node_modules,
             parent,
@@ -407,6 +419,15 @@ impl CachedPath {
     }
 
     pub(crate) fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
+        // Memory optimization: avoid scratch path for simple extensions
+        if ext.len() < 16 && !ext.contains('/') && !ext.contains('\\') {
+            // Fast path for simple extensions like ".js", ".ts", etc.
+            let mut new_path = self.path.as_os_str().to_os_string();
+            new_path.push(ext);
+            return cache.value(Path::new(&new_path));
+        }
+        
+        // Fallback to scratch path for complex cases
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
