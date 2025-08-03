@@ -28,8 +28,9 @@ static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
 thread_local! {
     /// Per-thread pre-allocated path that is used to perform operations on paths more quickly.
     /// Learned from parcel <https://github.com/parcel-bundler/parcel/blob/a53f8f3ba1025c7ea8653e9719e0a61ef9717079/crates/parcel-resolver/src/cache.rs#L394>
-  pub static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(256));
-  pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+    /// Optimized: Use smaller initial capacity and allow growth as needed
+    pub static SCRATCH_PATH: RefCell<PathBuf> = RefCell::new(PathBuf::with_capacity(128));
+    pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
 /// Cache implementation used for caching filesystem access.
@@ -46,6 +47,12 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
         self.paths.pin().clear();
         self.tsconfigs.pin().clear();
+        
+        // Force garbage collection of thread-local scratch paths to free memory
+        SCRATCH_PATH.with_borrow_mut(|path| {
+            path.clear();
+            path.shrink_to_fit(); // Release excess capacity
+        });
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -432,17 +439,34 @@ impl CachedPath {
         cache: &Cache<Fs>,
     ) -> Self {
         let subpath = subpath.as_ref();
+        
+        // Fast path optimization: if the subpath doesn't contain normalization components,
+        // we can use simple path joining which is much more memory efficient
+        if !subpath.components().any(|c| matches!(c, Component::CurDir | Component::ParentDir)) {
+            // Simple case: no ".." or "." components, just join directly
+            let joined = self.path.join(subpath);
+            return cache.value(&joined);
+        }
+        
+        // Slow path: need normalization
         let mut components = subpath.components();
         let Some(head) = components.next() else { return cache.value(subpath) };
         if matches!(head, Component::Prefix(..) | Component::RootDir) {
             return cache.value(subpath);
         }
+        
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
+            // Pre-allocate capacity to avoid reallocations during normalization
+            let estimated_size = self.path.as_os_str().len() + subpath.as_os_str().len() + 16;
+            path.reserve(estimated_size);
+            
             path.push(&self.path);
             for component in std::iter::once(head).chain(components) {
                 match component {
-                    Component::CurDir => {}
+                    Component::CurDir => {
+                        // Skip current directory components
+                    }
                     Component::ParentDir => {
                         path.pop();
                     }

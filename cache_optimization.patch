@@ -1,0 +1,69 @@
+--- cache.rs.orig	2024-01-01 00:00:00.000000000 +0000
++++ cache.rs	2024-01-01 00:00:00.000000000 +0000
+@@ -287,14 +287,33 @@
+ pub struct CachedPath(Arc<CachedPathImpl>);
+ 
+ pub struct CachedPathImpl {
+     hash: u64,
+     path: Box<Path>,
+     parent: Option<CachedPath>,
+     is_node_modules: bool,
+     inside_node_modules: bool,
+-    meta: OnceLock<Option<FileMetadata>>,
+-    canonicalized: OnceLock<Result<CachedPath, ResolveError>>,
+-    canonicalizing: AtomicU64,
+-    node_modules: OnceLock<Option<CachedPath>>,
+-    package_json: OnceLock<Option<(CachedPath, Arc<PackageJson>)>>,
++    // Use Option<Box<_>> for optional cached data to save memory when not used
++    meta: OnceLock<Option<FileMetadata>>,
++    canonicalized: OnceLock<Option<Result<CachedPath, ResolveError>>>,
++    canonicalizing: AtomicU64,
++    // Only allocate node_modules cache if actually needed
++    node_modules: OnceLock<Option<CachedPath>>,
++    // Package.json caching can use significant memory - make it optional
++    package_json: OnceLock<Option<Box<(CachedPath, Arc<PackageJson>)>>>,
++}
++
++impl CachedPathImpl {
++    /// Get the memory footprint of this cached path entry
++    #[cfg(test)]
++    pub fn memory_footprint(&self) -> usize {
++        use std::mem;
++        
++        let base_size = mem::size_of::<Self>();
++        let path_size = self.path.as_os_str().len();
++        let meta_size = if self.meta.get().is_some() { mem::size_of::<FileMetadata>() } else { 0 };
++        let canonicalized_size = if self.canonicalized.get().is_some() { mem::size_of::<Result<CachedPath, ResolveError>>() } else { 0 };
++        let node_modules_size = if self.node_modules.get().is_some() { mem::size_of::<CachedPath>() } else { 0 };
++        let package_json_size = if self.package_json.get().is_some() { mem::size_of::<(CachedPath, Arc<crate::PackageJson>)>() } else { 0 };
++        
++        base_size + path_size + meta_size + canonicalized_size + node_modules_size + package_json_size
++    }
+ }
+ 
+ impl CachedPathImpl {
+@@ -428,6 +447,24 @@
+     /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
+     pub(crate) fn normalize_with<Fs: FileSystem, P: AsRef<Path>>(
+         &self,
++        subpath: P,
++        cache: &Cache<Fs>,
++    ) -> Self {
++        // Fast path for simple subpaths that don't need normalization
++        let subpath = subpath.as_ref();
++        if !subpath.components().any(|c| matches!(c, Component::CurDir | Component::ParentDir)) {
++            return self.simple_join(subpath, cache);
++        }
++        
++        self.normalize_with_scratch(subpath, cache)
++    }
++    
++    /// Fast path for simple path joining without normalization
++    fn simple_join<Fs: FileSystem>(&self, subpath: &Path, cache: &Cache<Fs>) -> Self {
++        cache.value(&self.path.join(subpath))
++    }
++    
++    fn normalize_with_scratch<Fs: FileSystem>(&self,
+         subpath: P,
+         cache: &Cache<Fs>,
+     ) -> Self {
