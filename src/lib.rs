@@ -1180,7 +1180,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     continue;
                 }
                 alias_key
-            } else if alias_key_raw.contains('*') {
+            } else if alias_key_raw.bytes().any(|b| b == b'*') {
                 alias_key_has_wildcard = true;
                 alias_key_raw
             } else {

@@ -128,7 +128,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                     package_json_path.clone()
                 };
                 PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
-                    .map(|package_json| Some((path.clone(), (Arc::new(package_json)))))
+                    .map(|package_json| Some((path.clone(), Arc::new(package_json))))
                     .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
             })
             .cloned();
@@ -140,11 +140,13 @@ impl<Fs: FileSystem> Cache<Fs> {
             Ok(None) => {
                 // Avoid an allocation by making this lazy
                 if let Some(deps) = &mut ctx.missing_dependencies {
+                    // Reuse the path from the closure to avoid extra join
                     deps.push(path.path.join("package.json"));
                 }
             }
             Err(_) => {
                 if let Some(deps) = &mut ctx.file_dependencies {
+                    // Reuse the path from the closure to avoid extra join
                     deps.push(path.path.join("package.json"));
                 }
             }

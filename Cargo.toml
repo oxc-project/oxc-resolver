@@ -40,6 +40,10 @@ doctest = false
 name = "resolver"
 harness = false
 
+[[bench]]
+name = "path_operations"
+harness = false
+
 [lints.clippy]
 all = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }

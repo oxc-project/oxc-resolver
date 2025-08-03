@@ -3,4 +3,5 @@ target/
 /node_modules
 /napi/node_modules
 /fixtures/pnpm/node_modules
+/fixtures/yarn/node_modules
 fuzz/Cargo.lock
