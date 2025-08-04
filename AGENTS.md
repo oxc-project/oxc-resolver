@@ -100,7 +100,7 @@ const resolver = new ResolverFactory({
 
 1. **Enhanced-resolve compatibility**: Tests ported from webpack/enhanced-resolve
 2. **TypeScript support**: tsconfig-paths functionality
-3. **Yarn PnP**: Plug'n'Play resolution
+3. **Yarn Plug'n'Play** resolution
 4. **Node.js compatibility**: ESM/CJS resolution behavior
 5. **Performance**: Benchmarks against enhanced-resolve
 
