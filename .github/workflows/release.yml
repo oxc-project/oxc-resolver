@@ -27,7 +27,7 @@ jobs:
           token: ${{ secrets.OXC_BOT_PAT }}
           persist-credentials: true # required by release-plz
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: changes
         with:
           filters: |
@@ -35,7 +35,7 @@ jobs:
               - 'Cargo.toml'
               - '**/Cargo.toml'
 
-      - uses: rust-lang/crates-io-auth-action@v1
+      - uses: rust-lang/crates-io-auth-action@e919bc7605cde86df457cf5b93c5e103838bd879 # v1.0.1
         if: steps.changes.outputs.src == 'true'
         id: auth
 
