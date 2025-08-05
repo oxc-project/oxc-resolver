@@ -246,20 +246,20 @@ test('resolve pnpm package', () => {
     styledComponents.path,
     join(
       pnpmDir,
-      'styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components/dist/styled-components.browser.cjs.js',
+      'styled-components@6.1.17_react-dom@19.1.1_react@19.1.1__react@19.1.1/node_modules/styled-components/dist/styled-components.browser.cjs.js',
     ),
   );
 
   const react = resolver.sync(
     join(
       pnpmDir,
-      'styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/styled-components',
+      'styled-components@6.1.17_react-dom@19.1.1_react@19.1.1__react@19.1.1/node_modules/styled-components',
     ),
     'react',
   );
   assert.deepEqual(
     react.path,
-    join(pnpmDir, 'react@19.1.0/node_modules/react/index.js'),
+    join(pnpmDir, 'react@19.1.1/node_modules/react/index.js'),
   );
 });
 
@@ -274,6 +274,6 @@ test('resolve recursive symbol link', () => {
 
   assert.deepEqual(
     react.path,
-    join(pnpmDir, 'react@19.1.0/node_modules/react/package.json'),
+    join(pnpmDir, 'react@19.1.1/node_modules/react/package.json'),
   );
 });
