@@ -22,9 +22,9 @@ doctest = false
 [dependencies]
 oxc_resolver = { workspace = true }
 
-fancy-regex = { version = "^0.16.0", default-features = false, features = ["std"] }
-napi = { version = "3.0.0", default-features = false, features = ["napi3", "serde-json"] }
-napi-derive = { version = "3.0.0" }
+fancy-regex = { version = "^0.16.1", default-features = false, features = ["std"] }
+napi = { version = "3", default-features = false, features = ["napi3", "serde-json"] }
+napi-derive = { version = "3" }
 tracing-subscriber = { version = "0.3.19", optional = true, default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
 
 [target.'cfg(not(any(target_os = "linux", target_os = "freebsd", target_arch = "arm", target_family = "wasm")))'.dependencies]
@@ -37,7 +37,7 @@ mimalloc-safe = { version = "0.1.54", optional = true, features = ["skip_collect
 mimalloc-safe = { version = "0.1.54", optional = true, features = ["skip_collect_on_exit", "local_dynamic_tls", "no_opt_arch"] }
 
 [build-dependencies]
-napi-build = "2.2.2"
+napi-build = "2.2.3"
 
 [features]
 default = ["tracing-subscriber", "yarn_pnp"]
