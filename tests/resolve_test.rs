@@ -24,7 +24,7 @@ fn styled_components() {
     let module_path = dir
         .join("node_modules")
         .join(".pnpm")
-        .join("styled-components@6.1.17_react-dom@19.1.0_react@19.1.0__react@19.1.0")
+        .join("styled-components@6.1.17_react-dom@19.1.1_react@19.1.1__react@19.1.1")
         .join("node_modules")
         .join("styled-components");
     let specifier = "styled-components";
