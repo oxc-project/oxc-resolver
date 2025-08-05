@@ -34,6 +34,7 @@ jobs:
             src:
               - 'Cargo.toml'
               - '**/Cargo.toml'
+              - '.github/workflows/release.yml'
 
       - uses: rust-lang/crates-io-auth-action@e919bc7605cde86df457cf5b93c5e103838bd879 # v1.0.1
         if: steps.changes.outputs.src == 'true'
@@ -43,6 +44,7 @@ jobs:
         id: release-plz
         env:
           GITHUB_TOKEN: ${{ secrets.OXC_BOT_PAT }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
       - name: Bump package.json
         if: ${{ steps.release-plz.outputs.prs_created }}
