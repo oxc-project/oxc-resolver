@@ -712,16 +712,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.resolve_to_context {
             return Ok(self.cache.is_dir(cached_path, ctx).then(|| cached_path.clone()));
         }
-        
+
         // Optimization: for paths ending with slash, skip file check
         let should_check_file = !specifier.ends_with('/');
-        
+
         if should_check_file {
             if let Some(path) = self.load_as_file(cached_path, ctx)? {
                 return Ok(Some(path));
             }
         }
-        
+
         // Check directory once and cache the result
         if self.cache.is_dir(cached_path, ctx) {
             if let Some(path) = self.load_as_directory(cached_path, ctx)? {
@@ -830,11 +830,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let path_has_alias_potential = self.options.alias.iter().any(|(alias_key, _)| {
                 // Quick check: if alias key is longer than path, it can't match
                 // Also check if alias looks like it could match this path type
-                alias_key.len() <= path_os_str.len() && 
-                (alias_key.starts_with('/') == path_os_str.as_encoded_bytes().starts_with(&[b'/']) ||
-                 alias_key.contains('\\') == path_os_str.as_encoded_bytes().contains(&b'\\'))
+                alias_key.len() <= path_os_str.len()
+                    && (alias_key.starts_with('/')
+                        == path_os_str.as_encoded_bytes().starts_with(&[b'/'])
+                        || alias_key.contains('\\')
+                            == path_os_str.as_encoded_bytes().contains(&b'\\'))
             });
-            
+
             if path_has_alias_potential {
                 let alias_specifier = cached_path.path().to_string_lossy();
                 if let Some(path) =
@@ -2036,24 +2038,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         debug_assert!(key_a.ends_with('/') || key_a.match_indices('*').count() == 1, "{key_a}");
         // 2. Assert: keyB ends with "/" or contains only a single "*".
         debug_assert!(key_b.ends_with('/') || key_b.match_indices('*').count() == 1, "{key_b}");
-        
+
         // Optimize: check for wildcard once and cache the results
         let a_has_star = key_a.contains('*');
         let b_has_star = key_b.contains('*');
-        
+
         // 3. Let baseLengthA be the index of "*" in keyA plus one, if keyA contains "*", or the length of keyA otherwise.
-        let base_length_a = if a_has_star {
-            key_a.find('*').unwrap() + 1
-        } else {
-            key_a.len()
-        };
+        let base_length_a = if a_has_star { key_a.find('*').unwrap() + 1 } else { key_a.len() };
         // 4. Let baseLengthB be the index of "*" in keyB plus one, if keyB contains "*", or the length of keyB otherwise.
-        let base_length_b = if b_has_star {
-            key_b.find('*').unwrap() + 1
-        } else {
-            key_b.len()
-        };
-        
+        let base_length_b = if b_has_star { key_b.find('*').unwrap() + 1 } else { key_b.len() };
+
         // 5. If baseLengthA is greater than baseLengthB, return -1.
         if base_length_a > base_length_b {
             return Ordering::Less;
