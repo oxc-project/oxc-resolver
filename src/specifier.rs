@@ -37,14 +37,15 @@ impl<'a> Specifier<'a> {
         let mut fragment_start: Option<usize> = None;
 
         let mut prev = specifier.chars().next().unwrap();
-        let mut escaped_indexes = vec![];
+        // Optimize for the common case: most specifiers don't have escaped characters
+        let mut escaped_indexes: Option<Vec<usize>> = None;
         for (i, c) in specifier.char_indices().skip(skip) {
             if c == '?' && query_start.is_none() {
                 query_start = Some(i);
             }
             if c == '#' {
                 if prev == '\0' {
-                    escaped_indexes.push(i - 1);
+                    escaped_indexes.get_or_insert_with(Vec::new).push(i - 1);
                 } else {
                     fragment_start = Some(i);
                     break;
@@ -63,17 +64,14 @@ impl<'a> Specifier<'a> {
             _ => (specifier, None, None),
         };
 
-        let path = if escaped_indexes.is_empty() {
-            Cow::Borrowed(path)
-        } else {
-            // Remove the `\0` characters for a legal path.
+        let path = escaped_indexes.map_or(Cow::Borrowed(path), |escaped_indexes| {
             Cow::Owned(
                 path.chars()
                     .enumerate()
                     .filter_map(|(i, c)| (!escaped_indexes.contains(&i)).then_some(c))
                     .collect::<String>(),
             )
-        };
+        });
 
         (path, query, fragment)
     }
