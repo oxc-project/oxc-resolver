@@ -712,11 +712,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.resolve_to_context {
             return Ok(self.cache.is_dir(cached_path, ctx).then(|| cached_path.clone()));
         }
-        if !specifier.ends_with('/') {
+        
+        // Optimization: for paths ending with slash, skip file check
+        let should_check_file = !specifier.ends_with('/');
+        
+        if should_check_file {
             if let Some(path) = self.load_as_file(cached_path, ctx)? {
                 return Ok(Some(path));
             }
         }
+        
+        // Check directory once and cache the result
         if self.cache.is_dir(cached_path, ctx) {
             if let Some(path) = self.load_as_directory(cached_path, ctx)? {
                 return Ok(Some(path));
@@ -817,12 +823,25 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         // enhanced-resolve: try file as alias
         // Guard this because this is on a hot path, and `.to_string_lossy()` has a cost.
+        // Only perform alias check if aliases exist and path could be a file path
         if !self.options.alias.is_empty() {
-            let alias_specifier = cached_path.path().to_string_lossy();
-            if let Some(path) =
-                self.load_alias(cached_path, &alias_specifier, &self.options.alias, ctx)?
-            {
-                return Ok(Some(path));
+            // Fast path: most projects don't use file path aliases, so check path format first
+            let path_os_str = cached_path.path().as_os_str();
+            let path_has_alias_potential = self.options.alias.iter().any(|(alias_key, _)| {
+                // Quick check: if alias key is longer than path, it can't match
+                // Also check if alias looks like it could match this path type
+                alias_key.len() <= path_os_str.len() && 
+                (alias_key.starts_with('/') == path_os_str.as_encoded_bytes().starts_with(&[b'/']) ||
+                 alias_key.contains('\\') == path_os_str.as_encoded_bytes().contains(&b'\\'))
+            });
+            
+            if path_has_alias_potential {
+                let alias_specifier = cached_path.path().to_string_lossy();
+                if let Some(path) =
+                    self.load_alias(cached_path, &alias_specifier, &self.options.alias, ctx)?
+                {
+                    return Ok(Some(path));
+                }
             }
         }
         Ok(None)
@@ -2017,12 +2036,24 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         debug_assert!(key_a.ends_with('/') || key_a.match_indices('*').count() == 1, "{key_a}");
         // 2. Assert: keyB ends with "/" or contains only a single "*".
         debug_assert!(key_b.ends_with('/') || key_b.match_indices('*').count() == 1, "{key_b}");
+        
+        // Optimize: check for wildcard once and cache the results
+        let a_has_star = key_a.contains('*');
+        let b_has_star = key_b.contains('*');
+        
         // 3. Let baseLengthA be the index of "*" in keyA plus one, if keyA contains "*", or the length of keyA otherwise.
-        let a_pos = key_a.chars().position(|c| c == '*');
-        let base_length_a = a_pos.map_or(key_a.len(), |p| p + 1);
+        let base_length_a = if a_has_star {
+            key_a.find('*').unwrap() + 1
+        } else {
+            key_a.len()
+        };
         // 4. Let baseLengthB be the index of "*" in keyB plus one, if keyB contains "*", or the length of keyB otherwise.
-        let b_pos = key_b.chars().position(|c| c == '*');
-        let base_length_b = b_pos.map_or(key_b.len(), |p| p + 1);
+        let base_length_b = if b_has_star {
+            key_b.find('*').unwrap() + 1
+        } else {
+            key_b.len()
+        };
+        
         // 5. If baseLengthA is greater than baseLengthB, return -1.
         if base_length_a > base_length_b {
             return Ordering::Less;
@@ -2032,11 +2063,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ordering::Greater;
         }
         // 7. If keyA does not contain "*", return 1.
-        if !key_a.contains('*') {
+        if !a_has_star {
             return Ordering::Greater;
         }
         // 8. If keyB does not contain "*", return -1.
-        if !key_b.contains('*') {
+        if !b_has_star {
             return Ordering::Less;
         }
         // 9. If the length of keyA is greater than the length of keyB, return -1.
