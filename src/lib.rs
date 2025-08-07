@@ -2018,10 +2018,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 2. Assert: keyB ends with "/" or contains only a single "*".
         debug_assert!(key_b.ends_with('/') || key_b.match_indices('*').count() == 1, "{key_b}");
         // 3. Let baseLengthA be the index of "*" in keyA plus one, if keyA contains "*", or the length of keyA otherwise.
-        let a_pos = key_a.chars().position(|c| c == '*');
+        let a_pos = key_a.bytes().position(|c| c == b'*');
         let base_length_a = a_pos.map_or(key_a.len(), |p| p + 1);
         // 4. Let baseLengthB be the index of "*" in keyB plus one, if keyB contains "*", or the length of keyB otherwise.
-        let b_pos = key_b.chars().position(|c| c == '*');
+        let b_pos = key_b.bytes().position(|c| c == b'*');
         let base_length_b = b_pos.map_or(key_b.len(), |p| p + 1);
         // 5. If baseLengthA is greater than baseLengthB, return -1.
         if base_length_a > base_length_b {
@@ -2032,11 +2032,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ordering::Greater;
         }
         // 7. If keyA does not contain "*", return 1.
-        if !key_a.contains('*') {
+        if a_pos.is_none() {
             return Ordering::Greater;
         }
         // 8. If keyB does not contain "*", return -1.
-        if !key_b.contains('*') {
+        if b_pos.is_none() {
             return Ordering::Less;
         }
         // 9. If the length of keyA is greater than the length of keyB, return -1.
