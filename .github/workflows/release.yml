@@ -21,7 +21,7 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           fetch-depth: 0
           token: ${{ secrets.OXC_BOT_PAT }}
@@ -40,7 +40,7 @@ jobs:
         if: steps.changes.outputs.src == 'true'
         id: auth
 
-      - uses: release-plz/action@ccf6dd998441f26020f4315f1ebe95d9e2e42600 # v0.5.110
+      - uses: release-plz/action@f9715bc3b46e211f764f4440a221ddb89ae8abb3 # v0.5.112
         id: release-plz
         env:
           GITHUB_TOKEN: ${{ secrets.OXC_BOT_PAT }}
