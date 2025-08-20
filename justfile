@@ -1,5 +1,8 @@
 #!/usr/bin/env -S just --justfile
 
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+set shell := ["bash", "-cu"]
+
 _default:
   @just --list -u
 
@@ -14,9 +17,9 @@ init:
 
 install:
   pnpm install
-  cd fixtures/pnp && yarn
-  cd fixtures/global-pnp && yarn
-  cd fixtures/yarn && yarn
+  cd fixtures/pnp; yarn
+  cd fixtures/global-pnp; yarn
+  cd fixtures/yarn; yarn
 
 # When ready, run the same CI commands
 ready:
@@ -59,7 +62,7 @@ test:
   cargo test --all-features
   node --run build
   node --run test
-  cd fixtures/pnp && yarn test
+  cd fixtures/pnp; yarn test
 
 # Lint the whole project
 lint:
@@ -79,7 +82,7 @@ benchmark:
 
 # Run cargo-fuzz
 fuzz:
-  cd fuzz && cargo +nightly fuzz run --sanitizer none resolver -- -only_ascii=1 -max_total_time=900
+  cd fuzz; cargo +nightly fuzz run --sanitizer none resolver -- -only_ascii=1 -max_total_time=900
 
 # Manual Release
 release:
