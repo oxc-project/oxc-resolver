@@ -816,6 +816,7 @@ dependencies = [
  "tracing",
  "url",
  "vfs",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

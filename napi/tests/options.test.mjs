@@ -2,18 +2,19 @@ import * as path from 'node:path';
 import { assert, describe, it } from 'vitest';
 
 import { ResolverFactory } from '../index.js';
+import { normalizePath } from './utils.mjs';
 
-const fixtureDir = new URL(
+const fixtureDir = path.resolve(
+  import.meta.dirname,
   '../../fixtures/enhanced_resolve/test/fixtures',
-  import.meta.url,
-).pathname;
+);
 
 describe('option', () => {
   describe('aliasFields', () => {
     it('should allow field string ', () => {
       const resolver = new ResolverFactory({ aliasFields: ['browser'] });
       assert.match(
-        resolver.sync(fixtureDir, './browser-module/lib/replaced.js').path,
+        normalizePath(resolver.sync(fixtureDir, './browser-module/lib/replaced.js').path),
         /browser-module\/lib\/browser\.js$/,
       );
     });
@@ -23,7 +24,7 @@ describe('option', () => {
       });
 
       assert.match(
-        resolver.sync(fixtureDir, './browser-module/lib/main1.js').path,
+        normalizePath(resolver.sync(fixtureDir, './browser-module/lib/main1.js').path),
         /browser-module\/lib\/main\.js$/,
       );
     });
@@ -33,10 +34,12 @@ describe('option', () => {
     const createTest = (exportsFields) => {
       const resolver = new ResolverFactory({ exportsFields });
       assert.match(
-        resolver.sync(
-          path.resolve(fixtureDir, './exports-field3'),
-          'exports-field',
-        ).path,
+        normalizePath(
+          resolver.sync(
+            path.resolve(fixtureDir, './exports-field3'),
+            'exports-field',
+          ).path,
+        ),
         /\/exports-field\/src\/index\.js$/,
       );
     };
@@ -48,7 +51,7 @@ describe('option', () => {
     const createTest = (mainFields) => {
       const resolver = new ResolverFactory({ mainFields });
       assert.match(
-        resolver.sync(fixtureDir, '../..').path,
+        normalizePath(resolver.sync(fixtureDir, '../..').path),
         /\/lib\/index\.js$/,
       );
     };

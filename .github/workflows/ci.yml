@@ -47,7 +47,6 @@ jobs:
       - uses: ./.github/actions/pnpm
       - run: cargo check --all-features --locked
       - run: just test
-        if: ${{ matrix.os  != 'windows-latest' }}
 
   lint:
     name: Lint
