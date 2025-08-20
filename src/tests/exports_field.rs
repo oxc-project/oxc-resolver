@@ -38,6 +38,8 @@ fn test_simple() {
         // only test query and fragment.
         ("resolver should respect query parameters #1", f2.clone(), "exports-field/dist/main.js?foo", f2.join("node_modules/exports-field/lib/lib2/main.js?foo")),
         ("resolver should respect fragment parameters #1", f2.clone(), "exports-field/dist/main.js#foo", f2.join("node_modules/exports-field/lib/lib2/main.js#foo")),
+        ("resolver should respect query parameters #2. Direct matching", f2.clone(), "exports-field?foo", f2.join("node_modules/exports-field/index.js?foo")),
+        ("resolver should respect fragment parameters #2. Direct matching", f2.clone(), "exports-field#foo", f2.join("node_modules/exports-field/index.js#foo")),
         ("relative path should work, if relative path as request is used", f.clone(), "./node_modules/exports-field/lib/main.js", f.join("node_modules/exports-field/lib/main.js")),
         ("self-resolving root", f.clone(), "@exports-field/core", f.join("a.js")),
         ("should resolve with wildcard pattern #1", f5.clone(), "m/features/f.js", f5.join("node_modules/m/src/features/f.js")),
@@ -60,15 +62,12 @@ fn test_simple() {
     }
 
     let p = f.join("node_modules/exports-field/package.json");
-    let p2 = f2.join("node_modules/exports-field/package.json");
     let p4 = f4.join("node_modules/exports-field/package.json");
     let p5 = f5.join("node_modules/m/package.json");
 
     #[rustfmt::skip]
     let fail = [
         // ("throw error if extension not provided", f2.clone(), "exports-field/dist/main", ResolveError::NotFound(f2.join("node_modules/exports-field/lib/lib2/main"))),
-        ("resolver should respect query parameters #2. Direct matching", f2.clone(), "exports-field?foo", ResolveError::PackagePathNotExported("./?foo".into(), p2.clone())),
-        ("resolver should respect fragment parameters #2. Direct matching", f2, "exports-field#foo", ResolveError::PackagePathNotExported("./#foo".into(), p2)),
         ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound("./node_modules/exports-field/dist/main.js".into())),
         ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget("./lib/../../../a.js".to_string(), "./dist/".to_string(), p.clone())),
         ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget("./../../a.js".to_string(), "./dist/a.js".to_string(), p.clone())),

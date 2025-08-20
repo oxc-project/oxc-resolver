@@ -1609,17 +1609,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 2. If subpath is equal to ".", then
         // Note: subpath is not prepended with a dot when passed in.
         if subpath == "." {
-            // enhanced-resolve appends query and fragment when resolving exports field
-            // https://github.com/webpack/enhanced-resolve/blob/a998c7d218b7a9ec2461fc4fddd1ad5dd7687485/lib/ExportsFieldPlugin.js#L57-L62
-            // This is only need when querying the main export, otherwise ctx is passed through.
-            if ctx.query.is_some() || ctx.fragment.is_some() {
-                let query = ctx.query.clone().unwrap_or_default();
-                let fragment = ctx.fragment.clone().unwrap_or_default();
-                return Err(ResolveError::PackagePathNotExported(
-                    format!("./{}{query}{fragment}", subpath.trim_start_matches('.')),
-                    package_url.path().join("package.json"),
-                ));
-            }
             // 1. Let mainExport be undefined.
             let main_export = match exports.kind() {
                 // 2. If exports is a String or Array, or an Object containing no keys starting with ".", then
