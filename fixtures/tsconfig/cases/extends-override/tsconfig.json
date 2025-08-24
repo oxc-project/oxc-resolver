@@ -1,0 +1,7 @@
+{
+  "extends": "./base-tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "target": "ES2020"
+  }
+}
