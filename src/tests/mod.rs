@@ -23,6 +23,7 @@ mod roots;
 mod scoped_packages;
 mod simple;
 mod symlink;
+mod tsconfig_extends;
 mod tsconfig_paths;
 mod tsconfig_project_references;
 #[cfg(target_os = "windows")]

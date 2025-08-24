@@ -1,0 +1,6 @@
+{
+  "extends": "./base-tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022"
+  }
+}

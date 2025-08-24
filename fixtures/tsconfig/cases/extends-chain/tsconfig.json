@@ -1,0 +1,6 @@
+{
+  "extends": "./intermediate-tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext"
+  }
+}
