@@ -4,7 +4,11 @@
     "allowJs": true,
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "jsx": "react-jsx",
+    "jsxFactory": "React.createElement",
+    "jsxFragmentFactory": "React.Fragment",
+    "jsxImportSource": "react"
   },
   "files": ["files"],
   "include": ["include"],

@@ -32,6 +32,11 @@ fn test_extend_tsconfig() {
     assert_eq!(compiler_options.emit_decorator_metadata, Some(true));
     assert_eq!(compiler_options.use_define_for_class_fields, Some(true));
     assert_eq!(compiler_options.rewrite_relative_import_extensions, Some(true));
+
+    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
+    assert_eq!(compiler_options.jsx_factory, Some("React.createElement".to_string()));
+    assert_eq!(compiler_options.jsx_fragment_factory, Some("React.Fragment".to_string()));
+    assert_eq!(compiler_options.jsx_import_source, Some("react".to_string()));
 }
 
 #[test]
@@ -70,28 +75,6 @@ fn test_extend_tsconfig_override_behavior() {
     // Child should override parent values
     assert_eq!(compiler_options.jsx, Some("react".to_string()));
     assert_eq!(compiler_options.target, Some("ES2020".to_string()));
-}
-
-#[test]
-fn test_extend_tsconfig_jsx_options() {
-    let f = super::fixture_root().join("tsconfig/cases/extends-jsx");
-
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        }),
-        ..ResolveOptions::default()
-    });
-
-    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
-    let compiler_options = resolution.compiler_options();
-
-    // Should inherit all JSX-related options
-    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
-    assert_eq!(compiler_options.jsx_factory, Some("React.createElement".to_string()));
-    assert_eq!(compiler_options.jsx_fragment_factory, Some("React.Fragment".to_string()));
-    assert_eq!(compiler_options.jsx_import_source, Some("react".to_string()));
 }
 
 #[test]
