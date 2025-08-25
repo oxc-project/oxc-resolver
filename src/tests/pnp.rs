@@ -209,3 +209,17 @@ fn resolve_global_cache() {
             .join("source-map.js")),
     );
 }
+
+#[test]
+fn test_resolve_tsconfig_extends_with_pnp() {
+    let fixture = super::fixture_root().join("pnp");
+    let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixture.clone()),
+        yarn_pnp: true,
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(&fixture).expect("resolved");
+    let compiler_options = resolution.compiler_options();
+    assert_eq!(compiler_options.target, Some("esnext".to_string()));
+}

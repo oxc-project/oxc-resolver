@@ -1502,6 +1502,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 .clone_with_options(ResolveOptions {
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig.json".into()],
+                    #[cfg(feature = "yarn_pnp")]
+                    yarn_pnp: self.options.yarn_pnp,
+                    #[cfg(feature = "yarn_pnp")]
+                    cwd: self.options.cwd.clone(),
                     ..ResolveOptions::default()
                 })
                 .load_package_self_or_node_modules(directory, specifier, &mut Ctx::default())
