@@ -28,6 +28,15 @@ pub struct TsConfig {
     pub path: PathBuf,
 
     #[serde(default)]
+    pub files: Option<Vec<String>>,
+
+    #[serde(default)]
+    pub include: Option<Vec<String>>,
+
+    #[serde(default)]
+    pub exclude: Option<Vec<String>>,
+
+    #[serde(default)]
     pub extends: Option<ExtendsField>,
 
     #[serde(default)]
@@ -135,9 +144,26 @@ impl TsConfig {
     /// Inherits settings from the given tsconfig into `self`.
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
-        let compiler_options = self.compiler_options_mut();
+        if self.files.is_none() {
+            if let Some(files) = &tsconfig.files {
+                self.files = Some(files.clone());
+            }
+        }
+
+        if self.include.is_none() {
+            if let Some(include) = &tsconfig.include {
+                self.include = Some(include.clone());
+            }
+        }
+
+        if self.exclude.is_none() {
+            if let Some(exclude) = &tsconfig.exclude {
+                self.exclude = Some(exclude.clone());
+            }
+        }
 
         let tsconfig_dir = tsconfig.directory();
+        let compiler_options = self.compiler_options_mut();
 
         if compiler_options.base_url().is_none() {
             if let Some(base_url) = tsconfig.compiler_options().base_url() {

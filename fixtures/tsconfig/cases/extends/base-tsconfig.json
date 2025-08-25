@@ -5,5 +5,8 @@
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": true,
     "rewriteRelativeImportExtensions": true
-  }
+  },
+  "files": ["files"],
+  "include": ["include"],
+  "exclude": ["exclude"]
 }
