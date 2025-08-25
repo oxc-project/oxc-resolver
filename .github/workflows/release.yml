@@ -50,8 +50,6 @@ jobs:
         with:
           cache-key: warm
       - uses: ./.github/actions/pnpm
-      - name: update napi/index.js
-        run: pnpm run build
 
       - name: Bump package.json
         if: ${{ steps.release-plz.outputs.prs_created }}
@@ -69,6 +67,7 @@ jobs:
 
             jq --arg version "${version}" '.version = ($version) | .scripts.postinstall = "napi-postinstall oxc-resolver \($version) check"' package.json > tmp
             mv tmp package.json
+            pnpm build
 
             gh pr checkout $pr_number
             git add .
