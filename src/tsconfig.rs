@@ -133,6 +133,7 @@ impl TsConfig {
     }
 
     /// Inherits settings from the given tsconfig into `self`.
+    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
         let compiler_options = self.compiler_options_mut();
 
@@ -168,6 +169,31 @@ impl TsConfig {
                 tsconfig.compiler_options().experimental_decorators()
             {
                 compiler_options.set_experimental_decorators(*experimental_decorators);
+            }
+        }
+
+        if compiler_options.emit_decorator_metadata.is_none() {
+            if let Some(emit_decorator_metadata) =
+                tsconfig.compiler_options().emit_decorator_metadata()
+            {
+                compiler_options.set_emit_decorator_metadata(*emit_decorator_metadata);
+            }
+        }
+
+        if compiler_options.use_define_for_class_fields.is_none() {
+            if let Some(use_define_for_class_fields) =
+                tsconfig.compiler_options().use_define_for_class_fields()
+            {
+                compiler_options.set_use_define_for_class_fields(*use_define_for_class_fields);
+            }
+        }
+
+        if compiler_options.rewrite_relative_import_extensions.is_none() {
+            if let Some(rewrite_relative_import_extensions) =
+                tsconfig.compiler_options().rewrite_relative_import_extensions()
+            {
+                compiler_options
+                    .set_rewrite_relative_import_extensions(*rewrite_relative_import_extensions);
             }
         }
 
@@ -475,15 +501,35 @@ impl CompilerOptions {
         self.experimental_decorators = Some(experimental_decorators);
     }
 
-    // /// Whether to emit decorator metadata.
-    // fn emit_decorator_metadata(&self) -> Option<&bool> {
-    //     self.emit_decorator_metadata.as_ref()
-    // }
+    /// Whether to emit decorator metadata.
+    fn emit_decorator_metadata(&self) -> Option<&bool> {
+        self.emit_decorator_metadata.as_ref()
+    }
 
-    // /// Sets whether to emit decorator metadata.
-    // fn set_emit_decorator_metadata(&mut self, emit_decorator_metadata: bool) {
-    //     self.emit_decorator_metadata = Some(emit_decorator_metadata);
-    // }
+    /// Sets whether to emit decorator metadata.
+    fn set_emit_decorator_metadata(&mut self, emit_decorator_metadata: bool) {
+        self.emit_decorator_metadata = Some(emit_decorator_metadata);
+    }
+
+    /// Whether to use define for class fields.
+    fn use_define_for_class_fields(&self) -> Option<&bool> {
+        self.use_define_for_class_fields.as_ref()
+    }
+
+    /// Sets whether to use define for class fields.
+    fn set_use_define_for_class_fields(&mut self, use_define_for_class_fields: bool) {
+        self.use_define_for_class_fields = Some(use_define_for_class_fields);
+    }
+
+    /// Whether to rewrite relative import extensions.
+    fn rewrite_relative_import_extensions(&self) -> Option<&bool> {
+        self.rewrite_relative_import_extensions.as_ref()
+    }
+
+    /// Sets whether to rewrite relative import extensions.
+    fn set_rewrite_relative_import_extensions(&mut self, rewrite_relative_import_extensions: bool) {
+        self.rewrite_relative_import_extensions = Some(rewrite_relative_import_extensions);
+    }
 
     /// JSX.
     fn jsx(&self) -> Option<&str> {

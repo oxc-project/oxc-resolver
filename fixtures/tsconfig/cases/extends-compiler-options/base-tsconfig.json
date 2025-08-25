@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": true,
+    "rewriteRelativeImportExtensions": true
+  }
+}

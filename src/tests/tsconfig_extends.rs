@@ -8,8 +8,8 @@ use std::path::Path;
 use crate::{ResolveOptions, Resolver, TsConfig, TsconfigOptions, TsconfigReferences};
 
 #[test]
-fn test_extend_tsconfig_base_url() {
-    let f = super::fixture_root().join("tsconfig/cases/extends-base-url");
+fn test_extend_tsconfig_compiler_options() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-compiler-options");
 
     let resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigOptions {
@@ -22,8 +22,11 @@ fn test_extend_tsconfig_base_url() {
     let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
     let compiler_options = resolution.compiler_options();
 
-    // Should inherit baseUrl from parent
+    // Should inherit compilerOptions from parent
     assert_eq!(compiler_options.base_url, Some(f.join("src")));
+    assert_eq!(compiler_options.emit_decorator_metadata, Some(true));
+    assert_eq!(compiler_options.use_define_for_class_fields, Some(true));
+    assert_eq!(compiler_options.rewrite_relative_import_extensions, Some(true));
 }
 
 #[test]
