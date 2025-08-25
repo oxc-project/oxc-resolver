@@ -257,6 +257,12 @@ impl TsConfig {
                 compiler_options.set_module(module.to_string());
             }
         }
+
+        if compiler_options.allow_js().is_none() {
+            if let Some(allow_js) = tsconfig.compiler_options().allow_js() {
+                compiler_options.set_allow_js(*allow_js);
+            }
+        }
     }
     /// "Build" the root tsconfig, resolve:
     ///
@@ -449,6 +455,9 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#module>
     pub module: Option<String>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#allowJs>
+    pub allow_js: Option<bool>,
 }
 
 impl CompilerOptions {
@@ -619,6 +628,16 @@ impl CompilerOptions {
     /// Sets the module.
     fn set_module(&mut self, module: String) {
         self.module = Some(module);
+    }
+
+    /// Whether to allow js.
+    fn allow_js(&self) -> Option<&bool> {
+        self.allow_js.as_ref()
+    }
+
+    /// Sets whether to allow js.
+    fn set_allow_js(&mut self, allow_js: bool) {
+        self.allow_js = Some(allow_js);
     }
 }
 

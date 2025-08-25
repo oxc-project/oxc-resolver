@@ -24,6 +24,7 @@ fn test_extend_tsconfig_compiler_options() {
 
     // Should inherit compilerOptions from parent
     assert_eq!(compiler_options.base_url, Some(f.join("src")));
+    assert_eq!(compiler_options.allow_js, Some(true));
     assert_eq!(compiler_options.emit_decorator_metadata, Some(true));
     assert_eq!(compiler_options.use_define_for_class_fields, Some(true));
     assert_eq!(compiler_options.rewrite_relative_import_extensions, Some(true));
