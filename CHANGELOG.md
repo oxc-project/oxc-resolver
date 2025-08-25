@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.7.0](https://github.com/oxc-project/oxc-resolver/compare/v11.6.2...v11.7.0) - 2025-08-25
+
+### <!-- 0 -->🚀 Features
+
+- *(tsconfig)* support `files` / `include` / `exclude` ([#659](https://github.com/oxc-project/oxc-resolver/pull/659)) (by @shulaoda)
+- feat(tsconfig) support `allowJs` in `compilerOptions` ([#658](https://github.com/oxc-project/oxc-resolver/pull/658)) (by @shulaoda) - #658
+- *(tsconfig)* complete inheritance of `compilerOptions` fields ([#657](https://github.com/oxc-project/oxc-resolver/pull/657)) (by @shulaoda)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- *(tsconfig)* respect Yarn PnP when resolving `extends` paths ([#656](https://github.com/oxc-project/oxc-resolver/pull/656)) (by @shulaoda)
+
+### <!-- 6 -->🧪 Testing
+
+- *(tsconfig)* tweak jsx `extends` tests ([#666](https://github.com/oxc-project/oxc-resolver/pull/666)) (by @shulaoda)
+
+### <!-- 9 -->💼 Other
+
+- Add comprehensive tests for tsconfig extends functionality ([#660](https://github.com/oxc-project/oxc-resolver/pull/660)) (by @Copilot) - #660
+
+### Contributors
+
+* @shulaoda
+* @renovate[bot]
+* @Copilot
+
 ## [11.6.2](https://github.com/oxc-project/oxc-resolver/compare/v11.6.1...v11.6.2) - 2025-08-20
 
 ### <!-- 1 -->🐛 Bug Fixes
