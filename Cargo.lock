@@ -358,17 +358,6 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "fancy-regex"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e24cb5a94bcae1e5408b0effca5cd7172ea3c5755049c5f3af4cd283a165298"
-dependencies = [
- "bit-set",
- "regex-automata",
- "regex-syntax",
-]
-
-[[package]]
-name = "fancy-regex"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf04c5ec15464ace8355a7b440a33aece288993475556d461154d7a62ad9947c"
@@ -799,7 +788,7 @@ dependencies = [
  "criterion2",
  "dirs",
  "document-features",
- "fancy-regex 0.16.1",
+ "fancy-regex",
  "indexmap",
  "json-strip-comments",
  "normalize-path",
@@ -823,7 +812,7 @@ dependencies = [
 name = "oxc_resolver_napi"
 version = "11.7.0"
 dependencies = [
- "fancy-regex 0.16.1",
+ "fancy-regex",
  "mimalloc-safe",
  "napi",
  "napi-build",
@@ -874,14 +863,14 @@ checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 
 [[package]]
 name = "pnp"
-version = "0.12.1"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab3167cbab15e437e9c7db8a4cf613eb4a77583d4327a8964d50fedd6cf364bd"
+checksum = "e001eb06e9523653f2a88adb94e286ef5d7acfe64158b21bf57a6f6bc3ba65ca"
 dependencies = [
  "byteorder",
  "clean-path",
  "concurrent_lru",
- "fancy-regex 0.14.0",
+ "fancy-regex",
  "miniz_oxide",
  "path-slash",
  "pathdiff",
