@@ -3,7 +3,7 @@
   "version": "11.7.1",
   "license": "MIT",
   "description": "Oxc Resolver Node API",
-  "packageManager": "pnpm@10.15.0",
+  "packageManager": "pnpm@10.14.0",
   "homepage": "https://oxc.rs",
   "repository": {
     "type": "git",
