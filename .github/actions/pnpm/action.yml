@@ -23,7 +23,7 @@ runs:
 
     - if: ${{ inputs.cpu }}
       shell: bash
-      run: echo "\nsupportedArchitectures:\n  cpu:\n    - ${CPU_ARCH}" >> pnpm-workspace.yaml
+      run: node -e 'console.log(`\nsupportedArchitectures:\n  cpu:\n    - ${process.env.CPU_ARCH}`)' >> pnpm-workspace.yaml
       env:
         CPU_ARCH: ${{ inputs.cpu }}
 
