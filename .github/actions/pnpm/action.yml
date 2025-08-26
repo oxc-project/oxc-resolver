@@ -23,7 +23,7 @@ runs:
 
     - if: ${{ inputs.cpu }}
       shell: bash
-      run: pnpm config set supportedArchitectures.cpu "${CPU_ARCH}"
+      run: echo "\nsupportedArchitectures:\n  cpu:\n    - ${CPU_ARCH}" >> pnpm-workspace.yaml
       env:
         CPU_ARCH: ${{ inputs.cpu }}
 
