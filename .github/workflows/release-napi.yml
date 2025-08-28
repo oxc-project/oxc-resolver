@@ -215,6 +215,8 @@ jobs:
         with:
           path: artifacts
 
+      - run: npm install -g npm@latest # For trusted publishing support
+
       - name: Prepare dirs and artifacts
         run: |
           cp package.json napi/package.json
@@ -222,11 +224,8 @@ jobs:
           pnpm napi artifacts --npm-dir npm --build-output-dir napi
 
       - name: Publish npm packages as latest
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          # Using trusted publishing, no token is required.
           pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
 
           # Publish root package
