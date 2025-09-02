@@ -58,7 +58,7 @@ jobs:
           components: clippy rust-docs
       - run: cargo clippy --all-features --all-targets -- -D warnings
       - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
-      - uses: crate-ci/typos@65f69f021b736bdbe548ce72200500752d42b40e # v1.35.7
+      - uses: crate-ci/typos@b78a177368828715fce2264a81367bfc04e46e10 # v1.36.0
         with:
           files: .
 
