@@ -104,7 +104,7 @@ rayon = { version = "1.10.0" }
 vfs = "0.12.2" # for testing with in memory file system
 
 [target.'cfg(target_os = "windows")'.dev-dependencies]
-windows-sys = { version = "0.60.2", features = ["Win32_Storage", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61.0", features = ["Win32_Storage", "Win32_Storage_FileSystem"] }
 
 [features]
 default = []
