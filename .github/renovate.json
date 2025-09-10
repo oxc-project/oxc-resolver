@@ -1,5 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>Boshen/renovate"],
-  "ignorePaths": ["**/node_modules/**", "**/fixtures/**"]
+  "ignorePaths": ["**/node_modules/**", "**/fixtures/**"],
+  "packageRules": [
+    {
+      "groupName": "pnp",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["pnp"],
+      "rangeStrategy": "auto",
+      "schedule": ["at any time"],
+      "automergeSchedule": ["at any time"]
+    }
+  ]
 }
