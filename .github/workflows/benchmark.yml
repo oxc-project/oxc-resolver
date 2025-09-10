@@ -45,4 +45,5 @@ jobs:
         timeout-minutes: 30
         with:
           run: cargo codspeed run
+          mode: instrumentation
           token: ${{ secrets.CODSPEED_TOKEN }}
