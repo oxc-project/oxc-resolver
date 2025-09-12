@@ -94,6 +94,13 @@ impl FileMetadata {
     }
 }
 
+#[cfg(target_os = "windows")]
+impl From<crate::windows::SymlinkMetadata> for FileMetadata {
+    fn from(value: crate::windows::SymlinkMetadata) -> Self {
+        Self::new(value.is_file, value.is_dir, value.is_symlink)
+    }
+}
+
 #[cfg(feature = "yarn_pnp")]
 impl From<pnp::fs::FileType> for FileMetadata {
     fn from(value: pnp::fs::FileType) -> Self {
@@ -139,7 +146,18 @@ impl FileSystemOs {
     /// See [std::fs::metadata]
     #[inline]
     pub fn metadata(path: &Path) -> io::Result<FileMetadata> {
-        fs::metadata(path).map(FileMetadata::from)
+        #[cfg(target_os = "windows")]
+        {
+            let result = crate::windows::symlink_metadata(path)?;
+            if result.is_symlink {
+                return fs::metadata(path).map(FileMetadata::from);
+            }
+            Ok(result.into())
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            fs::metadata(path).map(FileMetadata::from)
+        }
     }
 
     /// # Errors
@@ -147,7 +165,14 @@ impl FileSystemOs {
     /// See [std::fs::symlink_metadata]
     #[inline]
     pub fn symlink_metadata(path: &Path) -> io::Result<FileMetadata> {
-        fs::symlink_metadata(path).map(FileMetadata::from)
+        #[cfg(target_os = "windows")]
+        {
+            Ok(crate::windows::symlink_metadata(path)?.into())
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            fs::symlink_metadata(path).map(FileMetadata::from)
+        }
     }
 
     /// # Errors

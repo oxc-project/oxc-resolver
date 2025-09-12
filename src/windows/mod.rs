@@ -1,5 +1,9 @@
 use std::path::PathBuf;
 
+mod metadata;
+
+pub use metadata::{SymlinkMetadata, symlink_metadata};
+
 use crate::ResolveError;
 
 /// When applicable, converts a [DOS device path](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths)
