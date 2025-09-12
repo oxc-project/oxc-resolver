@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.7.2](https://github.com/oxc-project/oxc-resolver/compare/v11.7.1...v11.7.2) - 2025-09-12
+
+### <!-- 4 -->⚡ Performance
+
+- use `GetFileAttributesExW` for symlink metadata lookup on Windows ([#691](https://github.com/oxc-project/oxc-resolver/pull/691)) (by @sapphi-red) - #691
+
+### Contributors
+
+* @sapphi-red
+* @renovate[bot]
+
 ## [11.7.0](https://github.com/oxc-project/oxc-resolver/compare/v11.6.2...v11.7.0) - 2025-08-25
 
 ### <!-- 0 -->🚀 Features
