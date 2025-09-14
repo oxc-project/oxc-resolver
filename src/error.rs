@@ -126,7 +126,7 @@ impl ResolveError {
     }
 
     #[must_use]
-    pub fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
+    pub fn from_simd_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
         Self::Json(JSONError {
             path,
             message: error.to_string(),
@@ -143,7 +143,7 @@ pub enum SpecifierError {
     Empty(String),
 }
 
-/// JSON error from [serde_json::Error]
+/// JSON error from [serde_json::Error] (using simd_json backend)
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JSONError {
     pub path: PathBuf,

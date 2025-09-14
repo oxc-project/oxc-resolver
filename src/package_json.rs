@@ -7,6 +7,7 @@ use std::{
 };
 
 use serde_json::Value as JSONValue;
+use serde::de::Error as SerdeError;
 
 use crate::{ResolveError, path::PathUtil};
 
@@ -209,7 +210,9 @@ impl PackageJson {
     /// # Errors
     pub fn parse(path: PathBuf, realpath: PathBuf, json: &str) -> Result<Self, serde_json::Error> {
         let json = json.trim_start_matches("\u{feff}"); // strip bom
-        let mut raw_json: JSONValue = serde_json::from_str(json)?;
+        let mut json_str = json.to_string();
+        let mut raw_json: JSONValue = unsafe { simd_json::serde::from_str(&mut json_str) }
+            .map_err(|e| serde_json::Error::custom(e.to_string()))?;
         let mut package_json = Self::default();
 
         if let Some(json_object) = raw_json.as_object_mut() {

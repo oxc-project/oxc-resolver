@@ -12,8 +12,8 @@ fn incorrect_description_file_1() {
     let resolution = Resolver::default().resolve_with_context(f.join("pack1"), ".", &mut ctx);
     let error = ResolveError::Json(JSONError {
         path: f.join("pack1/package.json"),
-        message: String::from("EOF while parsing a value at line 3 column 0"),
-        line: 3,
+        message: String::from("Syntax at character 20 (',')"),
+        line: 0,
         column: 0,
     });
     assert_eq!(resolution, Err(error));
@@ -28,8 +28,8 @@ fn incorrect_description_file_2() {
     let resolution = Resolver::default().resolve(f.join("pack2"), ".");
     let error = ResolveError::Json(JSONError {
         path: f.join("pack2/package.json"),
-        message: String::from("EOF while parsing a value at line 1 column 0"),
-        line: 1,
+        message: String::from("Eof at character 0"),
+        line: 0,
         column: 0,
     });
     assert_eq!(resolution, Err(error));

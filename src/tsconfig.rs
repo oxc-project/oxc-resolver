@@ -8,6 +8,7 @@ use std::{
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
+use serde::de::Error as SerdeError;
 
 use crate::{TsconfigReferences, path::PathUtil};
 
@@ -712,12 +713,13 @@ impl TsConfig {
     ///
     /// # Errors
     ///
-    /// * Any error that can be returned by `serde_json::from_str()`.
+    /// * Any error that can be returned by `simd_json::serde::from_str()`.
     pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
         _ = json_strip_comments::strip(json);
-        let mut tsconfig: Self =
-            serde_json::from_str(if json.trim().is_empty() { "{}" } else { json })?;
+        let mut json_string = if json.trim().is_empty() { "{}".to_string() } else { json.to_string() };
+        let mut tsconfig: Self = unsafe { simd_json::serde::from_str(&mut json_string) }
+            .map_err(|e| serde_json::Error::custom(e.to_string()))?;
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)
