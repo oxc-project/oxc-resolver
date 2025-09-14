@@ -40,7 +40,7 @@ jobs:
         if: steps.changes.outputs.src == 'true'
         id: auth
 
-      - uses: release-plz/action@d15ad33e74a427cbd6f5be06f1bec07c1a73a227 # v0.5.114
+      - uses: release-plz/action@acb9246af4d59a270d1d4058a8b9af8c3f3a2559 # v0.5.117
         id: release-plz
         env:
           GITHUB_TOKEN: ${{ secrets.OXC_BOT_PAT }}

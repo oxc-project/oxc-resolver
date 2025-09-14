@@ -41,7 +41,7 @@ jobs:
         env:
           RUSTFLAGS: "-C debuginfo=1 -C strip=none"
 
-      - uses: CodSpeedHQ/action@6eeb021fd0f305388292348b775d96d95253adf4 # v4.0.0
+      - uses: CodSpeedHQ/action@653fdc30e6c40ffd9739e40c8a0576f4f4523ca1 # v4.0.1
         timeout-minutes: 30
         with:
           run: cargo codspeed run
