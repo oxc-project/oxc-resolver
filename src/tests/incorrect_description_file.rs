@@ -12,7 +12,7 @@ fn incorrect_description_file_1() {
     let resolution = Resolver::default().resolve_with_context(f.join("pack1"), ".", &mut ctx);
     let error = ResolveError::Json(JSONError {
         path: f.join("pack1").join("package.json"),
-        message: String::from("Syntax at character 20 (',')"),
+        message: String::from("Syntax at character 21 (',')"),
         line: 0,
         column: 0,
     });
