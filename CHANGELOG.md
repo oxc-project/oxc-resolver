@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.8.0](https://github.com/oxc-project/oxc-resolver/compare/v11.7.2...v11.8.0) - 2025-09-15
+
+### <!-- 0 -->🚀 Features
+
+- add benchmark for package.json deserialization ([#698](https://github.com/oxc-project/oxc-resolver/pull/698)) (by @Boshen) - #698
+
+### <!-- 4 -->⚡ Performance
+
+- use `memmap` to speed up file reading ([#696](https://github.com/oxc-project/oxc-resolver/pull/696)) (by @Boshen) - #696
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.7.2](https://github.com/oxc-project/oxc-resolver/compare/v11.7.1...v11.7.2) - 2025-09-12
 
 ### <!-- 4 -->⚡ Performance
