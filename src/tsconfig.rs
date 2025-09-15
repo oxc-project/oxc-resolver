@@ -18,6 +18,7 @@ pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefa
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::unsafe_derive_deserialize)]
 pub struct TsConfig {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
@@ -717,7 +718,9 @@ impl TsConfig {
     pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
         let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
         _ = json_strip_comments::strip(json);
-        let mut json_string = if json.trim().is_empty() { "{}".to_string() } else { json.to_string() };
+        let mut json_string = if json.trim().is_empty() { "{}".to_string() } else { (*json).to_string() };
+        // SAFETY: simd_json::serde::from_str requires a mutable string reference 
+        // but doesn't actually mutate the content in unsafe ways that would affect memory safety
         let mut tsconfig: Self = unsafe { simd_json::serde::from_str(&mut json_string) }
             .map_err(|e| serde_json::Error::custom(e.to_string()))?;
         tsconfig.root = root;
