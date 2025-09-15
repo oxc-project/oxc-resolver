@@ -202,13 +202,13 @@ fn bench_resolver(c: &mut Criterion) {
 
 fn bench_package_json_deserialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("package_json_deserialization");
-    
+
     // Prepare different sizes of package.json content
     let small_json = r##"{
         "name": "test-package",
         "version": "1.0.0"
     }"##;
-    
+
     let medium_json = r##"{
         "name": "test-package",
         "version": "1.0.0",
@@ -226,7 +226,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
         },
         "sideEffects": false
     }"##;
-    
+
     let large_json = r##"{
         "name": "test-package",
         "version": "1.0.0",
@@ -272,43 +272,45 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
             "lint": "eslint src"
         }
     }"##;
-    
+
     // Load real complex package.json from fixtures
-    let complex_json_path = env::current_dir().unwrap()
+    let complex_json_path = env::current_dir()
+        .unwrap()
         .join("fixtures/enhanced_resolve/test/fixtures/browser-module/package.json");
-    let complex_json = fs::read_to_string(&complex_json_path).expect("Failed to read complex package.json");
-    
+    let complex_json =
+        fs::read_to_string(&complex_json_path).expect("Failed to read complex package.json");
+
     let test_path = PathBuf::from("/test/package.json");
     let test_realpath = test_path.clone();
-    
+
     group.bench_function("small", |b| {
         b.iter(|| {
             PackageJson::parse(test_path.clone(), test_realpath.clone(), small_json)
                 .expect("Failed to parse small JSON");
         });
     });
-    
+
     group.bench_function("medium", |b| {
         b.iter(|| {
             PackageJson::parse(test_path.clone(), test_realpath.clone(), medium_json)
                 .expect("Failed to parse medium JSON");
         });
     });
-    
+
     group.bench_function("large", |b| {
         b.iter(|| {
             PackageJson::parse(test_path.clone(), test_realpath.clone(), large_json)
                 .expect("Failed to parse large JSON");
         });
     });
-    
+
     group.bench_function("complex_real", |b| {
         b.iter(|| {
             PackageJson::parse(test_path.clone(), test_realpath.clone(), &complex_json)
                 .expect("Failed to parse complex JSON");
         });
     });
-    
+
     // Benchmark batch parsing (simulating resolver cache warming)
     let package_jsons = vec![small_json, medium_json, large_json, &complex_json];
     group.bench_function("batch_4_files", |b| {
@@ -320,7 +322,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
             }
         });
     });
-    
+
     // Benchmark parallel parsing
     group.bench_function("parallel_batch_4_files", |b| {
         b.iter(|| {
@@ -331,7 +333,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
             });
         });
     });
-    
+
     group.finish();
 }
 
