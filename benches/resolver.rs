@@ -311,29 +311,6 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
         });
     });
 
-    // Benchmark batch parsing (simulating resolver cache warming)
-    let package_jsons = vec![small_json, medium_json, large_json, &complex_json];
-    group.bench_function("batch_4_files", |b| {
-        b.iter(|| {
-            for (i, json) in package_jsons.iter().enumerate() {
-                let path = PathBuf::from(format!("/test/package{i}.json"));
-                PackageJson::parse(path.clone(), path, json)
-                    .expect("Failed to parse JSON in batch");
-            }
-        });
-    });
-
-    // Benchmark parallel parsing
-    group.bench_function("parallel_batch_4_files", |b| {
-        b.iter(|| {
-            package_jsons.par_iter().enumerate().for_each(|(i, json)| {
-                let path = PathBuf::from(format!("/test/package{i}.json"));
-                PackageJson::parse(path.clone(), path, json)
-                    .expect("Failed to parse JSON in parallel");
-            });
-        });
-    });
-
     group.finish();
 }
 
