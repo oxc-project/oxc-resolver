@@ -9,7 +9,7 @@ use std::{
 use serde::de::Error as SerdeError;
 use serde_json::Value as JSONValue;
 
-use crate::{ResolveError, path::PathUtil};
+use crate::{ResolveError, path::PathUtil, util::replace_bom_with_whitespace};
 
 pub type JSONMap = serde_json::Map<String, JSONValue>;
 
@@ -214,6 +214,7 @@ impl PackageJson {
         json: String,
     ) -> Result<Self, serde_json::Error> {
         let mut json = json;
+        replace_bom_with_whitespace(&mut json);
         // let mut json_str = json.to_string();
         // SAFETY: simd_json::serde::from_str requires a mutable string reference
         // but doesn't actually mutate the content in unsafe ways that would affect memory safety

@@ -59,6 +59,7 @@ mod resolution;
 mod specifier;
 mod tsconfig;
 mod tsconfig_context;
+mod util;
 #[cfg(target_os = "windows")]
 mod windows;
 

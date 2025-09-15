@@ -10,7 +10,7 @@ use rustc_hash::FxHasher;
 use serde::Deserialize;
 use serde::de::Error as SerdeError;
 
-use crate::{TsconfigReferences, path::PathUtil};
+use crate::{TsconfigReferences, path::PathUtil, util::replace_bom_with_whitespace};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}";
 
@@ -717,6 +717,7 @@ impl TsConfig {
     /// * Any error that can be returned by `simd_json::serde::from_str()`.
     pub fn parse(root: bool, path: &Path, json: String) -> Result<Self, serde_json::Error> {
         let mut json = json;
+        replace_bom_with_whitespace(&mut json);
         _ = json_strip_comments::strip(&mut json);
         let mut json_string =
             if json.trim().is_empty() { "{}".to_string() } else { (*json).to_string() };
