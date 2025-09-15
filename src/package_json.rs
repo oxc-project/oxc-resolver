@@ -6,8 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use serde_json::Value as JSONValue;
 use serde::de::Error as SerdeError;
+use serde_json::Value as JSONValue;
 
 use crate::{ResolveError, path::PathUtil};
 
@@ -211,7 +211,7 @@ impl PackageJson {
     pub fn parse(path: PathBuf, realpath: PathBuf, json: &str) -> Result<Self, serde_json::Error> {
         let json = json.trim_start_matches("\u{feff}"); // strip bom
         let mut json_str = json.to_string();
-        // SAFETY: simd_json::serde::from_str requires a mutable string reference 
+        // SAFETY: simd_json::serde::from_str requires a mutable string reference
         // but doesn't actually mutate the content in unsafe ways that would affect memory safety
         let mut raw_json: JSONValue = unsafe { simd_json::serde::from_str(&mut json_str) }
             .map_err(|e| serde_json::Error::custom(e.to_string()))?;
