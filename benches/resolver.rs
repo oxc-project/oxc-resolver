@@ -5,6 +5,7 @@ use std::{
 };
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use oxc_resolver::PackageJson;
 use rayon::prelude::*;
 
 fn data() -> Vec<(PathBuf, &'static str)> {
@@ -199,5 +200,140 @@ fn bench_resolver(c: &mut Criterion) {
     );
 }
 
-criterion_group!(resolver, bench_resolver);
+fn bench_package_json_deserialization(c: &mut Criterion) {
+    let mut group = c.benchmark_group("package_json_deserialization");
+    
+    // Prepare different sizes of package.json content
+    let small_json = r##"{
+        "name": "test-package",
+        "version": "1.0.0"
+    }"##;
+    
+    let medium_json = r##"{
+        "name": "test-package",
+        "version": "1.0.0",
+        "main": "./lib/index.js",
+        "type": "module",
+        "exports": {
+            ".": "./lib/index.js",
+            "./feature": "./lib/feature.js"
+        },
+        "imports": {
+            "#internal": "./src/internal.js"
+        },
+        "browser": {
+            "./lib/node.js": "./lib/browser.js"
+        },
+        "sideEffects": false
+    }"##;
+    
+    let large_json = r##"{
+        "name": "test-package",
+        "version": "1.0.0",
+        "main": "./lib/index.js",
+        "type": "module",
+        "exports": {
+            ".": {
+                "import": "./lib/index.mjs",
+                "require": "./lib/index.cjs",
+                "browser": "./lib/browser.js"
+            },
+            "./feature": {
+                "import": "./lib/feature.mjs",
+                "require": "./lib/feature.cjs"
+            },
+            "./utils": "./lib/utils.js",
+            "./internal/*": "./lib/internal/*.js"
+        },
+        "imports": {
+            "#internal": "./src/internal.js",
+            "#utils/*": "./src/utils/*.js"
+        },
+        "browser": {
+            "./lib/node.js": "./lib/browser.js",
+            "module-a": "./browser/module-a.js",
+            "module-b": "module-c",
+            "./lib/replaced.js": "./lib/browser"
+        },
+        "sideEffects": ["*.css", "*.scss"],
+        "dependencies": {
+            "lodash": "^4.17.21",
+            "react": "^18.0.0",
+            "express": "^4.18.0"
+        },
+        "devDependencies": {
+            "typescript": "^5.0.0",
+            "eslint": "^8.0.0",
+            "jest": "^29.0.0"
+        },
+        "scripts": {
+            "test": "jest",
+            "build": "tsc",
+            "lint": "eslint src"
+        }
+    }"##;
+    
+    // Load real complex package.json from fixtures
+    let complex_json_path = env::current_dir().unwrap()
+        .join("fixtures/enhanced_resolve/test/fixtures/browser-module/package.json");
+    let complex_json = fs::read_to_string(&complex_json_path).expect("Failed to read complex package.json");
+    
+    let test_path = PathBuf::from("/test/package.json");
+    let test_realpath = test_path.clone();
+    
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), small_json)
+                .expect("Failed to parse small JSON");
+        });
+    });
+    
+    group.bench_function("medium", |b| {
+        b.iter(|| {
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), medium_json)
+                .expect("Failed to parse medium JSON");
+        });
+    });
+    
+    group.bench_function("large", |b| {
+        b.iter(|| {
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), large_json)
+                .expect("Failed to parse large JSON");
+        });
+    });
+    
+    group.bench_function("complex_real", |b| {
+        b.iter(|| {
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), &complex_json)
+                .expect("Failed to parse complex JSON");
+        });
+    });
+    
+    // Benchmark batch parsing (simulating resolver cache warming)
+    let package_jsons = vec![small_json, medium_json, large_json, &complex_json];
+    group.bench_function("batch_4_files", |b| {
+        b.iter(|| {
+            for (i, json) in package_jsons.iter().enumerate() {
+                let path = PathBuf::from(format!("/test/package{}.json", i));
+                PackageJson::parse(path.clone(), path, json)
+                    .expect("Failed to parse JSON in batch");
+            }
+        });
+    });
+    
+    // Benchmark parallel parsing
+    group.bench_function("parallel_batch_4_files", |b| {
+        b.iter(|| {
+            package_jsons.par_iter().enumerate().for_each(|(i, json)| {
+                let path = PathBuf::from(format!("/test/package{}.json", i));
+                PackageJson::parse(path.clone(), path, json)
+                    .expect("Failed to parse JSON in parallel");
+            });
+        });
+    });
+    
+    group.finish();
+}
+
+criterion_group!(resolver, bench_resolver, bench_package_json_deserialization);
 criterion_main!(resolver);

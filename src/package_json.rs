@@ -203,9 +203,11 @@ impl PackageJson {
         Ok(None)
     }
 
+    /// Parse a package.json file from JSON string
+    /// 
     /// # Panics
     /// # Errors
-    pub(crate) fn parse(
+    pub fn parse(
         path: PathBuf,
         realpath: PathBuf,
         json: &str,
