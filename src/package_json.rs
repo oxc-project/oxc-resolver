@@ -203,13 +203,11 @@ impl PackageJson {
         Ok(None)
     }
 
+    /// Parse a package.json file from JSON string
+    ///
     /// # Panics
     /// # Errors
-    pub(crate) fn parse(
-        path: PathBuf,
-        realpath: PathBuf,
-        json: &str,
-    ) -> Result<Self, serde_json::Error> {
+    pub fn parse(path: PathBuf, realpath: PathBuf, json: &str) -> Result<Self, serde_json::Error> {
         let json = json.trim_start_matches("\u{feff}"); // strip bom
         let mut raw_json: JSONValue = serde_json::from_str(json)?;
         let mut package_json = Self::default();
