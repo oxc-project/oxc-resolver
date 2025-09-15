@@ -4,6 +4,8 @@ use std::{
 };
 
 use cfg_if::cfg_if;
+#[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
+use memmap2::Mmap;
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
@@ -124,13 +126,17 @@ pub struct FileSystemOs {
 }
 
 impl FileSystemOs {
+    /// Memory-mapped file reading threshold in bytes
+    #[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
+    const MMAP_THRESHOLD: u64 = 4096;
+
+    /// Validates UTF-8 encoding and converts bytes to String
+    ///
     /// # Errors
     ///
-    /// See [std::fs::read_to_string]
-    pub fn read_to_string(path: &Path) -> io::Result<String> {
-        // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
-        let bytes = std::fs::read(path)?;
-        if simdutf8::basic::from_utf8(&bytes).is_err() {
+    /// Returns an error if the bytes are not valid UTF-8
+    fn validate_and_convert_utf8(bytes: &[u8]) -> io::Result<String> {
+        if simdutf8::basic::from_utf8(bytes).is_err() {
             // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -138,7 +144,49 @@ impl FileSystemOs {
             ));
         }
         // SAFETY: `simdutf8` has ensured it's a valid UTF-8 string
-        Ok(unsafe { String::from_utf8_unchecked(bytes) })
+        Ok(unsafe { std::str::from_utf8_unchecked(bytes) }.to_string())
+    }
+
+    /// # Errors
+    ///
+    /// See [std::fs::read_to_string]
+    pub fn read_to_string(path: &Path) -> io::Result<String> {
+        #[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
+        {
+            let file = std::fs::File::open(path)?;
+            let metadata = file.metadata()?;
+
+            // Use memory mapping for files >= 4KB, standard read for smaller files
+            if metadata.len() >= Self::MMAP_THRESHOLD {
+                return Self::read_to_string_mmap(&file);
+            }
+        }
+        Self::read_to_string_standard(path)
+    }
+
+    /// Standard file reading implementation using std::fs::read
+    ///
+    /// # Errors
+    ///
+    /// See [std::fs::read_to_string]
+    pub fn read_to_string_standard(path: &Path) -> io::Result<String> {
+        // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
+        let bytes = std::fs::read(path)?;
+        Self::validate_and_convert_utf8(&bytes)
+    }
+
+    /// Memory-mapped file reading implementation
+    ///
+    /// # Errors
+    ///
+    /// See [std::fs::read_to_string] and [memmap2::Mmap::map]
+    #[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
+    fn read_to_string_mmap(file: &std::fs::File) -> io::Result<String> {
+        // SAFETY: memmap2::Mmap::map requires that the file remains valid and unmutated
+        // for the lifetime of the mmap. Since we're doing read-only access and the file
+        // won't be modified during this function's execution, this is safe.
+        let mmap = unsafe { Mmap::map(file)? };
+        Self::validate_and_convert_utf8(&mmap[..])
     }
 
     /// # Errors
