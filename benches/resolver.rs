@@ -284,53 +284,30 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     let test_realpath = test_path.clone();
 
     group.bench_function("small", |b| {
+        let small_json = small_json.to_string();
         b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), small_json)
-                .expect("Failed to parse small JSON");
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), small_json).unwrap()
         });
     });
 
     group.bench_function("medium", |b| {
+        let medium_json = medium_json.to_string();
         b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), medium_json)
-                .expect("Failed to parse medium JSON");
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), medium_json).unwrap()
         });
     });
 
     group.bench_function("large", |b| {
+        let large_json = large_json.to_string();
         b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), large_json)
-                .expect("Failed to parse large JSON");
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), large_json).unwrap()
         });
     });
 
     group.bench_function("complex_real", |b| {
+        let complex_json = complex_json.to_string();
         b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), &complex_json)
-                .expect("Failed to parse complex JSON");
-        });
-    });
-
-    // Benchmark batch parsing (simulating resolver cache warming)
-    let package_jsons = vec![small_json, medium_json, large_json, &complex_json];
-    group.bench_function("batch_4_files", |b| {
-        b.iter(|| {
-            for (i, json) in package_jsons.iter().enumerate() {
-                let path = PathBuf::from(format!("/test/package{i}.json"));
-                PackageJson::parse(path.clone(), path, json)
-                    .expect("Failed to parse JSON in batch");
-            }
-        });
-    });
-
-    // Benchmark parallel parsing
-    group.bench_function("parallel_batch_4_files", |b| {
-        b.iter(|| {
-            package_jsons.par_iter().enumerate().for_each(|(i, json)| {
-                let path = PathBuf::from(format!("/test/package{i}.json"));
-                PackageJson::parse(path.clone(), path, json)
-                    .expect("Failed to parse JSON in parallel");
-            });
+            PackageJson::parse(test_path.clone(), test_realpath.clone(), complex_json).unwrap()
         });
     });
 

@@ -85,7 +85,7 @@ papaya = "0.2"
 rustc-hash = { version = "2" }
 serde = { version = "1", features = ["derive"] } # derive for Deserialize from package.json
 serde_json = { version = "1", features = ["preserve_order"] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
-simd-json = { version = "0.16", features = ["serde_impl"] } # serde_impl: provides serde compatibility
+simd-json = { version = "0.16", features = ["serde_impl", "known-key"] }
 simdutf8 = { version = "0.1" }
 thiserror = "2"
 tracing = "0.1"

@@ -715,9 +715,9 @@ impl TsConfig {
     /// # Errors
     ///
     /// * Any error that can be returned by `simd_json::serde::from_str()`.
-    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
-        let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
-        _ = json_strip_comments::strip(json);
+    pub fn parse(root: bool, path: &Path, json: String) -> Result<Self, serde_json::Error> {
+        let mut json = json;
+        _ = json_strip_comments::strip(&mut json);
         let mut json_string =
             if json.trim().is_empty() { "{}".to_string() } else { (*json).to_string() };
         // SAFETY: simd_json::serde::from_str requires a mutable string reference
@@ -727,14 +727,5 @@ impl TsConfig {
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)
-    }
-}
-
-fn trim_start_matches_mut(s: &mut str, pat: char) -> &mut str {
-    if s.starts_with(pat) {
-        // trim the prefix
-        &mut s[pat.len_utf8()..]
-    } else {
-        s
     }
 }
