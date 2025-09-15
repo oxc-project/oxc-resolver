@@ -101,6 +101,32 @@ fn create_symlinks() -> io::Result<PathBuf> {
     Ok(temp_path)
 }
 
+fn create_large_files() -> io::Result<PathBuf> {
+    let temp_dir = env::temp_dir().join("oxc_resolver_large_files_bench");
+    if temp_dir.exists() {
+        return Ok(temp_dir);
+    }
+    
+    fs::create_dir_all(&temp_dir)?;
+    
+    // Create files of different sizes for benchmarking
+    let sizes = vec![
+        (1024, "1kb.txt"),          // 1KB
+        (10 * 1024, "10kb.txt"),    // 10KB 
+        (100 * 1024, "100kb.txt"),  // 100KB
+        (1024 * 1024, "1mb.txt"),   // 1MB
+        (5 * 1024 * 1024, "5mb.txt"), // 5MB
+    ];
+    
+    for (size, filename) in sizes {
+        let file_path = temp_dir.join(filename);
+        let content = "a".repeat(size);
+        fs::write(&file_path, content)?;
+    }
+    
+    Ok(temp_dir)
+}
+
 fn oxc_resolver() -> oxc_resolver::Resolver {
     use oxc_resolver::{AliasValue, ResolveOptions, Resolver};
     let alias_value = AliasValue::from("./");
@@ -199,5 +225,61 @@ fn bench_resolver(c: &mut Criterion) {
     );
 }
 
+fn bench_large_file_reading(c: &mut Criterion) {
+    use oxc_resolver::FileSystemOs;
+    
+    let large_files_dir = create_large_files().expect("Failed to create large files for benchmarking");
+    
+    let test_files = vec![
+        ("1kb.txt", "1KB"),
+        ("10kb.txt", "10KB"), 
+        ("100kb.txt", "100KB"),
+        ("1mb.txt", "1MB"),
+        ("5mb.txt", "5MB"),
+    ];
+    
+    let mut group = c.benchmark_group("large_file_reading");
+    
+    for (filename, size_label) in test_files {
+        let file_path = large_files_dir.join(filename);
+        
+        // Benchmark oxc_resolver's optimized read_to_string
+        group.bench_with_input(
+            BenchmarkId::new("oxc_read_to_string", size_label),
+            &file_path,
+            |b, path| {
+                b.iter(|| {
+                    FileSystemOs::read_to_string(path).expect("Failed to read file")
+                });
+            },
+        );
+        
+        // Benchmark std::fs::read_to_string for comparison
+        group.bench_with_input(
+            BenchmarkId::new("std_read_to_string", size_label),
+            &file_path,
+            |b, path| {
+                b.iter(|| {
+                    std::fs::read_to_string(path).expect("Failed to read file")
+                });
+            },
+        );
+        
+        // Benchmark std::fs::read for comparison  
+        group.bench_with_input(
+            BenchmarkId::new("std_read_bytes", size_label),
+            &file_path,
+            |b, path| {
+                b.iter(|| {
+                    std::fs::read(path).expect("Failed to read file")
+                });
+            },
+        );
+    }
+    
+    group.finish();
+}
+
 criterion_group!(resolver, bench_resolver);
-criterion_main!(resolver);
+criterion_group!(large_files, bench_large_file_reading);
+criterion_main!(resolver, large_files);
