@@ -4,6 +4,7 @@ use std::{
 };
 
 use cfg_if::cfg_if;
+#[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
 use memmap2::Mmap;
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
@@ -126,6 +127,7 @@ pub struct FileSystemOs {
 
 impl FileSystemOs {
     /// Memory-mapped file reading threshold in bytes
+    #[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
     const MMAP_THRESHOLD: u64 = 4096;
 
     /// Validates UTF-8 encoding and converts bytes to String
@@ -149,15 +151,17 @@ impl FileSystemOs {
     ///
     /// See [std::fs::read_to_string]
     pub fn read_to_string(path: &Path) -> io::Result<String> {
-        let file = std::fs::File::open(path)?;
-        let metadata = file.metadata()?;
+        #[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
+        {
+            let file = std::fs::File::open(path)?;
+            let metadata = file.metadata()?;
 
-        // Use memory mapping for files >= 4KB, standard read for smaller files
-        if metadata.len() >= Self::MMAP_THRESHOLD {
-            Self::read_to_string_mmap(&file)
-        } else {
-            Self::read_to_string_standard(path)
+            // Use memory mapping for files >= 4KB, standard read for smaller files
+            if metadata.len() >= Self::MMAP_THRESHOLD {
+                return Self::read_to_string_mmap(&file);
+            }
         }
+        Self::read_to_string_standard(path)
     }
 
     /// Standard file reading implementation using std::fs::read
@@ -176,6 +180,7 @@ impl FileSystemOs {
     /// # Errors
     ///
     /// See [std::fs::read_to_string] and [memmap2::Mmap::map]
+    #[cfg(not(any(target_family = "wasm", target_os = "wasi")))]
     fn read_to_string_mmap(file: &std::fs::File) -> io::Result<String> {
         // SAFETY: memmap2::Mmap::map requires that the file remains valid and unmutated
         // for the lifetime of the mmap. Since we're doing read-only access and the file
