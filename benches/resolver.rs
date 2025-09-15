@@ -204,10 +204,10 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("package_json_deserialization");
 
     // Prepare different sizes of package.json content
-    let small_json = r##"{
+    let small_json = r#"{
         "name": "test-package",
         "version": "1.0.0"
-    }"##;
+    }"#;
 
     let medium_json = r##"{
         "name": "test-package",
@@ -316,7 +316,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     group.bench_function("batch_4_files", |b| {
         b.iter(|| {
             for (i, json) in package_jsons.iter().enumerate() {
-                let path = PathBuf::from(format!("/test/package{}.json", i));
+                let path = PathBuf::from(format!("/test/package{i}.json"));
                 PackageJson::parse(path.clone(), path, json)
                     .expect("Failed to parse JSON in batch");
             }
@@ -327,7 +327,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     group.bench_function("parallel_batch_4_files", |b| {
         b.iter(|| {
             package_jsons.par_iter().enumerate().for_each(|(i, json)| {
-                let path = PathBuf::from(format!("/test/package{}.json", i));
+                let path = PathBuf::from(format!("/test/package{i}.json"));
                 PackageJson::parse(path.clone(), path, json)
                     .expect("Failed to parse JSON in parallel");
             });
