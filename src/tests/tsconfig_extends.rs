@@ -142,7 +142,7 @@ fn test_extend_tsconfig_no_override_existing() {
     let parent_path = Path::new("/parent/tsconfig.json");
     let child_path = Path::new("/child/tsconfig.json");
 
-    let mut parent_config = serde_json::json!({
+    let parent_config = serde_json::json!({
         "compilerOptions": {
             "baseUrl": "./src",
             "jsx": "react-jsx",
@@ -151,15 +151,15 @@ fn test_extend_tsconfig_no_override_existing() {
     })
     .to_string();
 
-    let mut child_config = serde_json::json!({
+    let child_config = serde_json::json!({
         "compilerOptions": {
             "jsx": "preserve"  // This should NOT be overridden
         }
     })
     .to_string();
 
-    let parent_tsconfig = TsConfig::parse(true, parent_path, &mut parent_config).unwrap().build();
-    let mut child_tsconfig = TsConfig::parse(true, child_path, &mut child_config).unwrap();
+    let parent_tsconfig = TsConfig::parse(true, parent_path, parent_config).unwrap().build();
+    let mut child_tsconfig = TsConfig::parse(true, child_path, child_config).unwrap();
 
     // Perform the extension
     child_tsconfig.extend_tsconfig(&parent_tsconfig);
