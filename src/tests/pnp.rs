@@ -172,15 +172,12 @@ fn resolve_npm_protocol_alias() {
     );
 }
 
-// Windows is blocked by upstream
-// see also https://github.com/yarnpkg/pnp-rs/pull/10
-#[cfg(not(windows))]
 #[test]
 fn resolve_global_cache() {
     let home_dir = dirs::home_dir().unwrap();
 
     #[cfg(windows)]
-    let global_cache = home_dir.join("AppData\\Local\\Yarn\\Berry");
+    let global_cache = home_dir.join("AppData\\Local\\Yarn\\Berry\\cache");
     #[cfg(not(windows))]
     let global_cache = home_dir.join(".yarn/berry/cache");
 
