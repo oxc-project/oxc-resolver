@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.8.1](https://github.com/oxc-project/oxc-resolver/compare/v11.8.0...v11.8.1) - 2025-09-16
+
+### <!-- 9 -->💼 Other
+
+- Revert "perf: use `memmap` to speed up file reading" ([#701](https://github.com/oxc-project/oxc-resolver/pull/701)) (by @Boshen) - #701
+
+### Contributors
+
+* @Boshen
+
 ## [11.8.0](https://github.com/oxc-project/oxc-resolver/compare/v11.7.2...v11.8.0) - 2025-09-15
 
 ### <!-- 0 -->🚀 Features
