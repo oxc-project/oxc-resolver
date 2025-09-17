@@ -128,8 +128,13 @@ impl FileSystemOs {
     ///
     /// See [std::fs::read_to_string]
     pub fn read_to_string(path: &Path) -> io::Result<String> {
-        // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
+        // Use macOS optimized read for better performance
+        #[cfg(target_os = "macos")]
+        let bytes = crate::macos::MacOsFs::read_nocache(path)?;
+        #[cfg(not(target_os = "macos"))]
         let bytes = std::fs::read(path)?;
+
+        // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
         if simdutf8::basic::from_utf8(&bytes).is_err() {
             // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
             return Err(io::Error::new(

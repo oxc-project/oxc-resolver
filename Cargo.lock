@@ -792,6 +792,7 @@ dependencies = [
  "fancy-regex",
  "indexmap",
  "json-strip-comments",
+ "libc",
  "normalize-path",
  "once_cell",
  "papaya",
