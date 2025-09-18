@@ -62,6 +62,36 @@ impl<Fs: FileSystem> Cache<Fs> {
 
     #[allow(clippy::cast_possible_truncation)]
     pub(crate) fn value(&self, path: &Path) -> CachedPath {
+        // Fast path: Try incremental hashing first if we have a parent and filename
+        if let (Some(parent_path), Some(file_name)) = (path.parent(), path.file_name()) {
+            // Recursively get/create the parent
+            let parent = self.value(parent_path);
+
+            // Compute hash incrementally using parent's hash
+            let hash = Self::combine_hash(parent.hash(), file_name);
+
+            // Check cache with incremental hash
+            let paths = self.paths.pin();
+            if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
+                return entry.clone();
+            }
+
+            // Create new cached path with incremental hashing
+            let is_node_modules = file_name == "node_modules";
+            let inside_node_modules = is_node_modules || parent.inside_node_modules;
+
+            let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
+                hash,
+                path.to_path_buf().into_boxed_path(),
+                is_node_modules,
+                inside_node_modules,
+                Some(parent),
+            )));
+            paths.insert(cached_path.clone());
+            return cached_path;
+        }
+
+        // Fallback: Full hash for root paths or paths without parents
         // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
         // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
         let hash = {
@@ -69,20 +99,22 @@ impl<Fs: FileSystem> Cache<Fs> {
             path.as_os_str().hash(&mut hasher);
             hasher.finish()
         };
+
         let paths = self.paths.pin();
         if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
             return entry.clone();
         }
-        let parent = path.parent().map(|p| self.value(p));
-        let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
-        let inside_node_modules =
-            is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
+
+        // No parent for root paths
+        let is_node_modules = path.file_name()
+            .is_some_and(|name| name == "node_modules");
+
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
             is_node_modules,
-            inside_node_modules,
-            parent,
+            false, // root paths are not inside node_modules
+            None,
         )));
         paths.insert(cached_path.clone());
         cached_path
