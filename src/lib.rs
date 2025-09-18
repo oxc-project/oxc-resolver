@@ -96,6 +96,7 @@ pub use crate::{
     },
 };
 use crate::{
+    cache::SCRATCH_STRING,
     context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
     tsconfig_context::TsconfigResolveContext,
 };
@@ -426,7 +427,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let resolved = if is_runtime_module {
                     specifier.to_string()
                 } else {
-                    format!("node:{specifier}")
+                    SCRATCH_STRING.with_borrow_mut(|s| {
+                        s.clear();
+                        s.push_str("node:");
+                        s.push_str(specifier);
+                        s.clone()
+                    })
                 };
                 return Err(ResolveError::Builtin { resolved, is_runtime_module });
             }
@@ -545,7 +551,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if ctx.fragment.is_some() && ctx.query.is_none() {
             let specifier = parsed.path();
             let fragment = ctx.fragment.take().unwrap();
-            let path = format!("{specifier}{fragment}");
+            let mut path = String::with_capacity(specifier.len() + fragment.len());
+            path.push_str(specifier);
+            path.push_str(&fragment);
             if let Ok(path) = self.require_without_parse(cached_path, &path, ctx) {
                 return Ok((parsed, Some(path)));
             }
@@ -665,7 +673,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
                     Cow::Borrowed(main_field)
                 } else {
-                    Cow::Owned(format!("./{main_field}"))
+                    SCRATCH_STRING.with_borrow_mut(|s| {
+                        s.clear();
+                        s.push_str("./");
+                        s.push_str(main_field);
+                        Cow::Owned(s.clone())
+                    })
                 };
 
                 // c. let M = X + (json main field)
@@ -985,13 +998,23 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     // due to alias like `"custom-minimist": "npm:minimist@^1.2.8"`
                     // in this case, `specifier` is `pkg_name`'s source of truth
                     let pkg_name = if first.starts_with('@') {
-                        &format!("{first}/{}", rest.split_once('/').unwrap_or((rest, "")).0)
+                        SCRATCH_STRING.with_borrow_mut(|s| {
+                            s.clear();
+                            s.push_str(first);
+                            s.push('/');
+                            s.push_str(rest.split_once('/').unwrap_or((rest, "")).0);
+                            s.as_str()
+                        })
                     } else {
                         first
                     };
                     let inner_specifier = specifier.strip_prefix(pkg_name).unwrap();
-                    String::from("./")
-                        + inner_specifier.strip_prefix("/").unwrap_or(inner_specifier)
+                    SCRATCH_STRING.with_borrow_mut(|s| {
+                        s.clear();
+                        s.push_str("./");
+                        s.push_str(inner_specifier.strip_prefix("/").unwrap_or(inner_specifier));
+                        s.clone()
+                    })
                 };
 
                 // it could be a directory with `package.json` that redirects to another file,
@@ -1055,8 +1078,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
         // Note: The subpath is not prepended with a dot on purpose
         for exports in package_json.exports_fields(&self.options.exports_fields) {
+            let mut dotted_subpath = String::with_capacity(1 + subpath.len());
+            dotted_subpath.push('.');
+            dotted_subpath.push_str(subpath);
             if let Some(path) =
-                self.package_exports_resolve(cached_path, &format!(".{subpath}"), &exports, ctx)?
+                self.package_exports_resolve(cached_path, &dotted_subpath, &exports, ctx)?
             {
                 // 6. RESOLVE_ESM_MATCH(MATCH)
                 return self.resolve_esm_match(specifier, &path, ctx);
@@ -1090,9 +1116,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Note: The subpath is not prepended with a dot on purpose
             // because `package_exports_resolve` matches subpath without the leading dot.
             for exports in package_json.exports_fields(&self.options.exports_fields) {
+                let mut dotted_subpath = String::with_capacity(1 + subpath.len());
+                dotted_subpath.push('.');
+                dotted_subpath.push_str(subpath);
                 if let Some(cached_path) = self.package_exports_resolve(
                     &package_url,
-                    &format!(".{subpath}"),
+                    &dotted_subpath,
                     &exports,
                     ctx,
                 )? {
