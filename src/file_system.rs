@@ -269,21 +269,21 @@ impl FileSystem for FileSystemOs {
         }
         #[cfg(target_os = "linux")]
         {
-			use std::{io::Read, os::unix::fs::OpenOptionsExt};
-			use std::os::fd::AsRawFd;
+            use std::os::fd::AsRawFd;
+            use std::{io::Read, os::unix::fs::OpenOptionsExt};
 
-			// Avoid O_DIRECT on Linux: it requires page-aligned buffers and aligned offsets,
-			// which is incompatible with a regular Vec-based read and many CI filesystems.
-			let mut fd = fs::OpenOptions::new().read(true).open(path)?;
-			let meta = fd.metadata();
-			let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
-				#[allow(clippy::cast_possible_truncation)]
-				Vec::with_capacity(meta.len() as usize)
-			});
-			fd.read_to_end(&mut buffer)?;
-			// Best-effort hint to avoid polluting the page cache.
-			let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
-			Self::validate_string(buffer)
+            // Avoid O_DIRECT on Linux: it requires page-aligned buffers and aligned offsets,
+            // which is incompatible with a regular Vec-based read and many CI filesystems.
+            let mut fd = fs::OpenOptions::new().read(true).open(path)?;
+            let meta = fd.metadata();
+            let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
+                #[allow(clippy::cast_possible_truncation)]
+                Vec::with_capacity(meta.len() as usize)
+            });
+            fd.read_to_end(&mut buffer)?;
+            // Best-effort hint to avoid polluting the page cache.
+            let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
+            Self::validate_string(buffer)
         }
         #[cfg(not(any(target_os = "macos", target_os = "linux")))]
         {
