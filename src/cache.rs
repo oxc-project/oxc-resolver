@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     convert::AsRef,
+    ffi::OsStr,
     fmt,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
@@ -46,6 +47,17 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
         self.paths.pin().clear();
         self.tsconfigs.pin().clear();
+    }
+
+    /// Combines a parent hash with a segment to produce a child hash.
+    /// This allows incremental hashing without rehashing the entire path.
+    #[inline]
+    pub(crate) fn combine_hash(parent_hash: u64, segment: &OsStr) -> u64 {
+        let mut hasher = FxHasher::default();
+        hasher.write_u64(parent_hash);
+        hasher.write_u8(b'/'); // Separator to avoid collisions
+        segment.hash(&mut hasher);
+        hasher.finish()
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -293,6 +305,8 @@ pub struct CachedPathImpl {
     hash: u64,
     path: Box<Path>,
     parent: Option<CachedPath>,
+    parent_hash: Option<u64>,
+    segment_hash: u64,
     is_node_modules: bool,
     inside_node_modules: bool,
     meta: OnceLock<Option<FileMetadata>>,
@@ -310,10 +324,43 @@ impl CachedPathImpl {
         inside_node_modules: bool,
         parent: Option<CachedPath>,
     ) -> Self {
+        let (parent_hash, segment_hash) = if let Some(ref p) = parent {
+            (Some(p.hash), hash.wrapping_sub(p.hash))
+        } else {
+            (None, hash)
+        };
+
         Self {
             hash,
             path,
             parent,
+            parent_hash,
+            segment_hash,
+            is_node_modules,
+            inside_node_modules,
+            meta: OnceLock::new(),
+            canonicalized: OnceLock::new(),
+            canonicalizing: AtomicU64::new(0),
+            node_modules: OnceLock::new(),
+            package_json: OnceLock::new(),
+        }
+    }
+
+    fn new_incremental(
+        hash: u64,
+        path: Box<Path>,
+        parent_hash: u64,
+        segment_hash: u64,
+        is_node_modules: bool,
+        inside_node_modules: bool,
+        parent: Option<CachedPath>,
+    ) -> Self {
+        Self {
+            hash,
+            path,
+            parent,
+            parent_hash: Some(parent_hash),
+            segment_hash,
             is_node_modules,
             inside_node_modules,
             meta: OnceLock::new(),
@@ -344,6 +391,10 @@ impl CachedPath {
 
     pub(crate) fn parent(&self) -> Option<&Self> {
         self.0.parent.as_ref()
+    }
+
+    pub(crate) fn hash(&self) -> u64 {
+        self.0.hash
     }
 
     pub(crate) fn is_node_modules(&self) -> bool {
@@ -486,6 +537,57 @@ impl CachedPath {
     #[cfg(not(windows))]
     pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &Cache<Fs>) -> Self {
         self.clone()
+    }
+
+    /// Creates a sibling path efficiently using parent's hash when available.
+    /// This is optimized for creating paths with the same parent but different names.
+    pub(crate) fn sibling<Fs: FileSystem>(&self, name: &OsStr, cache: &Cache<Fs>) -> Self {
+        // Try to use parent hash if available
+        if let (Some(parent), Some(parent_hash)) = (&self.parent, self.parent_hash) {
+            // Compute hash incrementally
+            let new_hash = Cache::<Fs>::combine_hash(parent_hash, name);
+            let new_path = parent.path.join(name);
+
+            // Check cache first
+            let paths = cache.paths.pin();
+            if let Some(entry) = paths.get(&BorrowedCachedPath { hash: new_hash, path: &new_path }) {
+                return entry.clone();
+            }
+
+            // Create with incremental hash
+            let mut hasher = FxHasher::default();
+            name.hash(&mut hasher);
+            let segment_hash = hasher.finish();
+
+            let is_node_modules = name == "node_modules";
+            let inside_node_modules = is_node_modules || parent.inside_node_modules;
+
+            // Verify the parent relationship is valid
+            let parent_to_use = if new_path.parent() == Some(parent.path()) {
+                Some(parent.clone())
+            } else {
+                None
+            };
+
+            let cached_path = CachedPath(Arc::new(CachedPathImpl::new_incremental(
+                new_hash,
+                new_path.into_boxed_path(),
+                parent_hash,
+                segment_hash,
+                is_node_modules,
+                inside_node_modules,
+                parent_to_use,
+            )));
+            paths.insert(cached_path.clone());
+            return cached_path;
+        }
+
+        // Fallback: compute from parent path
+        if let Some(parent_path) = self.path.parent() {
+            cache.value(&parent_path.join(name))
+        } else {
+            cache.value(Path::new(name))
+        }
     }
 }
 
