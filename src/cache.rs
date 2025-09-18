@@ -18,8 +18,6 @@ use once_cell::sync::OnceCell as OnceLock;
 use papaya::{Equivalent, HashMap, HashSet};
 use rustc_hash::FxHasher;
 
-#[cfg(target_os = "macos")]
-use crate::macos_cache::PackageJsonCache as MacOsPackageJsonCache;
 use crate::{
     FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx, path::PathUtil,
@@ -42,16 +40,12 @@ pub struct Cache<Fs> {
     tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     yarn_pnp_manifest: OnceLock<pnp::Manifest>,
-    #[cfg(target_os = "macos")]
-    macos_pkg_store: MacOsPackageJsonCache,
 }
 
 impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
         self.paths.pin().clear();
         self.tsconfigs.pin().clear();
-        #[cfg(target_os = "macos")]
-        self.macos_pkg_store.clear();
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -125,19 +119,6 @@ impl<Fs: FileSystem> Cache<Fs> {
             .package_json
             .get_or_try_init(|| {
                 let package_json_path = path.path.join("package.json");
-
-                // Use macOS-optimized cache when available
-                #[cfg(target_os = "macos")]
-                let package_json_string =
-                    match self.macos_pkg_store.read_package_json(&package_json_path) {
-                        Ok(content) => content,
-                        Err(_) => match self.fs.read_to_string(&package_json_path) {
-                            Ok(content) => Arc::from(content),
-                            Err(_) => return Ok(None),
-                        },
-                    };
-
-                #[cfg(not(target_os = "macos"))]
                 let Ok(package_json_string) = self.fs.read_to_string(&package_json_path) else {
                     return Ok(None);
                 };
@@ -247,8 +228,6 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .build(),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceLock::new(),
-            #[cfg(target_os = "macos")]
-            macos_pkg_store: MacOsPackageJsonCache::new(),
         }
     }
 
@@ -573,24 +552,5 @@ impl Hasher for IdentityHasher {
 
     fn finish(&self) -> u64 {
         self.0
-    }
-}
-
-#[cfg(all(test, target_os = "macos"))]
-mod macos_integration_tests {
-    use super::*;
-    use crate::FileSystemOs;
-
-    #[test]
-    fn test_macos_package_json_cache_integration() {
-        #[cfg(feature = "yarn_pnp")]
-        let fs = FileSystemOs::new(false);
-        #[cfg(not(feature = "yarn_pnp"))]
-        let fs = FileSystemOs::new();
-        let cache = Cache::new(fs);
-
-        // The cache should be initialized on macOS
-        // This test verifies that the macOS-specific cache fields are properly initialized
-        cache.clear(); // Should not panic
     }
 }
