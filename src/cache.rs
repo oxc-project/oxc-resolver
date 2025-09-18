@@ -550,7 +550,8 @@ impl CachedPath {
 
             // Check cache first
             let paths = cache.paths.pin();
-            if let Some(entry) = paths.get(&BorrowedCachedPath { hash: new_hash, path: &new_path }) {
+            if let Some(entry) = paths.get(&BorrowedCachedPath { hash: new_hash, path: &new_path })
+            {
                 return entry.clone();
             }
 
@@ -563,11 +564,8 @@ impl CachedPath {
             let inside_node_modules = is_node_modules || parent.inside_node_modules;
 
             // Verify the parent relationship is valid
-            let parent_to_use = if new_path.parent() == Some(parent.path()) {
-                Some(parent.clone())
-            } else {
-                None
-            };
+            let parent_to_use =
+                if new_path.parent() == Some(parent.path()) { Some(parent.clone()) } else { None };
 
             let cached_path = CachedPath(Arc::new(CachedPathImpl::new_incremental(
                 new_hash,
