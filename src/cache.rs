@@ -106,8 +106,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
 
         // No parent for root paths
-        let is_node_modules = path.file_name()
-            .is_some_and(|name| name == "node_modules");
+        let is_node_modules = path.file_name().is_some_and(|name| name == "node_modules");
 
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
