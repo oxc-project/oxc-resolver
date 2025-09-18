@@ -96,8 +96,7 @@ pub use crate::{
     },
 };
 use crate::{
-    cache::SCRATCH_STRING,
-    context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
+    cache::SCRATCH_STRING, context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
     tsconfig_context::TsconfigResolveContext,
 };
 
@@ -1119,12 +1118,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let mut dotted_subpath = String::with_capacity(1 + subpath.len());
                 dotted_subpath.push('.');
                 dotted_subpath.push_str(subpath);
-                if let Some(cached_path) = self.package_exports_resolve(
-                    &package_url,
-                    &dotted_subpath,
-                    &exports,
-                    ctx,
-                )? {
+                if let Some(cached_path) =
+                    self.package_exports_resolve(&package_url, &dotted_subpath, &exports, ctx)?
+                {
                     // 6. RESOLVE_ESM_MATCH(MATCH)
                     return self.resolve_esm_match(specifier, &cached_path, ctx);
                 }
