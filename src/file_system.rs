@@ -29,6 +29,14 @@ pub trait FileSystem: Send + Sync {
     /// napi env.
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
+    /// Reads a file while bypassing the system cache.
+    ///
+    /// This is useful in scenarios where the file content is already cached in memory
+    /// and you want to avoid the overhead of using the system cache.
+    fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
+        self.read_to_string(path)
+    }
+
     /// See [std::fs::metadata]
     ///
     /// # Errors
@@ -126,14 +134,9 @@ pub struct FileSystemOs {
 impl FileSystemOs {
     /// # Errors
     ///
-    /// See [std::fs::read_to_string]
-    pub fn read_to_string(path: &Path) -> io::Result<String> {
-        // Use macOS optimized read for better performance
-        #[cfg(target_os = "macos")]
-        let bytes = crate::macos::MacOsFs::read_nocache(path)?;
-        #[cfg(not(target_os = "macos"))]
-        let bytes = std::fs::read(path)?;
-
+    /// See [std::io::ErrorKind::InvalidData]
+    #[inline]
+    pub fn validate_string(bytes: Vec<u8>) -> io::Result<String> {
         // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
         if simdutf8::basic::from_utf8(&bytes).is_err() {
             // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
@@ -144,6 +147,15 @@ impl FileSystemOs {
         }
         // SAFETY: `simdutf8` has ensured it's a valid UTF-8 string
         Ok(unsafe { String::from_utf8_unchecked(bytes) })
+    }
+
+    /// # Errors
+    ///
+    /// See [std::fs::read_to_string]
+    pub fn read_to_string(path: &Path) -> io::Result<String> {
+        let bytes = std::fs::read(path)?;
+
+        Self::validate_string(bytes)
     }
 
     /// # Errors
@@ -222,6 +234,25 @@ impl FileSystem for FileSystemOs {
             }
         }
         Self::read_to_string(path)
+    }
+
+    fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
+        #[cfg(target_os = "macos")]
+        {
+            use std::{io::Read, os::unix::fs::OpenOptionsExt};
+
+            use libc::F_NOCACHE;
+
+            let mut fd = fs::OpenOptions::new().read(true).custom_flags(F_NOCACHE).open(path)?;
+            let meta = fd.metadata()?;
+            let mut buffer = Vec::with_capacity(meta.len() as usize);
+            fd.read_to_end(&mut buffer)?;
+            Self::validate_string(buffer)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            Self::read_to_string(path)
+        }
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {

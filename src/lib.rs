@@ -52,8 +52,6 @@ mod cache;
 mod context;
 mod error;
 mod file_system;
-#[cfg(target_os = "macos")]
-mod macos;
 mod options;
 mod package_json;
 mod path;
@@ -97,9 +95,6 @@ pub use crate::{
         CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
     },
 };
-
-#[cfg(target_os = "macos")]
-pub use crate::macos::MacOsFs;
 
 use crate::{
     context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
