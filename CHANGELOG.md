@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.8.2](https://github.com/oxc-project/oxc-resolver/compare/v11.8.1...v11.8.2) - 2025-09-18
+
+### <!-- 4 -->⚡ Performance
+
+- bypass file system read cache if memory cache is available ([#707](https://github.com/oxc-project/oxc-resolver/pull/707)) (by @Brooooooklyn) - #707
+
+### <!-- 6 -->🧪 Testing
+
+- enable Windows global pnp case ([#703](https://github.com/oxc-project/oxc-resolver/pull/703)) (by @JounQin) - #703
+
+### Contributors
+
+* @Brooooooklyn
+* @JounQin
+
 ## [11.8.1](https://github.com/oxc-project/oxc-resolver/compare/v11.8.0...v11.8.1) - 2025-09-16
 
 ### <!-- 9 -->💼 Other
