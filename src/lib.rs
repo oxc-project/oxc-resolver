@@ -95,7 +95,6 @@ pub use crate::{
         CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
     },
 };
-
 use crate::{
     context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
     tsconfig_context::TsconfigResolveContext,

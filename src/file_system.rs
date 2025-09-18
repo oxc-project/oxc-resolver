@@ -158,7 +158,6 @@ impl FileSystemOs {
     /// See [std::fs::read_to_string]
     pub fn read_to_string(path: &Path) -> io::Result<String> {
         let bytes = std::fs::read(path)?;
-
         Self::validate_string(bytes)
     }
 
@@ -256,10 +255,8 @@ impl FileSystem for FileSystemOs {
         }
         #[cfg(target_os = "macos")]
         {
-            use std::{io::Read, os::unix::fs::OpenOptionsExt};
-
             use libc::F_NOCACHE;
-
+            use std::{io::Read, os::unix::fs::OpenOptionsExt};
             let mut fd = fs::OpenOptions::new().read(true).custom_flags(F_NOCACHE).open(path)?;
             let meta = fd.metadata()?;
             #[allow(clippy::cast_possible_truncation)]
@@ -269,13 +266,12 @@ impl FileSystem for FileSystemOs {
         }
         #[cfg(target_os = "linux")]
         {
-            use std::os::fd::AsRawFd;
-            use std::{io::Read, os::unix::fs::OpenOptionsExt};
-
-            // Avoid O_DIRECT on Linux: it requires page-aligned buffers and aligned offsets,
+            use std::{io::Read, os::fd::AsRawFd};
+            // Avoid `O_DIRECT` on Linux: it requires page-aligned buffers and aligned offsets,
             // which is incompatible with a regular Vec-based read and many CI filesystems.
             let mut fd = fs::OpenOptions::new().read(true).open(path)?;
             // Best-effort hint to avoid polluting the page cache.
+            // SAFETY: `fd` is valid and `posix_fadvise` is safe.
             let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
             let meta = fd.metadata();
             let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
