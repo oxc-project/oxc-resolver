@@ -29,6 +29,18 @@ pub trait FileSystem: Send + Sync {
     /// napi env.
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
+    /// Reads a file while bypassing the system cache.
+    ///
+    /// This is useful in scenarios where the file content is already cached in memory
+    /// and you want to avoid the overhead of using the system cache.
+    ///
+    /// # Errors
+    ///
+    /// * See [std::fs::read_to_string]
+    fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
+        self.read_to_string(path)
+    }
+
     /// See [std::fs::metadata]
     ///
     /// # Errors
@@ -126,10 +138,10 @@ pub struct FileSystemOs {
 impl FileSystemOs {
     /// # Errors
     ///
-    /// See [std::fs::read_to_string]
-    pub fn read_to_string(path: &Path) -> io::Result<String> {
+    /// See [std::io::ErrorKind::InvalidData]
+    #[inline]
+    pub fn validate_string(bytes: Vec<u8>) -> io::Result<String> {
         // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
-        let bytes = std::fs::read(path)?;
         if simdutf8::basic::from_utf8(&bytes).is_err() {
             // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
             return Err(io::Error::new(
@@ -139,6 +151,14 @@ impl FileSystemOs {
         }
         // SAFETY: `simdutf8` has ensured it's a valid UTF-8 string
         Ok(unsafe { String::from_utf8_unchecked(bytes) })
+    }
+
+    /// # Errors
+    ///
+    /// See [std::fs::read_to_string]
+    pub fn read_to_string(path: &Path) -> io::Result<String> {
+        let bytes = std::fs::read(path)?;
+        Self::validate_string(bytes)
     }
 
     /// # Errors
@@ -217,6 +237,54 @@ impl FileSystem for FileSystemOs {
             }
         }
         Self::read_to_string(path)
+    }
+
+    fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                if self.yarn_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => {
+                            self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                        }
+                        VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
+                        VPath::Native(path) => Self::read_to_string(&path),
+                    }
+                }
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            use libc::F_NOCACHE;
+            use std::{io::Read, os::unix::fs::OpenOptionsExt};
+            let mut fd = fs::OpenOptions::new().read(true).custom_flags(F_NOCACHE).open(path)?;
+            let meta = fd.metadata()?;
+            #[allow(clippy::cast_possible_truncation)]
+            let mut buffer = Vec::with_capacity(meta.len() as usize);
+            fd.read_to_end(&mut buffer)?;
+            Self::validate_string(buffer)
+        }
+        #[cfg(target_os = "linux")]
+        {
+            use std::{io::Read, os::fd::AsRawFd};
+            // Avoid `O_DIRECT` on Linux: it requires page-aligned buffers and aligned offsets,
+            // which is incompatible with a regular Vec-based read and many CI filesystems.
+            let mut fd = fs::OpenOptions::new().read(true).open(path)?;
+            // Best-effort hint to avoid polluting the page cache.
+            // SAFETY: `fd` is valid and `posix_fadvise` is safe.
+            let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
+            let meta = fd.metadata();
+            let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
+                #[allow(clippy::cast_possible_truncation)]
+                Vec::with_capacity(meta.len() as usize)
+            });
+            fd.read_to_end(&mut buffer)?;
+            Self::validate_string(buffer)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        {
+            Self::read_to_string(path)
+        }
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
