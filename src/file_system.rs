@@ -33,6 +33,10 @@ pub trait FileSystem: Send + Sync {
     ///
     /// This is useful in scenarios where the file content is already cached in memory
     /// and you want to avoid the overhead of using the system cache.
+    ///
+    /// # Errors
+    ///
+    /// * See [std::fs::read_to_string]
     fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
         self.read_to_string(path)
     }
@@ -237,6 +241,19 @@ impl FileSystem for FileSystemOs {
     }
 
     fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                if self.yarn_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => {
+                            self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                        }
+                        VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
+                        VPath::Native(path) => Self::read_to_string(&path),
+                    }
+                }
+            }
+        }
         #[cfg(target_os = "macos")]
         {
             use std::{io::Read, os::unix::fs::OpenOptionsExt};
@@ -245,11 +262,27 @@ impl FileSystem for FileSystemOs {
 
             let mut fd = fs::OpenOptions::new().read(true).custom_flags(F_NOCACHE).open(path)?;
             let meta = fd.metadata()?;
+            #[allow(clippy::cast_possible_truncation)]
             let mut buffer = Vec::with_capacity(meta.len() as usize);
             fd.read_to_end(&mut buffer)?;
             Self::validate_string(buffer)
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "linux")]
+        {
+            use std::{io::Read, os::unix::fs::OpenOptionsExt};
+
+            use libc::O_DIRECT;
+
+            let mut fd = fs::OpenOptions::new().read(true).custom_flags(O_DIRECT).open(path)?;
+            let meta = fd.metadata();
+            let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
+                #[allow(clippy::cast_possible_truncation)]
+                Vec::with_capacity(meta.len() as usize)
+            });
+            fd.read_to_end(&mut buffer)?;
+            Self::validate_string(buffer)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
         {
             Self::read_to_string(path)
         }
