@@ -27,7 +27,7 @@ jobs:
           token: ${{ secrets.OXC_BOT_PAT }}
           persist-credentials: true # required by release-plz
 
-      - uses: release-plz/action@acb9246af4d59a270d1d4058a8b9af8c3f3a2559 # v0.5.117
+      - uses: oxc-project/release-plz-action@12ee013e577af39a0b75f282e04064658afca86e # v1.0.1
         id: release-plz
         env:
           GITHUB_TOKEN: ${{ secrets.OXC_BOT_PAT }}
