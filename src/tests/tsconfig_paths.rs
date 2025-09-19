@@ -38,7 +38,7 @@ fn tsconfig_resolve() {
             extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
             ..ResolveOptions::default()
         });
-        let path = subdir.map_or(dir.clone(), |subdir| dir.join(subdir));
+        let path = subdir.map_or_else(|| dir.clone(), |subdir| dir.join(subdir));
         let resolved_path = resolver.resolve(&path, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {path:?}");
     }
