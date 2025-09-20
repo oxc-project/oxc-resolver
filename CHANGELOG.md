@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.8.3](https://github.com/oxc-project/oxc-resolver/compare/v11.8.2...v11.8.3) - 2025-09-20
+
+### <!-- 2 -->🚜 Refactor
+
+- split src/cache.rs into logical modules (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.8.2](https://github.com/oxc-project/oxc-resolver/compare/v11.8.1...v11.8.2) - 2025-09-18
 
 ### <!-- 4 -->⚡ Performance
