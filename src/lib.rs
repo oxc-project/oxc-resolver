@@ -294,6 +294,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             debug_assert!(path.starts_with(package_json.directory()));
         }
         let module_type = self.esm_file_format(&cached_path, ctx)?;
+
+        // Trigger prefetching for common patterns after successful resolution
+        self.cache.trigger_prefetch(&path, specifier);
+
         Ok(Resolution {
             path,
             query: ctx.query.take(),
