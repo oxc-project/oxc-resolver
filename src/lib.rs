@@ -64,9 +64,9 @@ mod tsconfig_context;
 mod windows;
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod cache_perf_test;
+#[cfg(test)]
+mod tests;
 
 use rustc_hash::FxHashSet;
 use std::{
@@ -881,7 +881,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // 1. Try to interpret X as a combination of NAME and SUBPATH where the name
                 //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
                 if !package_name.is_empty() {
-                    let cached_path = cached_path.with_inline_tracking(package_name, self.cache.as_ref());
+                    let cached_path =
+                        cached_path.with_inline_tracking(package_name, self.cache.as_ref());
                     // Try foo/node_modules/package_name
                     if self.cache.is_dir(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)

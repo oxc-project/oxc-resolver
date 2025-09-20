@@ -92,22 +92,14 @@ impl PerfCounters {
         let hits = self.cache_hits.load(Ordering::Relaxed);
         let misses = self.cache_misses.load(Ordering::Relaxed);
         let total = hits + misses;
-        if total > 0 {
-            (hits as f64 / total as f64) * 100.0
-        } else {
-            0.0
-        }
+        if total > 0 { (hits as f64 / total as f64) * 100.0 } else { 0.0 }
     }
 
     /// Calculate average resolution time in microseconds
     pub fn avg_resolution_time_micros(&self) -> f64 {
         let total_nanos = self.resolution_time_nanos.load(Ordering::Relaxed);
         let count = self.resolutions.load(Ordering::Relaxed);
-        if count > 0 {
-            (total_nanos as f64 / count as f64) / 1000.0
-        } else {
-            0.0
-        }
+        if count > 0 { (total_nanos as f64 / count as f64) / 1000.0 } else { 0.0 }
     }
 
     /// Calculate inline vs heap allocation ratio
@@ -115,11 +107,7 @@ impl PerfCounters {
         let inline = self.inline_path_allocations.load(Ordering::Relaxed);
         let heap = self.heap_path_allocations.load(Ordering::Relaxed);
         let total = inline + heap;
-        if total > 0 {
-            (inline as f64 / total as f64) * 100.0
-        } else {
-            0.0
-        }
+        if total > 0 { (inline as f64 / total as f64) * 100.0 } else { 0.0 }
     }
 
     pub fn reset(&self) {
@@ -181,10 +169,7 @@ where
     F: FnOnce(Duration),
 {
     pub fn new(counter: F) -> Self {
-        Self {
-            start: Instant::now(),
-            counter: Some(counter),
-        }
+        Self { start: Instant::now(), counter: Some(counter) }
     }
 }
 

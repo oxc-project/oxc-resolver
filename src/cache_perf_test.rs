@@ -1,6 +1,6 @@
 /// Simple performance test for cache optimizations
 /// This will be used to validate our cache-friendly data layout improvements
-use crate::{performance::PERF_COUNTERS, ResolveOptions, Resolver};
+use crate::{ResolveOptions, Resolver, performance::PERF_COUNTERS};
 use std::{path::PathBuf, time::Instant};
 
 pub fn run_performance_test() {
@@ -43,7 +43,8 @@ fn create_test_project() -> PathBuf {
         let pkg_dir = node_modules.join(package);
         std::fs::create_dir_all(&pkg_dir).unwrap();
 
-        let package_json = format!(r#"{{"name": "{}", "version": "1.0.0", "main": "index.js"}}"#, package);
+        let package_json =
+            format!(r#"{{"name": "{}", "version": "1.0.0", "main": "index.js"}}"#, package);
         std::fs::write(pkg_dir.join("package.json"), package_json).unwrap();
         std::fs::write(pkg_dir.join("index.js"), "module.exports = {};").unwrap();
     }
@@ -53,10 +54,15 @@ fn create_test_project() -> PathBuf {
     std::fs::create_dir_all(&types_dir).unwrap();
     let node_types_dir = types_dir.join("node");
     std::fs::create_dir_all(&node_types_dir).unwrap();
-    std::fs::write(node_types_dir.join("package.json"), r#"{"name": "@types/node", "version": "1.0.0"}"#).unwrap();
+    std::fs::write(
+        node_types_dir.join("package.json"),
+        r#"{"name": "@types/node", "version": "1.0.0"}"#,
+    )
+    .unwrap();
 
     // Create main package.json
-    std::fs::write(temp_dir.join("package.json"), r#"{"name": "test", "version": "1.0.0"}"#).unwrap();
+    std::fs::write(temp_dir.join("package.json"), r#"{"name": "test", "version": "1.0.0"}"#)
+        .unwrap();
 
     temp_dir
 }
