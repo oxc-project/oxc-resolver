@@ -55,6 +55,7 @@ mod file_system;
 mod options;
 mod package_json;
 mod path;
+mod perf;
 mod resolution;
 mod specifier;
 mod tsconfig;
@@ -64,6 +65,8 @@ mod windows;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod cache_perf_test;
 
 use rustc_hash::FxHashSet;
 use std::{
@@ -95,6 +98,11 @@ pub use crate::{
         CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
     },
 };
+
+/// Performance monitoring and benchmarking utilities
+pub mod performance {
+    pub use crate::perf::*;
+}
 use crate::{
     context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
     tsconfig_context::TsconfigResolveContext,
@@ -261,6 +269,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<Resolution, ResolveError> {
+        let _timer = crate::perf::Timer::new(|d| crate::perf::PERF_COUNTERS.resolution(d));
+
         ctx.with_fully_specified(self.options.fully_specified);
 
         let cached_path = if self.options.symlinks {
@@ -670,7 +680,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
                 // c. let M = X + (json main field)
                 let cached_path =
-                    cached_path.normalize_with(main_field.as_ref(), self.cache.as_ref());
+                    cached_path.with_inline_tracking(main_field.as_ref(), self.cache.as_ref());
                 // d. LOAD_AS_FILE(M)
                 if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                     return Ok(Some(path));
@@ -871,7 +881,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // 1. Try to interpret X as a combination of NAME and SUBPATH where the name
                 //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
                 if !package_name.is_empty() {
-                    let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
+                    let cached_path = cached_path.with_inline_tracking(package_name, self.cache.as_ref());
                     // Try foo/node_modules/package_name
                     if self.cache.is_dir(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -901,7 +911,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // b. LOAD_AS_FILE(DIR/X)
                 // c. LOAD_AS_DIRECTORY(DIR/X)
 
-                let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
+                let cached_path = cached_path.with_inline_tracking(specifier, self.cache.as_ref());
 
                 // Perf: try the directory first for package specifiers.
                 if self.options.resolve_to_context {
