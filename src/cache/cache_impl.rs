@@ -7,7 +7,6 @@ use std::{
 };
 
 use cfg_if::cfg_if;
-use once_cell::sync::OnceCell as OnceLock;
 use papaya::{HashMap, HashSet};
 use rustc_hash::FxHasher;
 
@@ -16,7 +15,7 @@ use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
 use super::thread_local::THREAD_ID;
 use crate::{
-    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
+    FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
