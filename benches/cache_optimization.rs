@@ -1,4 +1,4 @@
-use criterion2::{black_box, criterion_group, criterion_main, Criterion};
+use criterion2::{Criterion, black_box, criterion_group, criterion_main};
 use oxc_resolver::{ResolveOptions, Resolver};
 use std::path::PathBuf;
 
@@ -25,11 +25,14 @@ fn create_test_project_structure() -> PathBuf {
         std::fs::create_dir_all(&pkg_dir).unwrap();
 
         // Create package.json
-        let package_json = format!(r#"{{
+        let package_json = format!(
+            r#"{{
             "name": "{}",
             "version": "1.0.0",
             "main": "index.js"
-        }}"#, package);
+        }}"#,
+            package
+        );
         std::fs::write(pkg_dir.join("package.json"), package_json).unwrap();
 
         // Create index.js
@@ -117,7 +120,7 @@ fn bench_path_operations(c: &mut Criterion) {
                 "./foo/../bar/./baz",
                 "../../../node_modules/react",
                 "./a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/package.json",
-                "../../foo/bar/../baz/./qux"
+                "../../foo/bar/../baz/./qux",
             ];
             for path in complex_paths {
                 let result = resolver.resolve(black_box(&project_dir), black_box(path));

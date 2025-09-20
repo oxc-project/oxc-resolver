@@ -103,13 +103,7 @@ impl PackedPathData {
             metadata_flags |= METADATA_IS_NODE_MODULES;
         }
 
-        Self {
-            path_hash: hash,
-            metadata_flags,
-            path_len,
-            parent_index,
-            inline_path,
-        }
+        Self { path_hash: hash, metadata_flags, path_len, parent_index, inline_path }
     }
 
     #[inline(always)]
@@ -119,20 +113,12 @@ impl PackedPathData {
 
     #[inline(always)]
     fn is_file_fast(&self) -> Option<bool> {
-        if self.has_metadata() {
-            Some(self.metadata_flags & METADATA_IS_FILE != 0)
-        } else {
-            None
-        }
+        if self.has_metadata() { Some(self.metadata_flags & METADATA_IS_FILE != 0) } else { None }
     }
 
     #[inline(always)]
     fn is_dir_fast(&self) -> Option<bool> {
-        if self.has_metadata() {
-            Some(self.metadata_flags & METADATA_IS_DIR != 0)
-        } else {
-            None
-        }
+        if self.has_metadata() { Some(self.metadata_flags & METADATA_IS_DIR != 0) } else { None }
     }
 
     #[inline(always)]
@@ -196,11 +182,7 @@ struct PathArena {
 
 impl PathArena {
     fn new() -> Self {
-        Self {
-            paths: Vec::with_capacity(1024),
-            heap_paths: Vec::new(),
-            free_indices: Vec::new(),
-        }
+        Self { paths: Vec::with_capacity(1024), heap_paths: Vec::new(), free_indices: Vec::new() }
     }
 
     fn insert(&mut self, packed_data: PackedPathData, heap_path: Option<Box<Path>>) -> u32 {
@@ -209,7 +191,8 @@ impl PathArena {
             self.paths[free_index as usize] = packed_data;
             if let Some(path) = heap_path {
                 if self.heap_paths.len() <= free_index as usize {
-                    self.heap_paths.resize(free_index as usize + 1, PathBuf::new().into_boxed_path());
+                    self.heap_paths
+                        .resize(free_index as usize + 1, PathBuf::new().into_boxed_path());
                 }
                 self.heap_paths[free_index as usize] = path;
             }
@@ -238,19 +221,11 @@ impl PathArena {
     }
 
     fn get(&self, index: u32) -> Option<&PackedPathData> {
-        if index == 0 {
-            None
-        } else {
-            self.paths.get((index - 1) as usize)
-        }
+        if index == 0 { None } else { self.paths.get((index - 1) as usize) }
     }
 
     fn get_mut(&mut self, index: u32) -> Option<&mut PackedPathData> {
-        if index == 0 {
-            None
-        } else {
-            self.paths.get_mut((index - 1) as usize)
-        }
+        if index == 0 { None } else { self.paths.get_mut((index - 1) as usize) }
     }
 
     fn get_heap_path(&self, index: u32) -> Option<&Path> {
@@ -350,10 +325,8 @@ impl<Fs: FileSystem> Cache<Fs> {
 
             // Try to create arena entry (non-blocking)
             if let Ok(mut arena) = self.path_arena.try_lock() {
-                let parent_index = parent.as_ref()
-                    .and_then(|p| p.arena_index.get())
-                    .copied()
-                    .unwrap_or(0);
+                let parent_index =
+                    parent.as_ref().and_then(|p| p.arena_index.get()).copied().unwrap_or(0);
 
                 let packed_data = PackedPathData::new(path, hash, parent_index);
                 let arena_index = arena.insert(packed_data, None);
@@ -483,9 +456,9 @@ impl<Fs: FileSystem> Cache<Fs> {
             Cow::Owned(PathBuf::from(os_string))
         };
         crate::perf::PERF_COUNTERS.tsconfig_read();
-        let mut tsconfig_string = crate::instrument_fs!(
-            self.fs.read_to_string_bypass_system_cache(&tsconfig_path)
-        ).map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
+        let mut tsconfig_string =
+            crate::instrument_fs!(self.fs.read_to_string_bypass_system_cache(&tsconfig_path))
+                .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
         let mut tsconfig =
             TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
