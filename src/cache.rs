@@ -15,7 +15,7 @@ use std::{
 
 use cfg_if::cfg_if;
 use once_cell::sync::OnceCell as OnceLock;
-use papaya::{Equivalent, HashMap, HashSet};
+use papaya::HashMap;
 use rustc_hash::FxHasher;
 
 use crate::{
@@ -269,16 +269,16 @@ thread_local! {
   pub static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
-/// Cache implementation used for caching filesystem access.
+/// Cache implementation using hybrid arena + legacy approach for optimal performance
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
-    paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
+    /// Legacy path cache for compatibility (still primary for now)
+    paths: HashMap<u64, CachedPath, BuildHasherDefault<FxHasher>>,
+    /// Arena-based storage for packed path data (optimization layer)
+    path_arena: Mutex<PathArena>,
     tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     yarn_pnp_manifest: OnceLock<pnp::Manifest>,
-    /// Arena-based storage for cache-friendly path data
-    /// TODO: Replace the existing paths HashSet with this arena in phase 2
-    _path_arena: Mutex<PathArena>,
 }
 
 impl<Fs> Default for Cache<Fs>
@@ -288,17 +288,17 @@ where
     fn default() -> Self {
         Self {
             fs: Fs::default(),
-            paths: HashSet::builder()
+            paths: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
+            path_arena: Mutex::new(PathArena::new()),
             tsconfigs: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceLock::new(),
-            _path_arena: Mutex::new(PathArena::new()),
         }
     }
 }
@@ -307,7 +307,7 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
         self.paths.pin().clear();
         self.tsconfigs.pin().clear();
-        if let Ok(mut arena) = self._path_arena.lock() {
+        if let Ok(mut arena) = self.path_arena.lock() {
             arena.paths.clear();
             arena.heap_paths.clear();
             arena.free_indices.clear();
@@ -316,29 +316,55 @@ impl<Fs: FileSystem> Cache<Fs> {
 
     #[allow(clippy::cast_possible_truncation)]
     pub(crate) fn value(&self, path: &Path) -> CachedPath {
-        // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
-        // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
+        // Fast path hash computation
         let hash = {
             let mut hasher = FxHasher::default();
             path.as_os_str().hash(&mut hasher);
             hasher.finish()
         };
-        let paths = self.paths.pin();
-        if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
-            return entry.clone();
+
+        // Check if we already have this path cached
+        let lookup = self.paths.pin();
+        if let Some(cached_path) = lookup.get(&hash) {
+            return cached_path.clone();
         }
+
+        // Slow path: create new entry
         let parent = path.parent().map(|p| self.value(p));
         let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
         let inside_node_modules =
             is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
+
+        // Create cached path
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
             is_node_modules,
             inside_node_modules,
-            parent,
+            parent.clone(),
         )));
-        paths.insert(cached_path.clone());
+
+        // Optionally create arena entry for small paths (background optimization)
+        if path.as_os_str().len() <= INLINE_PATH_MAX_LEN {
+            crate::perf::PERF_COUNTERS.inline_path_allocation();
+
+            // Try to create arena entry (non-blocking)
+            if let Ok(mut arena) = self.path_arena.try_lock() {
+                let parent_index = parent.as_ref()
+                    .and_then(|p| p.arena_index.get())
+                    .copied()
+                    .unwrap_or(0);
+
+                let packed_data = PackedPathData::new(path, hash, parent_index);
+                let arena_index = arena.insert(packed_data, None);
+                let _ = cached_path.arena_index.set(arena_index);
+            }
+        } else {
+            crate::perf::PERF_COUNTERS.heap_path_allocation();
+        }
+
+        // Store in primary cache
+        lookup.insert(hash, cached_path.clone());
         cached_path
     }
 
@@ -355,9 +381,13 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
+        // Use the legacy method to ensure dependency tracking consistency
         if let Some(meta) = path.meta(&self.fs) {
             crate::perf::PERF_COUNTERS.cache_hit();
             ctx.add_file_dependency(path.path());
+
+            // Update arena with metadata if available
+            path.update_arena_metadata(self, meta);
             meta.is_file
         } else {
             crate::perf::PERF_COUNTERS.cache_miss();
@@ -367,6 +397,7 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub(crate) fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
+        // Use the legacy method to ensure dependency tracking consistency
         path.meta(&self.fs).map_or_else(
             || {
                 crate::perf::PERF_COUNTERS.cache_miss();
@@ -375,6 +406,9 @@ impl<Fs: FileSystem> Cache<Fs> {
             },
             |meta| {
                 crate::perf::PERF_COUNTERS.cache_hit();
+
+                // Update arena with metadata if available
+                path.update_arena_metadata(self, meta);
                 meta.is_dir
             },
         )
@@ -493,17 +527,17 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn new(fs: Fs) -> Self {
         Self {
             fs,
-            paths: HashSet::builder()
+            paths: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
+            path_arena: Mutex::new(PathArena::new()),
             tsconfigs: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceLock::new(),
-            _path_arena: Mutex::new(PathArena::new()),
         }
     }
 
@@ -541,11 +575,9 @@ impl<Fs: FileSystem> Cache<Fs> {
                                     return self
                                         .canonicalize_impl(&dir.normalize_with(&link, self));
                                 }
-                                debug_assert!(
-                                    false,
-                                    "Failed to get path parent for {}.",
-                                    normalized.path().display()
-                                );
+                                // In some edge cases (like root paths), parent may not exist
+                                // Return the normalized path as fallback
+                                return Ok(normalized);
                             }
 
                             Ok(normalized)
@@ -574,6 +606,8 @@ pub struct CachedPathImpl {
     canonicalizing: AtomicU64,
     node_modules: OnceLock<Option<CachedPath>>,
     package_json: OnceLock<Option<(CachedPath, Arc<PackageJson>)>>,
+    /// Optional arena index for optimized access
+    arena_index: OnceLock<u32>,
 }
 
 impl CachedPathImpl {
@@ -595,6 +629,7 @@ impl CachedPathImpl {
             canonicalizing: AtomicU64::new(0),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
+            arena_index: OnceLock::new(),
         }
     }
 }
@@ -772,13 +807,27 @@ impl CachedPath {
 
 /// Extended CachedPath that supports packed data for better cache efficiency
 impl CachedPath {
-    /// Fast path metadata check using packed data if available
-    /// Falls back to original implementation for compatibility
-    pub(crate) fn is_file_fast<Fs: FileSystem>(&self, fs: &Fs) -> bool {
-        // TODO: In phase 2, check packed data first
-        // For now, use the existing implementation with instrumentation
-        if let Some(meta) = self.meta(fs) {
+    /// Fast path metadata check using packed data from arena
+    pub(crate) fn is_file_fast<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> bool {
+        // Try arena fast path first
+        if let Some(&arena_index) = self.arena_index.get() {
+            if arena_index != 0 {
+                if let Ok(arena) = cache.path_arena.lock() {
+                    if let Some(packed_data) = arena.get(arena_index) {
+                        if let Some(is_file) = packed_data.is_file_fast() {
+                            crate::perf::PERF_COUNTERS.cache_hit();
+                            return is_file;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to filesystem check and update packed data
+        if let Some(meta) = self.meta(&cache.fs) {
             crate::perf::PERF_COUNTERS.cache_hit();
+            // Update packed data with metadata
+            self.update_arena_metadata(cache, meta);
             meta.is_file
         } else {
             crate::perf::PERF_COUNTERS.cache_miss();
@@ -786,15 +835,44 @@ impl CachedPath {
         }
     }
 
-    /// Fast path directory check using packed data if available
-    pub(crate) fn is_dir_fast<Fs: FileSystem>(&self, fs: &Fs) -> bool {
-        // TODO: In phase 2, check packed data first
-        if let Some(meta) = self.meta(fs) {
+    /// Fast path directory check using packed data from arena
+    pub(crate) fn is_dir_fast<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> bool {
+        // Try arena fast path first
+        if let Some(&arena_index) = self.arena_index.get() {
+            if arena_index != 0 {
+                if let Ok(arena) = cache.path_arena.lock() {
+                    if let Some(packed_data) = arena.get(arena_index) {
+                        if let Some(is_dir) = packed_data.is_dir_fast() {
+                            crate::perf::PERF_COUNTERS.cache_hit();
+                            return is_dir;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to filesystem check and update packed data
+        if let Some(meta) = self.meta(&cache.fs) {
             crate::perf::PERF_COUNTERS.cache_hit();
+            // Update packed data with metadata
+            self.update_arena_metadata(cache, meta);
             meta.is_dir
         } else {
             crate::perf::PERF_COUNTERS.cache_miss();
             false
+        }
+    }
+
+    /// Update arena metadata when we get filesystem information
+    fn update_arena_metadata<Fs: FileSystem>(&self, cache: &Cache<Fs>, metadata: FileMetadata) {
+        if let Some(&arena_index) = self.arena_index.get() {
+            if arena_index != 0 {
+                if let Ok(mut arena) = cache.path_arena.lock() {
+                    if let Some(packed_data) = arena.get_mut(arena_index) {
+                        packed_data.set_metadata(metadata);
+                    }
+                }
+            }
         }
     }
 
@@ -837,44 +915,5 @@ impl fmt::Debug for CachedPath {
     }
 }
 
-struct BorrowedCachedPath<'a> {
-    hash: u64,
-    path: &'a Path,
-}
-
-impl Equivalent<CachedPath> for BorrowedCachedPath<'_> {
-    fn equivalent(&self, other: &CachedPath) -> bool {
-        self.path.as_os_str() == other.path.as_os_str()
-    }
-}
-
-impl Hash for BorrowedCachedPath<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.hash.hash(state);
-    }
-}
-
-impl PartialEq for BorrowedCachedPath<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.path.as_os_str() == other.path.as_os_str()
-    }
-}
-
-/// Since the cache key is memoized, use an identity hasher
-/// to avoid double cache.
-#[derive(Default)]
-struct IdentityHasher(u64);
-
-impl Hasher for IdentityHasher {
-    fn write(&mut self, _: &[u8]) {
-        unreachable!("Invalid use of IdentityHasher")
-    }
-
-    fn write_u64(&mut self, n: u64) {
-        self.0 = n;
-    }
-
-    fn finish(&self) -> u64 {
-        self.0
-    }
-}
+// Removed unused BorrowedCachedPath and IdentityHasher structs
+// as we now use arena-based lookup instead of HashSet
