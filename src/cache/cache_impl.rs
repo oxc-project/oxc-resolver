@@ -7,6 +7,8 @@ use std::{
 };
 
 use cfg_if::cfg_if;
+#[cfg(feature = "yarn_pnp")]
+use once_cell::sync::OnceCell;
 use papaya::{HashMap, HashSet};
 use rustc_hash::FxHasher;
 
@@ -19,9 +21,6 @@ use crate::{
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
-#[cfg(feature = "yarn_pnp")]
-use crate::pnp;
-
 /// Cache implementation used for caching filesystem access.
 #[derive(Default)]
 pub struct Cache<Fs> {
@@ -29,7 +28,7 @@ pub struct Cache<Fs> {
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
-    pub(crate) yarn_pnp_manifest: OnceLock<pnp::Manifest>,
+    pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
 }
 
 impl<Fs: FileSystem> Cache<Fs> {
@@ -219,7 +218,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
             #[cfg(feature = "yarn_pnp")]
-            yarn_pnp_manifest: OnceLock::new(),
+            yarn_pnp_manifest: OnceCell::new(),
         }
     }
 
