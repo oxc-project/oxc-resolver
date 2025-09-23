@@ -54,12 +54,13 @@ impl<Fs: FileSystem> Cache<Fs> {
         let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
         let inside_node_modules =
             is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
+        let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
             is_node_modules,
             inside_node_modules,
-            parent,
+            parent_weak,
         )));
         paths.insert(cached_path.clone());
         cached_path
@@ -240,7 +241,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 let res = path.parent().map_or_else(
                     || Ok(path.normalize_root(self)),
                     |parent| {
-                        self.canonicalize_impl(parent).and_then(|parent_canonical| {
+                        self.canonicalize_impl(&parent).and_then(|parent_canonical| {
                             let normalized = parent_canonical.normalize_with(
                                 path.path().strip_prefix(parent.path()).unwrap(),
                                 self,
@@ -269,8 +270,15 @@ impl<Fs: FileSystem> Cache<Fs> {
                 );
 
                 path.canonicalizing.store(0, Ordering::Release);
-                res
+                // Convert to Weak reference before storing
+                res.map(|cp| Arc::downgrade(&cp.0))
             })
-            .clone()
+            .as_ref()
+            .map_err(Clone::clone)
+            .and_then(|weak| {
+                weak.upgrade().map(CachedPath).ok_or_else(|| {
+                    ResolveError::from(io::Error::other("Canonicalized path was dropped"))
+                })
+            })
     }
 }

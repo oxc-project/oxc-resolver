@@ -304,13 +304,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let inside_node_modules = cached_path.inside_node_modules();
         if inside_node_modules {
             let mut last = None;
-            for cp in iter::successors(Some(cached_path), |cp| cp.parent()) {
+            for cp in iter::successors(Some(cached_path.clone()), CachedPath::parent) {
                 if cp.is_node_modules() {
                     break;
                 }
-                if self.cache.is_dir(cp, ctx) {
+                if self.cache.is_dir(&cp, ctx) {
                     if let Some(package_json) =
-                        self.cache.get_package_json(cp, &self.options, ctx)?
+                        self.cache.get_package_json(&cp, &self.options, ctx)?
                     {
                         last = Some(package_json);
                     }
@@ -852,13 +852,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
         for module_name in &self.options.modules {
-            for cached_path in std::iter::successors(Some(cached_path), |p| p.parent()) {
+            for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
+            {
                 // Skip if /path/to/node_modules does not exist
-                if !self.cache.is_dir(cached_path, ctx) {
+                if !self.cache.is_dir(&cached_path, ctx) {
                     continue;
                 }
 
-                let Some(cached_path) = self.get_module_directory(cached_path, module_name, ctx)
+                let Some(cached_path) = self.get_module_directory(&cached_path, module_name, ctx)
                 else {
                     continue;
                 };
@@ -884,7 +885,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         // Skip if the directory lead to the scope package does not exist
                         // i.e. `foo/node_modules/@scope` is not a directory for `foo/node_modules/@scope/package`
                         if package_name.starts_with('@') {
-                            if let Some(path) = cached_path.parent() {
+                            if let Some(path) = cached_path.parent().as_ref() {
                                 if !self.cache.is_dir(path, ctx) {
                                     continue;
                                 }
@@ -1530,9 +1531,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {
-            for cached_path in std::iter::successors(Some(cached_path), |p| p.parent()) {
+            for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
+            {
                 // 1. Let packageURL be the URL resolution of "node_modules/" concatenated with packageSpecifier, relative to parentURL.
-                let Some(cached_path) = self.get_module_directory(cached_path, module_name, ctx)
+                let Some(cached_path) = self.get_module_directory(&cached_path, module_name, ctx)
                 else {
                     continue;
                 };

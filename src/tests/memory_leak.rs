@@ -14,7 +14,7 @@ fn test_memory_leak_arc_cycles() {
     resolver.resolve(&f, "package-json-nested").unwrap();
 
     // Populated cache - path is now owned in multiple places.
-    assert_eq!(Arc::strong_count(&path.0), 4);
+    assert_eq!(Arc::strong_count(&path.0), 2);
 
     // Drop the resolver.
     drop(resolver);

@@ -4,7 +4,7 @@ use std::{
     hash::{Hash, Hasher},
     ops::Deref,
     path::{Component, Path, PathBuf},
-    sync::{Arc, atomic::AtomicU64},
+    sync::{Arc, Weak, atomic::AtomicU64},
 };
 
 use cfg_if::cfg_if;
@@ -23,13 +23,13 @@ pub struct CachedPath(pub Arc<CachedPathImpl>);
 pub struct CachedPathImpl {
     pub hash: u64,
     pub path: Box<Path>,
-    pub parent: Option<CachedPath>,
+    pub parent: Option<Weak<CachedPathImpl>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<FileMetadata>>,
-    pub canonicalized: OnceLock<Result<CachedPath, ResolveError>>,
+    pub canonicalized: OnceLock<Result<Weak<CachedPathImpl>, ResolveError>>,
     pub canonicalizing: AtomicU64,
-    pub node_modules: OnceLock<Option<CachedPath>>,
+    pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
 }
 
@@ -39,7 +39,7 @@ impl CachedPathImpl {
         path: Box<Path>,
         is_node_modules: bool,
         inside_node_modules: bool,
-        parent: Option<CachedPath>,
+        parent: Option<Weak<Self>>,
     ) -> Self {
         Self {
             hash,
@@ -73,8 +73,8 @@ impl CachedPath {
         self.path.to_path_buf()
     }
 
-    pub(crate) fn parent(&self) -> Option<&Self> {
-        self.0.parent.as_ref()
+    pub(crate) fn parent(&self) -> Option<Self> {
+        self.0.parent.as_ref().and_then(|weak| weak.upgrade().map(CachedPath))
     }
 
     pub(crate) fn is_node_modules(&self) -> bool {
@@ -100,7 +100,12 @@ impl CachedPath {
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Option<Self> {
-        self.node_modules.get_or_init(|| self.module_directory("node_modules", cache, ctx)).clone()
+        self.node_modules
+            .get_or_init(|| {
+                self.module_directory("node_modules", cache, ctx).map(|cp| Arc::downgrade(&cp.0))
+            })
+            .as_ref()
+            .and_then(|weak| weak.upgrade().map(CachedPath))
     }
 
     /// Find package.json of a path by traversing parent directories.
@@ -114,10 +119,10 @@ impl CachedPath {
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
-        let mut cache_value = self;
+        let mut cache_value = self.clone();
         // Go up directories when the querying path is not a directory
-        while !cache.is_dir(cache_value, ctx) {
-            if let Some(cv) = &cache_value.parent {
+        while !cache.is_dir(&cache_value, ctx) {
+            if let Some(cv) = cache_value.parent() {
                 cache_value = cv;
             } else {
                 break;
@@ -125,10 +130,10 @@ impl CachedPath {
         }
         let mut cache_value = Some(cache_value);
         while let Some(cv) = cache_value {
-            if let Some(package_json) = cache.get_package_json(cv, options, ctx)? {
+            if let Some(package_json) = cache.get_package_json(&cv, options, ctx)? {
                 return Ok(Some(package_json));
             }
-            cache_value = cv.parent.as_ref();
+            cache_value = cv.parent();
         }
         Ok(None)
     }
