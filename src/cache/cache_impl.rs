@@ -102,7 +102,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         path: &CachedPath,
         options: &ResolveOptions,
         ctx: &mut Ctx,
-    ) -> Result<Option<(CachedPath, Arc<PackageJson>)>, ResolveError> {
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
         let result = path
             .package_json
@@ -120,13 +120,13 @@ impl<Fs: FileSystem> Cache<Fs> {
                     package_json_path.clone()
                 };
                 PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
-                    .map(|package_json| Some((path.clone(), (Arc::new(package_json)))))
+                    .map(|package_json| Some(Arc::new(package_json)))
                     .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
             })
             .cloned();
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
         match &result {
-            Ok(Some((_, package_json))) => {
+            Ok(Some(package_json)) => {
                 ctx.add_file_dependency(&package_json.path);
             }
             Ok(None) => {

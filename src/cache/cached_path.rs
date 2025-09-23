@@ -30,7 +30,7 @@ pub struct CachedPathImpl {
     pub canonicalized: OnceLock<Result<CachedPath, ResolveError>>,
     pub canonicalizing: AtomicU64,
     pub node_modules: OnceLock<Option<CachedPath>>,
-    pub package_json: OnceLock<Option<(CachedPath, Arc<PackageJson>)>>,
+    pub package_json: OnceLock<Option<Arc<PackageJson>>>,
 }
 
 impl CachedPathImpl {
@@ -113,7 +113,7 @@ impl CachedPath {
         options: &ResolveOptions,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
-    ) -> Result<Option<(Self, Arc<PackageJson>)>, ResolveError> {
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let mut cache_value = self;
         // Go up directories when the querying path is not a directory
         while !cache.is_dir(cache_value, ctx) {
