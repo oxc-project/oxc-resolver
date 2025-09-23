@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.8.3](https://github.com/oxc-project/oxc-resolver/compare/v11.8.2...v11.8.3) - 2025-09-23
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- use `Weak` references for `CachedPath` to enable proper drop ([#727](https://github.com/oxc-project/oxc-resolver/pull/727)) (by @Boshen) - #727
+
+### <!-- 2 -->🚜 Refactor
+
+- remove a redundant path clone from PackageJson::parse ([#725](https://github.com/oxc-project/oxc-resolver/pull/725)) (by @Boshen) - #725
+- split src/cache.rs into logical modules ([#714](https://github.com/oxc-project/oxc-resolver/pull/714)) (by @Boshen) - #714
+
+### <!-- 6 -->🧪 Testing
+
+- add memory leak test ([#726](https://github.com/oxc-project/oxc-resolver/pull/726)) (by @Boshen) - #726
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.8.2](https://github.com/oxc-project/oxc-resolver/compare/v11.8.1...v11.8.2) - 2025-09-18
 
 ### <!-- 4 -->⚡ Performance
