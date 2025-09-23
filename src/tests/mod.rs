@@ -11,6 +11,7 @@ mod imports_field;
 mod incorrect_description_file;
 mod main_field;
 mod memory_fs;
+mod memory_leak;
 mod missing;
 mod module_type;
 mod package_json;
