@@ -1,6 +1,6 @@
 [package]
 name = "oxc_resolver_napi"
-version = "11.8.3"
+version = "11.8.4"
 authors.workspace = true
 categories.workspace = true
 edition.workspace = true

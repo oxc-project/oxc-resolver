@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.8.4](https://github.com/oxc-project/oxc-resolver/compare/v11.8.3...v11.8.4) - 2025-09-27
+
+### <!-- 4 -->⚡ Performance
+
+- mark error path functions as #[cold] for better optimization ([#729](https://github.com/oxc-project/oxc-resolver/pull/729)) (by @Boshen) - #729
+
+### Contributors
+
+* @Boshen
+
 ## [11.8.3](https://github.com/oxc-project/oxc-resolver/compare/v11.8.2...v11.8.3) - 2025-09-23
 
 ### <!-- 1 -->🐛 Bug Fixes
