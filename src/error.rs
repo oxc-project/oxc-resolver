@@ -125,6 +125,7 @@ impl ResolveError {
         matches!(self, Self::Ignored(_))
     }
 
+    #[cold]
     #[must_use]
     pub fn from_serde_json_error(path: PathBuf, error: &serde_json::Error) -> Self {
         Self::Json(JSONError {
@@ -163,6 +164,7 @@ impl PartialEq for IOError {
 }
 
 impl From<IOError> for io::Error {
+    #[cold]
     fn from(error: IOError) -> Self {
         let io_error = error.0.as_ref();
         Self::new(io_error.kind(), io_error.to_string())
@@ -170,6 +172,7 @@ impl From<IOError> for io::Error {
 }
 
 impl From<io::Error> for ResolveError {
+    #[cold]
     fn from(err: io::Error) -> Self {
         Self::IOError(IOError(Arc::new(err)))
     }
@@ -191,6 +194,7 @@ impl Display for CircularPathBufs {
 }
 
 impl From<Vec<PathBuf>> for CircularPathBufs {
+    #[cold]
     fn from(value: Vec<PathBuf>) -> Self {
         Self(value)
     }

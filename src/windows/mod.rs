@@ -33,7 +33,11 @@ pub fn strip_windows_prefix(path: PathBuf) -> Result<PathBuf, ResolveError> {
             // \\?\BootPartition\
             // It seems nodejs does not support DOS device paths with Volume GUIDs.
             // This can happen if the path points to a Mounted Volume without a drive letter.
-            return Err(ResolveError::PathNotSupported(path));
+            #[cold]
+            fn unsupported_path_error(path: PathBuf) -> ResolveError {
+                ResolveError::PathNotSupported(path)
+            }
+            return Err(unsupported_path_error(path));
         }
         // SAFETY: `as_encoded_bytes` ensures `p` is valid path bytes
         unsafe { PathBuf::from(std::ffi::OsStr::from_encoded_bytes_unchecked(p)) }
