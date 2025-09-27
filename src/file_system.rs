@@ -144,10 +144,14 @@ impl FileSystemOs {
         // `simdutf8` is faster than `std::str::from_utf8` which `fs::read_to_string` uses internally
         if simdutf8::basic::from_utf8(&bytes).is_err() {
             // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "stream did not contain valid UTF-8",
-            ));
+            #[cold]
+            fn invalid_utf8_error() -> io::Error {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "stream did not contain valid UTF-8",
+                )
+            }
+            return Err(invalid_utf8_error());
         }
         // SAFETY: `simdutf8` has ensured it's a valid UTF-8 string
         Ok(unsafe { String::from_utf8_unchecked(bytes) })

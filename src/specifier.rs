@@ -16,7 +16,11 @@ impl<'a> Specifier<'a> {
 
     pub fn parse(specifier: &'a str) -> Result<Self, SpecifierError> {
         if specifier.is_empty() {
-            return Err(SpecifierError::Empty(specifier.to_string()));
+            #[cold]
+            fn empty_specifier_error(specifier: &str) -> SpecifierError {
+                SpecifierError::Empty(specifier.to_string())
+            }
+            return Err(empty_specifier_error(specifier));
         }
         let offset = match specifier.as_bytes()[0] {
             b'/' | b'.' | b'#' => 1,
@@ -24,7 +28,11 @@ impl<'a> Specifier<'a> {
         };
         let (path, query, fragment) = Self::parse_query_fragment(specifier, offset);
         if path.is_empty() {
-            return Err(SpecifierError::Empty(specifier.to_string()));
+            #[cold]
+            fn empty_path_error(specifier: &str) -> SpecifierError {
+                SpecifierError::Empty(specifier.to_string())
+            }
+            return Err(empty_path_error(specifier));
         }
         Ok(Self { path, query, fragment })
     }
