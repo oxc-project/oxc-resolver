@@ -146,10 +146,7 @@ impl FileSystemOs {
             // Same error as `fs::read_to_string` produces (`io::Error::INVALID_UTF8`)
             #[cold]
             fn invalid_utf8_error() -> io::Error {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "stream did not contain valid UTF-8",
-                )
+                io::Error::new(io::ErrorKind::InvalidData, "stream did not contain valid UTF-8")
             }
             return Err(invalid_utf8_error());
         }
