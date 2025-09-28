@@ -270,7 +270,16 @@ impl<Fs: FileSystem> Cache<Fs> {
                 );
 
                 path.canonicalizing.store(0, Ordering::Release);
-                // Convert to Weak reference before storing
+                // Store the canonicalized path in the cache before downgrading to weak reference
+                // This ensures there's always at least one strong reference to prevent dropping
+                if let Ok(ref cp) = res {
+                    // Only insert if not already present to avoid unnecessary operations
+                    let paths = self.paths.pin();
+                    if !paths.contains(cp) {
+                        paths.insert(cp.clone());
+                    }
+                }
+                // Convert to Weak reference for storage
                 res.map(|cp| Arc::downgrade(&cp.0))
             })
             .as_ref()
