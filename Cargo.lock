@@ -784,7 +784,7 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "oxc_resolver"
-version = "11.8.3"
+version = "11.8.4"
 dependencies = [
  "cfg-if",
  "criterion2",
@@ -814,7 +814,7 @@ dependencies = [
 
 [[package]]
 name = "oxc_resolver_napi"
-version = "11.8.3"
+version = "11.8.4"
 dependencies = [
  "fancy-regex",
  "mimalloc-safe",
