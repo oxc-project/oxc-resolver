@@ -8,15 +8,13 @@ on:
     types:
       - opened
       - synchronize
-    paths-ignore:
+    paths-ignore: &paths-ignore
       - "**/*.md"
       - "!.github/workflows/ci.yml"
   push:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-      - "!.github/workflows/ci.yml"
+    paths-ignore: *paths-ignore
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,21 +60,37 @@ jobs:
         with:
           files: .
 
-  wasm:
-    name: Check Wasm
+  wasm32-wasip1:
+    name: Check wasm32-wasip1
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
 
       - uses: oxc-project/setup-rust@f78b3964e121f889426634f0eaeeb09fccecac08 # v1.0.6
         with:
-          cache-key: wasm
+          cache-key: wasm32-wasip1
           save-cache: ${{ github.ref_name == 'main' }}
 
       - name: Check
         run: |
           rustup target add wasm32-wasip1
           cargo check --all-features --target wasm32-wasip1
+
+  wasm32-unknown-unknown:
+    name: Check wasm32-unknown-unknown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
+
+      - uses: oxc-project/setup-rust@f78b3964e121f889426634f0eaeeb09fccecac08 # v1.0.6
+        with:
+          cache-key: wasm32-unknown-unknown
+          save-cache: ${{ github.ref_name == 'main' }}
+
+      - name: Check
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo check --all-features --target wasm32-unknown-unknown
 
   wasi:
     name: Test wasi target
