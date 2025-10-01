@@ -96,6 +96,24 @@ fn test_extend_tsconfig_template_variables() {
 }
 
 #[test]
+fn test_extend_tsconfig_missing_file() {
+    use crate::ResolveError;
+
+    let f = super::fixture_root().join("tsconfig/cases");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigOptions {
+            config_file: f.join("nonexistent-tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        }),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(matches!(result, Err(ResolveError::TsconfigNotFound(_))));
+}
+
+#[test]
 fn test_extend_tsconfig_multiple_inheritance() {
     let f = super::fixture_root().join("tsconfig/cases/extends-chain");
 

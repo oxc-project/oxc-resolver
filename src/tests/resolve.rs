@@ -139,6 +139,20 @@ fn prefer_file_over_dir() {
 }
 
 #[test]
+fn resolve_edge_cases() {
+    let f = super::fixture();
+    let resolver = Resolver::default();
+
+    // Test various edge cases for path resolution
+    let data = [("resolve with multiple dots", f.clone(), "./a/../main1.js", f.join("main1.js"))];
+
+    for (comment, path, request, expected) in data {
+        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+}
+
+#[test]
 fn resolve_dot() {
     let f = super::fixture_root().join("dot");
     let foo_dir: std::path::PathBuf = f.join("foo");

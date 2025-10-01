@@ -299,3 +299,20 @@ fn alias_try_fragment_as_path() {
     let resolution = resolver.resolve(&f, "#/a").map(|r| r.full_path());
     assert_eq!(resolution, Ok(f.join("#").join("a.js")));
 }
+
+#[test]
+fn alias_with_multiple_fallbacks() {
+    let f = super::fixture();
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![(
+            "multi".to_string(),
+            vec![
+                AliasValue::Path(f.join("nonexistent").to_string_lossy().to_string()),
+                AliasValue::Path(f.join("foo").to_string_lossy().to_string()),
+            ],
+        )],
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve(&f, "multi/index.js").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("foo/index.js")));
+}
