@@ -32,7 +32,11 @@ mod tests {
 
     #[test]
     fn test_cached_path_debug() {
+        #[cfg(feature = "yarn_pnp")]
+        let cache = Cache::new(crate::FileSystemOs::new(false));
+        #[cfg(not(feature = "yarn_pnp"))]
         let cache = Cache::new(crate::FileSystemOs::new());
+
         let path = cache.value(Path::new("/foo/bar"));
         let debug_str = format!("{:?}", path);
         assert!(debug_str.contains("FsCachedPath"));
