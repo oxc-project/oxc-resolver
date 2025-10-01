@@ -108,7 +108,7 @@ jobs:
             build: pnpm build
           - os: ubuntu-latest
             target: wasm32-wasip1-threads
-            build: pnpm build
+            build: pnpm run build:debug --release # omit --features allocator
 
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
