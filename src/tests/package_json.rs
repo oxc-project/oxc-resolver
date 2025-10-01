@@ -46,3 +46,19 @@ fn adjacent_to_node_modules() {
     assert_eq!(package_json_path, Some(&resolved_package_json_path));
     assert_eq!(package_json_name, Some("misc"));
 }
+
+#[test]
+fn package_json_with_symlinks_true() {
+    use crate::ResolveOptions;
+
+    let f = super::fixture_root().join("misc");
+    let resolver = Resolver::new(ResolveOptions { symlinks: true, ..ResolveOptions::default() });
+
+    let path = f.join("dir-with-index");
+    let request = "./index.js";
+    let resolved_package_json_path = f.join("package.json");
+
+    let package_json = resolver.resolve(&path, request).unwrap().package_json().cloned();
+    let package_json_path = package_json.as_ref().map(|p| &p.path);
+    assert_eq!(package_json_path, Some(&resolved_package_json_path));
+}

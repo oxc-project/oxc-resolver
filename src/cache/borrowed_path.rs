@@ -5,6 +5,7 @@ use std::{
     path::Path,
 };
 
+#[derive(Debug)]
 pub struct BorrowedCachedPath<'a> {
     pub hash: u64,
     pub path: &'a Path,

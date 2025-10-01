@@ -200,3 +200,36 @@ fn test_unsupported_targets() {
         Err(ResolveError::PathNotSupported(dos_device_temp_path))
     );
 }
+
+#[test]
+fn test_circular_symlink() {
+    let Some(SymlinkFixturePaths { root: _, temp_path }) =
+        prepare_symlinks("temp.test_circular_symlink").unwrap()
+    else {
+        return;
+    };
+
+    // Create a circular symlink: link1 -> link2 -> link1
+    let link1_path = temp_path.join("link1");
+    let link2_path = temp_path.join("link2");
+
+    if symlink(&link2_path, &link1_path, FileType::File).is_err() {
+        // Skip test if we can't create symlinks
+        return;
+    }
+    if symlink(&link1_path, &link2_path, FileType::File).is_err() {
+        // Skip test if we can't create symlinks
+        _ = fs::remove_file(&link1_path);
+        return;
+    }
+
+    let resolver = Resolver::default();
+    let result = resolver.resolve(&temp_path, "./link1");
+
+    // Should error due to circular symlink
+    assert!(result.is_err());
+
+    // Cleanup
+    _ = fs::remove_file(&link1_path);
+    _ = fs::remove_file(&link2_path);
+}

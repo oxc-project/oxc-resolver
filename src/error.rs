@@ -235,3 +235,20 @@ fn test_coverage() {
     assert_eq!(format!("{error:?}"), r#"Specifier(Empty("x"))"#);
     assert_eq!(error.clone(), error);
 }
+
+#[test]
+fn test_circular_path_bufs_display() {
+    use std::path::PathBuf;
+
+    let paths = vec![
+        PathBuf::from("/foo/tsconfig.json"),
+        PathBuf::from("/bar/tsconfig.json"),
+        PathBuf::from("/baz/tsconfig.json"),
+    ];
+    let circular = CircularPathBufs::from(paths);
+    let display_str = format!("{circular}");
+    assert!(display_str.contains("/foo/tsconfig.json"));
+    assert!(display_str.contains(" -> "));
+    assert!(display_str.contains("/bar/tsconfig.json"));
+    assert!(display_str.contains("/baz/tsconfig.json"));
+}
