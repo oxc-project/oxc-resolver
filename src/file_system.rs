@@ -337,3 +337,21 @@ fn metadata() {
     );
     let _ = meta;
 }
+
+#[test]
+fn file_metadata_getters() {
+    let file_meta = FileMetadata::new(true, false, false);
+    assert!(file_meta.is_file());
+    assert!(!file_meta.is_dir());
+    assert!(!file_meta.is_symlink());
+
+    let dir_meta = FileMetadata::new(false, true, false);
+    assert!(!dir_meta.is_file());
+    assert!(dir_meta.is_dir());
+    assert!(!dir_meta.is_symlink());
+
+    let symlink_meta = FileMetadata::new(false, false, true);
+    assert!(!symlink_meta.is_file());
+    assert!(!symlink_meta.is_dir());
+    assert!(symlink_meta.is_symlink());
+}

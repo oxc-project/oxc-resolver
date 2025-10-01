@@ -10,6 +10,8 @@ pub use cached_path::CachedPath;
 #[cfg(test)]
 mod tests {
     use super::borrowed_path::BorrowedCachedPath;
+    use super::cache_impl::Cache;
+    use crate::FileSystem;
     use std::path::Path;
 
     #[test]
@@ -26,5 +28,14 @@ mod tests {
         assert_eq!(borrowed1, borrowed2);
         // Different path should not be equal even with same hash
         assert_ne!(borrowed1, borrowed3);
+    }
+
+    #[test]
+    fn test_cached_path_debug() {
+        let cache = Cache::new(crate::FileSystemOs::new());
+        let path = cache.value(Path::new("/foo/bar"));
+        let debug_str = format!("{:?}", path);
+        assert!(debug_str.contains("FsCachedPath"));
+        assert!(debug_str.contains("path"));
     }
 }
