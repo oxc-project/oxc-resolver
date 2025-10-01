@@ -359,7 +359,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(path);
         }
 
-        let specifier = resolve_file_protocol(specifier);
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let specifier = resolve_file_protocol(specifier)?;
+                let specifier = specifier.as_ref();
+            }
+        };
 
         let result = match Path::new(&specifier).components().next() {
             // 2. If X begins with '/'
@@ -2088,19 +2093,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 }
 
 #[cfg(target_os = "windows")]
-fn resolve_file_protocol(specifier: &str) -> Cow<'_, str> {
+fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
     if specifier.starts_with("file://") {
         url::Url::parse(&specifier)
             .map_err(|_| ())
             .and_then(|p| p.to_file_path())
             .map(|path| Cow::Owned(path.to_string_lossy().to_string()))
-            .map_err(|_| ResolveError::PathNotSupported(PathBuf::from(specifier.as_ref())))?;
+            .map_err(|_| ResolveError::PathNotSupported(PathBuf::from(specifier)))
     } else {
-        Cow::Borrowed(specifier)
+        Ok(Cow::Borrowed(specifier))
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn resolve_file_protocol(specifier: &str) -> &str {
-    specifier
 }
