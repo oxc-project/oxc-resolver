@@ -38,7 +38,7 @@ mod tests {
         let cache = Cache::new(crate::FileSystemOs::new());
 
         let path = cache.value(Path::new("/foo/bar"));
-        let debug_str = format!("{:?}", path);
+        let debug_str = format!("{path:?}");
         assert!(debug_str.contains("FsCachedPath"));
         assert!(debug_str.contains("path"));
     }

@@ -246,7 +246,7 @@ fn test_circular_path_bufs_display() {
         PathBuf::from("/baz/tsconfig.json"),
     ];
     let circular = CircularPathBufs::from(paths);
-    let display_str = format!("{}", circular);
+    let display_str = format!("{circular}");
     assert!(display_str.contains("/foo/tsconfig.json"));
     assert!(display_str.contains(" -> "));
     assert!(display_str.contains("/bar/tsconfig.json"));
