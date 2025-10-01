@@ -65,17 +65,6 @@ mod windows;
 #[cfg(test)]
 mod tests;
 
-use rustc_hash::FxHashSet;
-use std::{
-    borrow::Cow,
-    cmp::Ordering,
-    ffi::OsStr,
-    fmt, iter,
-    path::{Component, Path, PathBuf},
-    sync::Arc,
-};
-use url::Url;
-
 pub use crate::{
     builtins::NODEJS_BUILTINS,
     cache::{Cache, CachedPath},
@@ -98,6 +87,15 @@ pub use crate::{
 use crate::{
     context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier,
     tsconfig_context::TsconfigResolveContext,
+};
+use rustc_hash::FxHashSet;
+use std::{
+    borrow::Cow,
+    cmp::Ordering,
+    ffi::OsStr,
+    fmt, iter,
+    path::{Component, Path, PathBuf},
+    sync::Arc,
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
@@ -361,24 +359,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(path);
         }
 
-        #[allow(unused_assignments)]
-        let mut specifier_owned: Option<String> = None;
-        let mut specifier = specifier;
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let specifier = resolve_file_protocol(specifier)?;
+                let specifier = specifier.as_ref();
+            }
+        };
 
-        if specifier.starts_with("file://") {
-            let unsupported_error = ResolveError::PathNotSupported(specifier.into());
-
-            let path = Url::parse(specifier)
-                .map_err(|_| unsupported_error.clone())?
-                .to_file_path()
-                .map_err(|()| unsupported_error)?;
-
-            let owned = path.to_string_lossy().into_owned();
-            specifier_owned = Some(owned);
-            specifier = specifier_owned.as_deref().unwrap();
-        }
-
-        let result = match Path::new(specifier).components().next() {
+        let result = match Path::new(&specifier).components().next() {
             // 2. If X begins with '/'
             Some(Component::RootDir | Component::Prefix(_)) => {
                 self.require_absolute(cached_path, specifier, ctx)
@@ -2101,5 +2089,18 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Step 11.2 .. 12 omitted, which involves detecting file content.
             _ => Ok(None),
         }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
+    if specifier.starts_with("file://") {
+        url::Url::parse(&specifier)
+            .map_err(|_| ())
+            .and_then(|p| p.to_file_path())
+            .map(|path| Cow::Owned(path.to_string_lossy().to_string()))
+            .map_err(|_| ResolveError::PathNotSupported(PathBuf::from(specifier)))
+    } else {
+        Ok(Cow::Borrowed(specifier))
     }
 }
