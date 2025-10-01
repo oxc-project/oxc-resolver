@@ -539,9 +539,9 @@ if (!nativeBinding || process.env.NAPI_RS_FORCE_WASI) {
   }
 }
 
-if (!nativeBinding && process.env.SKIP_OXC_RESOLVER_FALLBACK !== '1') {
+if (!nativeBinding && globalThis.process?.versions?.["webcontainer"]) {
   try {
-    nativeBinding = require('napi-postinstall/fallback')(require.resolve('./package.json'), true)
+    nativeBinding = require('./webcontainer-fallback.js');
   } catch (err) {
     loadErrors.push(err)
   }

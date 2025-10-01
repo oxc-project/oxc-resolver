@@ -52,7 +52,7 @@ jobs:
           if [[ -n "$pr_number" ]]; then
             version="${VERSION}"
 
-            jq --arg version "${version}" '.version = ($version) | .scripts.postinstall = "napi-postinstall oxc-resolver \($version) check"' package.json > tmp
+            jq --arg version "${version}" '.version = ($version)' package.json > tmp
             mv tmp package.json
             pnpm build
 
