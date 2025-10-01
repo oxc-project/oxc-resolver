@@ -39,7 +39,6 @@
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 //!
 //! ## Example
 //!
