@@ -3,7 +3,7 @@ members = ["napi"]
 resolver = "2"
 
 [workspace.package]
-authors = ["Boshen <boshenc@gmail.com>", "JounQin <admin@1stg.me> (https://www.1stG.me)"]
+authors = ["Boshen <boshenc@gmail.com>"]
 categories = ["development-tools"]
 edition = "2024"
 homepage = "https://github.com/oxc-project/oxc-resolver"
