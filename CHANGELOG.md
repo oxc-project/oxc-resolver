@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.9.0](https://github.com/oxc-project/oxc-resolver/compare/v11.8.4...v11.9.0) - 2025-10-01
+
+### <!-- 0 -->🚀 Features
+
+- only resolve file:// protocol on windows ([#737](https://github.com/oxc-project/oxc-resolver/pull/737)) (by @Boshen) - #737
+
+### <!-- 6 -->🧪 Testing
+
+- improve test coverage for edge cases ([#740](https://github.com/oxc-project/oxc-resolver/pull/740)) (by @Boshen) - #740
+- improve coverage for check_restrictions ([#739](https://github.com/oxc-project/oxc-resolver/pull/739)) (by @Boshen) - #739
+
+### Contributors
+
+* @Boshen
+
 ## [11.8.4](https://github.com/oxc-project/oxc-resolver/compare/v11.8.3...v11.8.4) - 2025-09-28
 
 ### <!-- 1 -->🐛 Bug Fixes
