@@ -1,8 +1,6 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/missing.test.js
 
-use normalize_path::NormalizePath;
-
-use crate::{AliasValue, ResolveContext, ResolveOptions, Resolver};
+use crate::{AliasValue, PathUtil, ResolveContext, ResolveOptions, Resolver};
 
 #[test]
 fn test() {

@@ -255,7 +255,7 @@ fn abnormal_relative() {
 #[cfg(windows)]
 #[test]
 fn resolve_normalized_on_windows() {
-    use normalize_path::NormalizePath;
+    use crate::PathUtil;
 
     let f = super::fixture();
     let absolute = f.join("./foo/index.js").normalize();

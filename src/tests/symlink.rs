@@ -1,7 +1,7 @@
 #[cfg(target_os = "windows")]
-use crate::tests::windows::get_dos_device_path;
+use crate::PathUtil;
 #[cfg(target_os = "windows")]
-use normalize_path::NormalizePath;
+use crate::tests::windows::get_dos_device_path;
 use std::path::PathBuf;
 use std::{fs, io, path::Path};
 
