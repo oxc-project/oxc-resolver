@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
-use normalize_path::NormalizePath;
-
-use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
+use crate::{
+    AliasValue, PathUtil, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
+};
 
 #[allow(clippy::too_many_lines)]
 #[test]
