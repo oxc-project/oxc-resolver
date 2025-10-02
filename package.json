@@ -31,8 +31,6 @@
     "@napi-rs/wasm-runtime": "^1.0.0",
     "@types/node": "^24.2.0",
     "emnapi": "^1.4.4",
-    "prettier": "^3.6.2",
-    "prettier-plugin-pkg": "^0.21.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
