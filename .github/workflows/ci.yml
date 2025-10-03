@@ -61,7 +61,7 @@ jobs:
           files: .
 
   wasm32-wasip1:
-    name: Check wasm32-wasip1
+    name: Test wasm32-wasip1
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
@@ -71,13 +71,20 @@ jobs:
           cache-key: wasm32-wasip1
           save-cache: ${{ github.ref_name == 'main' }}
 
-      - name: Check
+      - uses: ./.github/actions/pnpm
+
+      - name: Build
         run: |
           rustup target add wasm32-wasip1
-          cargo check --all-features --target wasm32-wasip1
+          pnpm build --target wasm32-wasip1
+
+      - name: Test
+        run: pnpm run test
+        env:
+          WASI_TEST: 1
 
   wasm32-unknown-unknown:
-    name: Check wasm32-unknown-unknown
+    name: Test wasm32-unknown-unknown
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
@@ -87,10 +94,17 @@ jobs:
           cache-key: wasm32-unknown-unknown
           save-cache: ${{ github.ref_name == 'main' }}
 
-      - name: Check
+      - uses: ./.github/actions/pnpm
+
+      - name: Build
         run: |
           rustup target add wasm32-unknown-unknown
-          cargo check --all-features --target wasm32-unknown-unknown
+          pnpm build --target wasm32-unknown-unknown
+
+      - name: Test
+        run: pnpm run test
+        env:
+          WASI_TEST: 1
 
   wasi:
     name: Test wasi target
