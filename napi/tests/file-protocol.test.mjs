@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assert, test } from 'vitest';
 
 let ResolverFactory;
