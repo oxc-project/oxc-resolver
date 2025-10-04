@@ -359,7 +359,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
 
         cfg_if::cfg_if! {
-            if #[cfg(target_os = "windows")] {
+            if #[cfg(not(target_arch = "wasm32"))] {
                 let specifier = resolve_file_protocol(specifier)?;
                 let specifier = specifier.as_ref();
             }
@@ -2091,14 +2091,27 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(not(target_arch = "wasm32"))]
 fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
     if specifier.starts_with("file://") {
-        url::Url::parse(&specifier)
+        url::Url::parse(specifier)
             .map_err(|_| ())
-            .and_then(|p| p.to_file_path())
-            .map(|path| Cow::Owned(path.to_string_lossy().to_string()))
-            .map_err(|_| ResolveError::PathNotSupported(PathBuf::from(specifier)))
+            .and_then(|url| {
+                url.to_file_path().map(|path| {
+                    let mut result = path.to_string_lossy().to_string();
+                    // Preserve query and fragment from the URL
+                    if let Some(query) = url.query() {
+                        result.push('?');
+                        result.push_str(query);
+                    }
+                    if let Some(fragment) = url.fragment() {
+                        result.push('#');
+                        result.push_str(fragment);
+                    }
+                    Cow::Owned(result)
+                })
+            })
+            .map_err(|()| ResolveError::PathNotSupported(PathBuf::from(specifier)))
     } else {
         Ok(Cow::Borrowed(specifier))
     }
