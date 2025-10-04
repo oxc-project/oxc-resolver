@@ -25,7 +25,7 @@ const enhancedResolveRoot = join(
 // ESM allows file:// protocol URLs for module specifiers
 // See: https://nodejs.org/api/esm.html#urls
 
-test('file:// protocol with absolute path', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with absolute path', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -38,7 +38,7 @@ test('file:// protocol with absolute path', () => {
   assert.equal(result.path, main1Path);
 });
 
-test('file:// protocol with query string', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with query string', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -52,7 +52,7 @@ test('file:// protocol with query string', () => {
   assert.ok(result.path.includes('?query=value'));
 });
 
-test('file:// protocol with fragment', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with fragment', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -66,7 +66,7 @@ test('file:// protocol with fragment', () => {
   assert.ok(result.path.includes('#fragment'));
 });
 
-test('file:// protocol with query and fragment', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with query and fragment', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -80,7 +80,7 @@ test('file:// protocol with query and fragment', () => {
   assert.ok(result.path.includes('?query=value#fragment'));
 });
 
-test('file:// protocol with unicode path', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with unicode path', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -93,7 +93,7 @@ test('file:// protocol with unicode path', () => {
   assert.equal(result.path, unicodePath);
 });
 
-test('file:// protocol with percent-encoded special characters', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with percent-encoded special characters', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -112,7 +112,7 @@ test('file:// protocol with percent-encoded special characters', () => {
   assert.ok(result.error);
 });
 
-test('file:// protocol with directory path', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with directory path', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -127,7 +127,7 @@ test('file:// protocol with directory path', () => {
   assert.ok(result.path.includes('index.js'));
 });
 
-test('file:// protocol with relative path segments (should error)', () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol with relative path segments (should error)', () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
@@ -140,7 +140,7 @@ test('file:// protocol with relative path segments (should error)', () => {
   assert.ok(result.error);
 });
 
-test('file:// protocol async resolution', async () => {
+test.skipIf(process.env.WASI_TEST)('file:// protocol async resolution', async () => {
   const resolver = new ResolverFactory({
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
   });
