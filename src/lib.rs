@@ -2094,7 +2094,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
     if specifier.starts_with("file://") {
-        url::Url::parse(&specifier)
+        url::Url::parse(specifier)
             .map_err(|_| ())
             .and_then(|url| {
                 url.to_file_path().map(|path| {
@@ -2111,7 +2111,7 @@ fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> 
                     Cow::Owned(result)
                 })
             })
-            .map_err(|_| ResolveError::PathNotSupported(PathBuf::from(specifier)))
+            .map_err(|()| ResolveError::PathNotSupported(PathBuf::from(specifier)))
     } else {
         Ok(Cow::Borrowed(specifier))
     }
