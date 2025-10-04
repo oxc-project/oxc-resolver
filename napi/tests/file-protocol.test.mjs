@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { assert, test } from 'vitest';
+import { assert, describe, test } from 'vitest';
 
 let ResolverFactory;
 
@@ -25,130 +25,132 @@ const enhancedResolveRoot = join(
 // ESM allows file:// protocol URLs for module specifiers
 // See: https://nodejs.org/api/esm.html#urls
 
-test.skipIf(process.env.WASI_TEST)('file:// protocol with absolute path', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+describe.skipIf(process.env.WASI_TEST)('file:// protocol', () => {
+  test('with absolute path', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
+
+    const main1Path = join(enhancedResolveRoot, 'main1.js');
+    const fileUrl = pathToFileURL(main1Path).href;
+
+    const result = resolver.sync(enhancedResolveRoot, fileUrl);
+
+    assert.equal(result.path, main1Path);
   });
 
-  const main1Path = join(enhancedResolveRoot, 'main1.js');
-  const fileUrl = pathToFileURL(main1Path).href;
+  test('with query string', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  const result = resolver.sync(enhancedResolveRoot, fileUrl);
+    const main1Path = join(enhancedResolveRoot, 'main1.js');
+    const fileUrl = pathToFileURL(main1Path).href + '?query=value';
 
-  assert.equal(result.path, main1Path);
-});
+    const result = resolver.sync(enhancedResolveRoot, fileUrl);
 
-test.skipIf(process.env.WASI_TEST)('file:// protocol with query string', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    assert.ok(result.path.includes('main1.js'));
+    assert.ok(result.path.includes('?query=value'));
   });
 
-  const main1Path = join(enhancedResolveRoot, 'main1.js');
-  const fileUrl = pathToFileURL(main1Path).href + '?query=value';
+  test('with fragment', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  const result = resolver.sync(enhancedResolveRoot, fileUrl);
+    const main1Path = join(enhancedResolveRoot, 'main1.js');
+    const fileUrl = pathToFileURL(main1Path).href + '#fragment';
 
-  assert.ok(result.path.includes('main1.js'));
-  assert.ok(result.path.includes('?query=value'));
-});
+    const result = resolver.sync(enhancedResolveRoot, fileUrl);
 
-test.skipIf(process.env.WASI_TEST)('file:// protocol with fragment', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    assert.ok(result.path.includes('main1.js'));
+    assert.ok(result.path.includes('#fragment'));
   });
 
-  const main1Path = join(enhancedResolveRoot, 'main1.js');
-  const fileUrl = pathToFileURL(main1Path).href + '#fragment';
+  test('with query and fragment', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  const result = resolver.sync(enhancedResolveRoot, fileUrl);
+    const main1Path = join(enhancedResolveRoot, 'main1.js');
+    const fileUrl = pathToFileURL(main1Path).href + '?query=value#fragment';
 
-  assert.ok(result.path.includes('main1.js'));
-  assert.ok(result.path.includes('#fragment'));
-});
+    const result = resolver.sync(enhancedResolveRoot, fileUrl);
 
-test.skipIf(process.env.WASI_TEST)('file:// protocol with query and fragment', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    assert.ok(result.path.includes('main1.js'));
+    assert.ok(result.path.includes('?query=value#fragment'));
   });
 
-  const main1Path = join(enhancedResolveRoot, 'main1.js');
-  const fileUrl = pathToFileURL(main1Path).href + '?query=value#fragment';
+  test('with unicode path', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  const result = resolver.sync(enhancedResolveRoot, fileUrl);
+    const unicodePath = join(enhancedResolveRoot, '测试.js');
+    const fileUrl = pathToFileURL(unicodePath).href;
 
-  assert.ok(result.path.includes('main1.js'));
-  assert.ok(result.path.includes('?query=value#fragment'));
-});
+    const result = resolver.sync(enhancedResolveRoot, fileUrl);
 
-test.skipIf(process.env.WASI_TEST)('file:// protocol with unicode path', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    assert.equal(result.path, unicodePath);
   });
 
-  const unicodePath = join(enhancedResolveRoot, '测试.js');
-  const fileUrl = pathToFileURL(unicodePath).href;
+  test('with percent-encoded special characters', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  const result = resolver.sync(enhancedResolveRoot, fileUrl);
+    // Test that percent-encoded characters in file URLs are handled
+    // Node.js requires # to be encoded as %23 in file URLs
+    const main1Path = join(enhancedResolveRoot, 'main1.js');
+    const fileUrl = pathToFileURL(main1Path).href;
 
-  assert.equal(result.path, unicodePath);
-});
+    // Manually create a URL with encoded characters
+    const encodedUrl = fileUrl.replace('main1.js', 'main%231.js');
 
-test.skipIf(process.env.WASI_TEST)('file:// protocol with percent-encoded special characters', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    const result = resolver.sync(enhancedResolveRoot, encodedUrl);
+
+    // This file doesn't exist, so we expect an error
+    assert.ok(result.error);
   });
 
-  // Test that percent-encoded characters in file URLs are handled
-  // Node.js requires # to be encoded as %23 in file URLs
-  const main1Path = join(enhancedResolveRoot, 'main1.js');
-  const fileUrl = pathToFileURL(main1Path).href;
+  test('with directory path', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  // Manually create a URL with encoded characters
-  const encodedUrl = fileUrl.replace('main1.js', 'main%231.js');
+    const dirPath = join(enhancedResolveRoot, 'dirOrFile/');
+    const fileUrl = pathToFileURL(dirPath).href;
 
-  const result = resolver.sync(enhancedResolveRoot, encodedUrl);
+    const result = resolver.sync(enhancedResolveRoot, fileUrl);
 
-  // This file doesn't exist, so we expect an error
-  assert.ok(result.error);
-});
-
-test.skipIf(process.env.WASI_TEST)('file:// protocol with directory path', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    // Should resolve to index.js in the directory
+    assert.ok(result.path.includes('dirOrFile'));
+    assert.ok(result.path.includes('index.js'));
   });
 
-  const dirPath = join(enhancedResolveRoot, 'dirOrFile/');
-  const fileUrl = pathToFileURL(dirPath).href;
+  test('with relative path segments (should error)', () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  const result = resolver.sync(enhancedResolveRoot, fileUrl);
+    // file:// URLs with relative path segments like './main.js' are invalid
+    // This should error
+    const result = resolver.sync(enhancedResolveRoot, 'file://./main.js');
 
-  // Should resolve to index.js in the directory
-  assert.ok(result.path.includes('dirOrFile'));
-  assert.ok(result.path.includes('index.js'));
-});
-
-test.skipIf(process.env.WASI_TEST)('file:// protocol with relative path segments (should error)', () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    // Should return an error for malformed file URLs
+    assert.ok(result.error);
   });
 
-  // file:// URLs with relative path segments like './main.js' are invalid
-  // This should error
-  const result = resolver.sync(enhancedResolveRoot, 'file://./main.js');
+  test('async resolution', async () => {
+    const resolver = new ResolverFactory({
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    });
 
-  // Should return an error for malformed file URLs
-  assert.ok(result.error);
-});
+    const main1Path = join(enhancedResolveRoot, 'main1.js');
+    const fileUrl = pathToFileURL(main1Path).href;
 
-test.skipIf(process.env.WASI_TEST)('file:// protocol async resolution', async () => {
-  const resolver = new ResolverFactory({
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    const result = await resolver.async(enhancedResolveRoot, fileUrl);
+
+    assert.equal(result.path, main1Path);
   });
-
-  const main1Path = join(enhancedResolveRoot, 'main1.js');
-  const fileUrl = pathToFileURL(main1Path).href;
-
-  const result = await resolver.async(enhancedResolveRoot, fileUrl);
-
-  assert.equal(result.path, main1Path);
 });
