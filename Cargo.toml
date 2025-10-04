@@ -133,6 +133,11 @@ debug = false
 # and we don't rely on it for debugging that much.
 debug = false
 
+[profile.wasm-test]
+inherits = "test"
+debug = true
+opt-level = "z" # Avoid too many locals errors during wasmtime testing
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

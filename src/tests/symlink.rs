@@ -31,6 +31,10 @@ fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(
         FileType::File => std::os::windows::fs::symlink_file(original.as_ref().normalize(), link),
         FileType::Dir => std::os::windows::fs::symlink_dir(original.as_ref().normalize(), link),
     }
+    #[cfg(target_family = "wasm")]
+    {
+        Err(io::Error::new(io::ErrorKind::Other, "not supported"))
+    }
 }
 
 fn init(dirname: &Path, temp_path: &Path) -> io::Result<()> {
@@ -119,6 +123,7 @@ fn prepare_symlinks<P: AsRef<Path>>(
 }
 
 #[test]
+#[cfg_attr(target_family = "wasm", ignore)]
 fn test() {
     let Some(SymlinkFixturePaths { root, temp_path }) = prepare_symlinks("temp").unwrap() else {
         return;

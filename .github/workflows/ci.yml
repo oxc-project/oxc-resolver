@@ -61,7 +61,7 @@ jobs:
           files: .
 
   wasm32-wasip1:
-    name: Check wasm32-wasip1
+    name: Test wasm32-wasip1
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
@@ -70,11 +70,17 @@ jobs:
         with:
           cache-key: wasm32-wasip1
           save-cache: ${{ github.ref_name == 'main' }}
+          tools: wasmtime
 
-      - name: Check
-        run: |
-          rustup target add wasm32-wasip1
-          cargo check --all-features --target wasm32-wasip1
+      - uses: ./.github/actions/pnpm
+
+      - name: Install target
+        run: rustup target add wasm32-wasip1
+
+      - name: Test
+        run: cargo test --target wasm32-wasip1 --profile wasm-test -- --nocapture
+        env:
+          CARGO_TARGET_WASM32_WASIP1_RUNNER: "wasmtime run -W bulk-memory=y --dir ${{ github.workspace }}::/ --"
 
   wasm32-unknown-unknown:
     name: Check wasm32-unknown-unknown
@@ -102,6 +108,7 @@ jobs:
         with:
           cache-key: wasi
           save-cache: ${{ github.ref_name == 'main' }}
+          tools: wasmtime
 
       - uses: ./.github/actions/pnpm
 
@@ -114,5 +121,10 @@ jobs:
         run: pnpm run test
         env:
           WASI_TEST: 1
+
+      - name: Cargo Test
+        run: cargo test --target wasm32-wasip1-threads --profile wasm-test -- --nocapture
+        env:
+          CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER: "wasmtime run -W bulk-memory=y -W threads=y -S threads=y --dir ${{ github.workspace }}::/ --"
 
       - run: git diff --exit-code # Must commit index.d.ts

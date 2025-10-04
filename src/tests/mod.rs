@@ -43,6 +43,7 @@ pub fn fixture() -> PathBuf {
 }
 
 #[test]
+#[cfg_attr(target_os = "wasi", ignore)]
 fn threaded_environment() {
     let cwd = env::current_dir().unwrap();
     let resolver = Arc::new(Resolver::default());
