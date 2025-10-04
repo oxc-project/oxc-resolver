@@ -358,8 +358,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(path);
         }
 
-        let specifier = resolve_file_protocol(specifier)?;
-        let specifier = specifier.as_ref();
+        cfg_if::cfg_if! {
+            if #[cfg(not(target_arch = "wasm32"))] {
+                let specifier = resolve_file_protocol(specifier)?;
+                let specifier = specifier.as_ref();
+            }
+        };
 
         let result = match Path::new(&specifier).components().next() {
             // 2. If X begins with '/'
@@ -2111,10 +2115,4 @@ fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> 
     } else {
         Ok(Cow::Borrowed(specifier))
     }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
-    // file:// protocol is not supported on wasm32 (no filesystem access)
-    Ok(Cow::Borrowed(specifier))
 }
