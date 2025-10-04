@@ -5,4 +5,4 @@
 rustflags = ["-C", "link-args=-Wl,-z,nodelete"]
 
 [target.wasm32-wasip1-threads]
-rustflags = ["-Clink-args=--initial-memory=2621440 --max-memory=2621440"]
+rustflags = ["-Clink-args=--initial-memory=64144016 --max-memory=64144016"]

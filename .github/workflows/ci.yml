@@ -72,7 +72,9 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
           tools: wasmtime
 
-      - name: Build
+      - uses: ./.github/actions/pnpm
+
+      - name: Install target
         run: rustup target add wasm32-wasip1
 
       - name: Test
