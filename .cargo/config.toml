@@ -3,3 +3,6 @@
 # See https://x.com/Brooooook_lyn/status/1895848334692401270
 [target.'cfg(target_env = "gnu")']
 rustflags = ["-C", "link-args=-Wl,-z,nodelete"]
+
+[target.wasm32-wasip1-threads]
+rustflags = ["-Clink-args=--initial-memory=2621440 --max-memory=2621440"]
