@@ -358,12 +358,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(path);
         }
 
-        cfg_if::cfg_if! {
-            if #[cfg(target_os = "windows")] {
-                let specifier = resolve_file_protocol(specifier)?;
-                let specifier = specifier.as_ref();
-            }
-        };
+        let specifier = resolve_file_protocol(specifier)?;
+        let specifier = specifier.as_ref();
 
         let result = match Path::new(&specifier).components().next() {
             // 2. If X begins with '/'
@@ -2091,13 +2087,25 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 }
 
-#[cfg(target_os = "windows")]
 fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
     if specifier.starts_with("file://") {
         url::Url::parse(&specifier)
             .map_err(|_| ())
-            .and_then(|p| p.to_file_path())
-            .map(|path| Cow::Owned(path.to_string_lossy().to_string()))
+            .and_then(|url| {
+                url.to_file_path().map(|path| {
+                    let mut result = path.to_string_lossy().to_string();
+                    // Preserve query and fragment from the URL
+                    if let Some(query) = url.query() {
+                        result.push('?');
+                        result.push_str(query);
+                    }
+                    if let Some(fragment) = url.fragment() {
+                        result.push('#');
+                        result.push_str(fragment);
+                    }
+                    Cow::Owned(result)
+                })
+            })
             .map_err(|_| ResolveError::PathNotSupported(PathBuf::from(specifier)))
     } else {
         Ok(Cow::Borrowed(specifier))
