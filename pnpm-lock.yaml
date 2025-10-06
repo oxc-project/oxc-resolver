@@ -9,19 +9,19 @@ importers:
   .:
     devDependencies:
       '@napi-rs/cli':
-        specifier: ^3.0.0
+        specifier: ^3.3.0
         version: 3.3.0(@emnapi/runtime@1.5.0)(@types/node@24.7.0)
       '@napi-rs/wasm-runtime':
-        specifier: ^1.0.0
+        specifier: ^1.0.6
         version: 1.0.6
       '@types/node':
-        specifier: ^24.2.0
+        specifier: ^24.7.0
         version: 24.7.0
       emnapi:
-        specifier: ^1.4.4
+        specifier: ^1.5.0
         version: 1.5.0
       typescript:
-        specifier: ^5.9.2
+        specifier: ^5.9.3
         version: 5.9.3
       vitest:
         specifier: ^3.2.4
