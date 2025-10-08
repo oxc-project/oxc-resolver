@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.10.0](https://github.com/oxc-project/oxc-resolver/compare/v11.9.0...v11.10.0) - 2025-10-08
+
+### <!-- 0 -->🚀 Features
+
+- add ESM file:// protocol support with comprehensive tests ([#746](https://github.com/oxc-project/oxc-resolver/pull/746)) (by @Boshen) - #746
+
+### <!-- 2 -->🚜 Refactor
+
+- remove normalize-path dependency, use internal PathUtil ([#742](https://github.com/oxc-project/oxc-resolver/pull/742)) (by @Boshen) - #742
+
+### <!-- 4 -->⚡ Performance
+
+- make url crate optional for wasm32 targets (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.9.0](https://github.com/oxc-project/oxc-resolver/compare/v11.8.4...v11.9.0) - 2025-10-01
 
 ### <!-- 0 -->🚀 Features
