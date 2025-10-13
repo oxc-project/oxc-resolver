@@ -36,6 +36,23 @@ pub struct Resolution {
     ///
     ///  The algorithm uses the file extension or finds the closest `package.json` with the `type` field.
     pub(crate) module_type: Option<ModuleType>,
+
+    /// Whether the resolution succeeded by matching a TypeScript extension
+    /// that was explicitly written in the specifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Specifier: "./foo.ts" → Resolved: "/project/foo.ts"
+    /// // resolved_using_ts_extension = true
+    ///
+    /// // Specifier: "./foo" → Resolved: "/project/foo.ts"
+    /// // resolved_using_ts_extension = false
+    ///
+    /// // Specifier: "./foo.js" → Resolved: "/project/foo.ts"
+    /// // resolved_using_ts_extension = false (specifier had .js, not .ts)
+    /// ```
+    pub(crate) resolved_using_ts_extension: bool,
 }
 
 impl Clone for Resolution {
@@ -46,6 +63,7 @@ impl Clone for Resolution {
             fragment: self.fragment.clone(),
             package_json: self.package_json.clone(),
             module_type: self.module_type,
+            resolved_using_ts_extension: self.resolved_using_ts_extension,
         }
     }
 }
@@ -58,6 +76,7 @@ impl fmt::Debug for Resolution {
             .field("fragment", &self.fragment)
             .field("module_type", &self.module_type)
             .field("package_json", &self.package_json.as_ref().map(|p| p.path()))
+            .field("resolved_using_ts_extension", &self.resolved_using_ts_extension)
             .finish()
     }
 }
@@ -117,5 +136,29 @@ impl Resolution {
     #[must_use]
     pub fn module_type(&self) -> Option<ModuleType> {
         self.module_type
+    }
+
+    /// Returns whether the resolution succeeded by matching a TypeScript extension
+    /// that was explicitly written in the specifier.
+    ///
+    /// This is `true` when:
+    /// - The specifier contains a TypeScript extension (`.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts`, `.d.mts`, `.d.cts`)
+    /// - The resolved file has the same extension as the specifier
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Specifier: "./foo.ts" → Resolved: "/project/foo.ts"
+    /// // returns true
+    ///
+    /// // Specifier: "./foo" → Resolved: "/project/foo.ts"
+    /// // returns false
+    ///
+    /// // Specifier: "./foo.js" → Resolved: "/project/foo.ts" (via extensionAlias)
+    /// // returns false
+    /// ```
+    #[must_use]
+    pub const fn resolved_using_ts_extension(&self) -> bool {
+        self.resolved_using_ts_extension
     }
 }

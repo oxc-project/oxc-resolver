@@ -161,6 +161,18 @@ pub struct NapiResolveOptions {
     ///
     /// Default: `false`
     pub allow_package_exports_in_directory_resolve: Option<bool>,
+
+    /// If true, only resolve to declaration files (.d.ts, .d.mts, .d.cts).
+    /// Ignores implementation files even if they exist.
+    ///
+    /// When enabled:
+    /// - Only tries declaration extensions (.d.ts, .d.mts, .d.cts)
+    /// - Ignores `extensions` option
+    /// - Respects package.json `types` and `typings` fields
+    /// - Still checks package.json `exports` with types condition
+    ///
+    /// Default: `false`
+    pub declaration_only: Option<bool>,
 }
 
 #[napi]

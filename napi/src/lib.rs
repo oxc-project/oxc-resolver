@@ -36,6 +36,14 @@ pub struct ResolveResult {
 
     /// `package.json` path for the given module.
     pub package_json_path: Option<String>,
+
+    /// Whether the resolution succeeded by matching a TypeScript extension
+    /// that was explicitly written in the specifier.
+    ///
+    /// This is `true` when:
+    /// - The specifier contains a TypeScript extension (`.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts`, `.d.mts`, `.d.cts`)
+    /// - The resolved file has the same extension as the specifier
+    pub resolved_using_ts_extension: bool,
 }
 
 /// Node.js builtin module when `Options::builtin_modules` is enabled.
@@ -63,6 +71,7 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
                 .package_json()
                 .and_then(|p| p.path().to_str())
                 .map(|p| p.to_string()),
+            resolved_using_ts_extension: resolution.resolved_using_ts_extension(),
         },
         Err(err) => {
             let error = err.to_string();
@@ -77,6 +86,7 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
                 module_type: None,
                 error: Some(error),
                 package_json_path: None,
+                resolved_using_ts_extension: false,
             }
         }
     }
@@ -278,6 +288,7 @@ impl ResolverFactory {
             allow_package_exports_in_directory_resolve: op
                 .allow_package_exports_in_directory_resolve
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
+            declaration_only: op.declaration_only.unwrap_or(default.declaration_only),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: default.yarn_pnp,
         }

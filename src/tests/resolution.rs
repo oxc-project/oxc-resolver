@@ -10,6 +10,7 @@ fn test() {
         fragment: Some("#fragment".to_string()),
         package_json: None,
         module_type: None,
+        resolved_using_ts_extension: false,
     };
     assert_eq!(resolution.path(), Path::new("foo"));
     assert_eq!(resolution.query(), Some("?query"));

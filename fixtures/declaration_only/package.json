@@ -1,0 +1,4 @@
+{
+  "name": "declaration_only_test",
+  "types": "./types/index.d.ts"
+}

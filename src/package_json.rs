@@ -290,6 +290,30 @@ impl PackageJson {
         })
     }
 
+    /// Get the "types" or "typings" field from package.json
+    ///
+    /// These fields point to TypeScript declaration files (.d.ts)
+    #[cfg(feature = "typescript")]
+    #[must_use]
+    pub fn types_field(&self) -> Option<&str> {
+        self.raw_json.as_object().and_then(|obj| {
+            obj.get("types").or_else(|| obj.get("typings")).and_then(JSONValue::as_str)
+        })
+    }
+
+    /// Get the "typesVersions" field from package.json
+    ///
+    /// This field allows packages to provide different type definitions
+    /// for different TypeScript versions
+    #[cfg(feature = "typescript")]
+    #[must_use]
+    pub fn types_versions_field(&self) -> Option<&JSONMap> {
+        self.raw_json
+            .as_object()
+            .and_then(|obj| obj.get("typesVersions"))
+            .and_then(JSONValue::as_object)
+    }
+
     pub(crate) fn alias_value<'a>(
         key: &Path,
         value: &'a JSONValue,

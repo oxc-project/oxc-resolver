@@ -61,6 +61,9 @@ mod tsconfig_context;
 #[cfg(target_os = "windows")]
 mod windows;
 
+#[cfg(feature = "typescript")]
+pub mod typescript;
+
 #[cfg(test)]
 mod tests;
 
@@ -208,6 +211,91 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         )
     }
 
+    /// Resolve a TypeScript type reference directive.
+    ///
+    /// Type reference directives are comments in the form `/// <reference types="..." />`.
+    /// This method resolves the type declaration package from `@types` or custom type roots.
+    ///
+    /// # Arguments
+    ///
+    /// * `containing_file` - The absolute path to the file containing the type reference
+    /// * `type_reference` - The package name from the type reference directive
+    ///
+    /// # Errors
+    ///
+    /// * See [ResolveError]
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let resolver = Resolver::new(ResolveOptions::default());
+    /// let result = resolver.resolve_type_reference_directive(
+    ///     Path::new("/project/src/index.ts"),
+    ///     "node"
+    /// )?;
+    /// ```
+    #[cfg(feature = "typescript")]
+    pub fn resolve_type_reference_directive<P: AsRef<Path>>(
+        &self,
+        containing_file: P,
+        type_reference: &str,
+    ) -> Result<Resolution, ResolveError> {
+        use crate::typescript::TypeReferenceResolver;
+
+        let containing_file = containing_file.as_ref();
+        let containing_directory = containing_file.parent().unwrap_or(containing_file);
+
+        let resolver = TypeReferenceResolver::new(&self.options);
+        let type_roots = resolver.get_effective_type_roots(containing_directory);
+
+        let resolved_path =
+            TypeReferenceResolver::resolve_from_type_roots(type_reference, &type_roots)?;
+
+        Ok(Resolution {
+            path: resolved_path,
+            query: None,
+            fragment: None,
+            package_json: None,
+            module_type: None,
+            resolved_using_ts_extension: false,
+        })
+    }
+
+    /// Resolve a package from `@types`.
+    ///
+    /// This method implements TypeScript's `@types` package resolution logic,
+    /// including scoped package name mangling (e.g., `@foo/bar` -> `@types/foo__bar`).
+    ///
+    /// # Arguments
+    ///
+    /// * `package_name` - The package name to resolve from `@types`
+    /// * `containing_directory` - The directory to start resolution from
+    ///
+    /// # Errors
+    ///
+    /// * See [ResolveError]
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let resolver = Resolver::new(ResolveOptions::default());
+    /// let result = resolver.resolve_at_types_package(
+    ///     "@angular/core",
+    ///     Path::new("/project")
+    /// )?;
+    /// ```
+    #[cfg(feature = "typescript")]
+    pub fn resolve_at_types_package<P: AsRef<Path>>(
+        &self,
+        package_name: &str,
+        containing_directory: P,
+    ) -> Result<Resolution, ResolveError> {
+        use crate::typescript::get_types_package_name;
+
+        let at_types_package = get_types_package_name(package_name);
+        self.resolve(containing_directory.as_ref(), &at_types_package)
+    }
+
     /// Resolve `specifier` at absolute `path` with [ResolveContext]
     ///
     /// # Errors
@@ -281,12 +369,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             debug_assert!(path.starts_with(package_json.directory()));
         }
         let module_type = self.esm_file_format(&cached_path, ctx)?;
+
+        // Check if resolution used a TypeScript extension
+        let resolved_using_ts_extension = check_ts_extension_match(specifier, &path);
+
         Ok(Resolution {
             path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
             package_json,
             module_type,
+            resolved_using_ts_extension,
         })
     }
 
@@ -619,6 +712,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn load_as_file(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
+        // When declaration_only is true, only resolve to declaration files
+        if self.options.declaration_only {
+            const DECLARATION_EXTENSIONS: &[&str] = &[".d.ts", ".d.mts", ".d.cts"];
+            let extensions: Vec<String> =
+                DECLARATION_EXTENSIONS.iter().map(|s| (*s).to_string()).collect();
+            return self.load_extensions(cached_path, &extensions, ctx);
+        }
+
         // enhanced-resolve feature: extension_alias
         if let Some(path) = self.load_extension_alias(cached_path, ctx)? {
             return Ok(Some(path));
@@ -642,6 +743,26 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 1. If X/package.json is a file,
         // a. Parse X/package.json, and look for "main" field.
         if let Some(package_json) = self.cache.get_package_json(cached_path, &self.options, ctx)? {
+            // When declaration_only is true, prioritize types/typings fields
+            #[cfg(feature = "typescript")]
+            if self.options.declaration_only {
+                if let Some(types_field) = package_json.types_field() {
+                    let types_field =
+                        if types_field.starts_with("./") || types_field.starts_with("../") {
+                            Cow::Borrowed(types_field)
+                        } else {
+                            Cow::Owned(format!("./{types_field}"))
+                        };
+                    let cached_path =
+                        cached_path.normalize_with(types_field.as_ref(), self.cache.as_ref());
+                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
+                        return Ok(Some(path));
+                    }
+                }
+                // If no types field or resolution failed, try index.d.ts
+                return self.load_index(cached_path, ctx);
+            }
+
             // b. If "main" is a falsy value, GOTO 2.
             for main_field in package_json.main_fields(&self.options.main_fields) {
                 // ref https://github.com/webpack/enhanced-resolve/blob/main/lib/MainFieldPlugin.js#L66-L67
@@ -763,6 +884,20 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn load_index(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
+        // When declaration_only is true, only try index.d.ts, index.d.mts, index.d.cts
+        if self.options.declaration_only {
+            const DECLARATION_EXTENSIONS: &[&str] = &[".d.ts", ".d.mts", ".d.cts"];
+            let extensions: Vec<String> =
+                DECLARATION_EXTENSIONS.iter().map(|s| (*s).to_string()).collect();
+            for main_file in &self.options.main_files {
+                let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
+                if let Some(path) = self.load_extensions(&cached_path, &extensions, ctx)? {
+                    return Ok(Some(path));
+                }
+            }
+            return Ok(None);
+        }
+
         for main_file in &self.options.main_files {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
             if self.options.enforce_extension.is_disabled() {
@@ -2089,6 +2224,49 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             _ => Ok(None),
         }
     }
+}
+
+/// Check if the given extension is a TypeScript extension.
+fn is_ts_extension(ext: &str) -> bool {
+    matches!(ext, "ts" | "tsx" | "mts" | "cts" | "d.ts" | "d.mts" | "d.cts")
+}
+
+/// Extract the extension from a path, handling multi-part extensions like ".d.ts"
+fn get_extension(path: &Path) -> Option<&str> {
+    let path_str = path.to_str()?;
+
+    // Check for multi-part TypeScript extensions first (.d.ts, .d.mts, .d.cts)
+    if path_str.ends_with(".d.ts") {
+        return Some("d.ts");
+    }
+    if path_str.ends_with(".d.mts") {
+        return Some("d.mts");
+    }
+    if path_str.ends_with(".d.cts") {
+        return Some("d.cts");
+    }
+
+    // Fall back to single extension
+    path.extension().and_then(|ext| ext.to_str())
+}
+
+/// Check if the resolved path matches the specifier's TypeScript extension
+fn check_ts_extension_match(specifier: &str, resolved_path: &Path) -> bool {
+    // Extract extension from specifier
+    let specifier_path = Path::new(specifier);
+    let specifier_ext = get_extension(specifier_path);
+
+    // Check if specifier has a TS extension
+    if let Some(ext) = specifier_ext {
+        if is_ts_extension(ext) {
+            // Check if resolved path has the same extension
+            if let Some(resolved_ext) = get_extension(resolved_path) {
+                return ext == resolved_ext;
+            }
+        }
+    }
+
+    false
 }
 
 #[cfg(not(target_arch = "wasm32"))]

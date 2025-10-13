@@ -114,12 +114,15 @@ vfs = "0.12.2" # for testing with in memory file system
 windows-sys = { version = "0.61.0", features = ["Win32_Storage", "Win32_Storage_FileSystem"] }
 
 [features]
-default = []
+default = ['typescript']
 ## Enables the [PackageJson::raw_json] API,
 ## which returns the `package.json` with `serde_json::Value`.
 package_json_raw_json_api = []
 ## [Yarn Plug'n'Play](https://yarnpkg.com/features/pnp)
 yarn_pnp = ["pnp"]
+## TypeScript type resolution features including type reference directives,
+## @types package resolution, typesVersions support, and two-pass resolution
+typescript = []
 # For codspeed benchmark
 codspeed = ["criterion2/codspeed"]
 

@@ -193,6 +193,30 @@ pub struct ResolveOptions {
     /// Default: when env var `OXC_RESOLVER_YARN_PNP` is set.
     #[cfg(feature = "yarn_pnp")]
     pub yarn_pnp: bool,
+
+    /// TypeScript type resolution options.
+    ///
+    /// Enables TypeScript-specific resolution features including:
+    /// - Type reference directive resolution (`/// <reference types="..." />`)
+    /// - `@types` package resolution with scoped package name mangling
+    /// - `typesVersions` field support in package.json
+    /// - Two-pass resolution (declaration files before JavaScript)
+    ///
+    /// Default: `None`
+    #[cfg(feature = "typescript")]
+    pub typescript_options: Option<crate::typescript::TypeScriptOptions>,
+
+    /// If true, only resolve to declaration files (.d.ts, .d.mts, .d.cts).
+    /// Ignores implementation files even if they exist.
+    ///
+    /// When enabled:
+    /// - Only tries declaration extensions (.d.ts, .d.mts, .d.cts)
+    /// - Ignores `extensions` option
+    /// - Respects package.json `types` and `typings` fields
+    /// - Still checks package.json `exports` with types condition
+    ///
+    /// Default: `false`
+    pub declaration_only: bool,
 }
 
 impl ResolveOptions {
@@ -391,6 +415,45 @@ impl ResolveOptions {
         self
     }
 
+    /// Sets the TypeScript options
+    ///
+    /// ## Examples
+    ///
+    /// ```ignore
+    /// use oxc_resolver::{ResolveOptions};
+    /// use oxc_resolver::typescript::TypeScriptOptions;
+    ///
+    /// let options = ResolveOptions::default().with_typescript_options(
+    ///     TypeScriptOptions::new()
+    ///         .with_typescript_version("5.0.0".to_string())
+    /// );
+    /// ```
+    #[must_use]
+    #[cfg(feature = "typescript")]
+    pub fn with_typescript_options(
+        mut self,
+        options: crate::typescript::TypeScriptOptions,
+    ) -> Self {
+        self.typescript_options = Some(options);
+        self
+    }
+
+    /// Sets the declaration_only flag
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    ///
+    /// let options = ResolveOptions::default().with_declaration_only(true);
+    /// assert_eq!(options.declaration_only, true);
+    /// ```
+    #[must_use]
+    pub const fn with_declaration_only(mut self, flag: bool) -> Self {
+        self.declaration_only = flag;
+        self
+    }
+
     pub(crate) fn sanitize(mut self) -> Self {
         debug_assert!(
             self.extensions.iter().filter(|e| !e.is_empty()).all(|e| e.starts_with('.')),
@@ -526,6 +589,9 @@ impl Default for ResolveOptions {
             allow_package_exports_in_directory_resolve: false,
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: std::env::var("OXC_RESOLVER_YARN_PNP").is_ok(),
+            #[cfg(feature = "typescript")]
+            typescript_options: None,
+            declaration_only: false,
         }
     }
 }
@@ -602,6 +668,9 @@ impl fmt::Display for ResolveOptions {
                 "allow_package_exports_in_directory_resolve:{:?},",
                 self.allow_package_exports_in_directory_resolve
             )?;
+        }
+        if self.declaration_only {
+            write!(f, "declaration_only:{:?},", self.declaration_only)?;
         }
         Ok(())
     }
@@ -687,6 +756,9 @@ mod test {
             tsconfig: None,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
+            #[cfg(feature = "typescript")]
+            typescript_options: None,
+            declaration_only: false,
         };
 
         assert_eq!(format!("{options}"), "");

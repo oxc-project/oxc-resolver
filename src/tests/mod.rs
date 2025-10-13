@@ -1,6 +1,7 @@
 mod alias;
 mod browser_field;
 mod builtins;
+mod declaration_only;
 mod dependencies;
 mod exports_field;
 mod extension_alias;
@@ -24,9 +25,12 @@ mod roots;
 mod scoped_packages;
 mod simple;
 mod symlink;
+mod ts_extension_tracking;
 mod tsconfig_extends;
 mod tsconfig_paths;
 mod tsconfig_project_references;
+#[cfg(feature = "typescript")]
+mod typescript;
 #[cfg(target_os = "windows")]
 mod windows;
 
