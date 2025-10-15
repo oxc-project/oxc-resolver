@@ -717,13 +717,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if ctx.fully_specified {
             return Ok(None);
         }
-        for extension in extensions {
-            let cached_path = path.add_extension(extension, self.cache.as_ref());
-            if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
-                return Ok(Some(path));
-            }
-        }
-        Ok(None)
+        path.load_extensions(extensions, self.cache.as_ref(), |cached_path| {
+            self.load_alias_or_file(cached_path, ctx)
+        })
     }
 
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {

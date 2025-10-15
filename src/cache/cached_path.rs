@@ -148,6 +148,39 @@ impl CachedPath {
         })
     }
 
+    pub(crate) fn load_extensions<Fs: FileSystem, T, E>(
+        &self,
+        extensions: &[String],
+        cache: &Cache<Fs>,
+        mut f: impl FnMut(&Self) -> Result<Option<T>, E>,
+    ) -> Result<Option<T>, E> {
+        SCRATCH_PATH.with_borrow_mut(|path| {
+            path.clear();
+            path.push(&self.path);
+            let base_len = path.as_os_str().as_encoded_bytes().len();
+
+            for extension in extensions {
+                let cached_path = {
+                    let s = path.as_mut_os_string();
+                    s.push(extension);
+                    cache.value(path)
+                };
+                if let Some(result) = f(&cached_path)? {
+                    return Ok(Some(result));
+                }
+                // Truncate back to base path by manipulating the underlying Vec<u8>
+                // SAFETY: base_len is a valid boundary we saved before appending the extension.
+                // OsString on all platforms is backed by a Vec<u8> internally.
+                unsafe {
+                    let s = path.as_mut_os_string();
+                    let bytes_ptr = s.as_encoded_bytes() as *const [u8] as *mut Vec<u8>;
+                    (*bytes_ptr).truncate(base_len);
+                }
+            }
+            Ok(None)
+        })
+    }
+
     pub(crate) fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
