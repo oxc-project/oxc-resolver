@@ -45,6 +45,7 @@ jobs:
       - uses: ./.github/actions/pnpm
       - run: cargo check --all-features --locked
       - run: just test
+        timeout-minutes: 3
 
   lint:
     name: Lint
@@ -79,6 +80,7 @@ jobs:
 
       - name: Test
         run: cargo test --target wasm32-wasip1 --profile wasm-test -- --nocapture
+        timeout-minutes: 3
         env:
           CARGO_TARGET_WASM32_WASIP1_RUNNER: "wasmtime run -W bulk-memory=y --dir ${{ github.workspace }}::/ --"
 
@@ -119,11 +121,13 @@ jobs:
 
       - name: Test
         run: pnpm run test
+        timeout-minutes: 3
         env:
           WASI_TEST: 1
 
       - name: Cargo Test
         run: cargo test --target wasm32-wasip1-threads --profile wasm-test -- --nocapture
+        timeout-minutes: 3
         env:
           CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER: "wasmtime run -W bulk-memory=y -W threads=y -S threads=y --dir ${{ github.workspace }}::/ --"
 
