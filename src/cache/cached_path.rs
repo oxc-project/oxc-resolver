@@ -13,7 +13,7 @@ use once_cell::sync::OnceCell as OnceLock;
 use super::cache_impl::Cache;
 use super::thread_local::SCRATCH_PATH;
 use crate::{
-    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions,
+    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx,
 };
 
@@ -31,6 +31,7 @@ pub struct CachedPathImpl {
     pub canonicalizing: AtomicU64,
     pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
+    pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
 
 impl CachedPathImpl {
@@ -52,6 +53,7 @@ impl CachedPathImpl {
             canonicalizing: AtomicU64::new(0),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
+            tsconfig: OnceLock::new(),
         }
     }
 }

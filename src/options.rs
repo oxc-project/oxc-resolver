@@ -15,10 +15,10 @@ pub struct ResolveOptions {
     /// Current working directory, used for testing purposes.
     pub cwd: Option<PathBuf>,
 
-    /// Path to TypeScript configuration file.
+    /// Discover tsconfig automatically or use the specified tsconfig.json path.
     ///
     /// Default `None`
-    pub tsconfig: Option<TsconfigOptions>,
+    pub tsconfig: Option<TsconfigDiscovery>,
 
     /// Create aliases to import or require certain modules more easily.
     ///
@@ -472,6 +472,12 @@ impl std::fmt::Debug for Restriction {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum TsconfigDiscovery {
+    Auto,
+    Manual(TsconfigOptions),
+}
+
 /// Tsconfig Options for [ResolveOptions::tsconfig]
 ///
 /// Derived from [tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin#options)
@@ -612,8 +618,8 @@ mod test {
     use std::path::PathBuf;
 
     use super::{
-        AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
-        TsconfigReferences,
+        AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
+        TsconfigOptions, TsconfigReferences,
     };
 
     #[test]
@@ -634,10 +640,10 @@ mod test {
     #[test]
     fn display() {
         let options = ResolveOptions {
-            tsconfig: Some(TsconfigOptions {
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
                 config_file: PathBuf::from("tsconfig.json"),
                 references: TsconfigReferences::Auto,
-            }),
+            })),
             alias: vec![("a".into(), vec![AliasValue::Ignore])],
             alias_fields: vec![vec!["browser".into()]],
             condition_names: vec!["require".into()],
@@ -657,7 +663,7 @@ mod test {
             ..ResolveOptions::default()
         };
 
-        let expected = r#"tsconfig:TsconfigOptions { config_file: "tsconfig.json", references: Auto },alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,"#;
+        let expected = r#"tsconfig:Manual(TsconfigOptions { config_file: "tsconfig.json", references: Auto }),alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,"#;
         assert_eq!(format!("{options}"), expected);
 
         let options = ResolveOptions {

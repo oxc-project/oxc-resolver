@@ -12,10 +12,11 @@ use napi_derive::napi;
 #[derive(Debug, Clone)]
 #[napi(object)]
 pub struct NapiResolveOptions {
-    /// Path to TypeScript configuration file.
+    /// Discover tsconfig automatically or use the specified tsconfig.json path.
     ///
     /// Default `None`
-    pub tsconfig: Option<TsconfigOptions>,
+    #[napi(ts_type = "'auto' | TsconfigOptions")]
+    pub tsconfig: Option<Either<String, TsconfigOptions>>,
 
     /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].
     ///

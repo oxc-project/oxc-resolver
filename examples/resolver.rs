@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 
-use oxc_resolver::{AliasValue, ResolveOptions, Resolver, TsconfigOptions, TsconfigReferences};
+use oxc_resolver::{
+    AliasValue, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+};
 use pico_args::Arguments;
 
 fn main() {
@@ -30,10 +32,15 @@ fn main() {
         condition_names: vec!["node".into(), "import".into()],
         // CJS
         // condition_names: vec!["node".into(), "require".into()],
-        tsconfig: tsconfig_path.map(|config_file| TsconfigOptions {
-            config_file,
-            references: TsconfigReferences::Auto,
-        }),
+        tsconfig: Some(tsconfig_path.map_or_else(
+            || TsconfigDiscovery::Auto,
+            |config_file| {
+                TsconfigDiscovery::Manual(TsconfigOptions {
+                    config_file,
+                    references: TsconfigReferences::Auto,
+                })
+            },
+        )),
         ..ResolveOptions::default()
     };
 
@@ -45,7 +52,7 @@ fn main() {
             println!("Resolution: {}", resolution.full_path().to_string_lossy());
             println!("Module Type: {:?}", resolution.module_type());
             println!(
-                "package json: {:?}",
+                "package.json: {:?}",
                 resolution.package_json().map(|p| p.path.to_string_lossy())
             );
         }

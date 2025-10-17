@@ -70,8 +70,8 @@ pub use crate::{
     error::{JSONError, ResolveError, SpecifierError},
     file_system::{FileMetadata, FileSystem, FileSystemOs},
     options::{
-        Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigOptions,
-        TsconfigReferences,
+        Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
+        TsconfigOptions, TsconfigReferences,
     },
     package_json::{
         ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
@@ -281,6 +281,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             debug_assert!(path.starts_with(package_json.directory()));
         }
         let module_type = self.esm_file_format(&cached_path, ctx)?;
+
         Ok(Resolution {
             path,
             query: ctx.query.take(),
@@ -1456,21 +1457,78 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if cached_path.inside_node_modules() {
             return Ok(None);
         }
-        let Some(tsconfig_options) = &self.options.tsconfig else {
-            return Ok(None);
+        let tsconfig = match &self.options.tsconfig {
+            None => return Ok(None),
+            Some(TsconfigDiscovery::Manual(tsconfig_options)) => {
+                let tsconfig = self.load_tsconfig(
+                    /* root */ true,
+                    &tsconfig_options.config_file,
+                    &tsconfig_options.references,
+                    &mut TsconfigResolveContext::default(),
+                )?;
+                // Cache the loaded tsconfig in the path's directory
+                let tsconfig_dir = self.cache.value(tsconfig.directory());
+                _ = tsconfig_dir.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
+                tsconfig
+            }
+            Some(TsconfigDiscovery::Auto) => {
+                let Some(tsconfig) = self.find_tsconfig(cached_path, ctx)? else {
+                    return Ok(None);
+                };
+                tsconfig
+            }
         };
-        let tsconfig = self.load_tsconfig(
-            /* root */ true,
-            &tsconfig_options.config_file,
-            &tsconfig_options.references,
-            &mut TsconfigResolveContext::default(),
-        )?;
+
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
-            let cached_path = self.cache.value(&path);
-            if let Some(path) = self.load_as_file_or_directory(&cached_path, ".", ctx)? {
-                return Ok(Some(path));
+            let resolved_path = self.cache.value(&path);
+            if let Some(resolution) = self.load_as_file_or_directory(&resolved_path, ".", ctx)? {
+                // Cache the tsconfig in the resolved path
+                _ = resolved_path.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
+                return Ok(Some(resolution));
             }
+        }
+        Ok(None)
+    }
+
+    /// Find tsconfig.json of a path by traversing parent directories.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::Json]
+    pub(crate) fn find_tsconfig(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        // Don't discover tsconfig for paths inside node_modules
+        if cached_path.inside_node_modules() {
+            return Ok(None);
+        }
+
+        let mut cache_value = cached_path.clone();
+        // Go up directories when the querying path is not a directory
+        while !self.cache.is_dir(&cache_value, ctx) {
+            if let Some(cv) = cache_value.parent() {
+                cache_value = cv;
+            } else {
+                break;
+            }
+        }
+        let mut cache_value = Some(cache_value);
+        while let Some(cv) = cache_value {
+            if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
+                let tsconfig_path = cv.path.join("tsconfig.json");
+                let tsconfig_path = self.cache.value(&tsconfig_path);
+                if self.cache.is_file(&tsconfig_path, ctx) {
+                    self.resolve_tsconfig(tsconfig_path.path()).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })? {
+                return Ok(Some(Arc::clone(tsconfig)));
+            }
+            cache_value = cv.parent();
         }
         Ok(None)
     }
@@ -1487,6 +1545,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
             _ => self
                 .clone_with_options(ResolveOptions {
+                    tsconfig: None,
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig.json".into()],
                     #[cfg(feature = "yarn_pnp")]

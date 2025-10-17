@@ -10,9 +10,9 @@ use std::{
     sync::Arc,
 };
 
-use napi::{Task, bindgen_prelude::AsyncTask};
+use napi::{Either, Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
+use oxc_resolver::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
 
 use self::options::{NapiResolveOptions, StrOrStrList};
 
@@ -190,7 +190,10 @@ impl ResolverFactory {
         // merging options
         ResolveOptions {
             cwd: None,
-            tsconfig: op.tsconfig.map(|tsconfig| tsconfig.into()),
+            tsconfig: op.tsconfig.map(|value| match value {
+                Either::A(_) => TsconfigDiscovery::Auto,
+                Either::B(options) => TsconfigDiscovery::Manual(TsconfigOptions::from(options)),
+            }),
             alias: op
                 .alias
                 .map(|alias| {
