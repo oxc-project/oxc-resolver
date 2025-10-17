@@ -45,7 +45,7 @@ fn tsconfig_resolve() {
 
     #[rustfmt::skip]
     let data = [
-        (f.join("node_modules/tsconfig-not-used"), "ts-path", Ok(f.join("src/foo.js"))),
+        (f.join("node_modules/tsconfig-not-used"), "ts-path", Err(ResolveError::NotFound("ts-path".to_string()))),
     ];
 
     let resolver = Resolver::new(ResolveOptions {

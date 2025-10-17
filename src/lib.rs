@@ -1453,6 +1453,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult {
+        if cached_path.inside_node_modules() {
+            return Ok(None);
+        }
         let Some(tsconfig_options) = &self.options.tsconfig else {
             return Ok(None);
         };
