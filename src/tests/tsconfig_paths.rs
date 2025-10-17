@@ -43,19 +43,31 @@ fn tsconfig_resolve() {
         assert_eq!(resolved_path, Ok(expected), "{request} {path:?}");
     }
 
-    #[rustfmt::skip]
     let data = [
-        (f.join("node_modules/tsconfig-not-used"), "ts-path", Err(ResolveError::NotFound("ts-path".to_string()))),
+        (
+            f.join("node_modules/tsconfig-not-used"),
+            "ts-path",
+            f.join("tsconfig.json"),
+            Err(ResolveError::NotFound("ts-path".to_string())),
+        ),
+        (
+            f.join("cases/extends-not-found"),
+            "ts-path",
+            f.join("cases").join("extends-not-found").join("tsconfig_json.json"),
+            Err(ResolveError::TsconfigNotFound(
+                f.join("cases").join("extends-not-found").join("tsconfig_json.json"),
+            )),
+        ),
     ];
 
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        }),
-        ..ResolveOptions::default()
-    });
-    for (path, request, expected) in data {
+    for (path, request, tsconfig, expected) in data {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigOptions {
+                config_file: tsconfig,
+                references: TsconfigReferences::Auto,
+            }),
+            ..ResolveOptions::default()
+        });
         let resolution = resolver.resolve(&path, request).map(|f| f.full_path());
         assert_eq!(resolution, expected, "{path:?} {request}");
     }
