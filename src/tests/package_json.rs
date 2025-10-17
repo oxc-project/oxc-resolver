@@ -21,7 +21,7 @@ fn test() {
         let package_json =
             resolver.resolve(&path, request).ok().and_then(|f| f.package_json().cloned());
         let package_json_path = package_json.as_ref().map(|p| &p.path);
-        let package_json_name = package_json.as_ref().and_then(|p| p.name.as_deref());
+        let package_json_name = package_json.as_ref().and_then(|p| p.name());
         assert_eq!(package_json_path, Some(&resolved_package_json_path), "{path:?} {request}");
         assert_eq!(package_json_name, Some("package-json-nested"), "{path:?} {request}");
     }
@@ -42,7 +42,7 @@ fn adjacent_to_node_modules() {
 
     let package_json = resolver.resolve(&path, request).unwrap().package_json().cloned();
     let package_json_path = package_json.as_ref().map(|p| &p.path);
-    let package_json_name = package_json.as_ref().and_then(|p| p.name.as_deref());
+    let package_json_name = package_json.as_ref().and_then(|p| p.name());
     assert_eq!(package_json_path, Some(&resolved_package_json_path));
     assert_eq!(package_json_name, Some("misc"));
 }

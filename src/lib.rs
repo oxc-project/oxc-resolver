@@ -75,7 +75,7 @@ pub use crate::{
     },
     package_json::{
         ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
-        PackageJson, PackageType,
+        PackageJson, PackageType, SideEffects,
     },
     path::PathUtil,
     resolution::{ModuleType, Resolution},

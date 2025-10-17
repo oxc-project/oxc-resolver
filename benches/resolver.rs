@@ -283,33 +283,24 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     let test_path = PathBuf::from("/test/package.json");
     let test_realpath = test_path.clone();
 
-    group.bench_function("small", |b| {
-        b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), small_json)
-                .expect("Failed to parse small JSON");
-        });
-    });
+    let data = [
+        ("small", small_json.to_string()),
+        ("medium", medium_json.to_string()),
+        ("large", large_json.to_string()),
+        ("complex_real", complex_json),
+    ];
 
-    group.bench_function("medium", |b| {
-        b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), medium_json)
-                .expect("Failed to parse medium JSON");
+    for (name, json) in data {
+        group.bench_function(name, |b| {
+            b.iter_with_setup_wrapper(|runner| {
+                let json = json.clone();
+                runner.run(|| {
+                    PackageJson::parse(test_path.clone(), test_realpath.clone(), json)
+                        .expect("Failed to parse JSON");
+                });
+            });
         });
-    });
-
-    group.bench_function("large", |b| {
-        b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), large_json)
-                .expect("Failed to parse large JSON");
-        });
-    });
-
-    group.bench_function("complex_real", |b| {
-        b.iter(|| {
-            PackageJson::parse(test_path.clone(), test_realpath.clone(), &complex_json)
-                .expect("Failed to parse complex JSON");
-        });
-    });
+    }
 
     group.finish();
 }

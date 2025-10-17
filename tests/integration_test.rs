@@ -40,7 +40,7 @@ fn package_json() {
     let package_json = resolution.package_json().unwrap();
     assert_eq!(package_json.name().unwrap(), "name");
     assert_eq!(package_json.r#type().unwrap().to_string(), "module".to_string());
-    assert!(package_json.side_effects.as_ref().unwrap().is_object());
+    assert_eq!(package_json.side_effects(), None);
 }
 
 #[test]
@@ -81,20 +81,6 @@ fn tsconfig_extends_circular_reference() {
             ]
             .into()
         )
-    );
-}
-
-#[cfg(feature = "package_json_raw_json_api")]
-#[test]
-fn package_json_raw_json_api() {
-    let resolution = resolve("./tests/package.json");
-    assert!(
-        resolution
-            .package_json()
-            .unwrap()
-            .raw_json()
-            .get("name")
-            .is_some_and(|name| name == "name")
     );
 }
 

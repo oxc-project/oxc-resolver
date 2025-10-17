@@ -6,17 +6,27 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use serde_json::Value as JSONValue;
+use simd_json::{BorrowedValue, prelude::*};
 
 use crate::{ResolveError, path::PathUtil};
 
-pub type JSONMap = serde_json::Map<String, JSONValue>;
+// Use simd_json's Object type which handles the hasher correctly based on features
+type BorrowedObject<'a> = simd_json::value::borrowed::Object<'a>;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {
     CommonJs,
     Module,
+}
+
+impl PackageType {
+    fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "commonjs" => Some(Self::CommonJs),
+            "module" => Some(Self::Module),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for PackageType {
@@ -36,11 +46,26 @@ pub enum ImportsExportsKind {
     Invalid,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SideEffects<'a> {
+    Bool(bool),
+    String(&'a str),
+    Array(Vec<&'a str>),
+}
+
+self_cell::self_cell! {
+    struct PackageJsonCell {
+        owner: Vec<u8>,
+
+        #[covariant]
+        dependent: BorrowedValue,
+    }
+}
+
 /// Serde implementation for the deserialized `package.json`.
 ///
 /// This implementation is used by the [crate::Cache] and enabled through the
 /// `fs_cache` feature.
-#[derive(Debug, Default)]
 pub struct PackageJson {
     /// Path to `package.json`. Contains the `package.json` filename.
     pub path: PathBuf,
@@ -48,20 +73,18 @@ pub struct PackageJson {
     /// Realpath to `package.json`. Contains the `package.json` filename.
     pub realpath: PathBuf,
 
-    /// Name of the package.
-    pub name: Option<String>,
+    cell: PackageJsonCell,
+}
 
-    /// The "type" field.
-    ///
-    /// <https://nodejs.org/api/packages.html#type>
-    pub r#type: Option<PackageType>,
-
-    /// The "sideEffects" field.
-    ///
-    /// <https://webpack.js.org/guides/tree-shaking>
-    pub side_effects: Option<JSONValue>,
-
-    raw_json: std::sync::Arc<JSONValue>,
+impl fmt::Debug for PackageJson {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PackageJson")
+            .field("path", &self.path)
+            .field("realpath", &self.realpath)
+            .field("name", &self.name())
+            .field("type", &self.r#type())
+            .finish_non_exhaustive()
+    }
 }
 
 impl PackageJson {
@@ -106,7 +129,23 @@ impl PackageJson {
     /// <https://nodejs.org/api/packages.html#name>
     #[must_use]
     pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
+        self.cell
+            .borrow_dependent()
+            .as_object()
+            .and_then(|obj| obj.get("name"))
+            .and_then(|v| v.as_str())
+    }
+
+    /// Version of the package.
+    ///
+    /// <https://nodejs.org/api/packages.html#name>
+    #[must_use]
+    pub fn version(&self) -> Option<&str> {
+        self.cell
+            .borrow_dependent()
+            .as_object()
+            .and_then(|obj| obj.get("version"))
+            .and_then(|v| v.as_str())
     }
 
     /// Returns the package type, if one is configured in the `package.json`.
@@ -114,7 +153,44 @@ impl PackageJson {
     /// <https://nodejs.org/api/packages.html#type>
     #[must_use]
     pub fn r#type(&self) -> Option<PackageType> {
-        self.r#type
+        self.cell
+            .borrow_dependent()
+            .as_object()
+            .and_then(|obj| obj.get("type"))
+            .and_then(|v| v.as_str())
+            .and_then(PackageType::from_str)
+    }
+
+    /// The "sideEffects" field.
+    ///
+    /// <https://webpack.js.org/guides/tree-shaking>
+    #[must_use]
+    pub fn side_effects(&self) -> Option<SideEffects<'_>> {
+        self.cell.borrow_dependent().as_object().and_then(|obj| obj.get("sideEffects")).and_then(
+            |value| match value {
+                BorrowedValue::Static(simd_json::StaticNode::Bool(b)) => {
+                    Some(SideEffects::Bool(*b))
+                }
+                BorrowedValue::String(s) => Some(SideEffects::String(s.as_ref())),
+                BorrowedValue::Array(arr) => {
+                    let strings: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
+                    Some(SideEffects::Array(strings))
+                }
+                _ => None,
+            },
+        )
+    }
+
+    /// The "exports" field allows defining the entry points of a package.
+    ///
+    /// <https://nodejs.org/api/packages.html#exports>
+    #[must_use]
+    pub fn exports(&self) -> Option<ImportsExportsEntry<'_>> {
+        self.cell
+            .borrow_dependent()
+            .as_object()
+            .and_then(|obj| obj.get("exports"))
+            .map(ImportsExportsEntry)
     }
 
     /// The "main" field defines the entry point of a package when imported by
@@ -130,10 +206,13 @@ impl PackageJson {
         &'a self,
         main_fields: &'a [String],
     ) -> impl Iterator<Item = &'a str> + 'a {
+        let json_value = self.cell.borrow_dependent();
+        let json_object = json_value.as_object();
+
         main_fields
             .iter()
-            .filter_map(|main_field| self.raw_json.get(main_field))
-            .filter_map(JSONValue::as_str)
+            .filter_map(move |main_field| json_object.and_then(|obj| obj.get(main_field.as_str())))
+            .filter_map(|v| v.as_str())
     }
 
     /// The "exports" field allows defining the entry points of a package when
@@ -145,10 +224,12 @@ impl PackageJson {
         &'a self,
         exports_fields: &'a [Vec<String>],
     ) -> impl Iterator<Item = ImportsExportsEntry<'a>> + 'a {
+        let json_value = self.cell.borrow_dependent();
+
         exports_fields
             .iter()
-            .filter_map(|object_path| {
-                self.raw_json
+            .filter_map(move |object_path| {
+                json_value
                     .as_object()
                     .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
             })
@@ -164,13 +245,15 @@ impl PackageJson {
         &'a self,
         imports_fields: &'a [Vec<String>],
     ) -> impl Iterator<Item = ImportsExportsMap<'a>> + 'a {
+        let json_value = self.cell.borrow_dependent();
+
         imports_fields
             .iter()
-            .filter_map(|object_path| {
-                self.raw_json
+            .filter_map(move |object_path| {
+                json_value
                     .as_object()
                     .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
-                    .and_then(JSONValue::as_object)
+                    .and_then(|v| v.as_object())
             })
             .map(ImportsExportsMap)
     }
@@ -187,13 +270,14 @@ impl PackageJson {
     ) -> Result<Option<&'a str>, ResolveError> {
         for object in self.browser_fields(alias_fields) {
             if let Some(request) = request {
+                // Find matching key in object
                 if let Some(value) = object.get(request) {
                     return Self::alias_value(path, value);
                 }
             } else {
                 let dir = self.path.parent().unwrap();
                 for (key, value) in object {
-                    let joined = dir.normalize_with(key);
+                    let joined = dir.normalize_with(key.as_ref());
                     if joined == path {
                         return Self::alias_value(path, value);
                     }
@@ -207,69 +291,45 @@ impl PackageJson {
     ///
     /// # Panics
     /// # Errors
-    pub fn parse(path: PathBuf, realpath: PathBuf, json: &str) -> Result<Self, serde_json::Error> {
-        let json = json.trim_start_matches("\u{feff}"); // strip bom
-        let mut raw_json: JSONValue = serde_json::from_str(json)?;
-        let mut package_json = Self::default();
-
-        if let Some(json_object) = raw_json.as_object_mut() {
-            // Remove large fields that are useless for pragmatic use.
-            #[cfg(feature = "package_json_raw_json_api")]
-            {
-                json_object.remove("description");
-                json_object.remove("keywords");
-                json_object.remove("scripts");
-                json_object.remove("dependencies");
-                json_object.remove("devDependencies");
-                json_object.remove("peerDependencies");
-                json_object.remove("optionalDependencies");
-            }
-
-            // Add name, type and sideEffects.
-            package_json.name =
-                json_object.get("name").and_then(|field| field.as_str()).map(ToString::to_string);
-            package_json.r#type =
-                json_object.get("type").and_then(|ty| serde_json::from_value(ty.clone()).ok());
-            package_json.side_effects = json_object.get("sideEffects").cloned();
+    pub fn parse(path: PathBuf, realpath: PathBuf, json: String) -> Result<Self, simd_json::Error> {
+        // Strip BOM in place by replacing with spaces (no reallocation)
+        let mut json_bytes = json.into_bytes();
+        if json_bytes.starts_with(b"\xEF\xBB\xBF") {
+            json_bytes[0] = b' ';
+            json_bytes[1] = b' ';
+            json_bytes[2] = b' ';
         }
 
-        package_json.path = path;
-        package_json.realpath = realpath;
-        package_json.raw_json = std::sync::Arc::new(raw_json);
-        Ok(package_json)
+        // Create the self-cell with the JSON bytes and parsed BorrowedValue
+        let cell = PackageJsonCell::try_new(json_bytes.clone(), |bytes| {
+            // We need a mutable slice from our owned data
+            // SAFETY: We're creating a mutable reference to the owned data.
+            // The self_cell ensures this reference is valid for the lifetime of the cell.
+            let slice =
+                unsafe { std::slice::from_raw_parts_mut(bytes.as_ptr().cast_mut(), bytes.len()) };
+            simd_json::to_borrowed_value(slice)
+        })?;
+
+        Ok(Self { path, realpath, cell })
     }
 
     fn get_value_by_path<'a>(
-        fields: &'a serde_json::Map<String, JSONValue>,
+        fields: &'a BorrowedObject<'a>,
         path: &[String],
-    ) -> Option<&'a JSONValue> {
+    ) -> Option<&'a BorrowedValue<'a>> {
         if path.is_empty() {
             return None;
         }
-        let mut value = fields.get(&path[0])?;
+        let mut value = fields.get(path[0].as_str())?;
+
         for key in path.iter().skip(1) {
-            if let Some(inner_value) = value.as_object().and_then(|o| o.get(key)) {
-                value = inner_value;
+            if let Some(obj) = value.as_object() {
+                value = obj.get(key.as_str())?;
             } else {
                 return None;
             }
         }
         Some(value)
-    }
-
-    /// Raw serde json value of `package.json`.
-    ///
-    /// This is currently used in Rspack for:
-    /// * getting the `sideEffects` field
-    /// * query in <https://www.rspack.dev/config/module.html#ruledescriptiondata> - search on GitHub indicates query on the `type` field.
-    ///
-    /// To reduce overall memory consumption, large fields that useless for pragmatic use are removed.
-    /// They are: `description`, `keywords`, `scripts`,
-    /// `dependencies` and `devDependencies`, `peerDependencies`, `optionalDependencies`.
-    #[cfg(feature = "package_json_raw_json_api")]
-    #[must_use]
-    pub const fn raw_json(&self) -> &std::sync::Arc<JSONValue> {
-        &self.raw_json
     }
 
     /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
@@ -279,9 +339,11 @@ impl PackageJson {
     pub(crate) fn browser_fields<'a>(
         &'a self,
         alias_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = &'a JSONMap> + 'a {
-        alias_fields.iter().filter_map(|object_path| {
-            self.raw_json
+    ) -> impl Iterator<Item = &'a BorrowedObject<'a>> + 'a {
+        let json_value = self.cell.borrow_dependent();
+
+        alias_fields.iter().filter_map(move |object_path| {
+            json_value
                 .as_object()
                 .and_then(|json_object| Self::get_value_by_path(json_object, object_path))
                 // Only object is valid, all other types are invalid
@@ -292,57 +354,59 @@ impl PackageJson {
 
     pub(crate) fn alias_value<'a>(
         key: &Path,
-        value: &'a JSONValue,
+        value: &'a BorrowedValue<'a>,
     ) -> Result<Option<&'a str>, ResolveError> {
         match value {
-            JSONValue::String(value) => Ok(Some(value.as_str())),
-            JSONValue::Bool(b) if !b => Err(ResolveError::Ignored(key.to_path_buf())),
+            BorrowedValue::String(s) => Ok(Some(s.as_ref())),
+            BorrowedValue::Static(simd_json::StaticNode::Bool(false)) => {
+                Err(ResolveError::Ignored(key.to_path_buf()))
+            }
             _ => Ok(None),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct ImportsExportsEntry<'a>(pub(crate) &'a JSONValue);
+pub struct ImportsExportsEntry<'a>(pub(crate) &'a BorrowedValue<'a>);
 
 impl<'a> ImportsExportsEntry<'a> {
     #[must_use]
     pub fn kind(&self) -> ImportsExportsKind {
-        match &self.0 {
-            JSONValue::String(_) => ImportsExportsKind::String,
-            JSONValue::Array(_) => ImportsExportsKind::Array,
-            JSONValue::Object(_) => ImportsExportsKind::Map,
-            _ => ImportsExportsKind::Invalid,
+        match self.0 {
+            BorrowedValue::String(_) => ImportsExportsKind::String,
+            BorrowedValue::Array(_) => ImportsExportsKind::Array,
+            BorrowedValue::Object(_) => ImportsExportsKind::Map,
+            BorrowedValue::Static(_) => ImportsExportsKind::Invalid,
         }
     }
 
     #[must_use]
     pub fn as_string(&self) -> Option<&'a str> {
-        match &self.0 {
-            JSONValue::String(string) => Some(string),
+        match self.0 {
+            BorrowedValue::String(s) => Some(s.as_ref()),
             _ => None,
         }
     }
 
     #[must_use]
     pub fn as_array(&self) -> Option<ImportsExportsArray<'a>> {
-        match &self.0 {
-            JSONValue::Array(vec) => Some(ImportsExportsArray(vec)),
+        match self.0 {
+            BorrowedValue::Array(arr) => Some(ImportsExportsArray(arr)),
             _ => None,
         }
     }
 
     #[must_use]
     pub fn as_map(&self) -> Option<ImportsExportsMap<'a>> {
-        match &self.0 {
-            JSONValue::Object(map) => Some(ImportsExportsMap(map)),
+        match self.0 {
+            BorrowedValue::Object(obj) => Some(ImportsExportsMap(obj)),
             _ => None,
         }
     }
 }
 
 #[derive(Clone)]
-pub struct ImportsExportsArray<'a>(&'a Vec<JSONValue>);
+pub struct ImportsExportsArray<'a>(&'a [BorrowedValue<'a>]);
 
 impl<'a> ImportsExportsArray<'a> {
     #[must_use]
@@ -356,12 +420,12 @@ impl<'a> ImportsExportsArray<'a> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = ImportsExportsEntry<'a>> {
-        ImportsExportsArrayIter { vec: self.0, index: 0 }
+        ImportsExportsArrayIter { slice: self.0, index: 0 }
     }
 }
 
 struct ImportsExportsArrayIter<'a> {
-    vec: &'a Vec<JSONValue>,
+    slice: &'a [BorrowedValue<'a>],
     index: usize,
 }
 
@@ -369,7 +433,7 @@ impl<'a> Iterator for ImportsExportsArrayIter<'a> {
     type Item = ImportsExportsEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.vec.get(self.index).map(|value| {
+        self.slice.get(self.index).map(|value| {
             self.index += 1;
             ImportsExportsEntry(value)
         })
@@ -377,7 +441,7 @@ impl<'a> Iterator for ImportsExportsArrayIter<'a> {
 }
 
 #[derive(Clone)]
-pub struct ImportsExportsMap<'a>(pub(crate) &'a JSONMap);
+pub struct ImportsExportsMap<'a>(pub(crate) &'a BorrowedObject<'a>);
 
 impl<'a> ImportsExportsMap<'a> {
     pub fn get(&self, key: &str) -> Option<ImportsExportsEntry<'a>> {
@@ -385,34 +449,10 @@ impl<'a> ImportsExportsMap<'a> {
     }
 
     pub fn keys(&self) -> impl Iterator<Item = &'a str> {
-        ImportsExportsMapKeysIter { inner: self.0.keys() }
+        self.0.keys().map(std::convert::AsRef::as_ref)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&'a str, ImportsExportsEntry<'a>)> {
-        ImportsExportsMapIter { inner: self.0.iter() }
-    }
-}
-
-struct ImportsExportsMapIter<'a> {
-    inner: serde_json::map::Iter<'a>,
-}
-
-impl<'a> Iterator for ImportsExportsMapIter<'a> {
-    type Item = (&'a str, ImportsExportsEntry<'a>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(key, value)| (key.as_str(), ImportsExportsEntry(value)))
-    }
-}
-
-struct ImportsExportsMapKeysIter<'a> {
-    inner: serde_json::map::Keys<'a>,
-}
-
-impl<'a> Iterator for ImportsExportsMapKeysIter<'a> {
-    type Item = &'a str;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(String::as_str)
+        self.0.iter().map(|(k, v)| (k.as_ref(), ImportsExportsEntry(v)))
     }
 }

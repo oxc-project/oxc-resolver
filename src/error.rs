@@ -135,6 +135,17 @@ impl ResolveError {
             column: error.column(),
         })
     }
+
+    #[cold]
+    #[must_use]
+    pub fn from_simd_json_error(path: PathBuf, error: &simd_json::Error) -> Self {
+        Self::Json(JSONError {
+            path,
+            message: error.to_string(),
+            line: 0, // simd_json doesn't provide line/column info
+            column: 0,
+        })
+    }
 }
 
 /// Error for [ResolveError::Specifier]

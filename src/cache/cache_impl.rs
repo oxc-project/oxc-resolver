@@ -120,9 +120,9 @@ impl<Fs: FileSystem> Cache<Fs> {
                 } else {
                     package_json_path.clone()
                 };
-                PackageJson::parse(package_json_path.clone(), real_path, &package_json_string)
+                PackageJson::parse(package_json_path.clone(), real_path, package_json_string)
                     .map(|package_json| Some(Arc::new(package_json)))
-                    .map_err(|error| ResolveError::from_serde_json_error(package_json_path, &error))
+                    .map_err(|error| ResolveError::from_simd_json_error(package_json_path, &error))
             })
             .cloned();
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
