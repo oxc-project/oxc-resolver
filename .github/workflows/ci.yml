@@ -34,6 +34,7 @@ jobs:
           - os: windows-latest
           - os: ubuntu-latest
           - os: macos-latest
+          - os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
@@ -46,6 +47,23 @@ jobs:
       - run: cargo check --all-features --locked
       - run: just test
         timeout-minutes: 3
+
+  test-big-endian:
+    name: Test big-endian # s390x-unknown-linux-gnu is a big-endian
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
+      - uses: oxc-project/setup-rust@1ff88fdaffd6ae35c0fb32ccc159340b37d0beac # v1.0.7
+        with:
+          save-cache: ${{ github.ref_name == 'main' }}
+          cache-key: s390x-unknown-linux-gnu
+          tools: cross
+      - run: cross check --all-features --locked --target s390x-unknown-linux-gnu
+      - run: cross test --target s390x-unknown-linux-gnu
+        timeout-minutes: 3
+      - run: cross test --all-features --target s390x-unknown-linux-gnu
+        timeout-minutes: 3
+      - run: git diff --exit-code # Must commit everything
 
   lint:
     name: Lint
