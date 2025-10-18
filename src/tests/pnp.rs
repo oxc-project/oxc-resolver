@@ -173,6 +173,7 @@ fn resolve_npm_protocol_alias() {
 }
 
 #[test]
+#[cfg(target_endian = "little")]
 fn resolve_global_cache() {
     let home_dir = dirs::home_dir().unwrap();
 

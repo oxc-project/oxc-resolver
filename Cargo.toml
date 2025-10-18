@@ -83,11 +83,8 @@ json-strip-comments = "3"
 once_cell = "1" # Use `std::sync::OnceLock::get_or_try_init` when it is stable.
 papaya = "0.2"
 rustc-hash = { version = "2" }
-self_cell = "1"
 serde = { version = "1", features = ["derive"] } # derive for Deserialize from package.json
 serde_json = { version = "1", features = ["preserve_order"] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
-# Omit serde_impl and swar-number-parsing (package.json seldom has floats).
-simd-json = { version = "0.17.0", default-features = false, features = ["runtime-detection"] }
 simdutf8 = { version = "0.1" }
 thiserror = "2"
 tracing = "0.1"
@@ -104,6 +101,11 @@ libc = "0.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.0", features = ["Win32_Storage_FileSystem"] }
+
+[target.'cfg(target_endian = "little")'.dependencies]
+# simd-json only works on little-endian systems
+simd-json = { version = "0.17.0", default-features = false, features = ["runtime-detection"] }
+self_cell = "1" # Used by simd implementation for self-referential struct
 
 [dev-dependencies]
 criterion2 = { version = "3.0.2", default-features = false }

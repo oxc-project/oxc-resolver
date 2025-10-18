@@ -14,6 +14,9 @@ fn incorrect_description_file_1() {
     match error {
         ResolveError::Json(e) => {
             assert_eq!(e.path, f.join("pack1/package.json"));
+            // Verify that we get proper error details from serde_json fallback
+            assert!(e.message.contains("EOF"));
+            assert!(e.line > 0);
         }
         _ => panic!("must be a json error."),
     }
@@ -26,11 +29,10 @@ fn incorrect_description_file_1() {
 fn incorrect_description_file_2() {
     let f = super::fixture().join("incorrect-package");
     let resolution = Resolver::default().resolve(f.join("pack2"), ".");
-    // simd_json has different error messages than serde_json
     let error = ResolveError::Json(JSONError {
         path: f.join("pack2/package.json"),
-        message: String::from("Eof at character 0"),
-        line: 0, // simd_json doesn't provide line/column info
+        message: String::from("EOF while parsing a value at line 1 column 0"),
+        line: 1,
         column: 0,
     });
     assert_eq!(resolution, Err(error));

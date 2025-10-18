@@ -14,6 +14,7 @@ alias r := ready
 # Initialize the project by installing all the necessary tools.
 init:
   cargo binstall cargo-shear dprint typos-cli watchexec-cli -y
+  rustup target add s390x-unknown-linux-gnu
 
 install:
   pnpm install
@@ -55,6 +56,7 @@ fmt:
 # Run cargo check
 check:
   cargo check --all-features --all-targets
+  cargo check --target s390x-unknown-linux-gnu
 
 # Run all the tests
 test:

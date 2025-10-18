@@ -102,8 +102,9 @@ struct TestCase {
     condition_names: Vec<&'static str>,
 }
 
+#[cfg(target_endian = "little")]
 fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
-    // Serialize back to JSON string and parse with simd_json
+    // Serialize back to JSON string and parse with simd_json for little-endian
     let json_str = serde_json::to_string(value).unwrap();
     let bytes = Box::leak::<'static>(Box::new(json_str.into_bytes()));
     let borrowed = simd_json::to_borrowed_value(bytes).unwrap();
@@ -111,6 +112,16 @@ fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
         panic!("Expected an object");
     };
     let map = Box::leak::<'static>(Box::new(map));
+    ImportsExportsMap(map)
+}
+
+#[cfg(target_endian = "big")]
+fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
+    // Clone and leak the value to get a 'static reference for big-endian
+    let value = Box::leak::<'static>(Box::new(value.clone()));
+    let serde_json::Value::Object(map) = value else {
+        panic!("Expected an object");
+    };
     ImportsExportsMap(map)
 }
 
