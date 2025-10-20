@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.11.0](https://github.com/oxc-project/oxc-resolver/compare/v11.10.0...v11.11.0) - 2025-10-20
+
+### <!-- 0 -->🚀 Features
+
+- add big-endian support for package.json parsing ([#768](https://github.com/oxc-project/oxc-resolver/pull/768)) (by @Boshen) - #768
+- add tsconfig discovery ([#758](https://github.com/oxc-project/oxc-resolver/pull/758)) (by @Boshen) - #758
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- tsconfig paths should not be applied to paths inside node_modules ([#760](https://github.com/oxc-project/oxc-resolver/pull/760)) (by @Boshen) - #760
+
+### <!-- 6 -->🧪 Testing
+
+- add a tsconfig extend not found case ([#763](https://github.com/oxc-project/oxc-resolver/pull/763)) (by @Boshen) - #763
+
+### Contributors
+
+* @renovate[bot]
+* @Boshen
+
 ## [11.10.0](https://github.com/oxc-project/oxc-resolver/compare/v11.9.0...v11.10.0) - 2025-10-17
 
 ### <!-- 0 -->🚀 Features
