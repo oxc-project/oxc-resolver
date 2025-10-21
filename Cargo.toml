@@ -114,6 +114,7 @@ fancy-regex = { version = "^0.16.1", default-features = false, features = ["std"
 pico-args = "0.5.0"
 rayon = { version = "1.10.0" }
 vfs = "0.12.2" # for testing with in memory file system
+walkdir = "2" # for loading benchmark fixtures
 
 [target.'cfg(target_os = "windows")'.dev-dependencies]
 windows-sys = { version = "0.61.0", features = ["Win32_Storage", "Win32_Storage_FileSystem"] }
