@@ -89,7 +89,7 @@ simdutf8 = { version = "0.1" }
 thiserror = "2"
 tracing = "0.1"
 
-pnp = { version = "0.12.2", optional = true }
+pnp = { version = "0.12.3", optional = true }
 
 document-features = { version = "0.2.11", optional = true }
 
@@ -100,7 +100,7 @@ url = "2"
 libc = "0.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62.0", features = ["Win32_Storage_FileSystem"] }
+windows = { version = "0.62.2", features = ["Win32_Storage_FileSystem"] }
 
 [target.'cfg(target_endian = "little")'.dependencies]
 # simd-json only works on little-endian systems
@@ -110,14 +110,14 @@ self_cell = "1" # Used by simd implementation for self-referential struct
 [dev-dependencies]
 criterion2 = { version = "3.0.2", default-features = false }
 dirs = { version = "6.0.0" }
-fancy-regex = { version = "^0.16.1", default-features = false, features = ["std"] }
+fancy-regex = { version = "^0.16.2", default-features = false, features = ["std"] }
 pico-args = "0.5.0"
-rayon = { version = "1.10.0" }
+rayon = { version = "1.11.0" }
 vfs = "0.12.2" # for testing with in memory file system
 walkdir = "2" # for loading benchmark fixtures
 
 [target.'cfg(target_os = "windows")'.dev-dependencies]
-windows-sys = { version = "0.61.0", features = ["Win32_Storage", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Storage", "Win32_Storage_FileSystem"] }
 
 [features]
 default = []
