@@ -9,9 +9,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use std::sync::LazyLock;
 use oxc_resolver::{FileMetadata, FileSystem, ResolveError};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::sync::LazyLock;
 use walkdir::WalkDir;
 
 /// Memory-based file system for benchmarks to eliminate I/O variance
