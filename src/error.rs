@@ -145,7 +145,8 @@ pub enum SpecifierError {
 }
 
 /// JSON error from [serde_json::Error]
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Error)]
+#[error("{message}")]
 pub struct JSONError {
     pub path: PathBuf,
     pub message: String,
