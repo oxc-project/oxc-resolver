@@ -8,6 +8,10 @@ use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use oxc_resolver::PackageJson;
 use rayon::prelude::*;
 
+mod memory_fs;
+
+use memory_fs::BenchMemoryFS;
+
 fn data() -> Vec<(PathBuf, &'static str)> {
     let cwd = env::current_dir().unwrap();
     let f1 = cwd.join("fixtures/enhanced_resolve");
@@ -102,10 +106,10 @@ fn create_symlinks() -> io::Result<PathBuf> {
     Ok(temp_path)
 }
 
-fn oxc_resolver() -> oxc_resolver::Resolver {
-    use oxc_resolver::{AliasValue, ResolveOptions, Resolver};
+fn resolve_options() -> oxc_resolver::ResolveOptions {
+    use oxc_resolver::{AliasValue, ResolveOptions};
     let alias_value = AliasValue::from("./");
-    Resolver::new(ResolveOptions {
+    ResolveOptions {
         extensions: vec![".ts".into(), ".js".into()],
         condition_names: vec!["webpack".into(), "require".into()],
         alias_fields: vec![vec!["browser".into()]],
@@ -141,32 +145,47 @@ fn oxc_resolver() -> oxc_resolver::Resolver {
             ("@@@".into(), vec![alias_value]),
         ],
         ..ResolveOptions::default()
-    })
+    }
 }
 
-fn bench_resolver(c: &mut Criterion) {
+fn oxc_resolver_memory() -> oxc_resolver::ResolverGeneric<BenchMemoryFS> {
+    use oxc_resolver::ResolverGeneric;
+    let fs = BenchMemoryFS::new();
+    ResolverGeneric::new_with_file_system(fs, resolve_options())
+}
+
+fn oxc_resolver_real() -> oxc_resolver::Resolver {
+    use oxc_resolver::Resolver;
+    Resolver::new(resolve_options())
+}
+
+fn bench_resolver_memory(c: &mut Criterion) {
     let data = data();
+    let cwd = env::current_dir().unwrap();
+    let symlink_test_dir = cwd.join("fixtures/enhanced_resolve/test/temp_symlinks");
 
     // check validity
     for (path, request) in &data {
-        assert!(oxc_resolver().resolve(path, request).is_ok(), "{} {request}", path.display());
+        assert!(
+            oxc_resolver_memory().resolve(path, request).is_ok(),
+            "{} {request}",
+            path.display()
+        );
     }
-
-    let symlink_test_dir = create_symlinks().expect("Create symlink fixtures failed");
 
     let symlinks_range = 0u32..10000;
 
     for i in symlinks_range.clone() {
         assert!(
-            oxc_resolver().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
+            oxc_resolver_memory().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
             "file{i}.js"
         );
     }
 
-    let mut group = c.benchmark_group("resolver");
+    let mut group = c.benchmark_group("resolver_memory");
 
     group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &data, |b, data| {
-        let oxc_resolver = oxc_resolver();
+        let oxc_resolver = oxc_resolver_memory();
         b.iter(|| {
             for (path, request) in data {
                 _ = oxc_resolver.resolve(path, request);
@@ -175,7 +194,7 @@ fn bench_resolver(c: &mut Criterion) {
     });
 
     group.bench_with_input(BenchmarkId::from_parameter("multi-thread"), &data, |b, data| {
-        let oxc_resolver = oxc_resolver();
+        let oxc_resolver = oxc_resolver_memory();
         b.iter(|| {
             data.par_iter().for_each(|(path, request)| {
                 _ = oxc_resolver.resolve(path, request);
@@ -187,7 +206,62 @@ fn bench_resolver(c: &mut Criterion) {
         BenchmarkId::from_parameter("resolve from symlinks"),
         &symlinks_range,
         |b, data| {
-            let oxc_resolver = oxc_resolver();
+            let oxc_resolver = oxc_resolver_memory();
+            b.iter(|| {
+                for i in data.clone() {
+                    assert!(
+                        oxc_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
+                        "file{i}.js"
+                    );
+                }
+            });
+        },
+    );
+}
+
+fn bench_resolver_real(c: &mut Criterion) {
+    let data = data();
+    let symlink_test_dir = create_symlinks().expect("Create symlink fixtures failed");
+
+    // check validity
+    for (path, request) in &data {
+        assert!(oxc_resolver_real().resolve(path, request).is_ok(), "{} {request}", path.display());
+    }
+
+    let symlinks_range = 0u32..10000;
+
+    for i in symlinks_range.clone() {
+        assert!(
+            oxc_resolver_real().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
+            "file{i}.js"
+        );
+    }
+
+    let mut group = c.benchmark_group("resolver_real");
+
+    group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &data, |b, data| {
+        let oxc_resolver = oxc_resolver_real();
+        b.iter(|| {
+            for (path, request) in data {
+                _ = oxc_resolver.resolve(path, request);
+            }
+        });
+    });
+
+    group.bench_with_input(BenchmarkId::from_parameter("multi-thread"), &data, |b, data| {
+        let oxc_resolver = oxc_resolver_real();
+        b.iter(|| {
+            data.par_iter().for_each(|(path, request)| {
+                _ = oxc_resolver.resolve(path, request);
+            });
+        });
+    });
+
+    group.bench_with_input(
+        BenchmarkId::from_parameter("resolve from symlinks"),
+        &symlinks_range,
+        |b, data| {
+            let oxc_resolver = oxc_resolver_real();
             b.iter(|| {
                 for i in data.clone() {
                     assert!(
@@ -305,5 +379,10 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(resolver, bench_resolver, bench_package_json_deserialization);
+criterion_group!(
+    resolver,
+    bench_resolver_memory,
+    bench_resolver_real,
+    bench_package_json_deserialization
+);
 criterion_main!(resolver);

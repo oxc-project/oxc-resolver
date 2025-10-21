@@ -839,6 +839,7 @@ dependencies = [
  "tracing",
  "url",
  "vfs",
+ "walkdir",
  "windows",
  "windows-sys 0.61.2",
 ]
