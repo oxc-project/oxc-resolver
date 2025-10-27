@@ -88,8 +88,13 @@ pub enum ResolveError {
     #[error(r#"Invalid "exports" target "{0}" defined for '{1}' in the package config {2}"#)]
     InvalidPackageTarget(String, String, PathBuf),
 
-    #[error(r#"Package subpath '{0}' is not defined by "exports" in {1}"#)]
-    PackagePathNotExported(String, PathBuf),
+    #[error(r#""{subpath}" is not exported under {conditions} from package {package_path} (see exports field in {package_json_path})"#)]
+    PackagePathNotExported {
+        subpath: String,
+        package_path: PathBuf,
+        package_json_path: PathBuf,
+        conditions: ConditionNames,
+    },
 
     #[error(r#"Invalid package config "{0}", "exports" cannot contain some keys starting with '.' and some not. The exports object must either be an object of package subpath keys or an object of main entry condition name keys only."#)]
     InvalidPackageConfig(PathBuf),
@@ -198,6 +203,31 @@ impl From<Vec<PathBuf>> for CircularPathBufs {
     #[cold]
     fn from(value: Vec<PathBuf>) -> Self {
         Self(value)
+    }
+}
+
+/// Helper type for formatting condition names in error messages
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConditionNames(Vec<String>);
+
+impl From<Vec<String>> for ConditionNames {
+    fn from(conditions: Vec<String>) -> Self {
+        Self(conditions)
+    }
+}
+
+impl Display for ConditionNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0.len() {
+            0 => write!(f, "no conditions"),
+            1 => write!(f, "the condition \"{}\"", self.0[0]),
+            _ => {
+                write!(f, "the conditions ")?;
+                let conditions_str =
+                    self.0.iter().map(|s| format!("\"{s}\"")).collect::<Vec<_>>().join(", ");
+                write!(f, "[{conditions_str}]")
+            }
+        }
     }
 }
 

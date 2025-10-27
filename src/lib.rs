@@ -1718,10 +1718,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         }
         // 4. Throw a Package Path Not Exported error.
-        Err(ResolveError::PackagePathNotExported(
-            subpath.to_string(),
-            package_url.path().join("package.json"),
-        ))
+        Err(ResolveError::PackagePathNotExported {
+            subpath: subpath.to_string(),
+            package_path: package_url.path().to_path_buf(),
+            package_json_path: package_url.path().join("package.json"),
+            conditions: self.options.condition_names.clone().into(),
+        })
     }
 
     /// PACKAGE_IMPORTS_RESOLVE(specifier, parentURL, conditions)
@@ -1977,10 +1979,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // 1. If _target.length is zero, return null.
             if targets.is_empty() {
                 // Note: return PackagePathNotExported has the same effect as return because there are no matches.
-                return Err(ResolveError::PackagePathNotExported(
-                    pattern_match.unwrap_or(".").to_string(),
-                    package_url.path().join("package.json"),
-                ));
+                return Err(ResolveError::PackagePathNotExported {
+                    subpath: pattern_match.unwrap_or(".").to_string(),
+                    package_path: package_url.path().to_path_buf(),
+                    package_json_path: package_url.path().join("package.json"),
+                    conditions: self.options.condition_names.clone().into(),
+                });
             }
             // 2. For each item targetValue in target, do
             for (i, target_value) in targets.iter().enumerate() {

@@ -71,13 +71,13 @@ fn test_simple() {
         ("relative path should not work with exports field", f.clone(), "./node_modules/exports-field/dist/main.js", ResolveError::NotFound("./node_modules/exports-field/dist/main.js".into())),
         ("backtracking should not work for request", f.clone(), "exports-field/dist/../../../a.js", ResolveError::InvalidPackageTarget("./lib/../../../a.js".to_string(), "./dist/".to_string(), p.clone())),
         ("backtracking should not work for exports field target", f.clone(), "exports-field/dist/a.js", ResolveError::InvalidPackageTarget("./../../a.js".to_string(), "./dist/a.js".to_string(), p.clone())),
-        ("not exported error", f.clone(), "exports-field/anything/else", ResolveError::PackagePathNotExported("./anything/else".to_string(), p.clone())),
-        ("request ending with slash #1", f.clone(), "exports-field/", ResolveError::PackagePathNotExported("./".to_string(), p.clone())),
-        ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolveError::PackagePathNotExported("./dist/".to_string(), p.clone())),
-        ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolveError::PackagePathNotExported("./lib/".to_string(), p)),
+        ("not exported error", f.clone(), "exports-field/anything/else", ResolveError::PackagePathNotExported { subpath: "./anything/else".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()].into() }),
+        ("request ending with slash #1", f.clone(), "exports-field/", ResolveError::PackagePathNotExported { subpath: "./".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()].into() }),
+        ("request ending with slash #2", f.clone(), "exports-field/dist/", ResolveError::PackagePathNotExported { subpath: "./dist/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p.clone(), conditions: vec!["webpack".into()].into() }),
+        ("request ending with slash #3", f.clone(), "exports-field/lib/", ResolveError::PackagePathNotExported { subpath: "./lib/".to_string(), package_path: f.join("node_modules/exports-field"), package_json_path: p, conditions: vec!["webpack".into()].into() }),
         ("should throw error if target is invalid", f4, "exports-field", ResolveError::InvalidPackageTarget("./a/../b/../../pack1/index.js".to_string(), ".".to_string(), p4)),
         ("throw error if exports field is invalid", f.clone(), "invalid-exports-field", ResolveError::InvalidPackageConfig(f.join("node_modules/invalid-exports-field/package.json"))),
-        ("should throw error if target is 'null'", f5, "m/features/internal/file.js", ResolveError::PackagePathNotExported("./features/internal/file.js".to_string(), p5)),
+        ("should throw error if target is 'null'", f5.clone(), "m/features/internal/file.js", ResolveError::PackagePathNotExported { subpath: "./features/internal/file.js".to_string(), package_path: f5.join("node_modules/m"), package_json_path: p5, conditions: vec!["webpack".into()].into() }),
     ];
 
     for (comment, path, request, error) in fail {
@@ -2560,7 +2560,7 @@ fn test_cases() {
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(
-                    matches!(resolved_path, Err(ResolveError::PackagePathNotExported(_, _))),
+                    matches!(resolved_path, Err(ResolveError::PackagePathNotExported { .. })),
                     "{} {:?}",
                     &case.name,
                     &resolved_path
