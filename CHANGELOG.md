@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.12.0](https://github.com/oxc-project/oxc-resolver/compare/v11.11.1...v11.12.0) - 2025-10-27
+
+### <!-- 0 -->🚀 Features
+
+- improve PackagePathNotExported error message with condition names (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.11.1](https://github.com/oxc-project/oxc-resolver/compare/v11.11.0...v11.11.1) - 2025-10-21
 
 ### <!-- 1 -->🐛 Bug Fixes
