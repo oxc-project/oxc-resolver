@@ -26,6 +26,7 @@ mod simple;
 mod symlink;
 mod tsconfig_discovery;
 mod tsconfig_extends;
+mod tsconfig_file_matcher;
 mod tsconfig_include_exclude;
 mod tsconfig_paths;
 mod tsconfig_project_references;
