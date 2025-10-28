@@ -1,3 +1,7 @@
+mod file_matcher;
+
+pub use file_matcher::TsconfigFileMatcher;
+
 use std::{
     fmt::Debug,
     hash::BuildHasherDefault,
@@ -45,6 +49,10 @@ pub struct TsConfig {
     /// Bubbled up project references with a reference to their tsconfig.
     #[serde(default)]
     pub references: Vec<ProjectReference>,
+
+    /// File matcher for include/exclude/files (built during build())
+    #[serde(skip)]
+    file_matcher: Option<TsconfigFileMatcher>,
 }
 
 impl TsConfig {
@@ -129,6 +137,33 @@ impl TsConfig {
     /// Returns mutable references to other tsconfig files.
     pub(crate) fn references_mut(&mut self) -> impl Iterator<Item = &mut ProjectReference> {
         self.references.iter_mut()
+    }
+
+    /// Tests whether a file matches this tsconfig's include/exclude/files patterns.
+    ///
+    /// Returns `false` if:
+    /// - The file is outside the tsconfig directory
+    /// - The file doesn't match any include pattern
+    /// - The file matches an exclude pattern
+    /// - The tsconfig has empty files and no include
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::path::Path;
+    /// use oxc_resolver::{Resolver, ResolveOptions, TsconfigDiscovery, TsconfigOptions, TsconfigReferences};
+    ///
+    /// let resolver = Resolver::default();
+    /// let tsconfig_dir = Path::new("/project");
+    /// let tsconfig = resolver.resolve_tsconfig(tsconfig_dir).unwrap();
+    ///
+    /// // Check if file is included in tsconfig
+    /// assert!(tsconfig.matches_file(&tsconfig_dir.join("src/index.ts")));
+    /// assert!(!tsconfig.matches_file(&tsconfig_dir.join("node_modules/foo.ts")));
+    /// ```
+    #[must_use]
+    pub fn matches_file(&self, path: &Path) -> bool {
+        self.file_matcher.as_ref().is_some_and(|matcher| matcher.matches(path))
     }
 
     /// Returns the base path from which to resolve aliases.
@@ -297,12 +332,35 @@ impl TsConfig {
     /// * `baseUrl` to absolute path
     #[must_use]
     pub(crate) fn build(mut self) -> Self {
-        // Only the root tsconfig requires paths resolution.
-        if !self.root() {
-            return self;
+        let config_dir = self.directory().to_path_buf();
+
+        // SPECIAL CASE: empty files + no include = skip file matching
+        let is_empty_case = self.files.as_ref().is_some_and(std::vec::Vec::is_empty)
+            && self.include.as_ref().is_none_or(std::vec::Vec::is_empty);
+
+        if is_empty_case {
+            self.file_matcher = Some(TsconfigFileMatcher::empty());
+            // Only the root tsconfig requires paths resolution.
+            if !self.root() {
+                return self;
+            }
         }
 
-        let config_dir = self.directory().to_path_buf();
+        // Only the root tsconfig requires paths resolution.
+        if !self.root() {
+            // But still build file matcher for non-root tsconfigs (if not already set)
+            if !is_empty_case {
+                let out_dir = self.compiler_options.out_dir.as_deref();
+                self.file_matcher = Some(TsconfigFileMatcher::new(
+                    self.files.clone(),
+                    self.include.clone(),
+                    self.exclude.clone(),
+                    out_dir,
+                    config_dir,
+                ));
+            }
+            return self;
+        }
 
         if let Some(base_url) = self.compiler_options().base_url() {
             // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
@@ -330,6 +388,32 @@ impl TsConfig {
                     Self::substitute_template_variable(&config_dir, path);
                 }
             }
+        }
+
+        // Substitute template variable in include patterns
+        if let Some(include) = self.include.as_mut() {
+            for pattern in include {
+                Self::substitute_template_variable(&config_dir, pattern);
+            }
+        }
+
+        // Substitute template variable in exclude patterns
+        if let Some(exclude) = self.exclude.as_mut() {
+            for pattern in exclude {
+                Self::substitute_template_variable(&config_dir, pattern);
+            }
+        }
+
+        // Build file matcher (only if not already set to empty)
+        if !is_empty_case {
+            let out_dir = self.compiler_options.out_dir.as_deref();
+            self.file_matcher = Some(TsconfigFileMatcher::new(
+                self.files.clone(),
+                self.include.clone(),
+                self.exclude.clone(),
+                out_dir,
+                config_dir,
+            ));
         }
 
         self
@@ -484,6 +568,9 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#allowJs>
     pub allow_js: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#outDir>
+    pub out_dir: Option<PathBuf>,
 }
 
 impl CompilerOptions {
