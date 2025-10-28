@@ -1,1 +1,3 @@
-export const index = 'index';
+import { log } from './log';
+
+export { log };

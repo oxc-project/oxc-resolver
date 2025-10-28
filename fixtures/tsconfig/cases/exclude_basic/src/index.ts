@@ -1,1 +1,3 @@
-export const app = 'app';
+import { helper } from '@/helper';
+
+export { helper };
