@@ -1,0 +1,9 @@
+{
+  "include": ["${configDir}/*.ts"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "paths": {
+      "~/*": ["${configDir}/*"]
+    }
+  }
+}

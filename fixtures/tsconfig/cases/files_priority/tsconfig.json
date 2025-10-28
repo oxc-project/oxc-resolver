@@ -1,0 +1,4 @@
+{
+  "files": ["test.ts"],
+  "exclude": ["test.ts"]
+}

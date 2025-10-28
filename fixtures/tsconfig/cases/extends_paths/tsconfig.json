@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./my-app/*"]
+    }
+  },
+  "include": [],
+  "references": [{ "path": "./my-app/" }]
+}
