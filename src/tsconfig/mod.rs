@@ -404,7 +404,8 @@ impl TsConfig {
             }
         }
 
-        // Build file matcher (only if not already set to empty)
+        // Build file matcher for root tsconfig (after template substitution)
+        // Only skip if explicitly empty case
         if !is_empty_case {
             let out_dir = self.compiler_options.out_dir.as_deref();
             self.file_matcher = Some(TsconfigFileMatcher::new(

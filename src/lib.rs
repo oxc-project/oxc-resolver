@@ -1479,6 +1479,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         };
 
+        // Check if the importer file matches the tsconfig's include/exclude patterns
+        // Only check for actual files, not directories (directories are used when there's no specific importer)
+        // If the importer doesn't match, don't use this tsconfig's path mappings
+        let is_file = cached_path.meta(&self.cache.fs).is_some_and(|m| m.is_file);
+        if is_file && !tsconfig.matches_file(cached_path.path()) {
+            return Ok(None);
+        }
+
         let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
             let resolved_path = self.cache.value(&path);
