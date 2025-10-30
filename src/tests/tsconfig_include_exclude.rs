@@ -19,16 +19,19 @@ fn tsconfig_include_exclude_patterns() {
         // Files in src/ can use path mappings, files outside cannot
         ("include_basic", "src/index.ts", "@/utils/helper", true, "file in src/ can use path mapping"),
         ("include_basic", "test.ts", "@/utils/helper", false, "file outside include pattern cannot use path mapping"),
+        ("include_basic", "dist/output.js", "@/utils/helper", false, "file in dist/ cannot use path mapping"),
 
         // Exclude basic - Include: **/*.ts, Exclude: **/*.test.ts
         // Test files are excluded from using path mappings
         ("exclude_basic", "src/index.ts", "@/helper", true, "non-test file can use path mapping"),
         ("exclude_basic", "src/index.test.ts", "@/helper", false, "test file excluded from using path mapping"),
+        ("exclude_basic", "node_modules/foo.ts", "@/helper", false, "node_modules excluded by default"),
 
         // Default include (no include specified, defaults to **/*) - Exclude: [dist]
         // All files except dist/ can use path mappings
         ("with_baseurl", "index.ts", "~/log", true, "file in root can use path mapping"),
         ("with_baseurl", "index.ts", "log", true, "file in root can use baseUrl"),
+        ("with_baseurl", "dist/output.js", "~/log", false, "file in excluded dist cannot use path mapping"),
     ];
 
     for (fixture, importer, specifier, should_resolve, comment) in test_cases {
@@ -127,8 +130,7 @@ fn test_extends_include_exclude_inheritance() {
     assert!(!tsconfig.matches_file(&f.join("lib/utils.ts")));
 
     // Test whether exclude from parent applies to child's include
-    // (behavior to be determined by implementation)
-    let _is_test_file_included = tsconfig.matches_file(&f.join("src/index.test.ts"));
+    assert!(!tsconfig.matches_file(&f.join("src/index.test.ts")));
 }
 
 /// Test project references with include/exclude
@@ -181,9 +183,8 @@ fn test_paths_outside_root() {
     // Files in my-app should be included (default include)
     assert!(tsconfig.matches_file(&my_app_dir.join("index.ts")));
 
-    // Files outside the tsconfig directory - behavior depends on implementation
-    // Whether include/exclude patterns can reach outside the tsconfig directory
-    let _is_outside_file_included = tsconfig.matches_file(&my_utils_dir.join("log.ts"));
+    // Files outside the tsconfig directory
+    assert!(!tsconfig.matches_file(&my_utils_dir.join("log.ts")));
 }
 
 /// Test case sensitivity on Unix systems
