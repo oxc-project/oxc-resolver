@@ -336,7 +336,7 @@ impl TsConfig {
 
         // SPECIAL CASE: empty files + no include = skip file matching
         let is_empty_case = self.files.as_ref().is_some_and(std::vec::Vec::is_empty)
-            && self.include.as_ref().is_none_or(std::vec::Vec::is_empty);
+            && self.include.as_ref().is_some_and(std::vec::Vec::is_empty);
 
         if is_empty_case {
             self.file_matcher = Some(TsconfigFileMatcher::empty());

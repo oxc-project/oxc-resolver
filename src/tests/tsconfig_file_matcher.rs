@@ -106,12 +106,12 @@ fn test_wildcard_patterns() {
 }
 
 #[test]
-fn test_character_set_patterns() {
+fn test_simple_wildcard_patterns() {
     let (matcher, fixture_dir) = create_matcher_from_fixture("character_set_patterns");
 
     let test_cases = [
-        ("App.ts", true, "character set matches uppercase start"),
-        ("Button.ts", true, "character set matches uppercase start"),
+        ("App.ts", true, "wildcard matches .ts files"),
+        ("Button.ts", true, "wildcard matches .ts files"),
     ];
 
     for (file_path, should_match, comment) in test_cases {

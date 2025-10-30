@@ -97,7 +97,7 @@ impl TsconfigFileMatcher {
         }
 
         Self {
-            files,
+            files: files.map(|f| Self::normalize_patterns(f, &tsconfig_dir)),
             include_patterns: Self::normalize_patterns(include_patterns, &tsconfig_dir),
             exclude_patterns: Self::normalize_patterns(exclude_patterns, &tsconfig_dir),
             tsconfig_dir,
@@ -200,8 +200,7 @@ impl TsconfigFileMatcher {
         // 1. Check files array first (absolute priority)
         if let Some(files) = &self.files {
             for file in files {
-                // Check both exact match and ends_with
-                if normalized == *file || normalized.ends_with(file) {
+                if normalized == *file {
                     return true; // Files overrides exclude
                 }
             }
@@ -210,14 +209,12 @@ impl TsconfigFileMatcher {
             if self.include_patterns.is_empty() {
                 return false;
             }
-        }
-
-        // 2. Check if empty patterns (match nothing case)
-        if self.include_patterns.is_empty() {
+        } else if self.include_patterns.is_empty() {
+            // No files array and empty patterns (match nothing case)
             return false;
         }
 
-        // 3. Test against include patterns
+        // 2. Test against include patterns
         let mut included = false;
         for pattern in &self.include_patterns {
             if fast_glob::glob_match(pattern, &normalized) {
@@ -230,7 +227,7 @@ impl TsconfigFileMatcher {
             return false;
         }
 
-        // 4. Test against exclude patterns
+        // 3. Test against exclude patterns
         for pattern in &self.exclude_patterns {
             if fast_glob::glob_match(pattern, &normalized) {
                 return false;
