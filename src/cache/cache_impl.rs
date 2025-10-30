@@ -227,61 +227,70 @@ impl<Fs: FileSystem> Cache<Fs> {
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
     pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
-        // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
-        // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
-        let tid = THREAD_ID.with(|t| *t);
-        if path.canonicalizing.load(Ordering::Acquire) == tid {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
+        let mut result: Option<_> = None;
+        while result.is_none() {
+            result = {
+                // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
+                // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
+                let tid = THREAD_ID.with(|t| *t);
+                if path.canonicalizing.load(Ordering::Acquire) == tid {
+                    return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
+                }
+
+                #[expect(clippy::collection_is_never_read)]
+                let mut _temp = None;
+
+                path.canonicalized
+                    .get_or_init(|| {
+                        path.canonicalizing.store(tid, Ordering::Release);
+
+                        let res = path.parent().map_or_else(
+                            || Ok(path.normalize_root(self)),
+                            |parent| {
+                                self.canonicalize_impl(&parent).and_then(|parent_canonical| {
+                                    let normalized = parent_canonical.normalize_with(
+                                        path.path().strip_prefix(parent.path()).unwrap(),
+                                        self,
+                                    );
+
+                                    if self
+                                        .fs
+                                        .symlink_metadata(path.path())
+                                        .is_ok_and(|m| m.is_symlink)
+                                    {
+                                        let link = self.fs.read_link(normalized.path())?;
+                                        if link.is_absolute() {
+                                            return self
+                                                .canonicalize_impl(&self.value(&link.normalize()));
+                                        } else if let Some(dir) = normalized.parent() {
+                                            // Symlink is relative `../../foo.js`, use the path directory
+                                            // to resolve this symlink.
+                                            return self.canonicalize_impl(
+                                                &dir.normalize_with(&link, self),
+                                            );
+                                        }
+                                        debug_assert!(
+                                            false,
+                                            "Failed to get path parent for {}.",
+                                            normalized.path().display()
+                                        );
+                                    }
+
+                                    Ok(normalized)
+                                })
+                            },
+                        );
+
+                        path.canonicalizing.store(0, Ordering::Release);
+                        _temp = res.as_ref().ok().map(|cp| Arc::clone(&cp.0));
+                        res.map(|cp| Arc::downgrade(&cp.0))
+                    })
+                    .as_ref()
+                    .map_err(Clone::clone)
+                    .map(|weak| weak.upgrade().map(CachedPath))
+                    .transpose()
+            };
         }
-
-        #[expect(clippy::collection_is_never_read)]
-        let mut _temp = None;
-
-        path.canonicalized
-            .get_or_init(|| {
-                path.canonicalizing.store(tid, Ordering::Release);
-
-                let res = path.parent().map_or_else(
-                    || Ok(path.normalize_root(self)),
-                    |parent| {
-                        self.canonicalize_impl(&parent).and_then(|parent_canonical| {
-                            let normalized = parent_canonical.normalize_with(
-                                path.path().strip_prefix(parent.path()).unwrap(),
-                                self,
-                            );
-
-                            if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
-                                let link = self.fs.read_link(normalized.path())?;
-                                if link.is_absolute() {
-                                    return self.canonicalize_impl(&self.value(&link.normalize()));
-                                } else if let Some(dir) = normalized.parent() {
-                                    // Symlink is relative `../../foo.js`, use the path directory
-                                    // to resolve this symlink.
-                                    return self
-                                        .canonicalize_impl(&dir.normalize_with(&link, self));
-                                }
-                                debug_assert!(
-                                    false,
-                                    "Failed to get path parent for {}.",
-                                    normalized.path().display()
-                                );
-                            }
-
-                            Ok(normalized)
-                        })
-                    },
-                );
-
-                path.canonicalizing.store(0, Ordering::Release);
-                _temp = res.as_ref().ok().map(|cp| Arc::clone(&cp.0));
-                res.map(|cp| Arc::downgrade(&cp.0))
-            })
-            .as_ref()
-            .map_err(Clone::clone)
-            .and_then(|weak| {
-                weak.upgrade().map(CachedPath).ok_or_else(|| {
-                    ResolveError::from(io::Error::other("Canonicalized path was dropped"))
-                })
-            })
+        result.unwrap()
     }
 }
