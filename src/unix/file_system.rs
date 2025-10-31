@@ -82,10 +82,10 @@ fn statx_metadata(path: &Path, follow_symlinks: bool) -> Result<FileMetadata, Er
         let stat = statx(CWD, path, flags, mask)?;
 
         // Determine file type from mode
-        let mode = stat.stx_mode;
-        let is_file = (mode & libc::S_IFMT as u32) == libc::S_IFREG as u32;
-        let is_dir = (mode & libc::S_IFMT as u32) == libc::S_IFDIR as u32;
-        let is_symlink = (mode & libc::S_IFMT as u32) == libc::S_IFLNK as u32;
+        let mode = u32::from(stat.stx_mode);
+        let is_file = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFREG);
+        let is_dir = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFDIR);
+        let is_symlink = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFLNK);
 
         Ok(FileMetadata::new(is_file, is_dir, is_symlink))
     }
