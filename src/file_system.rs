@@ -188,13 +188,13 @@ impl FileSystemOs {
     /// See [std::fs::metadata]
     #[inline]
     pub fn metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
             // Use optimized statx on Linux (kernel 4.11+)
             return linux_optimized::statx_metadata(path, true);
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
             // Use optimized getattrlist on macOS
             macos_optimized::getattrlist_metadata(path, true)
@@ -209,7 +209,11 @@ impl FileSystemOs {
             Ok(result.into())
         }
 
-        #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+        #[cfg(not(any(
+            target_os = "windows",
+            all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")),
+            all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64"))
+        )))]
         {
             fs::metadata(path).map(FileMetadata::from)
         }
@@ -220,13 +224,13 @@ impl FileSystemOs {
     /// See [std::fs::symlink_metadata]
     #[inline]
     pub fn symlink_metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
             // Use optimized statx on Linux (kernel 4.11+)
             return linux_optimized::statx_metadata(path, false);
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
             // Use optimized getattrlist on macOS
             macos_optimized::getattrlist_metadata(path, false)
@@ -237,7 +241,11 @@ impl FileSystemOs {
             Ok(crate::windows::symlink_metadata(path)?.into())
         }
 
-        #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+        #[cfg(not(any(
+            target_os = "windows",
+            all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")),
+            all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64"))
+        )))]
         {
             fs::symlink_metadata(path).map(FileMetadata::from)
         }
@@ -400,7 +408,7 @@ impl FileSystem for FileSystemOs {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))]
 mod linux_optimized {
     use super::FileMetadata;
     use std::io;
@@ -548,7 +556,7 @@ mod linux_optimized {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64")))]
 mod macos_optimized {
     use super::FileMetadata;
     use std::io;
