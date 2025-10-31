@@ -14,7 +14,18 @@ pub use serde::*;
 #[cfg(target_endian = "little")]
 pub use simd::*;
 
-use std::fmt;
+use std::{fmt, path::PathBuf};
+
+use crate::JSONError;
+
+/// Check if JSON content is empty or contains only whitespace
+fn check_if_empty(json_bytes: &[u8], path: PathBuf) -> Result<(), JSONError> {
+    // Check if content is empty or whitespace-only
+    if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
+        return Err(JSONError { path, message: "File is empty".to_string(), line: 0, column: 0 });
+    }
+    Ok(())
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackageType {

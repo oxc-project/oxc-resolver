@@ -262,6 +262,9 @@ impl PackageJson {
             json_bytes[2] = b' ';
         }
 
+        // Check if empty after BOM stripping
+        super::check_if_empty(&json_bytes, path.clone())?;
+
         // Create the self-cell with the JSON bytes and parsed BorrowedValue
         let cell = PackageJsonCell::try_new(json_bytes.clone(), |bytes| {
             // We need a mutable slice from our owned data

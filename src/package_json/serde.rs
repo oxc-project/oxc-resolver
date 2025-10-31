@@ -228,6 +228,9 @@ impl PackageJson {
             json.as_str()
         };
 
+        // Check if empty after BOM stripping
+        super::check_if_empty(json_string.as_bytes(), path.clone())?;
+
         // Parse JSON
         let value = serde_json::from_str::<Value>(json_string).map_err(|error| JSONError {
             path: path.clone(),

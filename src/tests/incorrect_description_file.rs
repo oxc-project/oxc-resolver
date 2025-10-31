@@ -31,8 +31,8 @@ fn incorrect_description_file_2() {
     let resolution = Resolver::default().resolve(f.join("pack2"), ".");
     let error = ResolveError::Json(JSONError {
         path: f.join("pack2/package.json"),
-        message: String::from("EOF while parsing a value at line 1 column 0"),
-        line: 1,
+        message: String::from("File is empty"),
+        line: 0,
         column: 0,
     });
     assert_eq!(resolution, Err(error));
