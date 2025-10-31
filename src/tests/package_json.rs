@@ -73,36 +73,12 @@ fn test_corrupted_package_json() {
 
     // Test scenarios for various corrupted package.json files
     let scenarios = [
-        (
-            "empty_file",
-            "",
-            "EOF while parsing",
-        ),
-        (
-            "null_byte_at_start",
-            "\0",
-            "expected value",
-        ),
-        (
-            "json_with_embedded_null",
-            "{\"name\":\0\"test\"}",
-            "expected value",
-        ),
-        (
-            "trailing_comma",
-            "{\"name\":\"test\",}",
-            "trailing comma",
-        ),
-        (
-            "unclosed_brace",
-            "{\"name\":\"test\"",
-            "EOF while parsing",
-        ),
-        (
-            "invalid_escape",
-            "{\"name\":\"test\\x\"}",
-            "escape",
-        ),
+        ("empty_file", "", "EOF while parsing"),
+        ("null_byte_at_start", "\0", "expected value"),
+        ("json_with_embedded_null", "{\"name\":\0\"test\"}", "expected value"),
+        ("trailing_comma", "{\"name\":\"test\",}", "trailing comma"),
+        ("unclosed_brace", "{\"name\":\"test\"", "EOF while parsing"),
+        ("invalid_escape", "{\"name\":\"test\\x\"}", "escape"),
     ];
 
     for (name, content, expected_message_contains) in scenarios {
@@ -123,7 +99,10 @@ fn test_corrupted_package_json() {
         match result {
             Err(ResolveError::Json(json_error)) => {
                 assert!(
-                    json_error.message.to_lowercase().contains(&expected_message_contains.to_lowercase()),
+                    json_error
+                        .message
+                        .to_lowercase()
+                        .contains(&expected_message_contains.to_lowercase()),
                     "Test case '{}': Expected error message to contain '{}', but got: {}",
                     name,
                     expected_message_contains,
@@ -140,7 +119,9 @@ fn test_corrupted_package_json() {
                 panic!("Test case '{name}': Expected JSONError but got: {other_error:?}");
             }
             Ok(resolution) => {
-                panic!("Test case '{name}': Expected error but resolution succeeded: {resolution:?}");
+                panic!(
+                    "Test case '{name}': Expected error but resolution succeeded: {resolution:?}"
+                );
             }
         }
     }
