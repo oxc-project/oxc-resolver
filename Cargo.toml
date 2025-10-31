@@ -99,6 +99,9 @@ url = "2"
 [target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
 libc = "0.2"
 
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "0.38", default-features = false, features = ["fs", "std"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_Storage_FileSystem"] }
 

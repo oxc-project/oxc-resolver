@@ -167,17 +167,18 @@ impl FileSystemOs {
     /// See [std::fs::metadata]
     #[inline]
     pub fn metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(target_os = "windows")]
-        {
-            let result = crate::windows::symlink_metadata(path)?;
-            if result.is_symlink {
-                return fs::metadata(path).map(FileMetadata::from);
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let result = crate::windows::symlink_metadata(path)?;
+                if result.is_symlink {
+                    return fs::metadata(path).map(FileMetadata::from);
+                }
+                Ok(result.into())
+            } else if #[cfg(unix)] {
+                crate::unix::metadata(path)
+            } else {
+                fs::metadata(path).map(FileMetadata::from)
             }
-            Ok(result.into())
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            fs::metadata(path).map(FileMetadata::from)
         }
     }
 
@@ -186,13 +187,14 @@ impl FileSystemOs {
     /// See [std::fs::symlink_metadata]
     #[inline]
     pub fn symlink_metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(target_os = "windows")]
-        {
-            Ok(crate::windows::symlink_metadata(path)?.into())
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            fs::symlink_metadata(path).map(FileMetadata::from)
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                Ok(crate::windows::symlink_metadata(path)?.into())
+            } else if #[cfg(unix)] {
+                crate::unix::symlink_metadata(path)
+            } else {
+                fs::symlink_metadata(path).map(FileMetadata::from)
+            }
         }
     }
 
@@ -201,12 +203,14 @@ impl FileSystemOs {
     /// See [std::fs::read_link]
     #[inline]
     pub fn read_link(path: &Path) -> Result<PathBuf, ResolveError> {
-        let path = fs::read_link(path)?;
         cfg_if! {
             if #[cfg(target_os = "windows")] {
+                let path = fs::read_link(path)?;
                 crate::windows::strip_windows_prefix(path)
+            } else if #[cfg(unix)] {
+                crate::unix::read_link(path)
             } else {
-                Ok(path)
+                Ok(fs::read_link(path)?)
             }
         }
     }
@@ -254,37 +258,12 @@ impl FileSystem for FileSystemOs {
                 }
             }
         }
-        #[cfg(target_os = "macos")]
-        {
-            use libc::F_NOCACHE;
-            use std::{io::Read, os::unix::fs::OpenOptionsExt};
-            let mut fd = fs::OpenOptions::new().read(true).custom_flags(F_NOCACHE).open(path)?;
-            let meta = fd.metadata()?;
-            #[allow(clippy::cast_possible_truncation)]
-            let mut buffer = Vec::with_capacity(meta.len() as usize);
-            fd.read_to_end(&mut buffer)?;
-            Self::validate_string(buffer)
-        }
-        #[cfg(target_os = "linux")]
-        {
-            use std::{io::Read, os::fd::AsRawFd};
-            // Avoid `O_DIRECT` on Linux: it requires page-aligned buffers and aligned offsets,
-            // which is incompatible with a regular Vec-based read and many CI filesystems.
-            let mut fd = fs::OpenOptions::new().read(true).open(path)?;
-            // Best-effort hint to avoid polluting the page cache.
-            // SAFETY: `fd` is valid and `posix_fadvise` is safe.
-            let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
-            let meta = fd.metadata();
-            let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
-                #[allow(clippy::cast_possible_truncation)]
-                Vec::with_capacity(meta.len() as usize)
-            });
-            fd.read_to_end(&mut buffer)?;
-            Self::validate_string(buffer)
-        }
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-        {
-            Self::read_to_string(path)
+        cfg_if! {
+            if #[cfg(unix)] {
+                crate::unix::read_to_string_bypass_system_cache(path)
+            } else {
+                Self::read_to_string(path)
+            }
         }
     }
 
