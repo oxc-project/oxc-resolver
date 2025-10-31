@@ -69,7 +69,7 @@ fn test_corrupted_package_json() {
     use std::path::Path;
 
     use super::memory_fs::MemoryFS;
-    use crate::ResolverGeneric;
+    use crate::{ResolveOptions, ResolverGeneric};
 
     // Test scenarios for various corrupted package.json files
     let scenarios = [
@@ -115,7 +115,7 @@ fn test_corrupted_package_json() {
         fs.add_file(Path::new("/test/index.js"), "export default 42;");
 
         // Create resolver with VFS
-        let resolver = ResolverGeneric::new_with_file_system(fs, Default::default());
+        let resolver = ResolverGeneric::new_with_file_system(fs, ResolveOptions::default());
 
         // Attempt to resolve - should fail with JSONError
         let result = resolver.resolve(Path::new("/test"), "./index.js");
@@ -137,16 +137,10 @@ fn test_corrupted_package_json() {
                 );
             }
             Err(other_error) => {
-                panic!(
-                    "Test case '{}': Expected JSONError but got: {:?}",
-                    name, other_error
-                );
+                panic!("Test case '{name}': Expected JSONError but got: {other_error:?}");
             }
             Ok(resolution) => {
-                panic!(
-                    "Test case '{}': Expected error but resolution succeeded: {:?}",
-                    name, resolution
-                );
+                panic!("Test case '{name}': Expected error but resolution succeeded: {resolution:?}");
             }
         }
     }
