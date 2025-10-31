@@ -358,8 +358,8 @@ impl FileSystem for FileSystemOs {
 mod linux_optimized {
     use super::FileMetadata;
     use std::io;
-    use std::path::Path;
     use std::os::unix::ffi::OsStrExt;
+    use std::path::Path;
     use std::sync::OnceLock;
 
     /// Check if statx is available at runtime
@@ -418,11 +418,11 @@ mod linux_optimized {
 
         let ret = unsafe {
             libc::statx(
-                libc::AT_FDCWD,                    // Use current working directory
-                path_cstr.as_ptr(),                // File path
-                flags,                              // Flags
-                libc::STATX_TYPE,                  // Only request type info
-                &mut statx_buf,                     // Output buffer
+                libc::AT_FDCWD,     // Use current working directory
+                path_cstr.as_ptr(), // File path
+                flags,              // Flags
+                libc::STATX_TYPE,   // Only request type info
+                &mut statx_buf,     // Output buffer
             )
         };
 
@@ -561,7 +561,8 @@ mod macos_optimized {
 
         #[test]
         fn test_getattrlist_not_found() {
-            let non_existent = std::env::temp_dir().join("oxc_resolver_does_not_exist_macos_xyz123");
+            let non_existent =
+                std::env::temp_dir().join("oxc_resolver_does_not_exist_macos_xyz123");
             let result = getattrlist_metadata(&non_existent, true);
             assert!(result.is_err());
             assert_eq!(result.unwrap_err().kind(), io::ErrorKind::NotFound);
