@@ -188,9 +188,9 @@ impl FileSystemOs {
     /// See [std::fs::metadata]
     #[inline]
     pub fn metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))]
+        #[cfg(target_os = "linux")]
         {
-            // Use optimized statx on Linux (kernel 4.11+)
+            // Use optimized statx on Linux (kernel 4.11+, all architectures)
             return linux_optimized::statx_metadata(path, true);
         }
 
@@ -211,7 +211,7 @@ impl FileSystemOs {
 
         #[cfg(not(any(
             target_os = "windows",
-            all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")),
+            target_os = "linux",
             all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64"))
         )))]
         {
@@ -224,9 +224,9 @@ impl FileSystemOs {
     /// See [std::fs::symlink_metadata]
     #[inline]
     pub fn symlink_metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))]
+        #[cfg(target_os = "linux")]
         {
-            // Use optimized statx on Linux (kernel 4.11+)
+            // Use optimized statx on Linux (kernel 4.11+, all architectures)
             return linux_optimized::statx_metadata(path, false);
         }
 
@@ -243,7 +243,7 @@ impl FileSystemOs {
 
         #[cfg(not(any(
             target_os = "windows",
-            all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")),
+            target_os = "linux",
             all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64"))
         )))]
         {
@@ -345,15 +345,14 @@ impl FileSystem for FileSystemOs {
         }
         #[cfg(target_os = "linux")]
         {
-            use std::{io::Read, os::fd::AsRawFd, os::unix::fs::OpenOptionsExt};
+            use rustix::fs::{Advice, fadvise};
+            use std::io::Read;
             // Avoid `O_DIRECT` on Linux: it requires page-aligned buffers and aligned offsets,
             // which is incompatible with a regular Vec-based read and many CI filesystems.
-            // O_CLOEXEC ensures file descriptor is closed on exec
-            let mut fd =
-                fs::OpenOptions::new().read(true).custom_flags(libc::O_CLOEXEC).open(path)?;
+            let mut fd = fs::OpenOptions::new().read(true).open(path)?;
             // Best-effort hint to avoid polluting the page cache.
-            // SAFETY: `fd` is valid and `posix_fadvise` is safe.
-            let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
+            // fadvise with offset=0, len=0 means "entire file"
+            let _ = fadvise(&fd, 0, 0, Advice::DontNeed);
             let meta = fd.metadata();
             let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
                 #[allow(clippy::cast_possible_truncation)]
@@ -408,38 +407,19 @@ impl FileSystem for FileSystemOs {
     }
 }
 
-#[cfg(all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[cfg(target_os = "linux")]
 mod linux_optimized {
     use super::FileMetadata;
+    use rustix::fs::{AtFlags, CWD, StatxFlags, statx};
+    use rustix::io::Errno;
     use std::io;
-    use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
-    use std::sync::OnceLock;
 
-    /// Check if statx is available at runtime
-    fn has_statx() -> bool {
-        static CACHED: OnceLock<bool> = OnceLock::new();
-        *CACHED.get_or_init(|| {
-            // Try statx on a known path to see if it's supported
-            unsafe {
-                let path = match std::ffi::CString::new("/") {
-                    Ok(p) => p,
-                    Err(_) => return false,
-                };
-                let mut buf: libc::statx = std::mem::zeroed();
-                let ret = libc::statx(
-                    libc::AT_FDCWD,
-                    path.as_ptr(),
-                    libc::AT_STATX_DONT_SYNC,
-                    libc::STATX_TYPE,
-                    &mut buf,
-                );
-                // statx returns 0 on success, -1 on error
-                // If ENOSYS (syscall not available), kernel < 4.11
-                ret == 0 || io::Error::last_os_error().raw_os_error() != Some(libc::ENOSYS)
-            }
-        })
-    }
+    // File type constants from POSIX
+    const S_IFMT: u16 = 0o170_000; // File type mask
+    const S_IFREG: u16 = 0o100_000; // Regular file
+    const S_IFDIR: u16 = 0o040_000; // Directory
+    const S_IFLNK: u16 = 0o120_000; // Symbolic link
 
     /// Fast metadata using statx (Linux 4.11+)
     ///
@@ -447,57 +427,36 @@ mod linux_optimized {
     /// - AT_STATX_DONT_SYNC: Don't force filesystem sync, use cached attributes
     /// - STATX_TYPE: Only request file type information (file/dir/symlink)
     /// - More cache-friendly when checking many files
+    /// - Automatic fallback to std::fs on older kernels
     ///
     /// # Errors
     ///
     /// See [std::fs::metadata] and [std::fs::symlink_metadata]
     pub fn statx_metadata(path: &Path, follow_symlinks: bool) -> io::Result<FileMetadata> {
-        if !has_statx() {
-            return fallback_metadata(path, follow_symlinks);
-        }
-
-        let path_bytes = path.as_os_str().as_bytes();
-
-        // Ensure null termination
-        let path_cstr = std::ffi::CString::new(path_bytes)
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path contains null byte"))?;
-
-        let mut statx_buf: libc::statx = unsafe { std::mem::zeroed() };
-
         let flags = if follow_symlinks {
-            libc::AT_STATX_DONT_SYNC
+            AtFlags::STATX_DONT_SYNC
         } else {
-            libc::AT_STATX_DONT_SYNC | libc::AT_SYMLINK_NOFOLLOW
+            AtFlags::STATX_DONT_SYNC | AtFlags::SYMLINK_NOFOLLOW
         };
 
-        let ret = unsafe {
-            libc::statx(
-                libc::AT_FDCWD,     // Use current working directory
-                path_cstr.as_ptr(), // File path
-                flags,              // Flags
-                libc::STATX_TYPE,   // Only request type info
-                &mut statx_buf,     // Output buffer
-            )
-        };
+        match statx(CWD, path, flags, StatxFlags::TYPE) {
+            Ok(stat) => {
+                // Extract file type from stx_mode
+                let mode = stat.stx_mode;
+                let file_type = mode & S_IFMT;
 
-        if ret != 0 {
-            let err = io::Error::last_os_error();
-            // If ENOSYS, fall back to standard implementation
-            if err.raw_os_error() == Some(libc::ENOSYS) {
-                return fallback_metadata(path, follow_symlinks);
+                let is_file = file_type == S_IFREG;
+                let is_dir = file_type == S_IFDIR;
+                let is_symlink = file_type == S_IFLNK;
+
+                Ok(FileMetadata::new(is_file, is_dir, is_symlink))
             }
-            return Err(err);
+            Err(Errno::NOSYS) => {
+                // Fallback to std::fs on older kernels (< 4.11)
+                fallback_metadata(path, follow_symlinks)
+            }
+            Err(err) => Err(err.into()),
         }
-
-        // Extract file type from stx_mode
-        let mode = statx_buf.stx_mode as libc::mode_t;
-        let file_type = mode & libc::S_IFMT;
-
-        let is_file = file_type == libc::S_IFREG;
-        let is_dir = file_type == libc::S_IFDIR;
-        let is_symlink = file_type == libc::S_IFLNK;
-
-        Ok(FileMetadata::new(is_file, is_dir, is_symlink))
     }
 
     /// Fallback to standard library implementation
@@ -546,12 +505,6 @@ mod linux_optimized {
             let result = statx_metadata(&non_existent, true);
             assert!(result.is_err());
             assert_eq!(result.unwrap_err().kind(), io::ErrorKind::NotFound);
-        }
-
-        #[test]
-        fn test_statx_available() {
-            // This test just checks that the availability check doesn't panic
-            let _available = has_statx();
         }
     }
 }
@@ -637,9 +590,9 @@ mod macos_optimized {
 ))]
 mod unix_optimized {
     use crate::{FileSystemOs, ResolveError};
+    use rustix::fs::{CWD, Mode, OFlags, openat, readlinkat};
+    use rustix::io::pread;
     use std::io;
-    use std::os::unix::ffi::OsStrExt;
-    use std::os::unix::io::FromRawFd;
     use std::path::{Path, PathBuf};
 
     /// Use pread for positioned reads (thread-safe, no seek overhead)
@@ -648,22 +601,11 @@ mod unix_optimized {
     ///
     /// See [std::fs::read]
     pub fn pread_to_string(path: &Path) -> io::Result<String> {
-        let path_bytes = path.as_os_str().as_bytes();
-        let path_cstr = std::ffi::CString::new(path_bytes)
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path contains null byte"))?;
-
         // Open with O_RDONLY | O_CLOEXEC
-        // SAFETY: libc::open is safe to call with valid C strings
-        let fd = unsafe { libc::open(path_cstr.as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC) };
+        let fd = openat(CWD, path, OFlags::RDONLY | OFlags::CLOEXEC, Mode::empty())?;
 
-        if fd < 0 {
-            return Err(io::Error::last_os_error());
-        }
-
-        // SAFETY: We just opened this fd successfully
-        let file = unsafe { std::fs::File::from_raw_fd(fd) };
-
-        // Get file size for buffer allocation
+        // Convert to File to get metadata
+        let file = std::fs::File::from(fd);
         let metadata = file.metadata()?;
         #[allow(clippy::cast_possible_truncation)]
         let file_size = metadata.len() as usize;
@@ -674,20 +616,7 @@ mod unix_optimized {
 
         // Read using pread (positioned read, no seeking)
         while total_read < file_size {
-            // SAFETY: pread is safe with valid fd and buffer
-            #[allow(clippy::cast_possible_wrap)]
-            let bytes_read = unsafe {
-                libc::pread(
-                    fd,
-                    buffer[total_read..].as_mut_ptr().cast(),
-                    file_size - total_read,
-                    total_read as i64,
-                )
-            };
-
-            if bytes_read < 0 {
-                return Err(io::Error::last_os_error());
-            }
+            let bytes_read = pread(&file, &mut buffer[total_read..], total_read as u64)?;
 
             if bytes_read == 0 {
                 // EOF reached
@@ -695,10 +624,7 @@ mod unix_optimized {
                 break;
             }
 
-            #[allow(clippy::cast_sign_loss)]
-            {
-                total_read += bytes_read as usize;
-            }
+            total_read += bytes_read;
         }
 
         FileSystemOs::validate_string(buffer)
@@ -711,36 +637,24 @@ mod unix_optimized {
     /// See [std::fs::read_link]
     pub fn readlinkat_wrapper(path: &Path) -> Result<PathBuf, ResolveError> {
         use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
 
-        let path_bytes = path.as_os_str().as_bytes();
-        let path_cstr = std::ffi::CString::new(path_bytes)
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "path contains null byte"))?;
+        // rustix 0.38 requires providing a buffer
+        let buffer = Vec::with_capacity(1024);
+        let target_cstring = readlinkat(CWD, path, buffer).map_err(io::Error::from)?;
 
-        // Buffer for symlink target (PATH_MAX)
-        let mut buffer = vec![0u8; libc::PATH_MAX as usize];
+        // Convert CString to PathBuf
+        let target_bytes = target_cstring.as_bytes();
+        let os_str = OsStr::from_bytes(target_bytes);
+        let target = PathBuf::from(os_str);
 
-        // SAFETY: readlinkat is safe with valid fd and buffer
-        let bytes_read = unsafe {
-            libc::readlinkat(
-                libc::AT_FDCWD, // Current working directory
-                path_cstr.as_ptr(),
-                buffer.as_mut_ptr().cast(),
-                buffer.len(),
-            )
-        };
-
-        if bytes_read < 0 {
-            return Err(io::Error::last_os_error().into());
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                crate::windows::strip_windows_prefix(target)
+            } else {
+                Ok(target)
+            }
         }
-
-        #[allow(clippy::cast_sign_loss)]
-        {
-            buffer.truncate(bytes_read as usize);
-        }
-
-        // Convert bytes to PathBuf
-        let os_str = OsStr::from_bytes(&buffer);
-        Ok(PathBuf::from(os_str))
     }
 
     #[cfg(test)]
