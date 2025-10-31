@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.13.0](https://github.com/oxc-project/oxc-resolver/compare/v11.12.0...v11.13.0) - 2025-10-31
+
+### <!-- 0 -->🚀 Features
+
+- improve error message for empty package.json files ([#793](https://github.com/oxc-project/oxc-resolver/pull/793)) (by @Boshen) - #793
+
+### Contributors
+
+* @Boshen
+
 ## [11.12.0](https://github.com/oxc-project/oxc-resolver/compare/v11.11.1...v11.12.0) - 2025-10-27
 
 ### <!-- 0 -->🚀 Features
