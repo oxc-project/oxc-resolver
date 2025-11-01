@@ -82,7 +82,7 @@ fn statx_metadata(path: &Path, follow_symlinks: bool) -> Result<FileMetadata, Er
         let stat = statx(CWD, path, flags, mask)?;
 
         // Determine file type from mode using rustix FileType
-        let file_type = FileType::from_raw_mode(stat.stx_mode);
+        let file_type = FileType::from_raw_mode(u32::from(stat.stx_mode));
         let is_file = file_type == FileType::RegularFile;
         let is_dir = file_type == FileType::Directory;
         let is_symlink = file_type == FileType::Symlink;
@@ -97,6 +97,7 @@ fn statx_metadata(path: &Path, follow_symlinks: bool) -> Result<FileMetadata, Er
         let stat_result = if follow_symlinks { stat(path)? } else { lstat(path)? };
 
         // Determine file type from mode using rustix FileType
+        // FileType::from_raw_mode expects RawMode which is platform-specific (u16 or u32)
         let file_type = FileType::from_raw_mode(stat_result.st_mode);
         let is_file = file_type == FileType::RegularFile;
         let is_dir = file_type == FileType::Directory;
@@ -217,7 +218,8 @@ fn read_to_string_bypass_fallback(path: &Path) -> io::Result<String> {
         .map_err(|e| io::Error::from_raw_os_error(e.raw_os_error()))?;
 
     // Best-effort hint to avoid polluting the page cache using rustix fadvise
-    let _ = fadvise(&fd, 0, None, Advice::DontNeed);
+    // Pass 0 for length to indicate through end-of-file
+    let _ = fadvise(&fd, 0, 0, Advice::DontNeed);
 
     // Convert to std::fs::File for reading
     let mut file = std::fs::File::from(fd);
