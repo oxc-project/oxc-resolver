@@ -181,14 +181,15 @@ fn read_with_cache_bypass(path: &Path) -> Result<String, Errno> {
         .map_err(|e| Errno::from_raw_os_error(e.raw_os_error().unwrap_or(0)))?;
 
     // Validate UTF-8 using the existing helper
-    crate::FileSystemOs::validate_string(buffer)
-        .map_err(|e| Errno::from_raw_os_error(e.raw_os_error().unwrap_or(Errno::INVAL.raw_os_error())))
+    crate::FileSystemOs::validate_string(buffer).map_err(|e| {
+        Errno::from_raw_os_error(e.raw_os_error().unwrap_or(Errno::INVAL.raw_os_error()))
+    })
 }
 
 /// Fallback implementation using rustix fcntl_nocache on macOS.
 #[cfg(target_os = "macos")]
 fn read_to_string_bypass_fallback(path: &Path) -> io::Result<String> {
-    use rustix::fs::{openat, CWD};
+    use rustix::fs::{CWD, openat};
     use std::io::Read;
 
     // Open file with rustix
@@ -196,8 +197,7 @@ fn read_to_string_bypass_fallback(path: &Path) -> io::Result<String> {
         .map_err(|e| io::Error::from_raw_os_error(e.raw_os_error()))?;
 
     // Set F_NOCACHE to avoid polluting the cache
-    fcntl_nocache(&fd, true)
-        .map_err(|e| io::Error::from_raw_os_error(e.raw_os_error()))?;
+    fcntl_nocache(&fd, true).map_err(|e| io::Error::from_raw_os_error(e.raw_os_error()))?;
 
     // Convert to std::fs::File for reading
     let mut file = std::fs::File::from(fd);
@@ -210,7 +210,7 @@ fn read_to_string_bypass_fallback(path: &Path) -> io::Result<String> {
 
 #[cfg(target_os = "linux")]
 fn read_to_string_bypass_fallback(path: &Path) -> io::Result<String> {
-    use rustix::fs::{openat, CWD};
+    use rustix::fs::{CWD, openat};
     use std::io::Read;
 
     // Open file with rustix
