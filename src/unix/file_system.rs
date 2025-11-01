@@ -4,17 +4,17 @@ use std::{
 };
 
 use rustix::{
-    fs::{Mode, OFlags},
+    fs::{FileType, Mode, OFlags},
     io::Errno,
 };
 
 #[cfg(target_os = "linux")]
-use rustix::fs::AtFlags;
+use rustix::fs::{Advice, AtFlags, StatxFlags, fadvise};
+
+#[cfg(target_os = "macos")]
+use rustix::fs::fcntl_nocache;
 
 use crate::{ResolveError, file_system::FileMetadata};
-
-#[cfg(target_os = "linux")]
-use rustix::fs::StatxFlags;
 
 /// Retrieve metadata using rustix's statx with minimal field mask.
 ///
@@ -81,11 +81,11 @@ fn statx_metadata(path: &Path, follow_symlinks: bool) -> Result<FileMetadata, Er
 
         let stat = statx(CWD, path, flags, mask)?;
 
-        // Determine file type from mode
-        let mode = u32::from(stat.stx_mode);
-        let is_file = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFREG);
-        let is_dir = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFDIR);
-        let is_symlink = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFLNK);
+        // Determine file type from mode using rustix FileType
+        let file_type = FileType::from_raw_mode(stat.stx_mode);
+        let is_file = file_type == FileType::RegularFile;
+        let is_dir = file_type == FileType::Directory;
+        let is_symlink = file_type == FileType::Symlink;
 
         Ok(FileMetadata::new(is_file, is_dir, is_symlink))
     }
@@ -96,10 +96,11 @@ fn statx_metadata(path: &Path, follow_symlinks: bool) -> Result<FileMetadata, Er
 
         let stat_result = if follow_symlinks { stat(path)? } else { lstat(path)? };
 
-        let mode = u32::from(stat_result.st_mode);
-        let is_file = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFREG);
-        let is_dir = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFDIR);
-        let is_symlink = (mode & u32::from(libc::S_IFMT)) == u32::from(libc::S_IFLNK);
+        // Determine file type from mode using rustix FileType
+        let file_type = FileType::from_raw_mode(stat_result.st_mode);
+        let is_file = file_type == FileType::RegularFile;
+        let is_dir = file_type == FileType::Directory;
+        let is_symlink = file_type == FileType::Symlink;
 
         Ok(FileMetadata::new(is_file, is_dir, is_symlink))
     }
@@ -143,9 +144,9 @@ fn read_link_impl(path: &Path) -> Result<PathBuf, Errno> {
 /// Read file to string while bypassing system cache using rustix.
 ///
 /// On Linux, uses O_NOATIME to avoid updating access times for better performance.
-/// On macOS, uses F_NOCACHE (via libc) to hint the kernel not to cache.
+/// On macOS, uses fcntl_nocache to hint the kernel not to cache.
 ///
-/// Falls back to platform-specific libc implementation or std::fs if rustix fails.
+/// Falls back to platform-specific rustix implementation or std::fs if the initial attempt fails.
 ///
 /// # Errors
 ///
@@ -180,37 +181,52 @@ fn read_with_cache_bypass(path: &Path) -> Result<String, Errno> {
 
     // Validate UTF-8 using the existing helper
     crate::FileSystemOs::validate_string(buffer)
-        .map_err(|e| Errno::from_raw_os_error(e.raw_os_error().unwrap_or(libc::EINVAL)))
+        .map_err(|e| Errno::from_raw_os_error(e.raw_os_error().unwrap_or(Errno::INVAL.raw_os_error())))
 }
 
-/// Fallback implementation using existing platform-specific code.
+/// Fallback implementation using rustix fcntl_nocache on macOS.
 #[cfg(target_os = "macos")]
 fn read_to_string_bypass_fallback(path: &Path) -> io::Result<String> {
-    use libc::F_NOCACHE;
-    use std::{fs, io::Read, os::unix::fs::OpenOptionsExt};
+    use rustix::fs::{openat, CWD};
+    use std::io::Read;
 
-    let mut fd = fs::OpenOptions::new().read(true).custom_flags(F_NOCACHE).open(path)?;
-    let meta = fd.metadata()?;
+    // Open file with rustix
+    let fd = openat(CWD, path, OFlags::RDONLY, Mode::empty())
+        .map_err(|e| io::Error::from_raw_os_error(e.raw_os_error()))?;
+
+    // Set F_NOCACHE to avoid polluting the cache
+    fcntl_nocache(&fd, true)
+        .map_err(|e| io::Error::from_raw_os_error(e.raw_os_error()))?;
+
+    // Convert to std::fs::File for reading
+    let mut file = std::fs::File::from(fd);
+    let meta = file.metadata()?;
     #[allow(clippy::cast_possible_truncation)]
     let mut buffer = Vec::with_capacity(meta.len() as usize);
-    fd.read_to_end(&mut buffer)?;
+    file.read_to_end(&mut buffer)?;
     crate::FileSystemOs::validate_string(buffer)
 }
 
 #[cfg(target_os = "linux")]
 fn read_to_string_bypass_fallback(path: &Path) -> io::Result<String> {
-    use std::{fs, io::Read, os::fd::AsRawFd};
+    use rustix::fs::{openat, CWD};
+    use std::io::Read;
 
-    let mut fd = fs::OpenOptions::new().read(true).open(path)?;
-    // Best-effort hint to avoid polluting the page cache.
-    // SAFETY: `fd` is valid and `posix_fadvise` is safe.
-    let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
-    let meta = fd.metadata();
+    // Open file with rustix
+    let fd = openat(CWD, path, OFlags::RDONLY, Mode::empty())
+        .map_err(|e| io::Error::from_raw_os_error(e.raw_os_error()))?;
+
+    // Best-effort hint to avoid polluting the page cache using rustix fadvise
+    let _ = fadvise(&fd, 0, None, Advice::DontNeed);
+
+    // Convert to std::fs::File for reading
+    let mut file = std::fs::File::from(fd);
+    let meta = file.metadata();
     let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
         #[allow(clippy::cast_possible_truncation)]
         Vec::with_capacity(meta.len() as usize)
     });
-    fd.read_to_end(&mut buffer)?;
+    file.read_to_end(&mut buffer)?;
     crate::FileSystemOs::validate_string(buffer)
 }
 
