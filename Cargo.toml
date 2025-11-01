@@ -96,9 +96,6 @@ document-features = { version = "0.2.11", optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 url = "2"
 
-[target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
-libc = "0.2"
-
 [target.'cfg(unix)'.dependencies]
 rustix = { version = "0.38", default-features = false, features = ["fs", "std"] }
 
