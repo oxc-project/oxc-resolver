@@ -253,51 +253,48 @@ impl FileSystem for FileSystemOs {
         Self::read_to_string(path)
     }
 
+    #[allow(clippy::items_after_statements)]
     fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
-        cfg_if! {
-            if #[cfg(feature = "yarn_pnp")] {
-                if self.yarn_pnp {
-                    return match VPath::from(path)? {
-                        VPath::Zip(info) => {
-                            self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
-                        }
-                        VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
-                        VPath::Native(path) => Self::read_to_string(&path),
-                    }
+        #[cfg(feature = "yarn_pnp")]
+        if self.yarn_pnp {
+            return match VPath::from(path)? {
+                VPath::Zip(info) => {
+                    self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
                 }
-            }
+                VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
+                VPath::Native(path) => Self::read_to_string(&path),
+            };
         }
-        #[cfg(target_os = "macos")]
-        {
-            use libc::F_NOCACHE;
-            use std::{io::Read, os::unix::fs::OpenOptionsExt};
-            let mut fd = fs::OpenOptions::new().read(true).custom_flags(F_NOCACHE).open(path)?;
-            let meta = fd.metadata()?;
-            #[allow(clippy::cast_possible_truncation)]
-            let mut buffer = Vec::with_capacity(meta.len() as usize);
-            fd.read_to_end(&mut buffer)?;
-            Self::validate_string(buffer)
-        }
-        #[cfg(target_os = "linux")]
-        {
-            use std::{io::Read, os::fd::AsRawFd};
-            // Avoid `O_DIRECT` on Linux: it requires page-aligned buffers and aligned offsets,
-            // which is incompatible with a regular Vec-based read and many CI filesystems.
-            let mut fd = fs::OpenOptions::new().read(true).open(path)?;
-            // Best-effort hint to avoid polluting the page cache.
-            // SAFETY: `fd` is valid and `posix_fadvise` is safe.
-            let _ = unsafe { libc::posix_fadvise(fd.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
-            let meta = fd.metadata();
-            let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
+
+        cfg_if! {
+            if #[cfg(target_os = "macos")] {
+                use std::io::Read;
+                let mut fd = fs::OpenOptions::new().read(true).open(path)?;
+                // Apply F_NOCACHE to bypass filesystem cache
+                rustix::fs::fcntl_nocache(&fd, true)?;
+                let meta = fd.metadata()?;
                 #[allow(clippy::cast_possible_truncation)]
-                Vec::with_capacity(meta.len() as usize)
-            });
-            fd.read_to_end(&mut buffer)?;
-            Self::validate_string(buffer)
-        }
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-        {
-            Self::read_to_string(path)
+                let mut buffer = Vec::with_capacity(meta.len() as usize);
+                fd.read_to_end(&mut buffer)?;
+                Self::validate_string(buffer)
+            } else if #[cfg(target_os = "linux")] {
+                use std::io::Read;
+                // Avoid `O_DIRECT` on Linux: it requires page-aligned buffers and aligned offsets,
+                // which is incompatible with a regular Vec-based read and many CI filesystems.
+                let mut fd = fs::OpenOptions::new().read(true).open(path)?;
+                // Best-effort hint to avoid polluting the page cache.
+                // fadvise with offset=0 and len=None applies to the whole file
+                let _ = rustix::fs::fadvise(&fd, 0, None, rustix::fs::Advice::DontNeed);
+                let meta = fd.metadata();
+                let mut buffer = meta.ok().map_or_else(Vec::new, |meta| {
+                    #[allow(clippy::cast_possible_truncation)]
+                    Vec::with_capacity(meta.len() as usize)
+                });
+                fd.read_to_end(&mut buffer)?;
+                Self::validate_string(buffer)
+            } else {
+                Self::read_to_string(path)
+            }
         }
     }
 

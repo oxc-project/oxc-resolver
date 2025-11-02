@@ -839,7 +839,6 @@ dependencies = [
  "fancy-regex",
  "indexmap",
  "json-strip-comments",
- "libc",
  "once_cell",
  "papaya",
  "pico-args",

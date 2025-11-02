@@ -97,9 +97,6 @@ document-features = { version = "0.2.11", optional = true }
 url = "2"
 
 [target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
-libc = "0.2"
-
-[target.'cfg(target_os = "linux")'.dependencies]
 rustix = { version = "1.1.2", features = ["fs"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
