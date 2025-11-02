@@ -234,60 +234,46 @@ impl<Fs: FileSystem> Cache<Fs> {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
 
-        path.canonicalized
-            .get_or_init(|| {
-                path.canonicalizing.store(tid, Ordering::Release);
+        let mut canonicalized_guard = path.canonicalized.lock().unwrap();
+        let canonicalized = canonicalized_guard.clone()?;
+        if let Some(cached_path) = canonicalized.upgrade() {
+            return Ok(CachedPath(cached_path));
+        }
 
-                let res = path.parent().map_or_else(
-                    || Ok(path.normalize_root(self)),
-                    |parent| {
-                        self.canonicalize_impl(&parent).and_then(|parent_canonical| {
-                            let normalized = parent_canonical.normalize_with(
-                                path.path().strip_prefix(parent.path()).unwrap(),
-                                self,
-                            );
+        path.canonicalizing.store(tid, Ordering::Release);
 
-                            if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
-                                let link = self.fs.read_link(normalized.path())?;
-                                if link.is_absolute() {
-                                    return self.canonicalize_impl(&self.value(&link.normalize()));
-                                } else if let Some(dir) = normalized.parent() {
-                                    // Symlink is relative `../../foo.js`, use the path directory
-                                    // to resolve this symlink.
-                                    return self
-                                        .canonicalize_impl(&dir.normalize_with(&link, self));
-                                }
-                                debug_assert!(
-                                    false,
-                                    "Failed to get path parent for {}.",
-                                    normalized.path().display()
-                                );
-                            }
+        let res = path.parent().map_or_else(
+            || Ok(path.normalize_root(self)),
+            |parent| {
+                self.canonicalize_impl(&parent).and_then(|parent_canonical| {
+                    let normalized = parent_canonical
+                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
 
-                            Ok(normalized)
-                        })
-                    },
-                );
-
-                path.canonicalizing.store(0, Ordering::Release);
-                // Store the canonicalized path in the cache before downgrading to weak reference
-                // This ensures there's always at least one strong reference to prevent dropping
-                if let Ok(ref cp) = res {
-                    // Only insert if not already present to avoid unnecessary operations
-                    let paths = self.paths.pin();
-                    if !paths.contains(cp) {
-                        paths.insert(cp.clone());
+                    if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
+                        let link = self.fs.read_link(normalized.path())?;
+                        if link.is_absolute() {
+                            return self.canonicalize_impl(&self.value(&link.normalize()));
+                        } else if let Some(dir) = normalized.parent() {
+                            // Symlink is relative `../../foo.js`, use the path directory
+                            // to resolve this symlink.
+                            return self.canonicalize_impl(&dir.normalize_with(&link, self));
+                        }
+                        debug_assert!(
+                            false,
+                            "Failed to get path parent for {}.",
+                            normalized.path().display()
+                        );
                     }
-                }
-                // Convert to Weak reference for storage
-                res.map(|cp| Arc::downgrade(&cp.0))
-            })
-            .as_ref()
-            .map_err(Clone::clone)
-            .and_then(|weak| {
-                weak.upgrade().map(CachedPath).ok_or_else(|| {
-                    ResolveError::from(io::Error::other("Canonicalized path was dropped"))
+
+                    Ok(normalized)
                 })
-            })
+            },
+        );
+
+        path.canonicalizing.store(0, Ordering::Release);
+        // Convert to Weak reference for storage
+        *canonicalized_guard = res.as_ref().map_err(Clone::clone).map(|cp| Arc::downgrade(&cp.0));
+
+        res
     }
 }
