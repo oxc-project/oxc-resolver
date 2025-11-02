@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.13.0](https://github.com/oxc-project/oxc-resolver/compare/v11.12.0...v11.13.0) - 2025-11-02
+
+### <!-- 0 -->🚀 Features
+
+- improve error message for empty package.json files ([#793](https://github.com/oxc-project/oxc-resolver/pull/793)) (by @Boshen) - #793
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- don't drop canonicalized path by cache clear ([#791](https://github.com/oxc-project/oxc-resolver/pull/791)) (by @sapphi-red) - #791
+
+### Contributors
+
+* @sapphi-red
+* @Boshen
+
 ## [11.12.0](https://github.com/oxc-project/oxc-resolver/compare/v11.11.1...v11.12.0) - 2025-10-27
 
 ### <!-- 0 -->🚀 Features
