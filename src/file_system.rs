@@ -167,17 +167,21 @@ impl FileSystemOs {
     /// See [std::fs::metadata]
     #[inline]
     pub fn metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(target_os = "windows")]
-        {
-            let result = crate::windows::symlink_metadata(path)?;
-            if result.is_symlink {
-                return fs::metadata(path).map(FileMetadata::from);
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let result = crate::windows::symlink_metadata(path)?;
+                if result.is_symlink {
+                    return fs::metadata(path).map(FileMetadata::from);
+                }
+                Ok(result.into())
+            } else if #[cfg(target_os = "linux")] {
+                use rustix::fs::{AtFlags, CWD, FileType, StatxFlags};
+                let statx = rustix::fs::statx(CWD, path, AtFlags::STATX_DONT_SYNC, StatxFlags::TYPE)?;
+                let file_type = FileType::from_raw_mode(statx.stx_mode.into());
+                Ok(FileMetadata::new(file_type.is_file(), file_type.is_dir(), file_type.is_symlink()))
+            } else {
+                fs::metadata(path).map(FileMetadata::from)
             }
-            Ok(result.into())
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            fs::metadata(path).map(FileMetadata::from)
         }
     }
 
@@ -186,13 +190,22 @@ impl FileSystemOs {
     /// See [std::fs::symlink_metadata]
     #[inline]
     pub fn symlink_metadata(path: &Path) -> io::Result<FileMetadata> {
-        #[cfg(target_os = "windows")]
-        {
-            Ok(crate::windows::symlink_metadata(path)?.into())
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            fs::symlink_metadata(path).map(FileMetadata::from)
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                Ok(crate::windows::symlink_metadata(path)?.into())
+            } else if #[cfg(target_os = "linux")] {
+                use rustix::fs::{AtFlags, CWD, FileType, StatxFlags};
+                let statx = rustix::fs::statx(
+                    CWD,
+                    path,
+                    AtFlags::STATX_DONT_SYNC | AtFlags::SYMLINK_NOFOLLOW,
+                    StatxFlags::TYPE,
+                )?;
+                let file_type = FileType::from_raw_mode(statx.stx_mode.into());
+                Ok(FileMetadata::new(file_type.is_file(), file_type.is_dir(), file_type.is_symlink()))
+            } else {
+                fs::symlink_metadata(path).map(FileMetadata::from)
+            }
         }
     }
 
