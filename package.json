@@ -1,6 +1,6 @@
 {
   "name": "oxc-resolver",
-  "version": "11.12.0",
+  "version": "11.13.0",
   "license": "MIT",
   "description": "Oxc Resolver Node API",
   "packageManager": "pnpm@10.19.0",
