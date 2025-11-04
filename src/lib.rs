@@ -1505,17 +1505,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if cached_path.inside_node_modules() {
             return Ok(None);
         }
-
-        let mut cache_value = cached_path.clone();
-        // Go up directories when the querying path is not a directory
-        while !self.cache.is_dir(&cache_value, ctx) {
-            if let Some(cv) = cache_value.parent() {
-                cache_value = cv;
-            } else {
-                break;
-            }
+        // Skip non-absolute paths (e.g. virtual modules)
+        if !cached_path.path.is_absolute() {
+            return Ok(None);
         }
-        let mut cache_value = Some(cache_value);
+
+        let mut cache_value = Some(cached_path.clone());
         while let Some(cv) = cache_value {
             if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
                 let tsconfig_path = cv.path.join("tsconfig.json");
