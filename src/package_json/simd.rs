@@ -7,17 +7,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use self_cell::MutBorrow;
 use simd_json::{BorrowedValue, prelude::*};
 
 use super::{ImportsExportsKind, PackageType, SideEffects};
-use crate::{JSONError, ResolveError, path::PathUtil};
+use crate::{FileSystem, JSONError, ResolveError, path::PathUtil};
 
 // Use simd_json's Object type which handles the hasher correctly based on features
 type BorrowedObject<'a> = simd_json::value::borrowed::Object<'a>;
 
 self_cell::self_cell! {
     struct PackageJsonCell {
-        owner: Vec<u8>,
+        owner: MutBorrow<Vec<u8>>,
 
         #[covariant]
         dependent: BorrowedValue,
@@ -253,7 +254,12 @@ impl PackageJson {
     ///
     /// # Panics
     /// # Errors
-    pub fn parse(path: PathBuf, realpath: PathBuf, json: String) -> Result<Self, JSONError> {
+    pub fn parse<Fs: FileSystem>(
+        fs: &Fs,
+        path: PathBuf,
+        realpath: PathBuf,
+        json: String,
+    ) -> Result<Self, JSONError> {
         // Strip BOM in place by replacing with spaces (no reallocation)
         let mut json_bytes = json.into_bytes();
         if json_bytes.starts_with(b"\xEF\xBB\xBF") {
@@ -266,18 +272,34 @@ impl PackageJson {
         super::check_if_empty(&json_bytes, path.clone())?;
 
         // Create the self-cell with the JSON bytes and parsed BorrowedValue
-        let cell = PackageJsonCell::try_new(json_bytes.clone(), |bytes| {
-            // We need a mutable slice from our owned data
-            // SAFETY: We're creating a mutable reference to the owned data.
-            // The self_cell ensures this reference is valid for the lifetime of the cell.
-            let slice =
-                unsafe { std::slice::from_raw_parts_mut(bytes.as_ptr().cast_mut(), bytes.len()) };
-            simd_json::to_borrowed_value(slice)
+        let cell = PackageJsonCell::try_new(MutBorrow::new(json_bytes), |bytes| {
+            // Use MutBorrow to safely get mutable access for simd_json parsing
+            simd_json::to_borrowed_value(bytes.borrow_mut())
         })
         .map_err(|simd_error| {
-            // Fallback: parse with serde_json to get detailed error information
-            // simd_json doesn't provide line/column info, so we re-parse to get it
-            match serde_json::from_slice::<serde_json::Value>(&json_bytes) {
+            // Fallback: re-read the file and parse with serde_json to get detailed error information
+            // We re-read because simd_json may have mutated the buffer during its failed parse attempt
+            // simd_json doesn't provide line/column info, so we use serde_json for better error messages
+            let fallback_result = fs
+                .read_to_string(&realpath)
+                .map_err(|io_error| JSONError {
+                    path: path.clone(),
+                    message: format!("Failed to re-read file for error reporting: {io_error}"),
+                    line: 0,
+                    column: 0,
+                })
+                .and_then(|content| {
+                    serde_json::from_str::<serde_json::Value>(&content).map_err(|serde_error| {
+                        JSONError {
+                            path: path.clone(),
+                            message: serde_error.to_string(),
+                            line: serde_error.line(),
+                            column: serde_error.column(),
+                        }
+                    })
+                });
+
+            match fallback_result {
                 Ok(_) => {
                     // serde_json succeeded but simd_json failed - this shouldn't happen
                     // for valid JSON, but could indicate simd_json is more strict
@@ -288,15 +310,7 @@ impl PackageJson {
                         column: 0,
                     }
                 }
-                Err(serde_error) => {
-                    // Both parsers failed - use serde_json's detailed error
-                    JSONError {
-                        path: path.clone(),
-                        message: serde_error.to_string(),
-                        line: serde_error.line(),
-                        column: serde_error.column(),
-                    }
-                }
+                Err(error) => error,
             }
         })?;
 

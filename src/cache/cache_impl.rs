@@ -120,7 +120,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 } else {
                     package_json_path.clone()
                 };
-                PackageJson::parse(package_json_path, real_path, package_json_string)
+                PackageJson::parse(&self.fs, package_json_path, real_path, package_json_string)
                     .map(|package_json| Some(Arc::new(package_json)))
                     .map_err(ResolveError::Json)
             })
