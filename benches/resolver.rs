@@ -5,7 +5,7 @@ use std::{
 };
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use oxc_resolver::PackageJson;
+use oxc_resolver::{FileSystem as FileSystemTrait, FileSystemOs, PackageJson};
 use rayon::prelude::*;
 
 mod memory_fs;
@@ -356,6 +356,10 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
 
     let test_path = PathBuf::from("/test/package.json");
     let test_realpath = test_path.clone();
+    #[cfg(feature = "yarn_pnp")]
+    let fs = FileSystemOs::new(false);
+    #[cfg(not(feature = "yarn_pnp"))]
+    let fs = FileSystemOs::new();
 
     let data = [
         ("small", small_json.to_string()),
@@ -369,7 +373,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
             b.iter_with_setup_wrapper(|runner| {
                 let json = json.clone();
                 runner.run(|| {
-                    PackageJson::parse(test_path.clone(), test_realpath.clone(), json)
+                    PackageJson::parse(&fs, test_path.clone(), test_realpath.clone(), json)
                         .expect("Failed to parse JSON");
                 });
             });

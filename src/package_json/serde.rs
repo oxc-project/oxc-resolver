@@ -10,7 +10,7 @@ use std::{
 use serde_json::Value;
 
 use super::{ImportsExportsKind, PackageType, SideEffects};
-use crate::{JSONError, ResolveError, path::PathUtil};
+use crate::{FileSystem, JSONError, ResolveError, path::PathUtil};
 
 /// Serde implementation for the deserialized `package.json`.
 ///
@@ -220,7 +220,12 @@ impl PackageJson {
     /// Parse a package.json file from JSON string
     ///
     /// # Errors
-    pub fn parse(path: PathBuf, realpath: PathBuf, json: String) -> Result<Self, JSONError> {
+    pub fn parse<Fs: FileSystem>(
+        _fs: &Fs,
+        path: PathBuf,
+        realpath: PathBuf,
+        json: String,
+    ) -> Result<Self, JSONError> {
         // Strip BOM
         let json_string = if json.starts_with('\u{FEFF}') {
             json.trim_start_matches('\u{FEFF}')
