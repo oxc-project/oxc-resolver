@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.13.1](https://github.com/oxc-project/oxc-resolver/compare/v11.13.0...v11.13.1) - 2025-11-04
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- *(package_json)* re-read file for serde_json fallback in simd implementation ([#808](https://github.com/oxc-project/oxc-resolver/pull/808)) (by @Boshen)
+- revert system file cache optimization on Linux ([#810](https://github.com/oxc-project/oxc-resolver/pull/810)) (by @Brooooooklyn) - #810
+- skip loading tsconfig.json from virtual module paths ([#809](https://github.com/oxc-project/oxc-resolver/pull/809)) (by @sapphi-red) - #809
+
+### <!-- 2 -->🚜 Refactor
+
+- use cfg_if and rustix in read_to_string_bypass_system_cache ([#802](https://github.com/oxc-project/oxc-resolver/pull/802)) (by @Boshen) - #802
+
+### <!-- 4 -->⚡ Performance
+
+- optimize FileSystem metadata operations with rustix ([#800](https://github.com/oxc-project/oxc-resolver/pull/800)) (by @Boshen) - #800
+
+### Contributors
+
+* @Boshen
+* @Brooooooklyn
+* @sapphi-red
+* @renovate[bot]
+
 ## [11.13.0](https://github.com/oxc-project/oxc-resolver/compare/v11.12.0...v11.13.0) - 2025-11-02
 
 ### <!-- 0 -->🚀 Features
