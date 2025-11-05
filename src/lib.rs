@@ -306,12 +306,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if cp.is_node_modules() {
                     break;
                 }
-                if self.cache.is_dir(&cp, ctx) {
-                    if let Some(package_json) =
+                if self.cache.is_dir(&cp, ctx)
+                    && let Some(package_json) =
                         self.cache.get_package_json(&cp, &self.options, ctx)?
-                    {
-                        last = Some(package_json);
-                    }
+                {
+                    last = Some(package_json);
                 }
             }
             Ok(last)
@@ -433,10 +432,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 .next()
                 .is_some_and(|c| matches!(c, Component::RootDir | Component::Prefix(_)))
         );
-        if !self.options.prefer_relative && self.options.prefer_absolute {
-            if let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx) {
-                return Ok(path);
-            }
+        if !self.options.prefer_relative
+            && self.options.prefer_absolute
+            && let Ok(path) = self.load_package_self_or_node_modules(cached_path, specifier, ctx)
+        {
+            return Ok(path);
         }
         if let Some(path) = self.load_roots(cached_path, specifier, ctx) {
             return Ok(path);
@@ -502,10 +502,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 .next()
                 .is_some_and(|c| matches!(c, Component::Normal(_)))
         );
-        if self.options.prefer_relative {
-            if let Ok(path) = self.require_relative(cached_path, specifier, ctx) {
-                return Ok(path);
-            }
+        if self.options.prefer_relative
+            && let Ok(path) = self.require_relative(cached_path, specifier, ctx)
+        {
+            return Ok(path);
         }
         self.load_package_self_or_node_modules(cached_path, specifier, ctx)
     }
@@ -579,16 +579,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
             let (package_name, subpath) = Self::parse_package_specifier(normalized_specifier);
 
-            if package_name == ".." {
-                if let Some(path) = self.load_node_modules(
+            if package_name == ".."
+                && let Some(path) = self.load_node_modules(
                     cached_path,
                     normalized_specifier,
                     package_name,
                     subpath,
                     ctx,
-                )? {
-                    return Ok(path);
-                }
+                )?
+            {
+                return Ok(path);
             }
         }
 
@@ -696,15 +696,15 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.resolve_to_context {
             return Ok(self.cache.is_dir(cached_path, ctx).then(|| cached_path.clone()));
         }
-        if !specifier.ends_with('/') {
-            if let Some(path) = self.load_as_file(cached_path, ctx)? {
-                return Ok(Some(path));
-            }
+        if !specifier.ends_with('/')
+            && let Some(path) = self.load_as_file(cached_path, ctx)?
+        {
+            return Ok(Some(path));
         }
-        if self.cache.is_dir(cached_path, ctx) {
-            if let Some(path) = self.load_as_directory(cached_path, ctx)? {
-                return Ok(Some(path));
-            }
+        if self.cache.is_dir(cached_path, ctx)
+            && let Some(path) = self.load_as_directory(cached_path, ctx)?
+        {
+            return Ok(Some(path));
         }
         Ok(None)
     }
@@ -766,12 +766,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     fn load_index(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> ResolveResult {
         for main_file in &self.options.main_files {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
-            if self.options.enforce_extension.is_disabled() {
-                if let Some(path) = self.load_alias_or_file(&cached_path, ctx)? {
-                    if self.check_restrictions(path.path()) {
-                        return Ok(Some(path));
-                    }
-                }
+            if self.options.enforce_extension.is_disabled()
+                && let Some(path) = self.load_alias_or_file(&cached_path, ctx)?
+                && self.check_restrictions(path.path())
+            {
+                return Ok(Some(path));
             }
             // 1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
             // 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
@@ -788,16 +787,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        if !self.options.alias_fields.is_empty() {
-            if let Some(package_json) =
+        if !self.options.alias_fields.is_empty()
+            && let Some(package_json) =
                 cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
-            {
-                if let Some(path) =
-                    self.load_browser_field(cached_path, None, &package_json, ctx)?
-                {
-                    return Ok(Some(path));
-                }
-            }
+            && let Some(path) = self.load_browser_field(cached_path, None, &package_json, ctx)?
+        {
+            return Ok(Some(path));
         }
         // enhanced-resolve: try file as alias
         // Guard this because this is on a hot path, and `.to_string_lossy()` has a cost.
@@ -831,11 +826,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         #[cfg(feature = "yarn_pnp")]
-        if self.options.yarn_pnp {
-            if let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
+        if self.options.yarn_pnp
+            && let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
                 return Ok(Some(resolved_path));
             }
-        }
 
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
@@ -872,12 +866,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         }
                         // Skip if the directory lead to the scope package does not exist
                         // i.e. `foo/node_modules/@scope` is not a directory for `foo/node_modules/@scope/package`
-                        if package_name.starts_with('@') {
-                            if let Some(path) = cached_path.parent().as_ref() {
-                                if !self.cache.is_dir(path, ctx) {
-                                    continue;
-                                }
-                            }
+                        if package_name.starts_with('@')
+                            && let Some(path) = cached_path.parent().as_ref()
+                            && !self.cache.is_dir(path, ctx)
+                        {
+                            continue;
                         }
                     }
                 }
@@ -895,10 +888,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
                 // `is_file` could be false because no extensions are considered yet,
                 // so we need to try `load_as_file` first when `specifier` does not end with a slash which indicates a dir instead.
-                if !specifier.ends_with('/') {
-                    if let Some(path) = self.load_as_file(&cached_path, ctx)? {
-                        return Ok(Some(path));
-                    }
+                if !specifier.ends_with('/')
+                    && let Some(path) = self.load_as_file(&cached_path, ctx)?
+                {
+                    return Ok(Some(path));
                 }
 
                 if self.cache.is_dir(&cached_path, ctx) {
@@ -1343,10 +1336,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
             if specifier.is_empty() {
-                if self.options.roots.iter().any(|root| root.as_path() == cached_path.path()) {
-                    if let Ok(path) = self.require_relative(cached_path, "./", ctx) {
-                        return Some(path);
-                    }
+                if self.options.roots.iter().any(|root| root.as_path() == cached_path.path())
+                    && let Ok(path) = self.require_relative(cached_path, "./", ctx)
+                {
+                    return Some(path);
                 }
             } else {
                 for root in &self.options.roots {

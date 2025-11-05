@@ -72,12 +72,11 @@ impl BenchMemoryFS {
                 } else if metadata.is_dir() {
                     self.directories.insert(abs_path.clone());
                     self.add_parent_directories(&abs_path);
-                } else if metadata.is_file() {
-                    if let Ok(content) = fs::read(path) {
+                } else if metadata.is_file()
+                    && let Ok(content) = fs::read(path) {
                         self.files.insert(abs_path.clone(), content);
                         self.add_parent_directories(&abs_path);
                     }
-                }
             }
         }
 
@@ -104,14 +103,12 @@ impl BenchMemoryFS {
             }
 
             // For scoped packages, also register the parent scope directory
-            if package_name.starts_with('@') {
-                if let Some(parent) = package_path.parent() {
-                    if parent != node_modules {
+            if package_name.starts_with('@')
+                && let Some(parent) = package_path.parent()
+                    && parent != node_modules {
                         self.directories.insert(parent.to_path_buf());
                         self.add_parent_directories(parent);
                     }
-                }
-            }
 
             // Check if it's a symlink and resolve it
             if let Ok(metadata) = fs::symlink_metadata(&package_path) {
@@ -167,12 +164,11 @@ impl BenchMemoryFS {
                     if matches!(
                         ext_str,
                         Some("json" | "js" | "mjs" | "cjs" | "ts" | "mts" | "cts" | "d.ts")
-                    ) {
-                        if let Ok(content) = fs::read(path) {
+                    )
+                        && let Ok(content) = fs::read(path) {
                             self.files.insert(abs_path.clone(), content);
                             self.add_parent_directories(&abs_path);
                         }
-                    }
                 } else if path.file_name() == Some(std::ffi::OsStr::new("package.json")) {
                     // Also load package.json even if extension check fails
                     if let Ok(content) = fs::read(path) {

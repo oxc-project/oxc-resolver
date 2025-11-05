@@ -37,7 +37,7 @@ mimalloc-safe = { version = "0.1.55", optional = true, features = ["skip_collect
 mimalloc-safe = { version = "0.1.55", optional = true, features = ["skip_collect_on_exit", "local_dynamic_tls", "no_opt_arch"] }
 
 [build-dependencies]
-napi-build = "2.2.4"
+napi-build = "2.3.0"
 
 [features]
 default = ["tracing-subscriber", "yarn_pnp"]
