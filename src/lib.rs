@@ -827,9 +827,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         #[cfg(feature = "yarn_pnp")]
         if self.options.yarn_pnp
-            && let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)? {
-                return Ok(Some(resolved_path));
-            }
+            && let Some(resolved_path) = self.load_pnp(cached_path, specifier, ctx)?
+        {
+            return Ok(Some(resolved_path));
+        }
 
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
