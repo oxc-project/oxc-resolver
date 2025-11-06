@@ -97,11 +97,11 @@ fn create_symlinks() -> io::Result<PathBuf> {
         }
         Ok(())
     };
-    if !temp_path.exists() {
-        if let Err(err) = create_symlink_fixtures() {
-            let _ = fs::remove_dir_all(&temp_path);
-            return Err(err);
-        }
+    if !temp_path.exists()
+        && let Err(err) = create_symlink_fixtures()
+    {
+        let _ = fs::remove_dir_all(&temp_path);
+        return Err(err);
     }
     Ok(temp_path)
 }

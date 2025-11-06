@@ -144,35 +144,35 @@ impl TsConfig {
     /// Inherits settings from the given tsconfig into `self`.
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
-        if self.files.is_none() {
-            if let Some(files) = &tsconfig.files {
-                self.files = Some(files.clone());
-            }
+        if self.files.is_none()
+            && let Some(files) = &tsconfig.files
+        {
+            self.files = Some(files.clone());
         }
 
-        if self.include.is_none() {
-            if let Some(include) = &tsconfig.include {
-                self.include = Some(include.clone());
-            }
+        if self.include.is_none()
+            && let Some(include) = &tsconfig.include
+        {
+            self.include = Some(include.clone());
         }
 
-        if self.exclude.is_none() {
-            if let Some(exclude) = &tsconfig.exclude {
-                self.exclude = Some(exclude.clone());
-            }
+        if self.exclude.is_none()
+            && let Some(exclude) = &tsconfig.exclude
+        {
+            self.exclude = Some(exclude.clone());
         }
 
         let tsconfig_dir = tsconfig.directory();
         let compiler_options = self.compiler_options_mut();
 
-        if compiler_options.base_url().is_none() {
-            if let Some(base_url) = tsconfig.compiler_options().base_url() {
-                compiler_options.set_base_url(if base_url.starts_with(TEMPLATE_VARIABLE) {
-                    base_url.to_path_buf()
-                } else {
-                    tsconfig_dir.join(base_url).normalize()
-                });
-            }
+        if compiler_options.base_url().is_none()
+            && let Some(base_url) = tsconfig.compiler_options().base_url()
+        {
+            compiler_options.set_base_url(if base_url.starts_with(TEMPLATE_VARIABLE) {
+                base_url.to_path_buf()
+            } else {
+                tsconfig_dir.join(base_url).normalize()
+            });
         }
 
         if compiler_options.paths().is_none() {
@@ -190,104 +190,96 @@ impl TsConfig {
             compiler_options.set_paths(tsconfig.compiler_options().paths().cloned());
         }
 
-        if compiler_options.experimental_decorators().is_none() {
-            if let Some(experimental_decorators) =
+        if compiler_options.experimental_decorators().is_none()
+            && let Some(experimental_decorators) =
                 tsconfig.compiler_options().experimental_decorators()
-            {
-                compiler_options.set_experimental_decorators(*experimental_decorators);
-            }
+        {
+            compiler_options.set_experimental_decorators(*experimental_decorators);
         }
 
-        if compiler_options.emit_decorator_metadata.is_none() {
-            if let Some(emit_decorator_metadata) =
+        if compiler_options.emit_decorator_metadata.is_none()
+            && let Some(emit_decorator_metadata) =
                 tsconfig.compiler_options().emit_decorator_metadata()
-            {
-                compiler_options.set_emit_decorator_metadata(*emit_decorator_metadata);
-            }
+        {
+            compiler_options.set_emit_decorator_metadata(*emit_decorator_metadata);
         }
 
-        if compiler_options.use_define_for_class_fields.is_none() {
-            if let Some(use_define_for_class_fields) =
+        if compiler_options.use_define_for_class_fields.is_none()
+            && let Some(use_define_for_class_fields) =
                 tsconfig.compiler_options().use_define_for_class_fields()
-            {
-                compiler_options.set_use_define_for_class_fields(*use_define_for_class_fields);
-            }
+        {
+            compiler_options.set_use_define_for_class_fields(*use_define_for_class_fields);
         }
 
-        if compiler_options.rewrite_relative_import_extensions.is_none() {
-            if let Some(rewrite_relative_import_extensions) =
+        if compiler_options.rewrite_relative_import_extensions.is_none()
+            && let Some(rewrite_relative_import_extensions) =
                 tsconfig.compiler_options().rewrite_relative_import_extensions()
-            {
-                compiler_options
-                    .set_rewrite_relative_import_extensions(*rewrite_relative_import_extensions);
-            }
+        {
+            compiler_options
+                .set_rewrite_relative_import_extensions(*rewrite_relative_import_extensions);
         }
 
-        if compiler_options.jsx().is_none() {
-            if let Some(jsx) = tsconfig.compiler_options().jsx() {
-                compiler_options.set_jsx(jsx.to_string());
-            }
+        if compiler_options.jsx().is_none()
+            && let Some(jsx) = tsconfig.compiler_options().jsx()
+        {
+            compiler_options.set_jsx(jsx.to_string());
         }
 
-        if compiler_options.jsx_factory().is_none() {
-            if let Some(jsx_factory) = tsconfig.compiler_options().jsx_factory() {
-                compiler_options.set_jsx_factory(jsx_factory.to_string());
-            }
+        if compiler_options.jsx_factory().is_none()
+            && let Some(jsx_factory) = tsconfig.compiler_options().jsx_factory()
+        {
+            compiler_options.set_jsx_factory(jsx_factory.to_string());
         }
 
-        if compiler_options.jsx_fragment_factory().is_none() {
-            if let Some(jsx_fragment_factory) = tsconfig.compiler_options().jsx_fragment_factory() {
-                compiler_options.set_jsx_fragment_factory(jsx_fragment_factory.to_string());
-            }
+        if compiler_options.jsx_fragment_factory().is_none()
+            && let Some(jsx_fragment_factory) = tsconfig.compiler_options().jsx_fragment_factory()
+        {
+            compiler_options.set_jsx_fragment_factory(jsx_fragment_factory.to_string());
         }
 
-        if compiler_options.jsx_import_source().is_none() {
-            if let Some(jsx_import_source) = tsconfig.compiler_options().jsx_import_source() {
-                compiler_options.set_jsx_import_source(jsx_import_source.to_string());
-            }
+        if compiler_options.jsx_import_source().is_none()
+            && let Some(jsx_import_source) = tsconfig.compiler_options().jsx_import_source()
+        {
+            compiler_options.set_jsx_import_source(jsx_import_source.to_string());
         }
 
-        if compiler_options.verbatim_module_syntax().is_none() {
-            if let Some(verbatim_module_syntax) =
+        if compiler_options.verbatim_module_syntax().is_none()
+            && let Some(verbatim_module_syntax) =
                 tsconfig.compiler_options().verbatim_module_syntax()
-            {
-                compiler_options.set_verbatim_module_syntax(*verbatim_module_syntax);
-            }
+        {
+            compiler_options.set_verbatim_module_syntax(*verbatim_module_syntax);
         }
 
-        if compiler_options.preserve_value_imports().is_none() {
-            if let Some(preserve_value_imports) =
+        if compiler_options.preserve_value_imports().is_none()
+            && let Some(preserve_value_imports) =
                 tsconfig.compiler_options().preserve_value_imports()
-            {
-                compiler_options.set_preserve_value_imports(*preserve_value_imports);
-            }
+        {
+            compiler_options.set_preserve_value_imports(*preserve_value_imports);
         }
 
-        if compiler_options.imports_not_used_as_values().is_none() {
-            if let Some(imports_not_used_as_values) =
+        if compiler_options.imports_not_used_as_values().is_none()
+            && let Some(imports_not_used_as_values) =
                 tsconfig.compiler_options().imports_not_used_as_values()
-            {
-                compiler_options
-                    .set_imports_not_used_as_values(imports_not_used_as_values.to_string());
-            }
+        {
+            compiler_options.set_imports_not_used_as_values(imports_not_used_as_values.to_string());
         }
 
-        if compiler_options.target().is_none() {
-            if let Some(target) = tsconfig.compiler_options().target() {
-                compiler_options.set_target(target.to_string());
-            }
+        if compiler_options.target().is_none()
+            && let Some(target) = tsconfig.compiler_options().target()
+        {
+            compiler_options.set_target(target.to_string());
         }
 
-        if compiler_options.module().is_none() {
-            if let Some(module) = tsconfig.compiler_options().module() {
-                compiler_options.set_module(module.to_string());
-            }
+        if compiler_options.module().is_none()
+            && let Some(module) = tsconfig.compiler_options().module()
+        {
+            compiler_options.set_module(module.to_string());
         }
 
-        if compiler_options.allow_js().is_none() {
-            if let Some(allow_js) = tsconfig.compiler_options().allow_js() {
-                compiler_options.set_allow_js(*allow_js);
-            }
+        if compiler_options.allow_js().is_none()
+            && let Some(allow_js) = tsconfig.compiler_options().allow_js()
+        {
+            compiler_options.set_allow_js(*allow_js);
         }
     }
     /// "Build" the root tsconfig, resolve:
@@ -392,15 +384,14 @@ impl TsConfig {
                 let mut best_key: Option<&String> = None;
 
                 for key in paths_map.keys() {
-                    if let Some((prefix, suffix)) = key.split_once('*') {
-                        if (best_key.is_none() || prefix.len() > longest_prefix_length)
-                            && specifier.starts_with(prefix)
-                            && specifier.ends_with(suffix)
-                        {
-                            longest_prefix_length = prefix.len();
-                            longest_suffix_length = suffix.len();
-                            best_key.replace(key);
-                        }
+                    if let Some((prefix, suffix)) = key.split_once('*')
+                        && (best_key.is_none() || prefix.len() > longest_prefix_length)
+                        && specifier.starts_with(prefix)
+                        && specifier.ends_with(suffix)
+                    {
+                        longest_prefix_length = prefix.len();
+                        longest_suffix_length = suffix.len();
+                        best_key.replace(key);
                     }
                 }
 
