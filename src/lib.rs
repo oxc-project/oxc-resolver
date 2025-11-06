@@ -199,13 +199,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ///
     /// * See [ResolveError]
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
+        self.resolve_tsconfig_with_references(path, &TsconfigReferences::Auto)
+    }
+
+    pub fn resolve_tsconfig_with_references<P: AsRef<Path>>(
+        &self,
+        path: P,
+        references: &TsconfigReferences,
+    ) -> Result<Arc<TsConfig>, ResolveError> {
         let path = path.as_ref();
-        self.load_tsconfig(
-            true,
-            path,
-            &TsconfigReferences::Auto,
-            &mut TsconfigResolveContext::default(),
-        )
+        self.load_tsconfig(true, path, references, &mut TsconfigResolveContext::default())
     }
 
     /// Resolve `specifier` at absolute `path` with [ResolveContext]
@@ -1469,7 +1472,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let Some(tsconfig) = self.find_tsconfig(cached_path, ctx)? else {
                     return Ok(None);
                 };
-                tsconfig
+                tsconfig.resolve_for_file(cached_path.path())
             }
         };
 

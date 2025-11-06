@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fmt::Debug,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
@@ -12,6 +13,10 @@ use serde::Deserialize;
 use crate::{TsconfigReferences, path::PathUtil};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}";
+
+const DEFAULT_INCLUDE: &[&str] = &["**/*"];
+const DEFAULT_EXCLUDE: &[&str] = &["node_modules", "bower_components", "jspm_packages"];
+const TS_JS_EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"];
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
@@ -354,6 +359,149 @@ impl TsConfig {
             }
         }
         paths
+    }
+
+    /// Resolve the correct tsconfig for a file in a solution-style project.
+    ///
+    /// In a TypeScript solution (monorepo with project references), the nearest tsconfig
+    /// might not be the correct one to use. If the file is not included in the found
+    /// tsconfig (based on include/exclude/files), we should search through the referenced
+    /// tsconfigs to find the one that actually includes this file.
+    ///
+    /// This implements similar logic to tsconfck's `resolveSolutionTSConfig`.
+    ///
+    /// # Arguments
+    /// * `file_path` - The path being resolved
+    ///
+    /// # Returns
+    /// The correct tsconfig to use for this file (either the original or a referenced one)
+    #[must_use]
+    pub fn resolve_for_file(self: &Arc<Self>, file_path: &Path) -> Arc<Self> {
+        if self.references.is_empty() {
+            return Arc::clone(self);
+        }
+        let is_not_ts_js_file =
+            file_path.extension().and_then(|ext| ext.to_str()).is_none_or(|ext| {
+                let extensions = if self.compiler_options().allow_js.unwrap_or_default() {
+                    TS_JS_EXTENSIONS
+                } else {
+                    &TS_JS_EXTENSIONS[..4]
+                };
+                !extensions.contains(&ext)
+            });
+        if is_not_ts_js_file {
+            return Arc::clone(self);
+        }
+        if self.is_file_included(file_path) {
+            return Arc::clone(self);
+        }
+        for reference in self.references() {
+            if let Some(tsconfig) = reference.tsconfig() {
+                if tsconfig.is_file_included(file_path) {
+                    return Arc::clone(&tsconfig);
+                }
+            }
+        }
+        Arc::clone(self)
+    }
+
+    /// Check if a file is included in this tsconfig based on files/include/exclude patterns.
+    ///
+    /// Follows TypeScript's file inclusion rules:
+    /// 1. Files listed in "files" array are always included
+    /// 2. Files matching "include" patterns are included
+    /// 3. Files matching "exclude" patterns are excluded (unless in "files")
+    ///
+    /// # Arguments
+    /// * `file_path` - Absolute path to the file to check
+    ///
+    /// # Returns
+    /// `true` if the file should be included, `false` otherwise
+    #[allow(clippy::option_if_let_else)]
+    pub(crate) fn is_file_included(&self, file_path: &Path) -> bool {
+        let tsconfig_dir = self.directory();
+
+        // 1. Check files array (highest priority - overrides exclude)
+        if let Some(files) = &self.files {
+            for file in files {
+                if file_path == tsconfig_dir.normalize_with(file) {
+                    return true;
+                }
+            }
+        }
+
+        // 2. Check include patterns (default to ["**/*"] if no files and no include)
+        let is_included = match &self.include {
+            Some(include_patterns) => self.is_glob_match(file_path, include_patterns.as_slice()),
+            None => self.files.is_none() && self.is_glob_match(file_path, DEFAULT_INCLUDE),
+        };
+        if !is_included {
+            return false;
+        }
+
+        // 3. Check exclude patterns (default excludes node_modules, etc.)
+        let is_excluded = match &self.exclude {
+            Some(exclude_patterns) => self.is_glob_match(file_path, exclude_patterns.as_slice()),
+            None => self.is_glob_match(file_path, DEFAULT_EXCLUDE),
+        };
+        !is_excluded
+    }
+
+    /// Match a file path against glob patterns.
+    ///
+    /// Implements a simplified version of TypeScript's glob matching logic,
+    /// based on tsconfck's implementation.
+    ///
+    /// # Arguments
+    /// * `file_path` - Absolute path to match
+    /// * `patterns` - Glob patterns to match against (can be `&[String]` or `&[&str]`)
+    ///
+    /// # Returns
+    /// `true` if any pattern matches the file
+    pub(crate) fn is_glob_match<S: AsRef<str>>(&self, file_path: &Path, patterns: &[S]) -> bool {
+        let Ok(relative_path) = file_path.strip_prefix(self.directory()) else {
+            return false;
+        };
+        let extensions = if self.compiler_options.allow_js.unwrap_or_default() {
+            TS_JS_EXTENSIONS
+        } else {
+            &TS_JS_EXTENSIONS[..4]
+        };
+        patterns.iter().any(|pattern| {
+            let pattern = pattern.as_ref();
+
+            // Special case: **/* matches everything
+            if pattern == "**/*" {
+                return true;
+            }
+
+            // Normalize pattern: add implicit /**/* for directory patterns
+            // Find the part after the last '/' to check if it looks like a directory
+            let after_last_slash = pattern.rsplit('/').next().unwrap_or(pattern);
+            let needs_implicit_glob = !after_last_slash.contains(['.', '*', '?']);
+
+            let pattern = if needs_implicit_glob {
+                Cow::Owned(format!(
+                    "{pattern}{}",
+                    if pattern.ends_with('/') { "**/*" } else { "/**/*" }
+                ))
+            } else {
+                Cow::Borrowed(pattern)
+            };
+
+            // Fast check: if pattern ends with *, filename must have valid extension
+            if pattern.ends_with('*') {
+                let has_valid_ext = relative_path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| extensions.contains(&ext));
+                if !has_valid_ext {
+                    return false;
+                }
+            }
+
+            fast_glob::glob_match(pattern.as_ref(), relative_path.as_os_str().as_encoded_bytes())
+        })
     }
 
     /// Resolves the given `specifier` within the project configured by this
