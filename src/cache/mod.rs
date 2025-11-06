@@ -5,7 +5,7 @@ mod hasher;
 mod thread_local;
 
 pub use cache_impl::Cache;
-pub use cached_path::CachedPath;
+pub use cached_path::{CachedPath, OptionalWeak};
 
 #[cfg(test)]
 mod tests {

@@ -240,7 +240,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         path.canonicalizing.store(tid, Ordering::Release);
 
-        let res = path.parent().map_or_else(
+        let res = path.parent(self).map_or_else(
             || Ok(path.normalize_root(self)),
             |parent| {
                 self.canonicalize_impl(&parent).and_then(|parent_canonical| {
@@ -251,7 +251,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                         let link = self.fs.read_link(normalized.path())?;
                         if link.is_absolute() {
                             return self.canonicalize_impl(&self.value(&link.normalize()));
-                        } else if let Some(dir) = normalized.parent() {
+                        } else if let Some(dir) = normalized.parent(self) {
                             // Symlink is relative `../../foo.js`, use the path directory
                             // to resolve this symlink.
                             return self.canonicalize_impl(&dir.normalize_with(&link, self));

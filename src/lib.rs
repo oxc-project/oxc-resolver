@@ -66,7 +66,7 @@ mod tests;
 
 pub use crate::{
     builtins::NODEJS_BUILTINS,
-    cache::{Cache, CachedPath},
+    cache::{Cache, CachedPath, OptionalWeak},
     error::{JSONError, ResolveError, SpecifierError},
     file_system::{FileMetadata, FileSystem, FileSystemOs},
     options::{
@@ -92,7 +92,7 @@ use std::{
     borrow::Cow,
     cmp::Ordering,
     ffi::OsStr,
-    fmt, iter,
+    fmt,
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -302,7 +302,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let inside_node_modules = cached_path.inside_node_modules();
         if inside_node_modules {
             let mut last = None;
-            for cp in iter::successors(Some(cached_path.clone()), CachedPath::parent) {
+            for cp in std::iter::successors(Some(cached_path.clone()), |p| p.parent(&self.cache)) {
                 if cp.is_node_modules() {
                     break;
                 }
@@ -835,7 +835,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
         for module_name in &self.options.modules {
-            for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
+            for cached_path in
+                std::iter::successors(Some(cached_path.clone()), |p| p.parent(&self.cache))
             {
                 // Skip if /path/to/node_modules does not exist
                 if !self.cache.is_dir(&cached_path, ctx) {
@@ -868,7 +869,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         // Skip if the directory lead to the scope package does not exist
                         // i.e. `foo/node_modules/@scope` is not a directory for `foo/node_modules/@scope/package`
                         if package_name.starts_with('@')
-                            && let Some(path) = cached_path.parent().as_ref()
+                            && let Some(path) = cached_path.parent(&self.cache).as_ref()
                             && !self.cache.is_dir(path, ctx)
                         {
                             continue;
@@ -1517,7 +1518,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             })? {
                 return Ok(Some(Arc::clone(tsconfig)));
             }
-            cache_value = cv.parent();
+            cache_value = cv.parent(&self.cache);
         }
         Ok(None)
     }
@@ -1569,7 +1570,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {
-            for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
+            for cached_path in
+                std::iter::successors(Some(cached_path.clone()), |p| p.parent(&self.cache))
             {
                 // 1. Let packageURL be the URL resolution of "node_modules/" concatenated with packageSpecifier, relative to parentURL.
                 let Some(cached_path) = self.get_module_directory(&cached_path, module_name, ctx)
