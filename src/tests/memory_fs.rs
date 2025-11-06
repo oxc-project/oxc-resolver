@@ -52,15 +52,20 @@ impl FileSystem for MemoryFS {
         Self::default()
     }
 
-    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         use vfs::FileSystem;
         let mut file = self
             .fs
             .open_file(path.to_string_lossy().as_ref())
             .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
-        let mut buffer = String::new();
-        file.read_to_string(&mut buffer).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
         Ok(buffer)
+    }
+
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        let bytes = self.read(path)?;
+        crate::FileSystemOs::validate_string(bytes)
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {

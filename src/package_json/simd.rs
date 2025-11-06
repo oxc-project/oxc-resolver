@@ -250,7 +250,7 @@ impl PackageJson {
         Ok(None)
     }
 
-    /// Parse a package.json file from JSON string
+    /// Parse a package.json file from JSON bytes
     ///
     /// # Panics
     /// # Errors
@@ -258,10 +258,10 @@ impl PackageJson {
         fs: &Fs,
         path: PathBuf,
         realpath: PathBuf,
-        json: String,
+        json: Vec<u8>,
     ) -> Result<Self, JSONError> {
         // Strip BOM in place by replacing with spaces (no reallocation)
-        let mut json_bytes = json.into_bytes();
+        let mut json_bytes = json;
         if json_bytes.starts_with(b"\xEF\xBB\xBF") {
             json_bytes[0] = b' ';
             json_bytes[1] = b' ';
@@ -281,15 +281,15 @@ impl PackageJson {
             // We re-read because simd_json may have mutated the buffer during its failed parse attempt
             // simd_json doesn't provide line/column info, so we use serde_json for better error messages
             let fallback_result = fs
-                .read_to_string(&realpath)
+                .read(&realpath)
                 .map_err(|io_error| JSONError {
                     path: path.clone(),
                     message: format!("Failed to re-read file for error reporting: {io_error}"),
                     line: 0,
                     column: 0,
                 })
-                .and_then(|content| {
-                    serde_json::from_str::<serde_json::Value>(&content).map_err(|serde_error| {
+                .and_then(|bytes| {
+                    serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|serde_error| {
                         JSONError {
                             path: path.clone(),
                             message: serde_error.to_string(),

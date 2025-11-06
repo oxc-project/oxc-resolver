@@ -217,27 +217,23 @@ impl PackageJson {
         Ok(None)
     }
 
-    /// Parse a package.json file from JSON string
+    /// Parse a package.json file from JSON bytes
     ///
     /// # Errors
     pub fn parse<Fs: FileSystem>(
         _fs: &Fs,
         path: PathBuf,
         realpath: PathBuf,
-        json: String,
+        json: Vec<u8>,
     ) -> Result<Self, JSONError> {
-        // Strip BOM
-        let json_string = if json.starts_with('\u{FEFF}') {
-            json.trim_start_matches('\u{FEFF}')
-        } else {
-            json.as_str()
-        };
+        // Strip BOM - UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
+        let json_bytes = if json.starts_with(b"\xEF\xBB\xBF") { &json[3..] } else { &json[..] };
 
         // Check if empty after BOM stripping
-        super::check_if_empty(json_string.as_bytes(), path.clone())?;
+        super::check_if_empty(json_bytes, path.clone())?;
 
-        // Parse JSON
-        let value = serde_json::from_str::<Value>(json_string).map_err(|error| JSONError {
+        // Parse JSON directly from bytes
+        let value = serde_json::from_slice::<Value>(json_bytes).map_err(|error| JSONError {
             path: path.clone(),
             message: error.to_string(),
             line: error.line(),

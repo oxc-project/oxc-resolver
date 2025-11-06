@@ -17,29 +17,19 @@ pub trait FileSystem: Send + Sync {
     #[cfg(not(feature = "yarn_pnp"))]
     fn new() -> Self;
 
+    /// See [std::fs::read]
+    ///
+    /// # Errors
+    ///
+    /// * See [std::fs::read]
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
+
     /// See [std::fs::read_to_string]
     ///
     /// # Errors
     ///
     /// * See [std::fs::read_to_string]
-    /// ## Warning
-    /// Use `&Path` instead of a generic `P: AsRef<Path>` here,
-    /// because object safety requirements, it is especially useful, when
-    /// you want to store multiple `dyn FileSystem` in a `Vec` or use a `ResolverGeneric<Fs>` in
-    /// napi env.
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
-
-    /// Reads a file while bypassing the system cache.
-    ///
-    /// This is useful in scenarios where the file content is already cached in memory
-    /// and you want to avoid the overhead of using the system cache.
-    ///
-    /// # Errors
-    ///
-    /// * See [std::fs::read_to_string]
-    fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
-        self.read_to_string(path)
-    }
 
     /// See [std::fs::metadata]
     ///
@@ -236,51 +226,26 @@ impl FileSystem for FileSystemOs {
         Self
     }
 
-    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 if self.yarn_pnp {
                     return match VPath::from(path)? {
                         VPath::Zip(info) => {
-                            self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
+                            self.pnp_lru.read(info.physical_base_path(), info.zip_path)
                         }
-                        VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
-                        VPath::Native(path) => Self::read_to_string(&path),
+                        VPath::Virtual(info) => fs::read(info.physical_base_path()),
+                        VPath::Native(path) => fs::read(path),
                     }
                 }
             }
         }
-        Self::read_to_string(path)
+        fs::read(path)
     }
 
-    #[allow(clippy::items_after_statements)]
-    fn read_to_string_bypass_system_cache(&self, path: &Path) -> io::Result<String> {
-        #[cfg(feature = "yarn_pnp")]
-        if self.yarn_pnp {
-            return match VPath::from(path)? {
-                VPath::Zip(info) => {
-                    self.pnp_lru.read_to_string(info.physical_base_path(), info.zip_path)
-                }
-                VPath::Virtual(info) => Self::read_to_string(&info.physical_base_path()),
-                VPath::Native(path) => Self::read_to_string(&path),
-            };
-        }
-
-        cfg_if! {
-            if #[cfg(target_os = "macos")] {
-                use std::io::Read;
-                let mut fd = fs::OpenOptions::new().read(true).open(path)?;
-                // Apply F_NOCACHE to bypass filesystem cache
-                rustix::fs::fcntl_nocache(&fd, true)?;
-                let meta = fd.metadata()?;
-                #[allow(clippy::cast_possible_truncation)]
-                let mut buffer = Vec::with_capacity(meta.len() as usize);
-                fd.read_to_end(&mut buffer)?;
-                Self::validate_string(buffer)
-            } else {
-                Self::read_to_string(path)
-            }
-        }
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        let bytes = self.read(path)?;
+        Self::validate_string(bytes)
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {

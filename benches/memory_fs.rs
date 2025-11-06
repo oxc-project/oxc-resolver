@@ -218,11 +218,10 @@ impl FileSystem for BenchMemoryFS {
         Self::default()
     }
 
-    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
         // Try direct lookup first
         if let Some(bytes) = self.files.get(path) {
-            return String::from_utf8(bytes.clone())
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e));
+            return Ok(bytes.clone());
         }
 
         // Try following symlinks
@@ -241,12 +240,16 @@ impl FileSystem for BenchMemoryFS {
             };
 
             if let Some(bytes) = self.files.get(&current) {
-                return String::from_utf8(bytes.clone())
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e));
+                return Ok(bytes.clone());
             }
         }
 
         Err(io::Error::new(io::ErrorKind::NotFound, format!("File not found: {}", path.display())))
+    }
+
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        let bytes = self.read(path)?;
+        String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {

@@ -371,7 +371,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     for (name, json) in data {
         group.bench_function(name, |b| {
             b.iter_with_setup_wrapper(|runner| {
-                let json = json.clone();
+                let json = json.clone().into_bytes();
                 runner.run(|| {
                     PackageJson::parse(&fs, test_path.clone(), test_realpath.clone(), json)
                         .expect("Failed to parse JSON");

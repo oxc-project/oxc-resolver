@@ -109,9 +109,7 @@ impl<Fs: FileSystem> Cache<Fs> {
             .package_json
             .get_or_try_init(|| {
                 let package_json_path = path.path.join("package.json");
-                let Ok(package_json_string) =
-                    self.fs.read_to_string_bypass_system_cache(&package_json_path)
-                else {
+                let Ok(package_json_bytes) = self.fs.read(&package_json_path) else {
                     return Ok(None);
                 };
 
@@ -120,7 +118,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 } else {
                     package_json_path.clone()
                 };
-                PackageJson::parse(&self.fs, package_json_path, real_path, package_json_string)
+                PackageJson::parse(&self.fs, package_json_path, real_path, package_json_bytes)
                     .map(|package_json| Some(Arc::new(package_json)))
                     .map_err(ResolveError::Json)
             })
@@ -167,7 +165,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         };
         let mut tsconfig_string = self
             .fs
-            .read_to_string_bypass_system_cache(&tsconfig_path)
+            .read_to_string(&tsconfig_path)
             .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
         let mut tsconfig =
             TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
