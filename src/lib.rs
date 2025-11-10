@@ -768,7 +768,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
             if self.options.enforce_extension.is_disabled()
                 && let Some(path) = self.load_alias_or_file(&cached_path, ctx)?
-                && self.check_restrictions(path.path())
+                && self.check_restrictions(&path.path())
             {
                 return Ok(Some(path));
             }
@@ -797,7 +797,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // enhanced-resolve: try file as alias
         // Guard this because this is on a hot path, and `.to_string_lossy()` has a cost.
         if !self.options.alias.is_empty() {
-            let alias_specifier = cached_path.path().to_string_lossy();
+            let path_buf = cached_path.path();
+            let alias_specifier = path_buf.to_string_lossy();
             if let Some(path) =
                 self.load_alias(cached_path, &alias_specifier, &self.options.alias, ctx)?
             {
@@ -811,7 +812,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if let Some(path) = self.load_browser_field_or_alias(cached_path, ctx)? {
             return Ok(Some(path));
         }
-        if self.cache.is_file(cached_path, ctx) && self.check_restrictions(cached_path.path()) {
+        if self.cache.is_file(cached_path, ctx) && self.check_restrictions(&cached_path.path()) {
             return Ok(Some(cached_path.clone()));
         }
         Ok(None)
@@ -935,7 +936,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         match resolution {
             Ok(pnp::Resolution::Resolved(path, subpath)) => {
                 let cached_path = self.cache.value(&path);
-                let cached_path_string = cached_path.path().to_string_lossy();
+                let cached_path_buf = cached_path.path();
+                let cached_path_string = cached_path_buf.to_string_lossy();
 
                 let export_resolution = self.load_package_self(&cached_path, specifier, ctx)?;
                 // can be found in pnp cached folder
@@ -1112,7 +1114,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         let path = cached_path.path();
         let Some(new_specifier) = package_json.resolve_browser_field(
-            path,
+            &path,
             module_specifier,
             &self.options.alias_fields,
         )?
@@ -1127,7 +1129,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Complete when resolving to self `{"./a.js": "./a.js"}`
             if new_specifier.strip_prefix("./").filter(|s| path.ends_with(Path::new(s))).is_some() {
                 return if self.cache.is_file(cached_path, ctx) {
-                    if self.check_restrictions(cached_path.path()) {
+                    if self.check_restrictions(&cached_path.path()) {
                         Ok(Some(cached_path.clone()))
                     } else {
                         Ok(None)
@@ -1280,7 +1282,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.extension_alias.is_empty() {
             return Ok(None);
         }
-        let Some(path_extension) = cached_path.path().extension() else {
+        let path = cached_path.path();
+        let Some(path_extension) = path.extension() else {
             return Ok(None);
         };
         let Some((_, extensions)) = self
@@ -1291,7 +1294,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         else {
             return Ok(None);
         };
-        let path = cached_path.path();
         let Some(filename) = path.file_name() else { return Ok(None) };
         ctx.with_fully_specified(true);
         for extension in extensions {
@@ -1305,7 +1307,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if !self.cache.is_file(cached_path, ctx) {
             ctx.with_fully_specified(false);
             return Ok(None);
-        } else if !self.check_restrictions(cached_path.path()) {
+        } else if !self.check_restrictions(&cached_path.path()) {
             return Ok(None);
         }
         // Create a meaningful error message.
@@ -1462,7 +1464,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 )?;
                 // Cache the loaded tsconfig in the path's directory
                 let tsconfig_dir = self.cache.value(tsconfig.directory());
-                _ = tsconfig_dir.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
+                _ = tsconfig_dir.get_or_init_tsconfig(|| Some(Arc::clone(&tsconfig)));
                 tsconfig
             }
             Some(TsconfigDiscovery::Auto) => {
@@ -1473,12 +1475,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         };
 
-        let paths = tsconfig.resolve(cached_path.path(), specifier);
+        let cached_path_buf = cached_path.path();
+        let paths = tsconfig.resolve(&cached_path_buf, specifier);
         for path in paths {
             let resolved_path = self.cache.value(&path);
             if let Some(resolution) = self.load_as_file_or_directory(&resolved_path, ".", ctx)? {
                 // Cache the tsconfig in the resolved path
-                _ = resolved_path.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
+                _ = resolved_path.get_or_init_tsconfig(|| Some(Arc::clone(&tsconfig)));
                 return Ok(Some(resolution));
             }
         }
@@ -1500,23 +1503,45 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(None);
         }
         // Skip non-absolute paths (e.g. virtual modules)
-        if !cached_path.path.is_absolute() {
+        if !cached_path.path().is_absolute() {
             return Ok(None);
         }
 
         let mut cache_value = Some(cached_path.clone());
         while let Some(cv) = cache_value {
-            if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
-                let tsconfig_path = cv.path.join("tsconfig.json");
-                let tsconfig_path = self.cache.value(&tsconfig_path);
-                if self.cache.is_file(&tsconfig_path, ctx) {
-                    self.resolve_tsconfig(tsconfig_path.path()).map(Some)
-                } else {
-                    Ok(None)
+            // Check if already has tsconfig
+            {
+                let nodes = cv.0.generation.nodes.read().unwrap();
+                let node = &nodes[cv.0.index as usize];
+                if let Some(tsconfig_opt) = node.tsconfig.get() {
+                    if let Some(tsconfig) = tsconfig_opt {
+                        return Ok(Some(Arc::clone(tsconfig)));
+                    }
+                    cache_value = cv.parent();
+                    continue;
                 }
-            })? {
-                return Ok(Some(Arc::clone(tsconfig)));
             }
+
+            // Try to load tsconfig
+            let tsconfig_path = cv.path().join("tsconfig.json");
+            let tsconfig_path_cached = self.cache.value(&tsconfig_path);
+            let tsconfig_result = if self.cache.is_file(&tsconfig_path_cached, ctx) {
+                self.resolve_tsconfig(&tsconfig_path).map(Some)
+            } else {
+                Ok(None)
+            };
+
+            match tsconfig_result {
+                Ok(tsconfig_opt) => {
+                    // Store in cache
+                    _ = cv.get_or_init_tsconfig(|| tsconfig_opt.clone());
+                    if let Some(tsconfig) = tsconfig_opt {
+                        return Ok(Some(tsconfig));
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+
             cache_value = cv.parent();
         }
         Ok(None)
@@ -1605,7 +1630,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                                 let cached_path =
                                     cached_path.normalize_with(main_field, self.cache.as_ref());
                                 if self.cache.is_file(&cached_path, ctx)
-                                    && self.check_restrictions(cached_path.path())
+                                    && self.check_restrictions(&cached_path.path())
                                 {
                                     return Ok(Some(cached_path));
                                 }
@@ -2102,7 +2127,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(None);
         }
         // 1. Assert: url corresponds to an existing file.
-        let ext = cached_path.path().extension().and_then(|ext| ext.to_str());
+        let path_buf = cached_path.path();
+        let ext = path_buf.extension().and_then(|ext| ext.to_str());
         match ext {
             // 2. If url ends in ".mjs", then
             //   1. Return "module".

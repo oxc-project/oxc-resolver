@@ -2,10 +2,14 @@ mod borrowed_path;
 mod cache_impl;
 mod cached_path;
 mod hasher;
+mod path_node;
 mod thread_local;
 
 pub use cache_impl::Cache;
 pub use cached_path::CachedPath;
+// New generation-based implementation (not yet used in main code)
+#[allow(unused_imports)]
+pub use path_node::{CacheGeneration, PathHandle, PathNode};
 
 #[cfg(test)]
 mod tests {

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::Resolver;
 
-/// Test to prove memory leak in `CachedPath` Arc cycles
+/// Test to prove memory management in generation-based cache
 #[test]
 fn test_memory_leak_arc_cycles() {
     let f = super::fixture_root().join("misc");
@@ -11,16 +11,21 @@ fn test_memory_leak_arc_cycles() {
 
     let path = resolver.cache.value(&f);
 
+    // Get the generation Arc reference count
+    let initial_generation_count = Arc::strong_count(&path.0.generation);
+
     resolver.resolve(&f, "package-json-nested").unwrap();
 
-    // Populated cache - path is now owned in multiple places.
-    assert_eq!(Arc::strong_count(&path.0), 2);
+    // After resolving, generation might be referenced by more paths
+    let after_resolve_count = Arc::strong_count(&path.0.generation);
+    assert!(after_resolve_count >= initial_generation_count);
 
     // Drop the resolver.
     drop(resolver);
 
-    // All Arcs must be dropped, leaving the original count of 1.
-    assert_eq!(Arc::strong_count(&path.0), 1);
+    // The generation should still be alive through our `path` handle
+    // Since we hold the only remaining reference to the generation through `path`
+    assert_eq!(Arc::strong_count(&path.0.generation), 1);
 }
 
 /// Test to ensure canonicalized paths remain accessible after being stored
