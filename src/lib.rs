@@ -1511,7 +1511,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         while let Some(cv) = cache_value {
             // Check if already has tsconfig
             {
-                let nodes = cv.0.generation.nodes.read().unwrap();
+                let nodes = cv.0.generation.nodes.read();
                 let node = &nodes[cv.0.index as usize];
                 if let Some(tsconfig_opt) = node.tsconfig.get() {
                     if let Some(tsconfig) = tsconfig_opt {

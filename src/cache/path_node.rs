@@ -28,7 +28,7 @@ impl std::fmt::Debug for PathHandle {
 
 /// Storage for one "generation" of cached paths
 pub struct CacheGeneration {
-    pub(crate) nodes: std::sync::RwLock<Vec<PathNode>>,
+    pub(crate) nodes: parking_lot::RwLock<Vec<PathNode>>,
     pub(crate) path_to_idx:
         papaya::HashMap<u64, u32, std::hash::BuildHasherDefault<super::hasher::IdentityHasher>>,
 }
@@ -36,7 +36,7 @@ pub struct CacheGeneration {
 impl CacheGeneration {
     pub fn new() -> Self {
         Self {
-            nodes: std::sync::RwLock::new(Vec::new()),
+            nodes: parking_lot::RwLock::new(Vec::new()),
             path_to_idx: papaya::HashMap::builder()
                 .hasher(std::hash::BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
@@ -93,7 +93,7 @@ impl PathNode {
 impl PathHandle {
     /// Get the path (returns owned PathBuf for simplicity)
     pub(crate) fn path(&self) -> PathBuf {
-        let nodes = self.generation.nodes.read().unwrap();
+        let nodes = self.generation.nodes.read();
         nodes[self.index as usize].path.to_path_buf()
     }
 
@@ -104,13 +104,13 @@ impl PathHandle {
 
     /// Get hash
     pub(crate) fn hash(&self) -> u64 {
-        let nodes = self.generation.nodes.read().unwrap();
+        let nodes = self.generation.nodes.read();
         nodes[self.index as usize].hash
     }
 
     /// Get parent handle
     pub(crate) fn parent(&self) -> Option<Self> {
-        let nodes = self.generation.nodes.read().unwrap();
+        let nodes = self.generation.nodes.read();
         nodes[self.index as usize]
             .parent_idx
             .map(|idx| PathHandle { index: idx, generation: self.generation.clone() })
@@ -118,13 +118,13 @@ impl PathHandle {
 
     /// Check if this is a node_modules directory
     pub(crate) fn is_node_modules(&self) -> bool {
-        let nodes = self.generation.nodes.read().unwrap();
+        let nodes = self.generation.nodes.read();
         nodes[self.index as usize].is_node_modules
     }
 
     /// Check if path is inside node_modules
     pub(crate) fn inside_node_modules(&self) -> bool {
-        let nodes = self.generation.nodes.read().unwrap();
+        let nodes = self.generation.nodes.read();
         nodes[self.index as usize].inside_node_modules
     }
 }
@@ -136,8 +136,8 @@ impl PartialEq for PathHandle {
             return true;
         }
         // Slow path: compare actual paths
-        let nodes1 = self.generation.nodes.read().unwrap();
-        let nodes2 = other.generation.nodes.read().unwrap();
+        let nodes1 = self.generation.nodes.read();
+        let nodes2 = other.generation.nodes.read();
         nodes1[self.index as usize].path.as_os_str()
             == nodes2[other.index as usize].path.as_os_str()
     }

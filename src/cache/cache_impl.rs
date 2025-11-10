@@ -82,7 +82,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Lock Vec for append
         let idx = {
-            let mut nodes = generation.nodes.write().unwrap();
+            let mut nodes = generation.nodes.write();
             // Double-check after acquiring write lock
             {
                 let path_to_idx = generation.path_to_idx.pin();
@@ -143,7 +143,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // First check if already initialized
         let existing_result = {
-            let nodes = path.0.generation.nodes.read().unwrap();
+            let nodes = path.0.generation.nodes.read();
             let node = &nodes[path.0.index as usize];
             node.package_json.get().cloned()
         };
@@ -168,7 +168,7 @@ impl<Fs: FileSystem> Cache<Fs> {
             Ok(bytes) => bytes,
             Err(_) => {
                 // Store None result
-                let nodes = path.0.generation.nodes.read().unwrap();
+                let nodes = path.0.generation.nodes.read();
                 let node = &nodes[path.0.index as usize];
                 node.package_json.get_or_init(|| None);
                 drop(nodes);
@@ -193,7 +193,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Store the result
         {
-            let nodes = path.0.generation.nodes.read().unwrap();
+            let nodes = path.0.generation.nodes.read();
             let node = &nodes[path.0.index as usize];
             node.package_json.get_or_init(|| match &parse_result {
                 Ok(opt) => opt.clone(),
@@ -306,7 +306,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Access canonicalizing atomic through PathNode
         let canonicalizing_val = {
-            let nodes = path.0.generation.nodes.read().unwrap();
+            let nodes = path.0.generation.nodes.read();
             nodes[path.0.index as usize].canonicalizing.load(Ordering::Acquire)
         };
 
@@ -316,7 +316,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Check if already canonicalized
         let cached_result = {
-            let nodes = path.0.generation.nodes.read().unwrap();
+            let nodes = path.0.generation.nodes.read();
             let guard = nodes[path.0.index as usize].canonicalized_idx.lock().unwrap();
             guard.clone()
         };
@@ -330,7 +330,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Set canonicalizing flag
         {
-            let nodes = path.0.generation.nodes.read().unwrap();
+            let nodes = path.0.generation.nodes.read();
             nodes[path.0.index as usize].canonicalizing.store(tid, Ordering::Release);
         }
 
@@ -367,13 +367,13 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Clear canonicalizing flag
         {
-            let nodes = path.0.generation.nodes.read().unwrap();
+            let nodes = path.0.generation.nodes.read();
             nodes[path.0.index as usize].canonicalizing.store(0, Ordering::Release);
         }
 
         // Store result as index
         {
-            let nodes = path.0.generation.nodes.read().unwrap();
+            let nodes = path.0.generation.nodes.read();
             let mut guard = nodes[path.0.index as usize].canonicalized_idx.lock().unwrap();
             *guard = res.as_ref().map_err(Clone::clone).map(|cp| Some(cp.0.index));
         }

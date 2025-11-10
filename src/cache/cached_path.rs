@@ -51,7 +51,7 @@ impl CachedPath {
     where
         F: FnOnce() -> Option<Arc<TsConfig>>,
     {
-        let nodes = self.0.generation.nodes.read().unwrap();
+        let nodes = self.0.generation.nodes.read();
         let node = &nodes[self.0.index as usize];
         node.tsconfig.get_or_init(f).clone()
     }
@@ -73,7 +73,7 @@ impl CachedPath {
     ) -> Option<Self> {
         // First check if already initialized
         {
-            let nodes = self.0.generation.nodes.read().unwrap();
+            let nodes = self.0.generation.nodes.read();
             let node = &nodes[self.0.index as usize];
             if let Some(Some(idx)) = node.node_modules_idx.get() {
                 return Some(CachedPath(PathHandle {
@@ -91,7 +91,7 @@ impl CachedPath {
 
         // Store the result
         {
-            let nodes = self.0.generation.nodes.read().unwrap();
+            let nodes = self.0.generation.nodes.read();
             let node = &nodes[self.0.index as usize];
             node.node_modules_idx.get_or_init(|| result_idx);
         }
@@ -223,7 +223,7 @@ impl CachedPath {
 
 impl CachedPath {
     pub(crate) fn meta<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
-        let nodes = self.0.generation.nodes.read().unwrap();
+        let nodes = self.0.generation.nodes.read();
         let node = &nodes[self.0.index as usize];
         *node.meta.get_or_init(|| fs.metadata(&node.path).ok())
     }
