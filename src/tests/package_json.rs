@@ -1,6 +1,6 @@
 //! Tests for `Resolution::package_json`.
 
-use crate::{ResolveError, Resolver};
+use crate::Resolver;
 
 #[test]
 fn test() {

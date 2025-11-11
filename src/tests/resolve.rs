@@ -285,7 +285,7 @@ fn file_protocol() {
     let f = super::fixture();
 
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
-    let file_protocol_path = Url::from_file_path(main1_js_path.clone()).unwrap();
+    let file_protocol_path = Url::from_file_path(main1_js_path).unwrap();
 
     let resolver = Resolver::default();
 
