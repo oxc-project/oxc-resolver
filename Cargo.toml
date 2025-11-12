@@ -16,11 +16,11 @@ rust-version = "1.88.0"
 description = "ESM / CJS module resolution"
 
 [workspace.dependencies]
-oxc_resolver = { version = "11.13.1", path = "." }
+oxc_resolver = { version = "11.13.2", path = "." }
 
 [package]
 name = "oxc_resolver"
-version = "11.13.1"
+version = "11.13.2"
 authors.workspace = true
 categories.workspace = true
 edition.workspace = true

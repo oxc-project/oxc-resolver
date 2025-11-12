@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.13.2](https://github.com/oxc-project/oxc-resolver/compare/v11.13.1...v11.13.2) - 2025-11-12
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- remove AT_STATX_DONT_SYNC from statx calls ([#828](https://github.com/oxc-project/oxc-resolver/pull/828)) (by @Boshen) - #828
+
+### <!-- 2 -->🚜 Refactor
+
+- *(file_system)* deduplicate read methods and use Vec<u8> ([#816](https://github.com/oxc-project/oxc-resolver/pull/816)) (by @Boshen)
+
+### Contributors
+
+* @renovate[bot]
+* @Boshen
+
 ## [11.13.1](https://github.com/oxc-project/oxc-resolver/compare/v11.13.0...v11.13.1) - 2025-11-04
 
 ### <!-- 1 -->🐛 Bug Fixes
