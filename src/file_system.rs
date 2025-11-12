@@ -185,12 +185,7 @@ impl FileSystemOs {
                 Ok(crate::windows::symlink_metadata(path)?.into())
             } else if #[cfg(target_os = "linux")] {
                 use rustix::fs::{AtFlags, CWD, FileType, StatxFlags};
-                let statx = rustix::fs::statx(
-                    CWD,
-                    path,
-                    AtFlags::STATX_DONT_SYNC | AtFlags::SYMLINK_NOFOLLOW,
-                    StatxFlags::TYPE,
-                )?;
+                let statx = rustix::fs::statx(CWD, path, AtFlags::SYMLINK_NOFOLLOW, StatxFlags::TYPE)?;
                 let file_type = FileType::from_raw_mode(statx.stx_mode.into());
                 Ok(FileMetadata::new(file_type.is_file(), file_type.is_dir(), file_type.is_symlink()))
             } else {
