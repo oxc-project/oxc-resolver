@@ -183,6 +183,15 @@ fn bench_resolver_memory(c: &mut Criterion) {
     let mut group = c.benchmark_group("resolver_memory");
 
     group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &data, |b, data| {
+        let oxc_resolver = oxc_resolver_memory();
+        b.iter(|| {
+            for (path, request) in data {
+                _ = oxc_resolver.resolve(path, request);
+            }
+        });
+    });
+
+    group.bench_with_input(BenchmarkId::from_parameter("drop"), &data, |b, data| {
         b.iter(|| {
             let oxc_resolver = oxc_resolver_memory(); // Measure `Drop` performance.
             for (path, request) in data {
@@ -192,8 +201,8 @@ fn bench_resolver_memory(c: &mut Criterion) {
     });
 
     group.bench_with_input(BenchmarkId::from_parameter("multi-thread"), &data, |b, data| {
+        let oxc_resolver = oxc_resolver_memory();
         b.iter(|| {
-            let oxc_resolver = oxc_resolver_memory(); // Measure `Drop` performance.
             data.par_iter().for_each(|(path, request)| {
                 _ = oxc_resolver.resolve(path, request);
             });
@@ -204,8 +213,8 @@ fn bench_resolver_memory(c: &mut Criterion) {
         BenchmarkId::from_parameter("resolve from symlinks"),
         &symlinks_range,
         |b, data| {
+            let oxc_resolver = oxc_resolver_memory();
             b.iter(|| {
-                let oxc_resolver = oxc_resolver_memory(); // Measure `Drop` performance.
                 for i in data.clone() {
                     assert!(
                         oxc_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
@@ -238,8 +247,8 @@ fn bench_resolver_real(c: &mut Criterion) {
     let mut group = c.benchmark_group("resolver_real");
 
     group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &data, |b, data| {
+        let oxc_resolver = oxc_resolver_real();
         b.iter(|| {
-            let oxc_resolver = oxc_resolver_real(); // Measure `Drop` performance.
             for (path, request) in data {
                 _ = oxc_resolver.resolve(path, request);
             }
@@ -247,8 +256,8 @@ fn bench_resolver_real(c: &mut Criterion) {
     });
 
     group.bench_with_input(BenchmarkId::from_parameter("multi-thread"), &data, |b, data| {
+        let oxc_resolver = oxc_resolver_real();
         b.iter(|| {
-            let oxc_resolver = oxc_resolver_real(); // Measure `Drop` performance.
             data.par_iter().for_each(|(path, request)| {
                 _ = oxc_resolver.resolve(path, request);
             });
@@ -259,8 +268,8 @@ fn bench_resolver_real(c: &mut Criterion) {
         BenchmarkId::from_parameter("resolve from symlinks"),
         &symlinks_range,
         |b, data| {
+            let oxc_resolver = oxc_resolver_real();
             b.iter(|| {
-                let oxc_resolver = oxc_resolver_real(); // Measure `Drop` performance.
                 for i in data.clone() {
                     assert!(
                         oxc_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
