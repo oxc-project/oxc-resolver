@@ -28,6 +28,7 @@ mod tsconfig_discovery;
 mod tsconfig_extends;
 mod tsconfig_paths;
 mod tsconfig_project_references;
+mod tsconfig_solution_style;
 #[cfg(target_os = "windows")]
 mod windows;
 

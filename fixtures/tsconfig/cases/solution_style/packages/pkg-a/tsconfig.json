@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pkg-a/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}
