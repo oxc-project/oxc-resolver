@@ -23,13 +23,13 @@ pub struct CachedPath(pub Arc<CachedPathImpl>);
 pub struct CachedPathImpl {
     pub hash: u64,
     pub path: Box<Path>,
-    pub parent: Option<Weak<CachedPathImpl>>,
+    pub parent: Mutex<OptionalWeak<CachedPathImpl>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<FileMetadata>>,
     pub canonicalized: Mutex<Result<Weak<CachedPathImpl>, ResolveError>>,
     pub canonicalizing: AtomicU64,
-    pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
+    pub node_modules: Mutex<OptionalWeak<CachedPathImpl>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
@@ -45,13 +45,13 @@ impl CachedPathImpl {
         Self {
             hash,
             path,
-            parent,
+            parent: Mutex::new(parent.into()),
             is_node_modules,
             inside_node_modules,
             meta: OnceLock::new(),
             canonicalized: Mutex::new(Ok(Weak::new())),
             canonicalizing: AtomicU64::new(0),
-            node_modules: OnceLock::new(),
+            node_modules: Mutex::new(OptionalWeak::new()),
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),
         }
@@ -75,8 +75,16 @@ impl CachedPath {
         self.path.to_path_buf()
     }
 
-    pub(crate) fn parent(&self) -> Option<Self> {
-        self.0.parent.as_ref().and_then(|weak| weak.upgrade().map(CachedPath))
+    pub(crate) fn parent<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Option<Self> {
+        self.0
+            .parent
+            .lock()
+            .unwrap()
+            .get_or_init(|| {
+                let parent_path = self.path.parent()?;
+                Some(cache.value(parent_path).0)
+            })
+            .map(CachedPath)
     }
 
     pub(crate) fn is_node_modules(&self) -> bool {
@@ -103,11 +111,10 @@ impl CachedPath {
         ctx: &mut Ctx,
     ) -> Option<Self> {
         self.node_modules
-            .get_or_init(|| {
-                self.module_directory("node_modules", cache, ctx).map(|cp| Arc::downgrade(&cp.0))
-            })
-            .as_ref()
-            .and_then(|weak| weak.upgrade().map(CachedPath))
+            .lock()
+            .unwrap()
+            .get_or_init(|| self.module_directory("node_modules", cache, ctx).map(|cp| cp.0))
+            .map(CachedPath)
     }
 
     /// Find package.json of a path by traversing parent directories.
@@ -124,7 +131,7 @@ impl CachedPath {
         let mut cache_value = self.clone();
         // Go up directories when the querying path is not a directory
         while !cache.is_dir(&cache_value, ctx) {
-            if let Some(cv) = cache_value.parent() {
+            if let Some(cv) = cache_value.parent(cache) {
                 cache_value = cv;
             } else {
                 break;
@@ -135,7 +142,7 @@ impl CachedPath {
             if let Some(package_json) = cache.get_package_json(&cv, options, ctx)? {
                 return Ok(Some(package_json));
             }
-            cache_value = cv.parent();
+            cache_value = cv.parent(cache);
         }
         Ok(None)
     }
@@ -250,5 +257,39 @@ impl Eq for CachedPath {}
 impl fmt::Debug for CachedPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FsCachedPath").field("path", &self.path).finish()
+    }
+}
+
+// Set (has value): Some(Weak)
+// Set (no value): None
+// Not set: Some(Weak::new())
+#[derive(Debug)]
+pub struct OptionalWeak<T>(Option<Weak<T>>);
+
+impl<T> OptionalWeak<T> {
+    fn new() -> Self {
+        Self(Some(Weak::new()))
+    }
+
+    fn get_or_init<F: FnOnce() -> Option<Arc<T>>>(&mut self, f: F) -> Option<Arc<T>> {
+        let weak = self.0.as_ref()?;
+        if let Some(strong) = weak.upgrade() {
+            return Some(strong);
+        }
+        let value = f();
+        self.0 = value.as_ref().map(Arc::downgrade);
+        value
+    }
+}
+
+impl<T> Default for OptionalWeak<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> From<Option<Weak<T>>> for OptionalWeak<T> {
+    fn from(value: Option<Weak<T>>) -> Self {
+        Self(value)
     }
 }
