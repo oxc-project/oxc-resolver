@@ -2556,7 +2556,7 @@ fn test_cases() {
                 &case.exports_field,
                 &mut Ctx::default(),
             )
-            .map(|p| p.map(|p| p.to_path_buf()));
+            .map(|p| p.map(|p| p.to_path_buf(&resolver.cache)));
         if let Some(expect) = case.expect {
             if expect.is_empty() {
                 assert!(

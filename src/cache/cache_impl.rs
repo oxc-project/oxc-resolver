@@ -6,15 +6,14 @@ use std::{
     sync::{Arc, atomic::Ordering},
 };
 
+use boxcar::Vec as BoxcarVec;
 use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
 use once_cell::sync::OnceCell;
-use papaya::{HashMap, HashSet};
+use papaya::HashMap;
 use rustc_hash::FxHasher;
 
-use super::borrowed_path::BorrowedCachedPath;
 use super::cached_path::{CachedPath, CachedPathImpl};
-use super::hasher::IdentityHasher;
 use super::thread_local::THREAD_ID;
 use crate::{
     FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
@@ -25,7 +24,8 @@ use crate::{
 #[derive(Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
-    pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
+    pub(crate) nodes: BoxcarVec<CachedPathImpl>,
+    pub(crate) path_index: HashMap<PathBuf, usize, BuildHasherDefault<FxHasher>>,
     pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
@@ -33,8 +33,13 @@ pub struct Cache<Fs> {
 
 impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
-        self.paths.pin().clear();
+        // Note: Can't clear boxcar vec, but can clear the index
+        self.path_index.pin().clear();
         self.tsconfigs.pin().clear();
+    }
+
+    pub(crate) fn get_node(&self, idx: usize) -> &CachedPathImpl {
+        self.nodes.get(idx).expect("Invalid node index")
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -46,29 +51,37 @@ impl<Fs: FileSystem> Cache<Fs> {
             path.as_os_str().hash(&mut hasher);
             hasher.finish()
         };
-        let paths = self.paths.pin();
-        if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
-            return entry.clone();
+
+        let path_buf = path.to_path_buf();
+        let path_index = self.path_index.pin();
+
+        if let Some(idx) = path_index.get(&path_buf) {
+            return CachedPath(*idx);
         }
-        let parent = path.parent().map(|p| self.value(p));
+
+        let parent = path.parent().map(|p| self.value(p).0);
         let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
-        let inside_node_modules =
-            is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
-        let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
-        let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
+        let inside_node_modules = is_node_modules
+            || parent
+                .as_ref()
+                .is_some_and(|&parent_idx| self.get_node(parent_idx).inside_node_modules);
+
+        let cached_path_impl = CachedPathImpl::new(
             hash,
-            path.to_path_buf().into_boxed_path(),
+            path_buf.clone(),
             is_node_modules,
             inside_node_modules,
-            parent_weak,
-        )));
-        paths.insert(cached_path.clone());
-        cached_path
+            parent,
+        );
+
+        let idx = self.nodes.push(cached_path_impl);
+        path_index.insert(path_buf, idx);
+        CachedPath(idx)
     }
 
     pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
         let cached_path = self.canonicalize_impl(path)?;
-        let path = cached_path.to_path_buf();
+        let path = cached_path.to_path_buf(self);
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 crate::windows::strip_windows_prefix(path)
@@ -79,19 +92,19 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        if let Some(meta) = path.meta(&self.fs) {
-            ctx.add_file_dependency(path.path());
+        if let Some(meta) = path.meta(self, &self.fs) {
+            ctx.add_file_dependency(path.path(self));
             meta.is_file
         } else {
-            ctx.add_missing_dependency(path.path());
+            ctx.add_missing_dependency(path.path(self));
             false
         }
     }
 
     pub(crate) fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        path.meta(&self.fs).map_or_else(
+        path.meta(self, &self.fs).map_or_else(
             || {
-                ctx.add_missing_dependency(path.path());
+                ctx.add_missing_dependency(path.path(self));
                 false
             },
             |meta| meta.is_dir,
@@ -104,11 +117,12 @@ impl<Fs: FileSystem> Cache<Fs> {
         options: &ResolveOptions,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+        let node = self.get_node(path.0);
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
-        let result = path
+        let result = node
             .package_json
             .get_or_try_init(|| {
-                let package_json_path = path.path.join("package.json");
+                let package_json_path = node.path.join("package.json");
                 let Ok(package_json_bytes) = self.fs.read(&package_json_path) else {
                     return Ok(None);
                 };
@@ -131,12 +145,12 @@ impl<Fs: FileSystem> Cache<Fs> {
             Ok(None) => {
                 // Avoid an allocation by making this lazy
                 if let Some(deps) = &mut ctx.missing_dependencies {
-                    deps.push(path.path.join("package.json"));
+                    deps.push(node.path.join("package.json"));
                 }
             }
             Err(_) => {
                 if let Some(deps) = &mut ctx.file_dependencies {
-                    deps.push(path.path.join("package.json"));
+                    deps.push(node.path.join("package.json"));
                 }
             }
         }
@@ -208,7 +222,8 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn new(fs: Fs) -> Self {
         Self {
             fs,
-            paths: HashSet::builder()
+            nodes: BoxcarVec::new(),
+            path_index: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
@@ -225,41 +240,54 @@ impl<Fs: FileSystem> Cache<Fs> {
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
     pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
+        let node = self.get_node(path.0);
+
         // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
-        // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
         let tid = THREAD_ID.with(|t| *t);
-        if path.canonicalizing.load(Ordering::Acquire) == tid {
+        if node.canonicalizing.load(Ordering::Acquire) == tid {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
 
-        let mut canonicalized_guard = path.canonicalized.lock().unwrap();
-        let canonicalized = canonicalized_guard.clone()?;
-        if let Some(cached_path) = canonicalized.upgrade() {
-            return Ok(CachedPath(cached_path));
+        // Lock, check cached value, and unlock - CRITICAL: don't hold lock during recursion
+        let cached = {
+            let guard = node.canonicalized.lock().unwrap();
+            guard.clone()
+        }; // MutexGuard dropped here!
+
+        if let Ok(Some(idx)) = cached {
+            return Ok(CachedPath(idx));
+        }
+        // If we got an error last time, return it
+        if let Err(e) = cached {
+            return Err(e);
         }
 
-        path.canonicalizing.store(tid, Ordering::Release);
+        // Compute without holding any locks
+        node.canonicalizing.store(tid, Ordering::Release);
 
-        let res = path.parent().map_or_else(
+        let res = node.parent.map_or_else(
             || Ok(path.normalize_root(self)),
-            |parent| {
+            |parent_idx| {
+                let parent = CachedPath(parent_idx);
                 self.canonicalize_impl(&parent).and_then(|parent_canonical| {
+                    let parent_path = self.get_node(parent_idx).path.as_path();
                     let normalized = parent_canonical
-                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
+                        .normalize_with(node.path.strip_prefix(parent_path).unwrap(), self);
 
-                    if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
-                        let link = self.fs.read_link(normalized.path())?;
+                    if self.fs.symlink_metadata(&node.path).is_ok_and(|m| m.is_symlink) {
+                        let link = self.fs.read_link(normalized.path(self))?;
                         if link.is_absolute() {
                             return self.canonicalize_impl(&self.value(&link.normalize()));
-                        } else if let Some(dir) = normalized.parent() {
+                        } else if let Some(dir_idx) = normalized.parent(self) {
                             // Symlink is relative `../../foo.js`, use the path directory
                             // to resolve this symlink.
-                            return self.canonicalize_impl(&dir.normalize_with(&link, self));
+                            return self
+                                .canonicalize_impl(&dir_idx.normalize_with(&link, self));
                         }
                         debug_assert!(
                             false,
                             "Failed to get path parent for {}.",
-                            normalized.path().display()
+                            normalized.path(self).display()
                         );
                     }
 
@@ -268,9 +296,11 @@ impl<Fs: FileSystem> Cache<Fs> {
             },
         );
 
-        path.canonicalizing.store(0, Ordering::Release);
-        // Convert to Weak reference for storage
-        *canonicalized_guard = res.as_ref().map_err(Clone::clone).map(|cp| Arc::downgrade(&cp.0));
+        node.canonicalizing.store(0, Ordering::Release);
+
+        // Store result - lock briefly just to write
+        *node.canonicalized.lock().unwrap() =
+            res.as_ref().map(|cp| Some(cp.0)).map_err(Clone::clone);
 
         res
     }

@@ -2,9 +2,8 @@ use std::{
     convert::AsRef,
     fmt,
     hash::{Hash, Hasher},
-    ops::Deref,
     path::{Component, Path, PathBuf},
-    sync::{Arc, Mutex, Weak, atomic::AtomicU64},
+    sync::{Arc, Mutex, atomic::AtomicU64},
 };
 
 use cfg_if::cfg_if;
@@ -17,19 +16,19 @@ use crate::{
     context::ResolveContext as Ctx,
 };
 
-#[derive(Clone)]
-pub struct CachedPath(pub Arc<CachedPathImpl>);
+#[derive(Clone, Copy)]
+pub struct CachedPath(pub usize);
 
 pub struct CachedPathImpl {
     pub hash: u64,
-    pub path: Box<Path>,
-    pub parent: Option<Weak<CachedPathImpl>>,
+    pub path: PathBuf,
+    pub parent: Option<usize>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<FileMetadata>>,
-    pub canonicalized: Mutex<Result<Weak<CachedPathImpl>, ResolveError>>,
+    pub canonicalized: Mutex<Result<Option<usize>, ResolveError>>,
     pub canonicalizing: AtomicU64,
-    pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
+    pub node_modules: OnceLock<Option<usize>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
@@ -37,10 +36,10 @@ pub struct CachedPathImpl {
 impl CachedPathImpl {
     pub fn new(
         hash: u64,
-        path: Box<Path>,
+        path: PathBuf,
         is_node_modules: bool,
         inside_node_modules: bool,
-        parent: Option<Weak<Self>>,
+        parent: Option<usize>,
     ) -> Self {
         Self {
             hash,
@@ -49,7 +48,7 @@ impl CachedPathImpl {
             is_node_modules,
             inside_node_modules,
             meta: OnceLock::new(),
-            canonicalized: Mutex::new(Ok(Weak::new())),
+            canonicalized: Mutex::new(Ok(None)),
             canonicalizing: AtomicU64::new(0),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
@@ -58,33 +57,25 @@ impl CachedPathImpl {
     }
 }
 
-impl Deref for CachedPath {
-    type Target = CachedPathImpl;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_ref()
-    }
-}
-
 impl CachedPath {
-    pub(crate) fn path(&self) -> &Path {
-        &self.0.path
+    pub(crate) fn path<'a, Fs: FileSystem>(&self, cache: &'a Cache<Fs>) -> &'a Path {
+        &cache.get_node(self.0).path
     }
 
-    pub(crate) fn to_path_buf(&self) -> PathBuf {
-        self.path.to_path_buf()
+    pub(crate) fn to_path_buf<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> PathBuf {
+        self.path(cache).to_path_buf()
     }
 
-    pub(crate) fn parent(&self) -> Option<Self> {
-        self.0.parent.as_ref().and_then(|weak| weak.upgrade().map(CachedPath))
+    pub(crate) fn parent<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Option<Self> {
+        cache.get_node(self.0).parent.map(CachedPath)
     }
 
-    pub(crate) fn is_node_modules(&self) -> bool {
-        self.is_node_modules
+    pub(crate) fn is_node_modules<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> bool {
+        cache.get_node(self.0).is_node_modules
     }
 
-    pub(crate) fn inside_node_modules(&self) -> bool {
-        self.inside_node_modules
+    pub(crate) fn inside_node_modules<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> bool {
+        cache.get_node(self.0).inside_node_modules
     }
 
     pub(crate) fn module_directory<Fs: FileSystem>(
@@ -93,7 +84,8 @@ impl CachedPath {
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Option<Self> {
-        let cached_path = cache.value(&self.path.join(module_name));
+        let path = self.path(cache).join(module_name);
+        let cached_path = cache.value(&path);
         cache.is_dir(&cached_path, ctx).then_some(cached_path)
     }
 
@@ -102,12 +94,11 @@ impl CachedPath {
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Option<Self> {
-        self.node_modules
-            .get_or_init(|| {
-                self.module_directory("node_modules", cache, ctx).map(|cp| Arc::downgrade(&cp.0))
-            })
-            .as_ref()
-            .and_then(|weak| weak.upgrade().map(CachedPath))
+        let node = cache.get_node(self.0);
+        let result = *node.node_modules.get_or_init(|| {
+            self.module_directory("node_modules", cache, ctx).map(|cp| cp.0)
+        });
+        result.map(CachedPath)
     }
 
     /// Find package.json of a path by traversing parent directories.
@@ -121,10 +112,10 @@ impl CachedPath {
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
-        let mut cache_value = self.clone();
+        let mut cache_value = *self;
         // Go up directories when the querying path is not a directory
         while !cache.is_dir(&cache_value, ctx) {
-            if let Some(cv) = cache_value.parent() {
+            if let Some(cv) = cache_value.parent(cache) {
                 cache_value = cv;
             } else {
                 break;
@@ -135,7 +126,7 @@ impl CachedPath {
             if let Some(package_json) = cache.get_package_json(&cv, options, ctx)? {
                 return Ok(Some(package_json));
             }
-            cache_value = cv.parent();
+            cache_value = cv.parent(cache);
         }
         Ok(None)
     }
@@ -144,7 +135,7 @@ impl CachedPath {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
-            s.push(self.path.as_os_str());
+            s.push(self.path(cache).as_os_str());
             s.push(ext);
             cache.value(path)
         })
@@ -154,9 +145,10 @@ impl CachedPath {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
-            let self_len = self.path.as_os_str().len();
-            let self_bytes = self.path.as_os_str().as_encoded_bytes();
-            let slice_to_copy = self.path.extension().map_or(self_bytes, |previous_extension| {
+            let node_path = self.path(cache);
+            let self_len = node_path.as_os_str().len();
+            let self_bytes = node_path.as_os_str().as_encoded_bytes();
+            let slice_to_copy = node_path.extension().map_or(self_bytes, |previous_extension| {
                 &self_bytes[..self_len - previous_extension.len() - 1]
             });
             // SAFETY: ???
@@ -180,7 +172,7 @@ impl CachedPath {
         }
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
-            path.push(&self.path);
+            path.push(self.path(cache));
             for component in std::iter::once(head).chain(components) {
                 match component {
                     Component::CurDir => {}
@@ -198,7 +190,7 @@ impl CachedPath {
                         }
                     }
                     Component::Prefix(..) | Component::RootDir => {
-                        unreachable!("Path {:?} Subpath {:?}", self.path, subpath)
+                        unreachable!("Path {:?} Subpath {:?}", self.path(cache), subpath)
                     }
                 }
             }
@@ -210,38 +202,39 @@ impl CachedPath {
     #[inline]
     #[cfg(windows)]
     pub(crate) fn normalize_root<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Self {
-        if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
-            let mut path_string = self.path.to_string_lossy().into_owned();
+        if self.path(cache).as_os_str().as_encoded_bytes().last() == Some(&b'/') {
+            let mut path_string = self.path(cache).to_string_lossy().into_owned();
             path_string.pop();
             path_string.push('\\');
             cache.value(&PathBuf::from(path_string))
         } else {
-            self.clone()
+            *self
         }
     }
 
     #[inline]
     #[cfg(not(windows))]
     pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &Cache<Fs>) -> Self {
-        self.clone()
+        *self
     }
 }
 
 impl CachedPath {
-    pub(crate) fn meta<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
-        *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
+    pub(crate) fn meta<Fs: FileSystem>(&self, cache: &Cache<Fs>, fs: &Fs) -> Option<FileMetadata> {
+        let node = cache.get_node(self.0);
+        *node.meta.get_or_init(|| fs.metadata(&node.path).ok())
     }
 }
 
 impl Hash for CachedPath {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.hash.hash(state);
+        self.0.hash(state);
     }
 }
 
 impl PartialEq for CachedPath {
     fn eq(&self, other: &Self) -> bool {
-        self.path.as_os_str() == other.path.as_os_str()
+        self.0 == other.0
     }
 }
 
@@ -249,6 +242,6 @@ impl Eq for CachedPath {}
 
 impl fmt::Debug for CachedPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FsCachedPath").field("path", &self.path).finish()
+        f.debug_struct("FsCachedPath").field("idx", &self.0).finish()
     }
 }

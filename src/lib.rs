@@ -92,7 +92,7 @@ use std::{
     borrow::Cow,
     cmp::Ordering,
     ffi::OsStr,
-    fmt, iter,
+    fmt,
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -272,7 +272,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let path = if self.options.symlinks {
             self.load_realpath(&cached_path)?
         } else {
-            cached_path.to_path_buf()
+            cached_path.to_path_buf(&self.cache)
         };
 
         let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
@@ -299,19 +299,21 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // Algorithm:
         // Find `node_modules/package/package.json`
         // or the first package.json if the path is not inside node_modules.
-        let inside_node_modules = cached_path.inside_node_modules();
+        let inside_node_modules = cached_path.inside_node_modules(&self.cache);
         if inside_node_modules {
             let mut last = None;
-            for cp in iter::successors(Some(cached_path.clone()), CachedPath::parent) {
-                if cp.is_node_modules() {
+            let mut cp = Some(*cached_path);
+            while let Some(current) = cp {
+                if current.is_node_modules(&self.cache) {
                     break;
                 }
-                if self.cache.is_dir(&cp, ctx)
+                if self.cache.is_dir(&current, ctx)
                     && let Some(package_json) =
-                        self.cache.get_package_json(&cp, &self.options, ctx)?
+                        self.cache.get_package_json(&current, &self.options, ctx)?
                 {
                     last = Some(package_json);
                 }
+                cp = current.parent(&self.cache);
             }
             Ok(last)
         } else {
@@ -731,7 +733,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.symlinks {
             self.cache.canonicalize(cached_path)
         } else {
-            Ok(cached_path.to_path_buf())
+            Ok(cached_path.to_path_buf(&self.cache))
         }
     }
 
@@ -768,7 +770,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
             if self.options.enforce_extension.is_disabled()
                 && let Some(path) = self.load_alias_or_file(&cached_path, ctx)?
-                && self.check_restrictions(path.path())
+                && self.check_restrictions(path.path(&self.cache))
             {
                 return Ok(Some(path));
             }
@@ -797,7 +799,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // enhanced-resolve: try file as alias
         // Guard this because this is on a hot path, and `.to_string_lossy()` has a cost.
         if !self.options.alias.is_empty() {
-            let alias_specifier = cached_path.path().to_string_lossy();
+            let alias_specifier = cached_path.path(&self.cache).to_string_lossy();
             if let Some(path) =
                 self.load_alias(cached_path, &alias_specifier, &self.options.alias, ctx)?
             {
@@ -811,7 +813,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if let Some(path) = self.load_browser_field_or_alias(cached_path, ctx)? {
             return Ok(Some(path));
         }
-        if self.cache.is_file(cached_path, ctx) && self.check_restrictions(cached_path.path()) {
+        if self.cache.is_file(cached_path, ctx) && self.check_restrictions(cached_path.path(&self.cache)) {
             return Ok(Some(cached_path.clone()));
         }
         Ok(None)
@@ -835,10 +837,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 1. let DIRS = NODE_MODULES_PATHS(START)
         // 2. for each DIR in DIRS:
         for module_name in &self.options.modules {
-            for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
-            {
+            let mut current_path = Some(*cached_path);
+            while let Some(cached_path) = current_path {
                 // Skip if /path/to/node_modules does not exist
                 if !self.cache.is_dir(&cached_path, ctx) {
+                    current_path = cached_path.parent(&self.cache);
                     continue;
                 }
 
@@ -868,7 +871,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         // Skip if the directory lead to the scope package does not exist
                         // i.e. `foo/node_modules/@scope` is not a directory for `foo/node_modules/@scope/package`
                         if package_name.starts_with('@')
-                            && let Some(path) = cached_path.parent().as_ref()
+                            && let Some(path) = cached_path.parent(&self.cache).as_ref()
                             && !self.cache.is_dir(path, ctx)
                         {
                             continue;
@@ -907,6 +910,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
                     return Ok(Some(path));
                 }
+                current_path = current_path.and_then(|p| p.parent(&self.cache));
             }
         }
         Ok(None)
@@ -927,7 +931,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
 
         // `resolve_to_unqualified` requires a trailing slash
-        let mut path = cached_path.to_path_buf();
+        let mut path = cached_path.to_path_buf(&self.cache);
         path.push("");
 
         let resolution = pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, &path);
@@ -935,7 +939,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         match resolution {
             Ok(pnp::Resolution::Resolved(path, subpath)) => {
                 let cached_path = self.cache.value(&path);
-                let cached_path_string = cached_path.path().to_string_lossy();
+                let cached_path_string = cached_path.path(&self.cache).to_string_lossy();
 
                 let export_resolution = self.load_package_self(&cached_path, specifier, ctx)?;
                 // can be found in pnp cached folder
@@ -1005,7 +1009,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Option<CachedPath> {
         if module_name == "node_modules" {
             cached_path.cached_node_modules(self.cache.as_ref(), ctx)
-        } else if cached_path.path().components().next_back()
+        } else if cached_path.path(&self.cache).components().next_back()
             == Some(Component::Normal(OsStr::new(module_name)))
         {
             Some(cached_path.clone())
@@ -1110,7 +1114,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         package_json: &PackageJson,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        let path = cached_path.path();
+        let path = cached_path.path(&self.cache);
         let Some(new_specifier) = package_json.resolve_browser_field(
             path,
             module_specifier,
@@ -1127,7 +1131,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Complete when resolving to self `{"./a.js": "./a.js"}`
             if new_specifier.strip_prefix("./").filter(|s| path.ends_with(Path::new(s))).is_some() {
                 return if self.cache.is_file(cached_path, ctx) {
-                    if self.check_restrictions(cached_path.path()) {
+                    if self.check_restrictions(cached_path.path(&self.cache)) {
                         Ok(Some(cached_path.clone()))
                     } else {
                         Ok(None)
@@ -1191,7 +1195,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     AliasValue::Ignore => {
                         let cached_path =
                             cached_path.normalize_with(alias_key, self.cache.as_ref());
-                        return Err(ResolveError::Ignored(cached_path.to_path_buf()));
+                        return Err(ResolveError::Ignored(cached_path.to_path_buf(&self.cache)));
                     }
                 }
             }
@@ -1280,7 +1284,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.extension_alias.is_empty() {
             return Ok(None);
         }
-        let Some(path_extension) = cached_path.path().extension() else {
+        let Some(path_extension) = cached_path.path(&self.cache).extension() else {
             return Ok(None);
         };
         let Some((_, extensions)) = self
@@ -1291,7 +1295,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         else {
             return Ok(None);
         };
-        let path = cached_path.path();
+        let path = cached_path.path(&self.cache);
         let Some(filename) = path.file_name() else { return Ok(None) };
         ctx.with_fully_specified(true);
         for extension in extensions {
@@ -1305,7 +1309,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if !self.cache.is_file(cached_path, ctx) {
             ctx.with_fully_specified(false);
             return Ok(None);
-        } else if !self.check_restrictions(cached_path.path()) {
+        } else if !self.check_restrictions(cached_path.path(&self.cache)) {
             return Ok(None);
         }
         // Create a meaningful error message.
@@ -1337,7 +1341,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         if let Some(specifier) = specifier.strip_prefix(SLASH_START) {
             if specifier.is_empty() {
-                if self.options.roots.iter().any(|root| root.as_path() == cached_path.path())
+                if self.options.roots.iter().any(|root| root.as_path() == cached_path.path(&self.cache))
                     && let Ok(path) = self.require_relative(cached_path, "./", ctx)
                 {
                     return Some(path);
@@ -1448,7 +1452,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        if cached_path.inside_node_modules() {
+        if cached_path.inside_node_modules(&self.cache) {
             return Ok(None);
         }
         let tsconfig = match &self.options.tsconfig {
@@ -1462,7 +1466,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 )?;
                 // Cache the loaded tsconfig in the path's directory
                 let tsconfig_dir = self.cache.value(tsconfig.directory());
-                _ = tsconfig_dir.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
+                let node = self.cache.get_node(tsconfig_dir.0);
+                _ = node.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
                 tsconfig
             }
             Some(TsconfigDiscovery::Auto) => {
@@ -1473,12 +1478,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         };
 
-        let paths = tsconfig.resolve(cached_path.path(), specifier);
+        let paths = tsconfig.resolve(cached_path.path(&self.cache), specifier);
         for path in paths {
             let resolved_path = self.cache.value(&path);
             if let Some(resolution) = self.load_as_file_or_directory(&resolved_path, ".", ctx)? {
                 // Cache the tsconfig in the resolved path
-                _ = resolved_path.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
+                let node = self.cache.get_node(resolved_path.0);
+                _ = node.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
                 return Ok(Some(resolution));
             }
         }
@@ -1496,28 +1502,29 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         // Don't discover tsconfig for paths inside node_modules
-        if cached_path.inside_node_modules() {
+        if cached_path.inside_node_modules(&self.cache) {
             return Ok(None);
         }
         // Skip non-absolute paths (e.g. virtual modules)
-        if !cached_path.path.is_absolute() {
+        if !cached_path.path(&self.cache).is_absolute() {
             return Ok(None);
         }
 
-        let mut cache_value = Some(cached_path.clone());
+        let mut cache_value = Some(*cached_path);
         while let Some(cv) = cache_value {
-            if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
-                let tsconfig_path = cv.path.join("tsconfig.json");
+            let node = self.cache.get_node(cv.0);
+            if let Some(tsconfig) = node.tsconfig.get_or_try_init(|| {
+                let tsconfig_path = node.path.join("tsconfig.json");
                 let tsconfig_path = self.cache.value(&tsconfig_path);
                 if self.cache.is_file(&tsconfig_path, ctx) {
-                    self.resolve_tsconfig(tsconfig_path.path()).map(Some)
+                    self.resolve_tsconfig(tsconfig_path.path(&self.cache)).map(Some)
                 } else {
                     Ok(None)
                 }
             })? {
                 return Ok(Some(Arc::clone(tsconfig)));
             }
-            cache_value = cv.parent();
+            cache_value = cv.parent(&self.cache);
         }
         Ok(None)
     }
@@ -1532,8 +1539,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             None => Err(ResolveError::Specifier(SpecifierError::Empty(specifier.to_string()))),
             Some(b'/') => Ok(PathBuf::from(specifier)),
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
-            _ => self
-                .clone_with_options(ResolveOptions {
+            _ => {
+                let resolver = self.clone_with_options(ResolveOptions {
                     tsconfig: None,
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig.json".into()],
@@ -1542,15 +1549,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     #[cfg(feature = "yarn_pnp")]
                     cwd: self.options.cwd.clone(),
                     ..ResolveOptions::default()
-                })
-                .load_package_self_or_node_modules(directory, specifier, &mut Ctx::default())
-                .map(|p| p.to_path_buf())
-                .map_err(|err| match err {
-                    ResolveError::NotFound(_) => {
-                        ResolveError::TsconfigNotFound(PathBuf::from(specifier))
-                    }
-                    _ => err,
-                }),
+                });
+                resolver
+                    .load_package_self_or_node_modules(directory, specifier, &mut Ctx::default())
+                    .map(|p| p.to_path_buf(&resolver.cache))
+                    .map_err(|err| match err {
+                        ResolveError::NotFound(_) => {
+                            ResolveError::TsconfigNotFound(PathBuf::from(specifier))
+                        }
+                        _ => err,
+                    })
+            },
         }
     }
 
@@ -1569,11 +1578,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {
-            for cached_path in std::iter::successors(Some(cached_path.clone()), CachedPath::parent)
-            {
+            let mut current_path = Some(*cached_path);
+            while let Some(cached_path) = current_path {
                 // 1. Let packageURL be the URL resolution of "node_modules/" concatenated with packageSpecifier, relative to parentURL.
                 let Some(cached_path) = self.get_module_directory(&cached_path, module_name, ctx)
                 else {
+                    current_path = current_path.and_then(|p| p.parent(&self.cache));
                     continue;
                 };
                 // 2. Set parentURL to the parent folder URL of parentURL.
@@ -1605,7 +1615,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                                 let cached_path =
                                     cached_path.normalize_with(main_field, self.cache.as_ref());
                                 if self.cache.is_file(&cached_path, ctx)
-                                    && self.check_restrictions(cached_path.path())
+                                    && self.check_restrictions(cached_path.path(&self.cache))
                                 {
                                     return Ok(Some(cached_path));
                                 }
@@ -1616,6 +1626,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     ctx.with_fully_specified(false);
                     return self.require(&cached_path, &subpath, ctx).map(Some);
                 }
+                current_path = current_path.and_then(|p| p.parent(&self.cache));
             }
         }
 
@@ -1641,7 +1652,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 without_dot = without_dot || !starts_with_dot_or_hash;
                 if has_dot && without_dot {
                     return Err(ResolveError::InvalidPackageConfig(
-                        package_url.path().join("package.json"),
+                        package_url.path(&self.cache).join("package.json"),
                     ));
                 }
             }
@@ -1709,8 +1720,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 4. Throw a Package Path Not Exported error.
         Err(ResolveError::PackagePathNotExported {
             subpath: subpath.to_string(),
-            package_path: package_url.path().to_path_buf(),
-            package_json_path: package_url.path().join("package.json"),
+            package_path: package_url.path(&self.cache).to_path_buf(),
+            package_json_path: package_url.path(&self.cache).join("package.json"),
             conditions: self.options.condition_names.clone().into(),
         })
     }
@@ -1866,11 +1877,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         conditions: &[String],
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        fn normalize_string_target<'a>(
+        fn normalize_string_target<'a, Fs: FileSystem>(
             target_key: &'a str,
             target: &'a str,
             pattern_match: Option<&'a str>,
             package_url: &CachedPath,
+            cache: &Cache<Fs>,
         ) -> Result<Cow<'a, str>, ResolveError> {
             let target = if let Some(pattern_match) = pattern_match {
                 if !target_key.contains('*') && !target.contains('*') {
@@ -1880,7 +1892,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         Cow::Owned(format!("{target}{pattern_match}"))
                     } else {
                         return Err(ResolveError::InvalidPackageConfigDirectory(
-                            package_url.path().join("package.json"),
+                            package_url.path(cache).join("package.json"),
                         ));
                     }
                 } else {
@@ -1908,13 +1920,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     return Err(ResolveError::InvalidPackageTarget(
                         (*target).to_string(),
                         target_key.to_string(),
-                        package_url.path().join("package.json"),
+                        package_url.path(&self.cache).join("package.json"),
                     ));
                 }
                 // 2. If patternMatch is a String, then
                 //   1. Return PACKAGE_RESOLVE(target with every instance of "*" replaced by patternMatch, packageURL + "/").
                 let target =
-                    normalize_string_target(target_key, target, pattern_match, package_url)?;
+                    normalize_string_target(target_key, target, pattern_match, package_url, &self.cache)?;
                 // // 3. Return PACKAGE_RESOLVE(target, packageURL + "/").
                 return self.package_resolve(package_url, &target, ctx);
             }
@@ -1923,12 +1935,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // 3. Let resolvedTarget be the URL resolution of the concatenation of packageURL and target.
             // 4. Assert: resolvedTarget is contained in packageURL.
             // 5. If patternMatch is null, then
-            let target = normalize_string_target(target_key, target, pattern_match, package_url)?;
+            let target = normalize_string_target(target_key, target, pattern_match, package_url, &self.cache)?;
             if Path::new(target.as_ref()).is_invalid_exports_target() {
                 return Err(ResolveError::InvalidPackageTarget(
                     target.to_string(),
                     target_key.to_string(),
-                    package_url.path().join("package.json"),
+                    package_url.path(&self.cache).join("package.json"),
                 ));
             }
             // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
@@ -1970,8 +1982,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // Note: return PackagePathNotExported has the same effect as return because there are no matches.
                 return Err(ResolveError::PackagePathNotExported {
                     subpath: pattern_match.unwrap_or(".").to_string(),
-                    package_path: package_url.path().to_path_buf(),
-                    package_json_path: package_url.path().join("package.json"),
+                    package_path: package_url.path(&self.cache).to_path_buf(),
+                    package_json_path: package_url.path(&self.cache).join("package.json"),
                     conditions: self.options.condition_names.clone().into(),
                 });
             }
@@ -2102,7 +2114,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Ok(None);
         }
         // 1. Assert: url corresponds to an existing file.
-        let ext = cached_path.path().extension().and_then(|ext| ext.to_str());
+        let ext = cached_path.path(&self.cache).extension().and_then(|ext| ext.to_str());
         match ext {
             // 2. If url ends in ".mjs", then
             //   1. Return "module".
