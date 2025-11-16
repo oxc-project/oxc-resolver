@@ -86,4 +86,13 @@ impl FileSystem for MemoryFS {
     fn read_link(&self, _path: &Path) -> Result<PathBuf, ResolveError> {
         Err(io::Error::new(io::ErrorKind::NotFound, "not a symlink").into())
     }
+
+    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+        // MemoryFS doesn't support symlinks, so just verify path exists and return it
+        use vfs::FileSystem;
+        self.fs
+            .metadata(path.to_string_lossy().as_ref())
+            .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
+        Ok(path.to_path_buf())
+    }
 }

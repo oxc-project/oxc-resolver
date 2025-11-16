@@ -716,5 +716,33 @@ mod memory_fs {
                 ))
             })
         }
+
+        fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+            // Follow symlinks to resolve the canonical path
+            let mut current = path.to_path_buf();
+            let mut visited = FxHashSet::default();
+
+            while let Some(target) = self.symlinks.get(&current) {
+                if !visited.insert(current.clone()) {
+                    return Err(io::Error::other("Circular symlink"));
+                }
+
+                current = if target.is_relative() {
+                    current.parent().unwrap().join(target)
+                } else {
+                    target.clone()
+                };
+            }
+
+            // Verify the final path exists
+            if self.files.contains_key(&current) || self.directories.contains(&current) {
+                Ok(current)
+            } else {
+                Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("Path not found: {}", path.display()),
+                ))
+            }
+        }
     }
 }

@@ -235,9 +235,16 @@ impl<Fs: FileSystem> Cache<Fs> {
         });
 
         result.as_ref().map_err(Clone::clone).and_then(|weak| {
-            weak.upgrade().map(CachedPath).ok_or_else(|| {
-                io::Error::new(io::ErrorKind::NotFound, "Path no longer exists").into()
-            })
+            weak.upgrade()
+                .map(CachedPath)
+                .or_else(|| {
+                    // Cache was cleared while canonicalizing. Fall back to direct FS canonicalize
+                    // without caching the result to ensure we still return the resolved path.
+                    self.fs.canonicalize(path.path()).ok().map(|canonical| self.value(&canonical))
+                })
+                .ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::NotFound, "Path no longer exists").into()
+                })
         })
     }
 

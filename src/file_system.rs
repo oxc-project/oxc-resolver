@@ -64,6 +64,13 @@ pub trait FileSystem: Send + Sync {
     ///
     /// See [std::fs::read_link]
     fn read_link(&self, path: &Path) -> Result<PathBuf, ResolveError>;
+
+    /// Returns the canonical, absolute form of a path with all intermediate components normalized.
+    ///
+    /// # Errors
+    ///
+    /// See [std::fs::canonicalize]
+    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
 }
 
 /// Metadata information about a file
@@ -208,6 +215,14 @@ impl FileSystemOs {
             }
         }
     }
+
+    /// # Errors
+    ///
+    /// See [std::fs::canonicalize]
+    #[inline]
+    pub fn canonicalize(path: &Path) -> io::Result<PathBuf> {
+        fs::canonicalize(path)
+    }
 }
 
 impl FileSystem for FileSystemOs {
@@ -280,6 +295,21 @@ impl FileSystem for FileSystemOs {
             }
         }
         Self::read_link(path)
+    }
+
+    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                if self.yarn_pnp {
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => Self::canonicalize(&info.physical_base_path().join(info.zip_path)),
+                        VPath::Virtual(info) => Self::canonicalize(&info.physical_base_path()),
+                        VPath::Native(path) => Self::canonicalize(&path),
+                    }
+                }
+            }
+        }
+        Self::canonicalize(path)
     }
 }
 
