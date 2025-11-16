@@ -61,6 +61,7 @@ impl<Fs: FileSystem> Cache<Fs> {
             is_node_modules,
             inside_node_modules,
             parent_weak,
+            &self.fs,
         )));
         paths.insert(cached_path.clone());
         cached_path
@@ -78,8 +79,9 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        if let Some(meta) = path.meta(&self.fs) {
+        if let Some(meta) = path.meta() {
             ctx.add_file_dependency(path.path());
             meta.is_file
         } else {
@@ -88,8 +90,9 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub(crate) fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        path.meta(&self.fs).map_or_else(
+        path.meta().map_or_else(
             || {
                 ctx.add_missing_dependency(path.path());
                 false

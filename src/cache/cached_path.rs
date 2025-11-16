@@ -26,7 +26,7 @@ pub struct CachedPathImpl {
     pub parent: Option<Weak<CachedPathImpl>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
-    pub meta: OnceLock<Option<FileMetadata>>,
+    pub meta: Option<FileMetadata>,
     pub canonicalized: OnceLock<Result<Weak<CachedPathImpl>, ResolveError>>,
     pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
@@ -34,20 +34,22 @@ pub struct CachedPathImpl {
 }
 
 impl CachedPathImpl {
-    pub fn new(
+    pub fn new<Fs: FileSystem>(
         hash: u64,
         path: Box<Path>,
         is_node_modules: bool,
         inside_node_modules: bool,
         parent: Option<Weak<Self>>,
+        fs: &Fs,
     ) -> Self {
+        let meta = fs.metadata(&path).ok();
         Self {
             hash,
             path,
             parent,
             is_node_modules,
             inside_node_modules,
-            meta: OnceLock::new(),
+            meta,
             canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
@@ -226,8 +228,8 @@ impl CachedPath {
 }
 
 impl CachedPath {
-    pub(crate) fn meta<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
-        *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
+    pub(crate) fn meta(&self) -> Option<FileMetadata> {
+        self.meta
     }
 }
 
