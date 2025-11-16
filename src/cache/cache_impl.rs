@@ -230,7 +230,8 @@ impl<Fs: FileSystem> Cache<Fs> {
         // The Result is stored inside the OnceLock to cache both success and failure cases.
         let result = path.canonicalized.get_or_init(|| {
             // Each canonicalization chain gets its own visited set for circular symlink detection
-            let mut visited = StdHashSet::new();
+            let mut visited =
+                StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
             self.canonicalize_with_visited(path, &mut visited).map(|cp| Arc::downgrade(&cp.0))
         });
 
@@ -252,7 +253,7 @@ impl<Fs: FileSystem> Cache<Fs> {
     fn canonicalize_with_visited(
         &self,
         path: &CachedPath,
-        visited: &mut StdHashSet<u64>,
+        visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
         if !visited.insert(path.hash) {
