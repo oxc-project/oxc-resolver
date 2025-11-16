@@ -4,7 +4,7 @@ use std::{
     hash::{Hash, Hasher},
     ops::Deref,
     path::{Component, Path, PathBuf},
-    sync::{Arc, Mutex, Weak, atomic::AtomicU64},
+    sync::{Arc, Weak},
 };
 
 use cfg_if::cfg_if;
@@ -27,8 +27,7 @@ pub struct CachedPathImpl {
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<FileMetadata>>,
-    pub canonicalized: Mutex<Result<Weak<CachedPathImpl>, ResolveError>>,
-    pub canonicalizing: AtomicU64,
+    pub canonicalized: OnceLock<Result<Weak<CachedPathImpl>, ResolveError>>,
     pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
@@ -49,8 +48,7 @@ impl CachedPathImpl {
             is_node_modules,
             inside_node_modules,
             meta: OnceLock::new(),
-            canonicalized: Mutex::new(Ok(Weak::new())),
-            canonicalizing: AtomicU64::new(0),
+            canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),

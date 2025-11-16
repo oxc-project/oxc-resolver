@@ -1,9 +1,10 @@
 use std::{
     borrow::Cow,
+    collections::HashSet as StdHashSet,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
     path::{Path, PathBuf},
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
 };
 
 use cfg_if::cfg_if;
@@ -15,7 +16,6 @@ use rustc_hash::FxHasher;
 use super::borrowed_path::BorrowedCachedPath;
 use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
-use super::thread_local::THREAD_ID;
 use crate::{
     FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx, path::PathUtil,
@@ -225,36 +225,54 @@ impl<Fs: FileSystem> Cache<Fs> {
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
     pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
-        // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
-        // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
-        let tid = THREAD_ID.with(|t| *t);
-        if path.canonicalizing.load(Ordering::Acquire) == tid {
+        // Use get_or_init to allow multiple threads to safely canonicalize the same path.
+        // Only one thread will perform the actual canonicalization, others will wait for the result.
+        // The Result is stored inside the OnceLock to cache both success and failure cases.
+        let result = path.canonicalized.get_or_init(|| {
+            // Each canonicalization chain gets its own visited set for circular symlink detection
+            let mut visited = StdHashSet::new();
+            self.canonicalize_with_visited(path, &mut visited).map(|cp| Arc::downgrade(&cp.0))
+        });
+
+        result.as_ref().map_err(Clone::clone).and_then(|weak| {
+            weak.upgrade().map(CachedPath).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::NotFound, "Path no longer exists").into()
+            })
+        })
+    }
+
+    /// Internal helper for canonicalization with circular symlink detection.
+    fn canonicalize_with_visited(
+        &self,
+        path: &CachedPath,
+        visited: &mut StdHashSet<u64>,
+    ) -> Result<CachedPath, ResolveError> {
+        // Check for circular symlink by tracking visited paths in the current canonicalization chain
+        if !visited.insert(path.hash) {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
-
-        let mut canonicalized_guard = path.canonicalized.lock().unwrap();
-        let canonicalized = canonicalized_guard.clone()?;
-        if let Some(cached_path) = canonicalized.upgrade() {
-            return Ok(CachedPath(cached_path));
-        }
-
-        path.canonicalizing.store(tid, Ordering::Release);
 
         let res = path.parent().map_or_else(
             || Ok(path.normalize_root(self)),
             |parent| {
-                self.canonicalize_impl(&parent).and_then(|parent_canonical| {
+                self.canonicalize_with_visited(&parent, visited).and_then(|parent_canonical| {
                     let normalized = parent_canonical
                         .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
 
                     if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
                         let link = self.fs.read_link(normalized.path())?;
                         if link.is_absolute() {
-                            return self.canonicalize_impl(&self.value(&link.normalize()));
+                            return self.canonicalize_with_visited(
+                                &self.value(&link.normalize()),
+                                visited,
+                            );
                         } else if let Some(dir) = normalized.parent() {
                             // Symlink is relative `../../foo.js`, use the path directory
                             // to resolve this symlink.
-                            return self.canonicalize_impl(&dir.normalize_with(&link, self));
+                            return self.canonicalize_with_visited(
+                                &dir.normalize_with(&link, self),
+                                visited,
+                            );
                         }
                         debug_assert!(
                             false,
@@ -268,10 +286,8 @@ impl<Fs: FileSystem> Cache<Fs> {
             },
         );
 
-        path.canonicalizing.store(0, Ordering::Release);
-        // Convert to Weak reference for storage
-        *canonicalized_guard = res.as_ref().map_err(Clone::clone).map(|cp| Arc::downgrade(&cp.0));
-
+        // Remove from visited set when unwinding the recursion
+        visited.remove(&path.hash);
         res
     }
 }
