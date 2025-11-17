@@ -125,20 +125,6 @@ fn resolve_hash_as_module() {
 }
 
 #[test]
-fn prefer_file_over_dir() {
-    let f = super::fixture_root().join("prefer-file-over-dir");
-    let resolver = Resolver::default();
-    let data = [
-        ("one level package name", f.clone(), "bar", f.join("node_modules/bar.js")),
-        ("scoped level package name", f.clone(), "@foo/bar", f.join("node_modules/@foo/bar.js")),
-    ];
-    for (comment, path, request, expected) in data {
-        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
-    }
-}
-
-#[test]
 fn resolve_edge_cases() {
     let f = super::fixture();
     let resolver = Resolver::default();

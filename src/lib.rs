@@ -882,19 +882,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
                 let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
 
-                // Perf: try the directory first for package specifiers.
                 if self.options.resolve_to_context {
                     return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
                 }
 
-                // `is_file` could be false because no extensions are considered yet,
-                // so we need to try `load_as_file` first when `specifier` does not end with a slash which indicates a dir instead.
-                if !specifier.ends_with('/')
-                    && let Some(path) = self.load_as_file(&cached_path, ctx)?
-                {
-                    return Ok(Some(path));
-                }
-
+                // Perf: try LOAD_AS_DIRECTORY first. No modern package manager creates `node_modules/X.js`.
                 if self.cache.is_dir(&cached_path, ctx) {
                     if let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)? {
                         return Ok(Some(path));
@@ -902,9 +894,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
                         return Ok(Some(path));
                     }
-                }
-
-                if let Some(path) = self.load_as_directory(&cached_path, ctx)? {
+                } else if let Some(path) = self.load_as_file(&cached_path, ctx)? {
                     return Ok(Some(path));
                 }
             }
