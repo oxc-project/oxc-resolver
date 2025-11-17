@@ -74,7 +74,7 @@ pub trait FileSystem: Send + Sync {
 }
 
 /// Metadata information about a file
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct FileMetadata {
     pub(crate) is_file: bool,
     pub(crate) is_dir: bool,

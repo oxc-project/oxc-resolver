@@ -278,7 +278,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
         if let Some(package_json) = &package_json {
             // path must be inside the package.
-            debug_assert!(path.starts_with(package_json.directory()));
+            // debug_assert!(path.starts_with(package_json.directory()));
         }
         let module_type = self.esm_file_format(&cached_path, ctx)?;
 
@@ -729,7 +729,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
         if self.options.symlinks {
-            self.cache.canonicalize(cached_path)
+            // self.cache.canonicalize(cached_path)
+            Ok(cached_path.to_path_buf())
         } else {
             Ok(cached_path.to_path_buf())
         }

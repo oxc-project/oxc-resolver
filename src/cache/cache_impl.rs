@@ -17,7 +17,7 @@ use super::borrowed_path::BorrowedCachedPath;
 use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
 use crate::{
-    FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
+    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
@@ -37,8 +37,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         self.tsconfigs.pin().clear();
     }
 
-    #[allow(clippy::cast_possible_truncation)]
-    pub(crate) fn value(&self, path: &Path) -> CachedPath {
+    fn value_impl(&self, path: &Path, metadata: Option<FileMetadata>) -> CachedPath {
         // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
         // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
         let hash = {
@@ -50,14 +49,22 @@ impl<Fs: FileSystem> Cache<Fs> {
         if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
             return entry.clone();
         }
-        let parent = path.parent().map(|p| self.value(p));
+        let parent = path.parent().map(|p| {
+            self.value_impl(
+                p,
+                Some(FileMetadata { is_file: false, is_dir: true, is_symlink: false }),
+            )
+        });
         let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
         let inside_node_modules =
             is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
         let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
+        let meta = metadata.unwrap_or_else(|| self.fs.metadata(path).unwrap_or_default());
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
+            meta.is_file,
+            meta.is_dir,
             is_node_modules,
             inside_node_modules,
             parent_weak,
@@ -66,9 +73,13 @@ impl<Fs: FileSystem> Cache<Fs> {
         cached_path
     }
 
+    #[allow(clippy::cast_possible_truncation)]
+    pub(crate) fn value(&self, path: &Path) -> CachedPath {
+        self.value_impl(path, None)
+    }
+
     pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
-        let cached_path = self.canonicalize_impl(path)?;
-        let path = cached_path.to_path_buf();
+        let path = self.canonicalize_impl(path)?;
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 crate::windows::strip_windows_prefix(path)
@@ -79,23 +90,22 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        if let Some(meta) = path.meta(&self.fs) {
+        if path.is_file {
             ctx.add_file_dependency(path.path());
-            meta.is_file
-        } else {
+            return true;
+        } else if !path.is_dir {
             ctx.add_missing_dependency(path.path());
-            false
         }
+        false
     }
 
     pub(crate) fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        path.meta(&self.fs).map_or_else(
-            || {
-                ctx.add_missing_dependency(path.path());
-                false
-            },
-            |meta| meta.is_dir,
-        )
+        if path.is_dir {
+            return true;
+        } else if !path.is_file {
+            ctx.add_missing_dependency(path.path());
+        }
+        false
     }
 
     pub(crate) fn get_package_json(
@@ -225,7 +235,8 @@ impl<Fs: FileSystem> Cache<Fs> {
     /// Returns the canonical path, resolving all symbolic links.
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
-    pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
+    pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
+        println!("--- {:?}", path.path());
         // Each canonicalization chain gets its own visited set for circular symlink detection
         let mut visited = StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
 
@@ -233,10 +244,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         self.canonicalize_with_visited(path, &mut visited).or_else(|err| {
             // Fallback: if canonicalization fails and path's cache was cleared,
             // try direct FS canonicalize without caching the result
-            self.fs
-                .canonicalize(path.path())
-                .map(|canonical| self.value(&canonical))
-                .map_err(|_| err)
+            self.fs.canonicalize(path.path()).map(|canonical| canonical).map_err(|_| err)
         })
     }
 
@@ -245,14 +253,10 @@ impl<Fs: FileSystem> Cache<Fs> {
         &self,
         path: &CachedPath,
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
-    ) -> Result<CachedPath, ResolveError> {
+    ) -> Result<PathBuf, ResolveError> {
         // Check cache first - if this path was already canonicalized, return the cached result
         if let Some(cached) = path.canonicalized.get() {
-            return cached.as_ref().map_err(Clone::clone).and_then(|weak| {
-                weak.upgrade().map(CachedPath).ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-                })
-            });
+            return cached.clone();
         }
 
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
@@ -261,31 +265,36 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
 
         let res = path.parent().map_or_else(
-            || Ok(path.normalize_root(self)),
+            || Ok(path.path().to_path_buf()),
             |parent| {
                 self.canonicalize_with_visited(&parent, visited).and_then(|parent_canonical| {
                     let normalized = parent_canonical
-                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
+                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap());
 
-                    if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
-                        let link = self.fs.read_link(normalized.path())?;
+                    // println!("aaa {:?}", path.path());
+                    if let Ok(metadata) = self.fs.symlink_metadata(path.path())
+                        && metadata.is_symlink
+                    {
+                        // println!("bb {normalized:?}");
+                        let link = self.fs.read_link(&normalized)?;
+                        // println!("link {link:?} {}", link.is_absolute());
                         if link.is_absolute() {
-                            return self.canonicalize_with_visited(
-                                &self.value(&link.normalize()),
-                                visited,
-                            );
+                            let cached_path = self.value(&link.normalize());
+                            return self.canonicalize_with_visited(&cached_path, visited);
                         } else if let Some(dir) = normalized.parent() {
                             // Symlink is relative `../../foo.js`, use the path directory
                             // to resolve this symlink.
-                            return self.canonicalize_with_visited(
-                                &dir.normalize_with(&link, self),
-                                visited,
-                            );
+                            let normalized = dir.normalize_with(&link);
+                            println!("{} {}", path.path().display(), &normalized.display());
+                            println!("{} {}", metadata.is_dir, normalized.is_dir());
+                            println!("{} {}", metadata.is_file, normalized.is_file());
+                            let cached_path = self.value(&normalized);
+                            return self.canonicalize_with_visited(&cached_path, visited);
                         }
                         debug_assert!(
                             false,
                             "Failed to get path parent for {}.",
-                            normalized.path().display()
+                            normalized.display()
                         );
                     }
 
@@ -296,8 +305,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Cache the result before removing from visited set
         // This ensures parent canonicalization results are cached and reused
-        path.canonicalized
-            .get_or_init(|| res.as_ref().map(|cp| Arc::downgrade(&cp.0)).map_err(Clone::clone));
+        path.canonicalized.get_or_init(|| res.clone());
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);

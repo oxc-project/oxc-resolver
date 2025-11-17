@@ -61,7 +61,7 @@ fn main() {
     };
     let resolver = Resolver::new(options);
 
-    packages.par_iter().for_each(|package| {
+    packages.iter().for_each(|package| {
         if let Err(err) = resolver.resolve(&cwd, package) {
             eprintln!("{package}: {err}");
         }

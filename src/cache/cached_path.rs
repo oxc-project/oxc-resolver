@@ -13,8 +13,7 @@ use once_cell::sync::OnceCell as OnceLock;
 use super::cache_impl::Cache;
 use super::thread_local::SCRATCH_PATH;
 use crate::{
-    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
-    context::ResolveContext as Ctx,
+    FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig, context::ResolveContext as Ctx,
 };
 
 #[derive(Clone)]
@@ -26,8 +25,9 @@ pub struct CachedPathImpl {
     pub parent: Option<Weak<CachedPathImpl>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
-    pub meta: OnceLock<Option<FileMetadata>>,
-    pub canonicalized: OnceLock<Result<Weak<CachedPathImpl>, ResolveError>>,
+    pub is_file: bool,
+    pub is_dir: bool,
+    pub canonicalized: OnceLock<Result<PathBuf, ResolveError>>,
     pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
@@ -37,6 +37,8 @@ impl CachedPathImpl {
     pub fn new(
         hash: u64,
         path: Box<Path>,
+        is_file: bool,
+        is_dir: bool,
         is_node_modules: bool,
         inside_node_modules: bool,
         parent: Option<Weak<Self>>,
@@ -47,7 +49,8 @@ impl CachedPathImpl {
             parent,
             is_node_modules,
             inside_node_modules,
-            meta: OnceLock::new(),
+            is_file,
+            is_dir,
             canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
@@ -226,9 +229,9 @@ impl CachedPath {
 }
 
 impl CachedPath {
-    pub(crate) fn meta<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
-        *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
-    }
+    // pub(crate) fn meta<Fs: FileSystem>(&self, fs: &Fs) -> FileMetadata {
+    // *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
+    // }
 }
 
 impl Hash for CachedPath {
