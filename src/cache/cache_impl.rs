@@ -123,6 +123,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                     .map_err(ResolveError::Json)
             })
             .cloned();
+
         // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
         match &result {
             Ok(Some(package_json)) => {
@@ -225,27 +226,17 @@ impl<Fs: FileSystem> Cache<Fs> {
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
     pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
-        // Use get_or_init to allow multiple threads to safely canonicalize the same path.
-        // Only one thread will perform the actual canonicalization, others will wait for the result.
-        // The Result is stored inside the OnceLock to cache both success and failure cases.
-        let result = path.canonicalized.get_or_init(|| {
-            // Each canonicalization chain gets its own visited set for circular symlink detection
-            let mut visited =
-                StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
-            self.canonicalize_with_visited(path, &mut visited).map(|cp| Arc::downgrade(&cp.0))
-        });
+        // Each canonicalization chain gets its own visited set for circular symlink detection
+        let mut visited = StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
 
-        result.as_ref().map_err(Clone::clone).and_then(|weak| {
-            weak.upgrade()
-                .map(CachedPath)
-                .or_else(|| {
-                    // Cache was cleared while canonicalizing. Fall back to direct FS canonicalize
-                    // without caching the result to ensure we still return the resolved path.
-                    self.fs.canonicalize(path.path()).ok().map(|canonical| self.value(&canonical))
-                })
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Path no longer exists").into()
-                })
+        // canonicalize_with_visited now handles caching at every recursion level
+        self.canonicalize_with_visited(path, &mut visited).or_else(|err| {
+            // Fallback: if canonicalization fails and path's cache was cleared,
+            // try direct FS canonicalize without caching the result
+            self.fs
+                .canonicalize(path.path())
+                .map(|canonical| self.value(&canonical))
+                .map_err(|_| err)
         })
     }
 
@@ -255,6 +246,15 @@ impl<Fs: FileSystem> Cache<Fs> {
         path: &CachedPath,
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
+        // Check cache first - if this path was already canonicalized, return the cached result
+        if let Some(cached) = path.canonicalized.get() {
+            return cached.as_ref().map_err(Clone::clone).and_then(|weak| {
+                weak.upgrade().map(CachedPath).ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
+                })
+            });
+        }
+
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
         if !visited.insert(path.hash) {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
@@ -293,6 +293,11 @@ impl<Fs: FileSystem> Cache<Fs> {
                 })
             },
         );
+
+        // Cache the result before removing from visited set
+        // This ensures parent canonicalization results are cached and reused
+        path.canonicalized
+            .get_or_init(|| res.as_ref().map(|cp| Arc::downgrade(&cp.0)).map_err(Clone::clone));
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
