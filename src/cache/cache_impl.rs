@@ -247,11 +247,9 @@ impl<Fs: FileSystem> Cache<Fs> {
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
         // Check cache first - if this path was already canonicalized, return the cached result
-        if let Some(cached) = path.canonicalized.get() {
-            return cached.as_ref().map_err(Clone::clone).and_then(|weak| {
-                weak.upgrade().map(CachedPath).ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-                })
+        if let Some(weak) = path.canonicalized.get() {
+            return weak.upgrade().map(CachedPath).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
             });
         }
 
@@ -292,15 +290,14 @@ impl<Fs: FileSystem> Cache<Fs> {
                     Ok(normalized)
                 })
             },
-        );
+        )?;
 
         // Cache the result before removing from visited set
         // This ensures parent canonicalization results are cached and reused
-        path.canonicalized
-            .get_or_init(|| res.as_ref().map(|cp| Arc::downgrade(&cp.0)).map_err(Clone::clone));
+        let _ = path.canonicalized.set(Arc::downgrade(&res.0));
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
-        res
+        Ok(res)
     }
 }

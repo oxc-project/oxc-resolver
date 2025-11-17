@@ -27,7 +27,7 @@ pub struct CachedPathImpl {
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<FileMetadata>>,
-    pub canonicalized: OnceLock<Result<Weak<CachedPathImpl>, ResolveError>>,
+    pub canonicalized: OnceLock<Weak<CachedPathImpl>>,
     pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
