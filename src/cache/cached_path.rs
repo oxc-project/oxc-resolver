@@ -13,8 +13,7 @@ use once_cell::sync::OnceCell as OnceLock;
 use super::cache_impl::Cache;
 use super::thread_local::SCRATCH_PATH;
 use crate::{
-    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
-    context::ResolveContext as Ctx,
+    FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig, context::ResolveContext as Ctx,
 };
 
 #[derive(Clone)]
@@ -26,7 +25,7 @@ pub struct CachedPathImpl {
     pub parent: Option<Weak<CachedPathImpl>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
-    pub meta: OnceLock<Option<FileMetadata>>,
+    pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
     pub canonicalized: OnceLock<Weak<CachedPathImpl>>,
     pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
@@ -226,8 +225,16 @@ impl CachedPath {
 }
 
 impl CachedPath {
-    pub(crate) fn meta<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
-        *self.meta.get_or_init(|| fs.metadata(&self.path).ok())
+    fn metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<(bool, bool)> {
+        *self.meta.get_or_init(|| fs.metadata(&self.path).ok().map(|r| (r.is_file, r.is_dir)))
+    }
+
+    pub(crate) fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
+        self.metadata(fs).map(|r| r.0)
+    }
+
+    pub(crate) fn is_dir<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
+        self.metadata(fs).map(|r| r.1)
     }
 }
 

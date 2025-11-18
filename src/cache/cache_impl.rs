@@ -79,9 +79,9 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        if let Some(meta) = path.meta(&self.fs) {
+        if path.is_file(&self.fs).is_some_and(|b| b) {
             ctx.add_file_dependency(path.path());
-            meta.is_file
+            true
         } else {
             ctx.add_missing_dependency(path.path());
             false
@@ -89,12 +89,12 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub(crate) fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        path.meta(&self.fs).map_or_else(
+        path.is_dir(&self.fs).map_or_else(
             || {
                 ctx.add_missing_dependency(path.path());
                 false
             },
-            |meta| meta.is_dir,
+            |b| b,
         )
     }
 

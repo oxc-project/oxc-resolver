@@ -52,10 +52,7 @@ fn main() {
         }
     }
 
-    // Initialize resolver
     let options = ResolveOptions {
-        alias_fields: vec![vec!["browser".into()]],
-        // ESM
         condition_names: vec!["node".into(), "import".into()],
         ..ResolveOptions::default()
     };
