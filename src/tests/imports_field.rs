@@ -15,7 +15,7 @@ fn test_simple() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        main_files: vec!["index.js".into()],
+        main_files: vec!["index".into()],
         condition_names: vec!["webpack".into()],
         ..ResolveOptions::default()
     });

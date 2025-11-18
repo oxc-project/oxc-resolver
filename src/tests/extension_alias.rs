@@ -57,7 +57,7 @@ fn not_apply_to_extension_nor_main_files() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".js".into()],
-        main_files: vec!["index.js".into()],
+        main_files: vec!["index".into()],
         extension_alias: vec![(".js".into(), vec![])],
         ..ResolveOptions::default()
     });

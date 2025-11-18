@@ -756,7 +756,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         for main_file in &self.options.main_files {
             let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
             if self.options.enforce_extension.is_disabled()
-                && let Some(path) = self.load_alias_or_file(&cached_path, ctx)?
+                && let Some(path) = self.load_browser_field_or_alias(&cached_path, ctx)?
                 && self.check_restrictions(path.path())
             {
                 return Ok(Some(path));
@@ -1515,7 +1515,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 .clone_with_options(ResolveOptions {
                     tsconfig: None,
                     extensions: vec![".json".into()],
-                    main_files: vec!["tsconfig.json".into()],
+                    main_files: vec!["tsconfig".into()],
                     #[cfg(feature = "yarn_pnp")]
                     yarn_pnp: self.options.yarn_pnp,
                     #[cfg(feature = "yarn_pnp")]

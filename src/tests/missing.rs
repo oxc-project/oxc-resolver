@@ -37,7 +37,6 @@ fn test() {
         (
             "m1/",
             vec![
-                f.join("node_modules/m1/index"),
                 f.join("node_modules/m1/index.js"),
                 f.join("node_modules/m1/index.json"),
                 f.join("node_modules/m1/index.node"),
