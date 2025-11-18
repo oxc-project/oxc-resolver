@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fmt::Debug,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
@@ -11,7 +12,17 @@ use serde::Deserialize;
 
 use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
 
+/// Template variable `${configDir}` for substitution of config files
+/// directory path.
+///
+/// NOTE: All tests cases are just a head replacement of `${configDir}`, so
+///       we are constrained as such.
+///
+/// See <https://github.com/microsoft/TypeScript/pull/58042>.
+/// Allow list: <https://github.com/microsoft/TypeScript/issues/57485#issuecomment-2027787456>
 const TEMPLATE_VARIABLE: &str = "${configDir}";
+
+const GLOB_ALL_PATTERN: &str = "**/*";
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
@@ -36,13 +47,13 @@ pub struct TsConfig {
     pub path: PathBuf,
 
     #[serde(default)]
-    pub files: Option<Vec<String>>,
+    pub files: Option<Vec<PathBuf>>,
 
     #[serde(default)]
-    pub include: Option<Vec<String>>,
+    pub include: Option<Vec<PathBuf>>,
 
     #[serde(default)]
-    pub exclude: Option<Vec<String>>,
+    pub exclude: Option<Vec<PathBuf>>,
 
     #[serde(default)]
     pub extends: Option<ExtendsField>,
@@ -57,7 +68,7 @@ pub struct TsConfig {
     ///
     /// Corresponds to each item in [TsConfig::references].
     #[serde(skip)]
-    pub references_resolved: Vec<Arc<TsConfig>>,
+    pub references_resolved: Vec<Arc<Self>>,
 }
 
 impl TsConfig {
@@ -301,12 +312,23 @@ impl TsConfig {
 
         let config_dir = self.directory().to_path_buf();
 
+        // Substitute template variable in `tsconfig.files`.
+        if let Some(files) = self.files.take() {
+            self.files = Some(files.into_iter().map(|p| self.adjust_path(p)).collect());
+        }
+
+        // Substitute template variable in `tsconfig.include`.
+        if let Some(includes) = self.include.take() {
+            self.include = Some(includes.into_iter().map(|p| self.adjust_path(p)).collect());
+        }
+
+        // Substitute template variable in `tsconfig.exclude`.
+        if let Some(excludes) = self.exclude.take() {
+            self.exclude = Some(excludes.into_iter().map(|p| self.adjust_path(p)).collect());
+        }
+
         if let Some(base_url) = &self.compiler_options.base_url {
-            // Substitute template variable in `tsconfig.compilerOptions.baseUrl`.
-            let base_url = base_url.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE).map_or_else(
-                || config_dir.normalize_with(base_url),
-                |stripped_path| config_dir.join(stripped_path.trim_start_matches('/')),
-            );
+            let base_url = self.adjust_path(base_url.clone());
             self.compiler_options.base_url = Some(base_url);
         }
 
@@ -324,7 +346,12 @@ impl TsConfig {
             // Substitute template variable in `tsconfig.compilerOptions.paths`.
             for paths in self.compiler_options.paths.as_mut().unwrap().values_mut() {
                 for path in paths {
-                    Self::substitute_template_variable(&config_dir, path);
+                    if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
+                        *path = config_dir
+                            .join(stripped_path.trim_start_matches('/'))
+                            .to_string_lossy()
+                            .to_string();
+                    }
                 }
             }
         }
@@ -332,17 +359,12 @@ impl TsConfig {
         self
     }
 
-    /// Template variable `${configDir}` for substitution of config files
-    /// directory path.
-    ///
-    /// NOTE: All tests cases are just a head replacement of `${configDir}`, so
-    ///       we are constrained as such.
-    ///
-    /// See <https://github.com/microsoft/TypeScript/pull/58042>.
-    pub(crate) fn substitute_template_variable(directory: &Path, path: &mut String) {
-        if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
-            *path =
-                directory.join(stripped_path.trim_start_matches('/')).to_string_lossy().to_string();
+    #[expect(clippy::option_if_let_else)]
+    fn adjust_path(&self, path: PathBuf) -> PathBuf {
+        if let Some(stripped) = path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE) {
+            self.directory().join(stripped.trim_start_matches('/'))
+        } else {
+            self.directory().normalize_with(path)
         }
     }
 
@@ -491,4 +513,102 @@ pub struct CompilerOptions {
 pub enum ExtendsField {
     Single(String),
     Multiple(Vec<String>),
+}
+
+#[derive(Clone, Copy)]
+enum GlobPattern<'a> {
+    Pattern(&'a [PathBuf]),
+    All,
+}
+
+/// Tsconfig resolver
+impl TsConfig {
+    pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
+        if !tsconfig.references_resolved.is_empty()
+            && tsconfig.is_file_extension_allowed_in_tsconfig(path)
+            && !tsconfig.is_file_included_in_tsconfig(path)
+            && let Some(solution_tsconfig) = tsconfig
+                .references_resolved
+                .iter()
+                .find(|referenced| referenced.is_file_included_in_tsconfig(path))
+                .map(Arc::clone)
+        {
+            return solution_tsconfig;
+        }
+        tsconfig
+    }
+
+    fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {
+        // 1. Check files array (highest priority - overrides exclude)
+        if self.files.as_ref().is_some_and(|files| files.iter().any(|file| Path::new(file) == path))
+        {
+            return true;
+        }
+        // 2. Check include patterns
+        let is_included = self.include.as_ref().map_or_else(
+            || {
+                if self.files.is_some() {
+                    false
+                } else {
+                    self.is_glob_matches(path, GlobPattern::All)
+                }
+            },
+            |include_patterns| self.is_glob_matches(path, GlobPattern::Pattern(include_patterns)),
+        );
+        // 3. Check exclude patterns
+        if is_included {
+            return self.exclude.as_ref().is_none_or(|exclude_patterns| {
+                !self.is_glob_matches(path, GlobPattern::Pattern(exclude_patterns))
+            });
+        }
+        false
+    }
+
+    fn is_glob_matches(&self, path: &Path, pattern: GlobPattern) -> bool {
+        let path_str = path.to_string_lossy().replace('\\', "/");
+        match pattern {
+            GlobPattern::All => self.is_glob_match(GLOB_ALL_PATTERN, path, &path_str),
+            GlobPattern::Pattern(patterns) => patterns.iter().any(|pattern| {
+                let pattern = pattern.to_string_lossy().replace('\\', "/");
+                self.is_glob_match(pattern.as_ref(), path, &path_str)
+            }),
+        }
+    }
+
+    fn is_glob_match(&self, pattern: &str, path: &Path, path_str: &str) -> bool {
+        if pattern == path_str {
+            return true;
+        }
+        // Special case: **/* matches everything
+        if pattern == GLOB_ALL_PATTERN {
+            return true;
+        }
+        // Normalize pattern: add implicit /**/* for directory patterns
+        // Find the part after the last '/' to check if it looks like a directory
+        let after_last_slash = pattern.rsplit('/').next().unwrap_or(pattern);
+        let needs_implicit_glob = !after_last_slash.contains(['.', '*', '?']);
+        let pattern = if needs_implicit_glob {
+            Cow::Owned(format!(
+                "{pattern}{}",
+                if pattern.ends_with('/') { "**/*" } else { "/**/*" }
+            ))
+        } else {
+            Cow::Borrowed(pattern)
+        };
+        // Fast check: if pattern ends with *, filename must have valid extension
+        if pattern.ends_with('*') && !self.is_file_extension_allowed_in_tsconfig(path) {
+            return false;
+        }
+        fast_glob::glob_match(pattern.as_ref(), path_str)
+    }
+
+    fn is_file_extension_allowed_in_tsconfig(&self, path: &Path) -> bool {
+        const TS_EXTENSIONS: [&str; 4] = ["ts", "tsx", "mts", "cts"];
+        const JS_EXTENSIONS: [&str; 4] = ["js", "jsx", "mjs", "cjs"];
+        let allow_js = self.compiler_options.allow_js.is_some_and(|b| b);
+        path.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| {
+            TS_EXTENSIONS.contains(&ext)
+                || if allow_js { JS_EXTENSIONS.contains(&ext) } else { false }
+        })
+    }
 }

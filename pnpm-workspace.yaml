@@ -2,6 +2,7 @@ packages:
   - npm
   - napi
   - fixtures/pnpm
+  - fixtures/tsconfck
   - fixtures/pnpm-workspace/**
 
 ignoredBuiltDependencies:
