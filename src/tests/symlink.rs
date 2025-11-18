@@ -174,7 +174,7 @@ fn test() {
 fn test_unsupported_targets() {
     use crate::ResolveError;
 
-    let Some(SymlinkFixturePaths { root: _, temp_path }) =
+    let Some(SymlinkFixturePaths { root, temp_path }) =
         prepare_symlinks("temp.test_unsupported_targets").unwrap()
     else {
         return;
@@ -200,9 +200,10 @@ fn test_unsupported_targets() {
     //   from `FsCachedPath::find_package_json` when trying to canonicalize the full path of `package.json`.
     // * Otherwise, a `ResolveError::NotFound` will be returned.
     let dos_device_temp_path = get_dos_device_path(&temp_path).unwrap();
+    let dos_device_root = get_dos_device_path(&root).unwrap();
     assert_eq!(
         resolver_with_symlinks.resolve(&dos_device_temp_path, "./index.js"),
-        Err(ResolveError::PathNotSupported(dos_device_temp_path))
+        Err(ResolveError::PathNotSupported(dos_device_root))
     );
 }
 

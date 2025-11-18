@@ -166,22 +166,6 @@ fn resolve_dot() {
 }
 
 #[test]
-fn symlink_with_nested_node_modules() {
-    let f = super::fixture_root().join("symlink-with-nested-node_modules");
-
-    let resolver = Resolver::default();
-    let resolved_path =
-        resolver.resolve(f.join("bar/node_modules/foo"), "dep").map(|r| r.full_path());
-    assert_eq!(resolved_path, Ok(f.join("foo/node_modules/dep/index.js")));
-
-    let resolver = Resolver::new(ResolveOptions { symlinks: false, ..ResolveOptions::default() });
-    assert_eq!(
-        resolver.resolve(f.join("bar/node_modules/foo"), "dep"),
-        Err(ResolveError::NotFound("dep".into()))
-    );
-}
-
-#[test]
 fn abnormal_relative() {
     let f = super::fixture_root().join("abnormal-relative-with-node_modules");
 

@@ -1,6 +1,6 @@
 //! Tests for `Resolution::package_json`.
 
-use crate::{ResolveError, Resolver};
+use crate::Resolver;
 
 #[test]
 fn test() {
@@ -68,8 +68,9 @@ fn package_json_with_symlinks_true() {
 fn test_corrupted_package_json() {
     use std::path::Path;
 
+    use crate::{ResolveError, ResolveOptions, ResolverGeneric};
+
     use super::memory_fs::MemoryFS;
-    use crate::{ResolveOptions, ResolverGeneric};
 
     // Test scenarios for various corrupted package.json files
     let scenarios = [
