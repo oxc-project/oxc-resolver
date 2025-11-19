@@ -230,7 +230,7 @@ impl PackageJson {
         let json_bytes = if json.starts_with(b"\xEF\xBB\xBF") { &json[3..] } else { &json[..] };
 
         // Check if empty after BOM stripping
-        super::check_if_empty(json_bytes, path.clone())?;
+        super::check_if_empty(json_bytes, &path)?;
 
         // Parse JSON directly from bytes
         let value = serde_json::from_slice::<Value>(json_bytes).map_err(|error| JSONError {

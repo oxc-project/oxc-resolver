@@ -11,6 +11,7 @@ use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
 use once_cell::sync::OnceCell;
 use papaya::{HashMap, HashSet};
+use parking_lot::RwLock;
 use rustc_hash::FxHasher;
 
 use super::borrowed_path::BorrowedCachedPath;
@@ -21,11 +22,14 @@ use crate::{
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
+pub type PackageJsonIndex = usize;
+
 /// Cache implementation used for caching filesystem access.
 #[derive(Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
+    pub(crate) package_jsons: RwLock<Vec<Arc<PackageJson>>>,
     pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
@@ -35,6 +39,7 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
         self.paths.pin().clear();
         self.tsconfigs.pin().clear();
+        self.package_jsons.write().clear();
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -110,38 +115,48 @@ impl<Fs: FileSystem> Cache<Fs> {
             .get_or_try_init(|| {
                 let package_json_path = path.path.join("package.json");
                 let Ok(package_json_bytes) = self.fs.read(&package_json_path) else {
+                    if let Some(deps) = &mut ctx.missing_dependencies {
+                        deps.push(package_json_path);
+                    }
                     return Ok(None);
                 };
-
                 let real_path = if options.symlinks {
                     self.canonicalize(path)?.join("package.json")
                 } else {
                     package_json_path.clone()
                 };
-                PackageJson::parse(&self.fs, package_json_path, real_path, package_json_bytes)
-                    .map(|package_json| Some(Arc::new(package_json)))
-                    .map_err(ResolveError::Json)
+                PackageJson::parse(
+                    &self.fs,
+                    package_json_path.clone(),
+                    real_path,
+                    package_json_bytes,
+                )
+                .map(|package_json| {
+                    let arc = Arc::new(package_json);
+                    let index = {
+                        let mut arena = self.package_jsons.write();
+                        let index = arena.len();
+                        arena.push(arc);
+                        index
+                    };
+                    Some(index)
+                })
+                .map_err(ResolveError::Json)
+                // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
+                .inspect(|_| {
+                    ctx.add_file_dependency(&package_json_path);
+                })
+                .inspect_err(|_| {
+                    if let Some(deps) = &mut ctx.file_dependencies {
+                        deps.push(package_json_path.clone());
+                    }
+                })
             })
             .cloned();
 
-        // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
-        match &result {
-            Ok(Some(package_json)) => {
-                ctx.add_file_dependency(&package_json.path);
-            }
-            Ok(None) => {
-                // Avoid an allocation by making this lazy
-                if let Some(deps) = &mut ctx.missing_dependencies {
-                    deps.push(path.path.join("package.json"));
-                }
-            }
-            Err(_) => {
-                if let Some(deps) = &mut ctx.file_dependencies {
-                    deps.push(path.path.join("package.json"));
-                }
-            }
-        }
-        result
+        result.map(|option_index| {
+            option_index.and_then(|index| self.package_jsons.read().get(index).cloned())
+        })
     }
 
     pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
@@ -213,6 +228,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
+            package_jsons: RwLock::new(Vec::with_capacity(512)),
             tsconfigs: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)

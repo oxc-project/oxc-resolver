@@ -14,15 +14,20 @@ pub use serde::*;
 #[cfg(target_endian = "little")]
 pub use simd::*;
 
-use std::{fmt, path::PathBuf};
+use std::{fmt, path::Path};
 
 use crate::JSONError;
 
 /// Check if JSON content is empty or contains only whitespace
-fn check_if_empty(json_bytes: &[u8], path: PathBuf) -> Result<(), JSONError> {
+fn check_if_empty(json_bytes: &[u8], path: &Path) -> Result<(), JSONError> {
     // Check if content is empty or whitespace-only
     if json_bytes.iter().all(|&b| b.is_ascii_whitespace()) {
-        return Err(JSONError { path, message: "File is empty".to_string(), line: 0, column: 0 });
+        return Err(JSONError {
+            path: path.to_path_buf(),
+            message: "File is empty".to_string(),
+            line: 0,
+            column: 0,
+        });
     }
     Ok(())
 }

@@ -269,7 +269,7 @@ impl PackageJson {
         }
 
         // Check if empty after BOM stripping
-        super::check_if_empty(&json_bytes, path.clone())?;
+        super::check_if_empty(&json_bytes, &path)?;
 
         // Create the self-cell with the JSON bytes and parsed BorrowedValue
         let cell = PackageJsonCell::try_new(MutBorrow::new(json_bytes), |bytes| {
