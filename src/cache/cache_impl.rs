@@ -103,22 +103,74 @@ impl<Fs: FileSystem> Cache<Fs> {
         )
     }
 
+    /// Get package.json of a path of `path`.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::Json]
     pub(crate) fn get_package_json(
         &self,
         path: &CachedPath,
         options: &ResolveOptions,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+        self.find_package_json(path, options, ctx).map(|option_package_json| {
+            option_package_json.filter(|package_json| {
+                package_json
+                    .path()
+                    .parent()
+                    .is_some_and(|p| p.as_os_str() == path.path().as_os_str())
+            })
+        })
+    }
+
+    /// Find package.json of a path by traversing parent directories.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::Json]
+    pub(crate) fn find_package_json(
+        &self,
+        path: &CachedPath,
+        options: &ResolveOptions,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+        let mut path = path.clone();
+        // Go up directories when the querying path is not a directory
+        while !self.is_dir(&path, ctx) {
+            if let Some(cv) = path.parent() {
+                path = cv;
+            } else {
+                break;
+            }
+        }
+        self.find_package_json_impl(&path, options, ctx).map(|option_index| {
+            option_index.and_then(|index| self.package_jsons.read().get(index).cloned())
+        })
+    }
+
+    /// Find package.json of a path by traversing parent directories.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::Json]
+    fn find_package_json_impl(
+        &self,
+        path: &CachedPath,
+        options: &ResolveOptions,
+        ctx: &mut Ctx,
+    ) -> Result<Option<PackageJsonIndex>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
-        let result = path
-            .package_json
+        path.package_json
             .get_or_try_init(|| {
                 let package_json_path = path.path.join("package.json");
                 let Ok(package_json_bytes) = self.fs.read(&package_json_path) else {
                     if let Some(deps) = &mut ctx.missing_dependencies {
                         deps.push(package_json_path);
                     }
-                    return Ok(None);
+                    return path.parent().map_or(Ok(None), |parent| {
+                        self.find_package_json_impl(&parent, options, ctx)
+                    });
                 };
                 let real_path = if options.symlinks {
                     self.canonicalize(path)?.join("package.json")
@@ -152,11 +204,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                     }
                 })
             })
-            .cloned();
-
-        result.map(|option_index| {
-            option_index.and_then(|index| self.package_jsons.read().get(index).cloned())
-        })
+            .cloned()
     }
 
     pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(

@@ -304,7 +304,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             Ok(last)
         } else {
-            cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)
+            self.cache.find_package_json(cached_path, &self.options, ctx)
         }
     }
 
@@ -594,8 +594,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
-        let Some(package_json) =
-            cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
         else {
             return Ok(None);
         };
@@ -778,7 +777,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         if !self.options.alias_fields.is_empty()
             && let Some(package_json) =
-                cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
+                self.cache.find_package_json(cached_path, &self.options, ctx)?
             && let Some(path) = self.load_browser_field(cached_path, None, &package_json, ctx)?
         {
             return Ok(Some(path));
@@ -1030,8 +1029,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         // 1. Find the closest package scope SCOPE to DIR.
         // 2. If no scope was found, return.
-        let Some(package_json) =
-            cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
         else {
             return Ok(None);
         };
@@ -2104,8 +2102,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             Some("js" | "ts") => {
                 // 7. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(url).
                 // 8. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
-                let package_json =
-                    cached_path.find_package_json(&self.options, self.cache.as_ref(), ctx)?;
+                let package_json = self.cache.find_package_json(cached_path, &self.options, ctx)?;
                 // 9. Let packageType be null.
                 if let Some(package_json) = package_json {
                     // 10. If pjson?.type is "module" or "commonjs", then

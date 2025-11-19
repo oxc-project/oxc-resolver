@@ -13,9 +13,7 @@ use once_cell::sync::OnceCell as OnceLock;
 use super::cache_impl::Cache;
 use super::cache_impl::PackageJsonIndex;
 use super::thread_local::SCRATCH_PATH;
-use crate::{
-    FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig, context::ResolveContext as Ctx,
-};
+use crate::{FileSystem, TsConfig, context::ResolveContext as Ctx};
 
 #[derive(Clone)]
 pub struct CachedPath(pub Arc<CachedPathImpl>);
@@ -106,36 +104,6 @@ impl CachedPath {
             })
             .as_ref()
             .and_then(|weak| weak.upgrade().map(CachedPath))
-    }
-
-    /// Find package.json of a path by traversing parent directories.
-    ///
-    /// # Errors
-    ///
-    /// * [ResolveError::Json]
-    pub(crate) fn find_package_json<Fs: FileSystem>(
-        &self,
-        options: &ResolveOptions,
-        cache: &Cache<Fs>,
-        ctx: &mut Ctx,
-    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
-        let mut cache_value = self.clone();
-        // Go up directories when the querying path is not a directory
-        while !cache.is_dir(&cache_value, ctx) {
-            if let Some(cv) = cache_value.parent() {
-                cache_value = cv;
-            } else {
-                break;
-            }
-        }
-        let mut cache_value = Some(cache_value);
-        while let Some(cv) = cache_value {
-            if let Some(package_json) = cache.get_package_json(&cv, options, ctx)? {
-                return Ok(Some(package_json));
-            }
-            cache_value = cv.parent();
-        }
-        Ok(None)
     }
 
     pub(crate) fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
