@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "allowJs": true,
+    "paths": {
+      "root/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "./packages/pkg-a" },
+    { "path": "./packages/pkg-b" },
+    { "path": "./packages/pkg-c" }
+  ]
+}
