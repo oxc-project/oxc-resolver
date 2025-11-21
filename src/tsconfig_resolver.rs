@@ -95,9 +95,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             if tsconfig.load_references(references) {
                 let path = tsconfig.path().to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
-                for reference in tsconfig.references_mut() {
-                    let reference_tsconfig_path = directory.normalize_with(reference.path());
-                    let tsconfig = self.cache.get_tsconfig(
+                for reference in &tsconfig.references {
+                    let reference_tsconfig_path = directory.normalize_with(&reference.path);
+                    let referenced_tsconfig = self.cache.get_tsconfig(
                         /* root */ true,
                         &reference_tsconfig_path,
                         |reference_tsconfig| {
@@ -114,7 +114,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                             Ok(())
                         },
                     )?;
-                    reference.set_tsconfig(tsconfig);
+                    tsconfig.references_resolved.push(referenced_tsconfig);
                 }
             }
             Ok(())

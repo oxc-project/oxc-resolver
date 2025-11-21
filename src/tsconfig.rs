@@ -15,6 +15,14 @@ const TEMPLATE_VARIABLE: &str = "${configDir}";
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
 
+/// Project Reference
+///
+/// <https://www.typescriptlang.org/docs/handbook/project-references.html>
+#[derive(Debug, Deserialize)]
+pub struct ProjectReference {
+    pub path: PathBuf,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
@@ -42,9 +50,14 @@ pub struct TsConfig {
     #[serde(default)]
     pub compiler_options: CompilerOptions,
 
-    /// Bubbled up project references with a reference to their tsconfig.
     #[serde(default)]
     pub references: Vec<ProjectReference>,
+
+    /// Resolved project references.
+    ///
+    /// Corresponds to each item in [TsConfig::references].
+    #[serde(skip)]
+    pub references_resolved: Vec<Arc<TsConfig>>,
 }
 
 impl TsConfig {
@@ -111,24 +124,12 @@ impl TsConfig {
             }
             TsconfigReferences::Auto => {}
             TsconfigReferences::Paths(paths) => {
-                self.references = paths
-                    .iter()
-                    .map(|path| ProjectReference { path: path.clone(), tsconfig: None })
-                    .collect();
+                self.references =
+                    paths.iter().map(|path| ProjectReference { path: path.clone() }).collect();
             }
         }
 
         !self.references.is_empty()
-    }
-
-    /// Returns references to other tsconfig files.
-    pub(crate) fn references(&self) -> impl Iterator<Item = &ProjectReference> {
-        self.references.iter()
-    }
-
-    /// Returns mutable references to other tsconfig files.
-    pub(crate) fn references_mut(&mut self) -> impl Iterator<Item = &mut ProjectReference> {
-        self.references.iter_mut()
     }
 
     /// Returns the base path from which to resolve aliases.
@@ -348,7 +349,7 @@ impl TsConfig {
     #[must_use]
     pub(crate) fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
         let paths = self.resolve_path_alias(specifier);
-        for tsconfig in self.references().filter_map(ProjectReference::tsconfig) {
+        for tsconfig in &self.references_resolved {
             if path.starts_with(tsconfig.base_path()) {
                 return [tsconfig.resolve_path_alias(specifier), paths].concat();
             }
@@ -666,36 +667,6 @@ impl CompilerOptions {
 pub enum ExtendsField {
     Single(String),
     Multiple(Vec<String>),
-}
-
-/// Project Reference
-///
-/// <https://www.typescriptlang.org/docs/handbook/project-references.html>
-#[derive(Debug, Deserialize)]
-pub struct ProjectReference {
-    pub path: PathBuf,
-
-    #[serde(skip)]
-    pub tsconfig: Option<Arc<TsConfig>>,
-}
-
-impl ProjectReference {
-    /// Returns the path to a directory containing a `tsconfig.json` file, or to
-    /// the config file itself (which may have any name).
-    #[must_use]
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-    /// Returns the resolved tsconfig, if one has been set.
-    #[must_use]
-    pub fn tsconfig(&self) -> Option<Arc<TsConfig>> {
-        self.tsconfig.clone()
-    }
-
-    /// Sets the resolved tsconfig.
-    pub fn set_tsconfig(&mut self, tsconfig: Arc<TsConfig>) {
-        self.tsconfig.replace(tsconfig);
-    }
 }
 
 impl TsConfig {
