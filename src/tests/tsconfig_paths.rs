@@ -272,7 +272,7 @@ fn test_merge_tsconfig() {
     let resolver = Resolver::default();
     let dir = super::fixture_root().join("tsconfig/cases/merge_compiler_options");
     let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
-    let compiler_options = resolution.compiler_options();
+    let compiler_options = &resolution.compiler_options;
     assert_eq!(compiler_options.experimental_decorators, Some(true));
     assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
     assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
@@ -287,7 +287,7 @@ fn test_no_merge_tsconfig() {
     let resolver = Resolver::default();
     let dir = super::fixture_root().join("tsconfig/cases/no_merge_compiler_options");
     let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
-    let compiler_options = resolution.compiler_options();
+    let compiler_options = &resolution.compiler_options;
     assert_eq!(compiler_options.experimental_decorators, Some(true));
     assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
     assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));

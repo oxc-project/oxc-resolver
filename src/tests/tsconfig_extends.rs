@@ -28,7 +28,7 @@ fn test_extend_tsconfig() {
     assert_eq!(resolution.include, Some(vec!["include".to_string()]));
     assert_eq!(resolution.exclude, Some(vec!["exclude".to_string()]));
 
-    let compiler_options = resolution.compiler_options();
+    let compiler_options = &resolution.compiler_options;
     assert_eq!(compiler_options.base_url, Some(f.join("src")));
     assert_eq!(compiler_options.allow_js, Some(true));
     assert_eq!(compiler_options.emit_decorator_metadata, Some(true));
@@ -72,7 +72,7 @@ fn test_extend_tsconfig_override_behavior() {
     });
 
     let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
-    let compiler_options = resolution.compiler_options();
+    let compiler_options = &resolution.compiler_options;
 
     // Child should override parent values
     assert_eq!(compiler_options.jsx, Some("react".to_string()));
@@ -128,7 +128,7 @@ fn test_extend_tsconfig_multiple_inheritance() {
     });
 
     let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
-    let compiler_options = resolution.compiler_options();
+    let compiler_options = &resolution.compiler_options;
 
     // Should have settings from all configs in the chain
     assert_eq!(compiler_options.experimental_decorators, Some(true));
@@ -149,7 +149,7 @@ fn test_extend_tsconfig_preserves_child_settings() {
     });
 
     let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
-    let compiler_options = resolution.compiler_options();
+    let compiler_options = &resolution.compiler_options;
 
     // Child should preserve its own settings and not inherit conflicting ones
     assert_eq!(compiler_options.jsx, Some("preserve".to_string())); // Child value
@@ -185,7 +185,7 @@ fn test_extend_tsconfig_no_override_existing() {
     child_tsconfig.extend_tsconfig(&parent_tsconfig);
     let child_built = child_tsconfig.build();
 
-    let compiler_options = child_built.compiler_options();
+    let compiler_options = &child_built.compiler_options;
 
     // Child's jsx should be preserved
     assert_eq!(compiler_options.jsx, Some("preserve".to_string()));

@@ -218,6 +218,6 @@ fn test_resolve_tsconfig_extends_with_pnp() {
     });
 
     let resolution = resolver.resolve_tsconfig(&fixture).expect("resolved");
-    let compiler_options = resolution.compiler_options();
+    let compiler_options = &resolution.compiler_options;
     assert_eq!(compiler_options.target, Some("esnext".to_string()));
 }
