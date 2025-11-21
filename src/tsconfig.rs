@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use crate::{TsconfigReferences, path::PathUtil};
+use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
 
 const TEMPLATE_VARIABLE: &str = "${configDir}";
 
@@ -23,7 +23,7 @@ pub struct ProjectReference {
     pub path: PathBuf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
     /// Whether this is the caller tsconfig.
@@ -66,11 +66,15 @@ impl TsConfig {
     /// # Errors
     ///
     /// * Any error that can be returned by `serde_json::from_str()`.
-    pub fn parse(root: bool, path: &Path, json: &mut str) -> Result<Self, serde_json::Error> {
-        let json = trim_start_matches_mut(json, '\u{feff}'); // strip bom
-        _ = json_strip_comments::strip(json);
-        let mut tsconfig: Self =
-            serde_json::from_str(if json.trim().is_empty() { "{}" } else { json })?;
+    pub fn parse(root: bool, path: &Path, json: String) -> Result<Self, serde_json::Error> {
+        let mut json = json.into_bytes();
+        replace_bom_with_whitespace(&mut json);
+        _ = json_strip_comments::strip_slice(&mut json);
+        let mut tsconfig: Self = if json.iter().all(u8::is_ascii_whitespace) {
+            Self::default()
+        } else {
+            serde_json::from_slice(&json)?
+        };
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         Ok(tsconfig)
@@ -487,13 +491,4 @@ pub struct CompilerOptions {
 pub enum ExtendsField {
     Single(String),
     Multiple(Vec<String>),
-}
-
-fn trim_start_matches_mut(s: &mut str, pat: char) -> &mut str {
-    if s.starts_with(pat) {
-        // trim the prefix
-        &mut s[pat.len_utf8()..]
-    } else {
-        s
-    }
 }

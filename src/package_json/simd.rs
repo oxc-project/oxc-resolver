@@ -11,7 +11,7 @@ use self_cell::MutBorrow;
 use simd_json::{BorrowedValue, prelude::*};
 
 use super::{ImportsExportsKind, PackageType, SideEffects};
-use crate::{FileSystem, JSONError, ResolveError, path::PathUtil};
+use crate::{FileSystem, JSONError, ResolveError, path::PathUtil, replace_bom_with_whitespace};
 
 // Use simd_json's Object type which handles the hasher correctly based on features
 type BorrowedObject<'a> = simd_json::value::borrowed::Object<'a>;
@@ -260,19 +260,14 @@ impl PackageJson {
         realpath: PathBuf,
         json: Vec<u8>,
     ) -> Result<Self, JSONError> {
-        // Strip BOM in place by replacing with spaces (no reallocation)
-        let mut json_bytes = json;
-        if json_bytes.starts_with(b"\xEF\xBB\xBF") {
-            json_bytes[0] = b' ';
-            json_bytes[1] = b' ';
-            json_bytes[2] = b' ';
-        }
+        let mut json = json;
+        replace_bom_with_whitespace(&mut json);
 
         // Check if empty after BOM stripping
-        super::check_if_empty(&json_bytes, &path)?;
+        super::check_if_empty(&json, &path)?;
 
         // Create the self-cell with the JSON bytes and parsed BorrowedValue
-        let cell = PackageJsonCell::try_new(MutBorrow::new(json_bytes), |bytes| {
+        let cell = PackageJsonCell::try_new(MutBorrow::new(json), |bytes| {
             // Use MutBorrow to safely get mutable access for simd_json parsing
             simd_json::to_borrowed_value(bytes.borrow_mut())
         })

@@ -227,12 +227,12 @@ impl<Fs: FileSystem> Cache<Fs> {
             os_string.push(".json");
             Cow::Owned(PathBuf::from(os_string))
         };
-        let mut tsconfig_string = self
+        let tsconfig_string = self
             .fs
             .read_to_string(&tsconfig_path)
             .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
         let mut tsconfig =
-            TsConfig::parse(root, &tsconfig_path, &mut tsconfig_string).map_err(|error| {
+            TsConfig::parse(root, &tsconfig_path, tsconfig_string).map_err(|error| {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
         callback(&mut tsconfig)?;

@@ -1926,3 +1926,13 @@ fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> 
         Ok(Cow::Borrowed(specifier))
     }
 }
+
+/// Strip BOM in place by replacing with spaces (no reallocation)
+/// UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
+pub(crate) fn replace_bom_with_whitespace(s: &mut [u8]) {
+    if s.starts_with(b"\xEF\xBB\xBF") {
+        s[0] = b' ';
+        s[1] = b' ';
+        s[2] = b' ';
+    }
+}

@@ -9,8 +9,9 @@ use std::{
 
 use serde_json::Value;
 
+use crate::{FileSystem, JSONError, ResolveError, path::PathUtil, replace_bom_with_whitespace};
+
 use super::{ImportsExportsKind, PackageType, SideEffects};
-use crate::{FileSystem, JSONError, ResolveError, path::PathUtil};
 
 /// Serde implementation for the deserialized `package.json`.
 ///
@@ -226,20 +227,15 @@ impl PackageJson {
         realpath: PathBuf,
         json: Vec<u8>,
     ) -> Result<Self, JSONError> {
-        // Strip BOM - UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
-        let json_bytes = if json.starts_with(b"\xEF\xBB\xBF") { &json[3..] } else { &json[..] };
-
-        // Check if empty after BOM stripping
-        super::check_if_empty(json_bytes, &path)?;
-
-        // Parse JSON directly from bytes
-        let value = serde_json::from_slice::<Value>(json_bytes).map_err(|error| JSONError {
+        let mut json = json;
+        replace_bom_with_whitespace(&mut json);
+        super::check_if_empty(&json, &path)?;
+        let value = serde_json::from_slice::<Value>(&json).map_err(|error| JSONError {
             path: path.clone(),
             message: error.to_string(),
             line: error.line(),
             column: error.column(),
         })?;
-
         Ok(Self { path, realpath, value })
     }
 

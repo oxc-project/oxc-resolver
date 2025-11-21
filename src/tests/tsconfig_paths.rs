@@ -175,7 +175,7 @@ fn empty() {
 #[test]
 fn test_paths() {
     let path = Path::new("/foo/tsconfig.json");
-    let mut tsconfig_json = serde_json::json!({
+    let tsconfig_json = serde_json::json!({
         "compilerOptions": {
             "paths": {
                 "jquery": ["node_modules/jquery/dist/jquery"],
@@ -188,7 +188,7 @@ fn test_paths() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap().build();
+    let tsconfig = TsConfig::parse(true, path, tsconfig_json).unwrap().build();
 
     let data = [
         ("jquery", vec!["/foo/node_modules/jquery/dist/jquery"]),
@@ -212,13 +212,13 @@ fn test_paths() {
 #[test]
 fn test_base_url() {
     let path = Path::new("/foo/tsconfig.json");
-    let mut tsconfig_json = serde_json::json!({
+    let tsconfig_json = serde_json::json!({
         "compilerOptions": {
             "baseUrl": "./src"
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap().build();
+    let tsconfig = TsConfig::parse(true, path, tsconfig_json).unwrap().build();
 
     let data = [
         ("foo", vec!["/foo/src/foo"]),
@@ -237,7 +237,7 @@ fn test_base_url() {
 #[test]
 fn test_paths_and_base_url() {
     let path = Path::new("/foo/tsconfig.json");
-    let mut tsconfig_json = serde_json::json!({
+    let tsconfig_json = serde_json::json!({
         "compilerOptions": {
             "baseUrl": "./src",
             "paths": {
@@ -249,7 +249,7 @@ fn test_paths_and_base_url() {
         }
     })
     .to_string();
-    let tsconfig = TsConfig::parse(true, path, &mut tsconfig_json).unwrap().build();
+    let tsconfig = TsConfig::parse(true, path, tsconfig_json).unwrap().build();
 
     let data = [
         ("test", vec!["/foo/src/generated/test", "/foo/src/test"]),
