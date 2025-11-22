@@ -939,10 +939,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     return Ok(Some(result));
                 }
 
-                let inner_resolver = self.clone_with_options(self.options().clone());
-
                 // try as file or directory `path` in the pnp folder
-                let Ok(inner_resolution) = inner_resolver.resolve(&path, &inner_request) else {
+                let cached_path = self.cache.value(&path);
+                let Ok(inner_resolution) = self.require(&cached_path, &inner_request, ctx) else {
                     return Err(ResolveError::NotFound(specifier.to_string()));
                 };
 
