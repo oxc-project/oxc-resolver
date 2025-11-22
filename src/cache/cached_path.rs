@@ -221,8 +221,14 @@ impl PartialEq for CachedPath {
 
 impl Eq for CachedPath {}
 
+impl fmt::Display for CachedPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path.display())
+    }
+}
+
 impl fmt::Debug for CachedPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FsCachedPath").field("path", &self.path).finish()
+        write!(f, "{:?}", self.path)
     }
 }
