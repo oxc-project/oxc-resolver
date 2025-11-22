@@ -55,7 +55,8 @@ fn test_extend_tsconfig_paths() {
     });
 
     // Test that paths are resolved correctly after inheritance
-    let resolved_path = resolver.resolve(&f, "@/test").map(|f| f.full_path());
+    let resolved_path =
+        resolver.resolve_file(f.join("src").join("test.ts"), "@/test").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/test.ts")));
 }
 
@@ -93,7 +94,8 @@ fn test_extend_tsconfig_template_variables() {
     });
 
     // Test that template variables work correctly with extends
-    let resolved_path = resolver.resolve(&f, "@/utils").map(|f| f.full_path());
+    let resolved_path =
+        resolver.resolve_file(f.join("src/utils.ts"), "@/utils").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/utils.ts")));
 }
 
