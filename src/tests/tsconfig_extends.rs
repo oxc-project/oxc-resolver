@@ -24,9 +24,9 @@ fn test_extend_tsconfig() {
     let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
 
     // Should inherit tsconfig from parent
-    assert_eq!(resolution.files, Some(vec!["files".to_string()]));
-    assert_eq!(resolution.include, Some(vec!["include".to_string()]));
-    assert_eq!(resolution.exclude, Some(vec!["exclude".to_string()]));
+    assert_eq!(resolution.files, Some(vec![f.join("files")]));
+    assert_eq!(resolution.include, Some(vec![f.join("include")]));
+    assert_eq!(resolution.exclude, Some(vec![f.join("exclude")]));
 
     let compiler_options = &resolution.compiler_options;
     assert_eq!(compiler_options.base_url, Some(f.join("src")));

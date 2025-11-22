@@ -224,6 +224,19 @@ fn bench_resolver_memory(c: &mut Criterion) {
             });
         },
     );
+
+    group.bench_with_input(BenchmarkId::from_parameter("find tsconfig"), &data, |b, data| {
+        let oxc_resolver = oxc_resolver_memory();
+        let paths = data
+            .iter()
+            .map(|(path, request)| oxc_resolver.resolve(path, request).unwrap().into_path_buf())
+            .collect::<Vec<_>>();
+        b.iter(|| {
+            for path in &paths {
+                let _ = oxc_resolver.find_tsconfig(path);
+            }
+        });
+    });
 }
 
 fn bench_resolver_real(c: &mut Criterion) {

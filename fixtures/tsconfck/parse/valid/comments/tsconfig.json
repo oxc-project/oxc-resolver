@@ -1,0 +1,15 @@
+/*
+multi
+line
+*/
+{
+  "compilerOptions": {  //trailing-single-line-comment
+    "types": /* inline comment */ [
+      "//keep \"this",
+      "/*",
+      // extra line single comment
+      "*/",
+      "/* this too */"
+    ]
+  }
+}

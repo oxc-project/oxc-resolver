@@ -79,6 +79,7 @@ name = "resolver"
 
 [dependencies]
 cfg-if = "1"
+fast-glob = "1"
 indexmap = { version = "2", features = ["serde"] }
 json-strip-comments = "3.1"
 once_cell = "1" # Use `std::sync::OnceLock::get_or_try_init` when it is stable.

@@ -34,6 +34,85 @@ impl TsconfigResolveContext {
 }
 
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
+    /// Finds the `tsconfig` to which this `path` belongs.
+    ///
+    /// Algorithm:
+    ///
+    /// 1. Search for `tsconfig.json` in ancestor directories.
+    /// 2. If the path is not included in this `tsconfig.json` through the `files`, `include`, or `exclude` fields:
+    ///    2.1. Search through project references until a referenced `tsconfig` includes this file.
+    ///    2.2. If none of the references include this path, return the `tsconfig.json` found in step 1.
+    ///
+    /// # Errors
+    ///
+    /// * Returns an error if the tsconfig is invalid, including any extended or referenced tsconfigs.
+    pub fn find_tsconfig<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        let path = path.as_ref();
+        let cached_path = self.cache.value(path);
+        self.find_tsconfig_tracing(&cached_path, &mut Ctx::default())
+    }
+
+    fn find_tsconfig_tracing(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
+        let _enter = span.enter();
+        cached_path
+            .resolved_tsconfig
+            .get_or_try_init(|| {
+                self.find_tsconfig_impl(cached_path, ctx).map(|option_tsconfig| {
+                    option_tsconfig.map(|tsconfig| {
+                        let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
+                        tracing::debug!(path = %cached_path, ret = ?r);
+                        r
+                    })
+                })
+            })
+            .cloned()
+    }
+
+    /// Find tsconfig.json of a path by traversing parent directories.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::Json]
+    pub(crate) fn find_tsconfig_impl(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        // Don't discover tsconfig for paths inside node_modules
+        if cached_path.inside_node_modules() {
+            return Ok(None);
+        }
+        // Skip non-absolute paths (e.g. virtual modules)
+        if !cached_path.path.is_absolute() {
+            return Ok(None);
+        }
+
+        let mut cache_value = Some(cached_path.clone());
+        while let Some(cv) = cache_value {
+            if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
+                let tsconfig_path = cv.path.join("tsconfig.json");
+                let tsconfig_path = self.cache.value(&tsconfig_path);
+                if self.cache.is_file(&tsconfig_path, ctx) {
+                    self.resolve_tsconfig(tsconfig_path.path()).map(Some)
+                } else {
+                    Ok(None)
+                }
+            })? {
+                return Ok(Some(Arc::clone(tsconfig)));
+            }
+            cache_value = cv.parent();
+        }
+        Ok(None)
+    }
+
     /// Resolve `tsconfig`.
     ///
     /// The path can be:
@@ -167,7 +246,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 tsconfig
             }
             Some(TsconfigDiscovery::Auto) => {
-                let Some(tsconfig) = self.find_tsconfig(cached_path, ctx)? else {
+                let Some(tsconfig) = self.find_tsconfig_tracing(cached_path, ctx)? else {
                     return Ok(None);
                 };
                 tsconfig
@@ -185,44 +264,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         Ok(None)
     }
-
-    /// Find tsconfig.json of a path by traversing parent directories.
-    ///
-    /// # Errors
-    ///
-    /// * [ResolveError::Json]
-    pub(crate) fn find_tsconfig(
-        &self,
-        cached_path: &CachedPath,
-        ctx: &mut Ctx,
-    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
-        // Don't discover tsconfig for paths inside node_modules
-        if cached_path.inside_node_modules() {
-            return Ok(None);
-        }
-        // Skip non-absolute paths (e.g. virtual modules)
-        if !cached_path.path.is_absolute() {
-            return Ok(None);
-        }
-
-        let mut cache_value = Some(cached_path.clone());
-        while let Some(cv) = cache_value {
-            if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
-                let tsconfig_path = cv.path.join("tsconfig.json");
-                let tsconfig_path = self.cache.value(&tsconfig_path);
-                if self.cache.is_file(&tsconfig_path, ctx) {
-                    self.resolve_tsconfig(tsconfig_path.path()).map(Some)
-                } else {
-                    Ok(None)
-                }
-            })? {
-                return Ok(Some(Arc::clone(tsconfig)));
-            }
-            cache_value = cv.parent();
-        }
-        Ok(None)
-    }
-
     fn get_extended_tsconfig_path(
         &self,
         directory: &CachedPath,

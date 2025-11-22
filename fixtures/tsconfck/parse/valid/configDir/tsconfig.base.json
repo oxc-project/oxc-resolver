@@ -1,0 +1,11 @@
+{
+  "include": ["${configDir}/**/*"],
+  "exclude": ["${configDir}/src/**/*.spec.ts"],
+  "compilerOptions": {
+    "paths": {
+      "$src": ["${configDir}/src/**/*"]
+    },
+    "baseUrl": "${configDir}/src",
+    "outDir": "${configDir}/build"
+  }
+}
