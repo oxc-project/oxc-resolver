@@ -1161,7 +1161,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn load_alias_value(
         &self,
         cached_path: &CachedPath,
@@ -1611,7 +1610,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     /// PACKAGE_TARGET_RESOLVE(packageURL, target, patternMatch, isImports, conditions)
-    #[allow(clippy::too_many_arguments)]
     fn package_target_resolve(
         &self,
         package_url: &CachedPath,
