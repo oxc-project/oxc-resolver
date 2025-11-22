@@ -28,7 +28,10 @@ pub struct CachedPathImpl {
     pub canonicalized: OnceLock<Weak<CachedPathImpl>>,
     pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<PackageJsonIndex>>,
+    /// `tsconfig.json` found at path.
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
+    /// `tsconfig.json` after resolving `references`, `files`, `include` and `extend`.
+    pub resolved_tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
 
 impl CachedPathImpl {
@@ -50,6 +53,7 @@ impl CachedPathImpl {
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),
+            resolved_tsconfig: OnceLock::new(),
         }
     }
 }
@@ -221,8 +225,14 @@ impl PartialEq for CachedPath {
 
 impl Eq for CachedPath {}
 
+impl fmt::Display for CachedPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path.display())
+    }
+}
+
 impl fmt::Debug for CachedPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FsCachedPath").field("path", &self.path).finish()
+        write!(f, "{:?}", self.path)
     }
 }

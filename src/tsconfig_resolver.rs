@@ -51,20 +51,29 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         path: P,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         let path = path.as_ref();
-        self.find_tsconfig_tracing(path)
+        let cached_path = self.cache.value(path);
+        self.find_tsconfig_tracing(&cached_path, &mut Ctx::default())
     }
 
-    fn find_tsconfig_tracing(&self, path: &Path) -> Result<Option<Arc<TsConfig>>, ResolveError> {
-        let span = tracing::debug_span!("find_tsconfig", path = ?path);
+    fn find_tsconfig_tracing(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
         let _enter = span.enter();
-        let cached_path = self.cache.value(path);
-        self.find_tsconfig_impl(&cached_path, &mut Ctx::default()).map(|option_tsconfig| {
-            option_tsconfig.map(|tsconfig| {
-                let r = TsConfig::resolve_tsconfig_solution(tsconfig, path);
-                tracing::debug!(path = ?path, ret = ?r);
-                r
+        cached_path
+            .resolved_tsconfig
+            .get_or_try_init(|| {
+                self.find_tsconfig_impl(cached_path, ctx).map(|option_tsconfig| {
+                    option_tsconfig.map(|tsconfig| {
+                        let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
+                        tracing::debug!(path = %cached_path, ret = ?r);
+                        r
+                    })
+                })
             })
-        })
+            .cloned()
     }
 
     /// Find tsconfig.json of a path by traversing parent directories.
@@ -237,7 +246,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 tsconfig
             }
             Some(TsconfigDiscovery::Auto) => {
-                let Some(tsconfig) = self.find_tsconfig_impl(cached_path, ctx)? else {
+                let Some(tsconfig) = self.find_tsconfig_tracing(cached_path, ctx)? else {
                     return Ok(None);
                 };
                 tsconfig
