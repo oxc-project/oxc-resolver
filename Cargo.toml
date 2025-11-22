@@ -63,6 +63,7 @@ rc_mutex = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 unnecessary_safety_comment = "warn"
 undocumented_unsafe_blocks = "warn"
+too_many_arguments = "allow"
 pedantic = { level = "warn", priority = -1 }
 # This rule is too pedantic, I don't want to force this because naming things are hard.
 module_name_repetitions = "allow"

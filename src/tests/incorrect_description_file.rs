@@ -10,7 +10,7 @@ fn incorrect_description_file_1() {
     let f = super::fixture().join("incorrect-package");
     let mut ctx = ResolveContext::default();
     let error =
-        Resolver::default().resolve_with_context(f.join("pack1"), ".", &mut ctx).unwrap_err();
+        Resolver::default().resolve_with_context(f.join("pack1"), ".", None, &mut ctx).unwrap_err();
     match error {
         ResolveError::Json(e) => {
             assert_eq!(e.path, f.join("pack1/package.json"));

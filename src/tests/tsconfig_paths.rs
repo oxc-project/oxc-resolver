@@ -42,7 +42,7 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
             ..ResolveOptions::default()
         });
         let path = subdir.map_or_else(|| dir.clone(), |subdir| dir.join(subdir));
-        let resolved_path = resolver.resolve(&path, request).map(|f| f.full_path());
+        let resolved_path = resolver.resolve_file(&path, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {path:?}");
     }
 
@@ -75,7 +75,7 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
             }),
             ..ResolveOptions::default()
         });
-        let resolution = resolver.resolve(&path, request).map(|f| f.full_path());
+        let resolution = resolver.resolve_file(&path, request).map(|f| f.full_path());
         assert_eq!(resolution, expected, "{path:?} {request}");
     }
 }
@@ -97,7 +97,7 @@ fn tsconfig_fallthrough() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve(&f, "/");
+    let resolved_path = resolver.resolve_file(&f, "/");
     assert_eq!(resolved_path, Err(ResolveError::NotFound("/".into())));
 }
 
@@ -113,7 +113,7 @@ fn json_with_comments() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve(&f, "foo").map(|f| f.full_path());
+    let resolved_path = resolver.resolve_file(&f, "foo").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("bar.js")));
 }
 
@@ -129,7 +129,7 @@ fn with_bom() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve(&f, "foo").map(|f| f.full_path());
+    let resolved_path = resolver.resolve_file(&f, "foo").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("bar.js")));
 }
 
@@ -145,7 +145,7 @@ fn broken() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve(&f, "/");
+    let resolved_path = resolver.resolve_file(&f, "/");
     let error = ResolveError::Json(JSONError {
         path: f.join("tsconfig_broken.json"),
         message: String::from("EOF while parsing an object at line 2 column 0"),
@@ -167,7 +167,7 @@ fn empty() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve(&f, "./index").map(|f| f.full_path());
+    let resolved_path = resolver.resolve_file(f.join("index.js"), "./index").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("index.js")));
 }
 
@@ -325,7 +325,8 @@ fn test_template_variable() {
             })),
             ..ResolveOptions::default()
         });
-        let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
+        let resolved_path =
+            resolver.resolve_file(dir.join("src").join("foo.js"), request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {tsconfig} {dir:?}");
     }
 }
@@ -349,7 +350,7 @@ fn test_paths_nested_base() {
             })),
             ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
-        let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
+        let resolved_path = resolver.resolve_file(&dir, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {tsconfig} {dir:?}");
     }
 }
@@ -373,7 +374,7 @@ fn test_parent_base_url() {
             })),
             ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
-        let resolved_path = resolver.resolve(&dir, request).map(|f| f.full_path());
+        let resolved_path = resolver.resolve_file(&dir, request).map(|f| f.full_path());
         assert_eq!(resolved_path, expected, "{request} {tsconfig} {dir:?}");
     }
 }

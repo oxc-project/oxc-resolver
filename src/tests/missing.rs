@@ -49,7 +49,7 @@ fn test() {
 
     for (specifier, missing_dependencies) in data {
         let mut ctx = ResolveContext::default();
-        let _ = resolver.resolve_with_context(&f, specifier, &mut ctx);
+        let _ = resolver.resolve_with_context(&f, specifier, None, &mut ctx);
 
         for path in ctx.file_dependencies {
             assert_eq!(path, path.normalize(), "{path:?}");
@@ -87,8 +87,8 @@ fn alias_and_extensions() {
     });
 
     let mut ctx = ResolveContext::default();
-    let _ = resolver.resolve_with_context(&f, "@scope-js/package-name/dir/router", &mut ctx);
-    let _ = resolver.resolve_with_context(&f, "react-dom/client", &mut ctx);
+    let _ = resolver.resolve_with_context(&f, "@scope-js/package-name/dir/router", None, &mut ctx);
+    let _ = resolver.resolve_with_context(&f, "react-dom/client", None, &mut ctx);
 
     for path in ctx.file_dependencies {
         assert_eq!(path, path.normalize(), "{path:?}");

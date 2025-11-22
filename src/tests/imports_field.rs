@@ -1325,6 +1325,7 @@ fn test_cases() {
                 &cached_path,
                 true,
                 &case.condition_names.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                None,
                 &mut Ctx::default(),
             )
             .map(|p| p.map(|p| p.to_path_buf()));
