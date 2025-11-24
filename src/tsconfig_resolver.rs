@@ -5,7 +5,8 @@ use std::{
 
 use crate::{
     CachedPath, Ctx, FileSystem, ResolveError, ResolveOptions, ResolveResult, ResolverGeneric,
-    SpecifierError, TsConfig, TsconfigDiscovery, TsconfigReferences, path::PathUtil,
+    SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    path::PathUtil,
 };
 
 #[derive(Default)]
@@ -52,20 +53,27 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         let path = path.as_ref();
         let cached_path = self.cache.value(path);
-        self.find_tsconfig_tracing(&cached_path, &mut Ctx::default())
+        self.find_tsconfig_tracing(&cached_path)
     }
 
     fn find_tsconfig_tracing(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut Ctx,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        // Don't discover tsconfig for paths inside node_modules
+        if cached_path.inside_node_modules() {
+            return Ok(None);
+        }
+        // Skip non-absolute paths (e.g. virtual modules)
+        if !cached_path.path.is_absolute() {
+            return Ok(None);
+        }
         let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
         let _enter = span.enter();
         cached_path
             .resolved_tsconfig
             .get_or_try_init(|| {
-                self.find_tsconfig_impl(cached_path, ctx).map(|option_tsconfig| {
+                self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
                     option_tsconfig.map(|tsconfig| {
                         let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
                         tracing::debug!(path = %cached_path, ret = ?r);
@@ -81,26 +89,28 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// # Errors
     ///
     /// * [ResolveError::Json]
-    pub(crate) fn find_tsconfig_impl(
+    fn find_tsconfig_impl(
         &self,
         cached_path: &CachedPath,
-        ctx: &mut Ctx,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
-        // Don't discover tsconfig for paths inside node_modules
-        if cached_path.inside_node_modules() {
-            return Ok(None);
+        match &self.options.tsconfig {
+            None => Ok(None),
+            Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path),
+            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o),
         }
-        // Skip non-absolute paths (e.g. virtual modules)
-        if !cached_path.path.is_absolute() {
-            return Ok(None);
-        }
+    }
 
+    fn find_tsconfig_auto(
+        &self,
+        cached_path: &CachedPath,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        let mut ctx = Ctx::default();
         let mut cache_value = Some(cached_path.clone());
         while let Some(cv) = cache_value {
             if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
                 let tsconfig_path = cv.path.join("tsconfig.json");
                 let tsconfig_path = self.cache.value(&tsconfig_path);
-                if self.cache.is_file(&tsconfig_path, ctx) {
+                if self.cache.is_file(&tsconfig_path, &mut ctx) {
                     self.resolve_tsconfig(tsconfig_path.path()).map(Some)
                 } else {
                     Ok(None)
@@ -111,6 +121,27 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             cache_value = cv.parent();
         }
         Ok(None)
+    }
+
+    pub(crate) fn find_tsconfig_manual(
+        &self,
+        tsconfig_options: &TsconfigOptions,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        // Cache the loaded tsconfig in /
+        self.cache
+            .value(Path::new("/"))
+            .tsconfig
+            .get_or_try_init(|| {
+                let mut ctx = TsconfigResolveContext::default();
+                self.load_tsconfig(
+                    true,
+                    &tsconfig_options.config_file,
+                    &tsconfig_options.references,
+                    &mut ctx,
+                )
+                .map(Some)
+            })
+            .cloned()
     }
 
     /// Resolve `tsconfig`.
@@ -126,12 +157,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// * See [ResolveError]
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
         let path = path.as_ref();
-        self.load_tsconfig(
-            true,
-            path,
-            &TsconfigReferences::Auto,
-            &mut TsconfigResolveContext::default(),
-        )
+        let references = match &self.options.tsconfig {
+            Some(TsconfigDiscovery::Manual(o)) => &o.references,
+            Some(TsconfigDiscovery::Auto) => &TsconfigReferences::Auto,
+            None => &TsconfigReferences::Disabled,
+        };
+        self.load_tsconfig(true, path, references, &mut TsconfigResolveContext::default())
     }
 
     fn load_tsconfig(
@@ -226,39 +257,40 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        ctx: &mut Ctx,
+        tsconfig: Option<&TsConfig>,
     ) -> ResolveResult {
         if cached_path.inside_node_modules() {
             return Ok(None);
         }
-        let tsconfig = match &self.options.tsconfig {
-            None => return Ok(None),
-            Some(TsconfigDiscovery::Manual(tsconfig_options)) => {
-                let tsconfig = self.load_tsconfig(
-                    /* root */ true,
-                    &tsconfig_options.config_file,
-                    &tsconfig_options.references,
-                    &mut TsconfigResolveContext::default(),
-                )?;
-                // Cache the loaded tsconfig in the path's directory
-                let tsconfig_dir = self.cache.value(tsconfig.directory());
-                _ = tsconfig_dir.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
-                tsconfig
+        let Some(tsconfig) = tsconfig else { return Ok(None) };
+        let paths = match &self.options.tsconfig {
+            // Do not resolve against project references because its already resolved during
+            // initialization phase.
+            Some(TsconfigDiscovery::Auto) => tsconfig.resolve_path_alias(specifier),
+            Some(TsconfigDiscovery::Manual(o))
+                if matches!(o.references, TsconfigReferences::Disabled) =>
+            {
+                tsconfig.resolve_path_alias(specifier)
             }
-            Some(TsconfigDiscovery::Auto) => {
-                let Some(tsconfig) = self.find_tsconfig_tracing(cached_path, ctx)? else {
-                    return Ok(None);
-                };
-                tsconfig
+            // Resolve against project references because project references are not discovered yet.
+            Some(TsconfigDiscovery::Manual(o))
+                if matches!(
+                    o.references,
+                    TsconfigReferences::Auto | TsconfigReferences::Paths(_)
+                ) =>
+            {
+                tsconfig.resolve_references_then_self_paths(cached_path.path(), specifier)
             }
+            None | Some(TsconfigDiscovery::Manual(_)) => return Ok(None),
         };
-
-        let paths = tsconfig.resolve(cached_path.path(), specifier);
         for path in paths {
             let resolved_path = self.cache.value(&path);
-            if let Some(resolution) = self.load_as_file_or_directory(&resolved_path, ".", ctx)? {
-                // Cache the tsconfig in the resolved path
-                _ = resolved_path.tsconfig.get_or_init(|| Some(Arc::clone(&tsconfig)));
+            if let Some(resolution) = self.load_as_file_or_directory(
+                &resolved_path,
+                ".",
+                Some(tsconfig),
+                &mut Ctx::default(),
+            )? {
                 return Ok(Some(resolution));
             }
         }
@@ -285,7 +317,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     cwd: self.options.cwd.clone(),
                     ..ResolveOptions::default()
                 })
-                .load_package_self_or_node_modules(directory, specifier, &mut Ctx::default())
+                .load_package_self_or_node_modules(directory, specifier, None, &mut Ctx::default())
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
                     ResolveError::NotFound(_) => {

@@ -20,6 +20,6 @@ fn tsconfig_discovery_virtual_file_importer() {
     });
 
     let resolved_path =
-        resolver.resolve("\0virtual-module", "random-import").map(|f| f.full_path());
+        resolver.resolve_file("\0virtual-module/foo.js", "random-import").map(|f| f.full_path());
     assert_eq!(resolved_path, Err(ResolveError::NotFound("random-import".into())));
 }

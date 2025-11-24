@@ -110,6 +110,7 @@ fn dependencies() {
     let _ = Resolver::new(ResolveOptions::default()).resolve_with_context(
         path,
         "./tests/package.json",
+        None,
         &mut ctx,
     );
     assert!(!ctx.file_dependencies.is_empty());

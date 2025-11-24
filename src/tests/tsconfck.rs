@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use walkdir::WalkDir;
 
-use crate::Resolver;
+use crate::{ResolveOptions, Resolver, TsconfigDiscovery};
 
 fn walk(dir: &PathBuf) -> Vec<PathBuf> {
     WalkDir::new(dir)
@@ -84,7 +84,10 @@ fn part_of_solution() {
         ("referenced-exclude", "src/bar.ts", "tsconfig.bar.json"),
     ];
 
-    let resolver = Resolver::default();
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
     for (dir, specifier, expected) in pass {
         let dir = root.join(dir);
         let tsconfig = resolver.find_tsconfig(dir.join(specifier)).unwrap().unwrap();
@@ -96,7 +99,10 @@ fn part_of_solution() {
 #[test]
 fn find() {
     let dir = super::fixture_root().join("tsconfck").join("find").join("a");
-    let resolver = Resolver::default();
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
 
     let result = resolver.find_tsconfig(dir.join("foo.ts"));
     let path = result.map(|tsconfig| tsconfig.unwrap().path().to_path_buf());

@@ -368,19 +368,21 @@ impl TsConfig {
         }
     }
 
-    /// Resolves the given `specifier` within the project configured by this
-    /// tsconfig, relative to the given `path`.
+    /// Resolves the given `specifier` within project references and then [CompilerOptions::paths].
     ///
     /// `specifier` can be either a real path or an alias.
     #[must_use]
-    pub(crate) fn resolve(&self, path: &Path, specifier: &str) -> Vec<PathBuf> {
-        let paths = self.resolve_path_alias(specifier);
+    pub(crate) fn resolve_references_then_self_paths(
+        &self,
+        path: &Path,
+        specifier: &str,
+    ) -> Vec<PathBuf> {
         for tsconfig in &self.references_resolved {
             if path.starts_with(tsconfig.base_path()) {
-                return [tsconfig.resolve_path_alias(specifier), paths].concat();
+                return tsconfig.resolve_path_alias(specifier);
             }
         }
-        paths
+        self.resolve_path_alias(specifier)
     }
 
     /// Resolves the given `specifier` within the project configured by this

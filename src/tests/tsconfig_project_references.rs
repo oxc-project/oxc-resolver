@@ -18,6 +18,29 @@ fn auto() {
         ..ResolveOptions::default()
     });
 
+    #[rustfmt::skip]
+    let pass = [
+        // Test normal paths alias
+        (f.join("app/index.ts"), "@/index.ts", f.join("app/aliased/index.ts")),
+        (f.join("app/index.ts"), "@/../index.ts", f.join("app/index.ts")),
+        // Test project reference
+        (f.join("project_a/index.ts"), "@/index.ts", f.join("project_a/aliased/index.ts")),
+        (f.join("project_b/src/aliased/index.ts"), "@/index.ts", f.join("project_b/src/aliased/index.ts")),
+        // Does not have paths alias
+        (f.join("project_a/index.ts"), "./index.ts", f.join("project_a/index.ts")),
+        (f.join("project_c/index.ts"), "./index.ts", f.join("project_c/index.ts")),
+        // Template variable
+        {
+            let file = f.parent().unwrap().join("paths_template_variable/src/foo.js");
+            (file.clone(), "foo", file)
+        }
+    ];
+
+    for (path, request, expected) in pass {
+        let resolved_path = resolver.resolve_file(&path, request).map(|f| f.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{request} {path:?}");
+    }
+
     // The following resolver's `config_file` has no `paths` alias with `references` enabled
     let no_paths_resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
@@ -26,29 +49,6 @@ fn auto() {
         })),
         ..ResolveOptions::default()
     });
-
-    #[rustfmt::skip]
-    let pass = [
-        // Test normal paths alias
-        (f.join("app"), "@/index.ts", f.join("app/aliased/index.ts")),
-        (f.join("app"), "@/../index.ts", f.join("app/index.ts")),
-        // Test project reference
-        (f.join("project_a"), "@/index.ts", f.join("project_a/aliased/index.ts")),
-        (f.join("project_b/src"), "@/index.ts", f.join("project_b/src/aliased/index.ts")),
-        // Does not have paths alias
-        (f.join("project_a"), "./index.ts", f.join("project_a/index.ts")),
-        (f.join("project_c"), "./index.ts", f.join("project_c/index.ts")),
-        // Template variable
-        {
-            let dir = f.parent().unwrap().join("paths_template_variable");
-            (dir.clone(), "foo", dir.join("src/foo.js"))
-        }
-    ];
-
-    for (path, request, expected) in pass {
-        let resolved_path = resolver.resolve(&path, request).map(|f| f.full_path());
-        assert_eq!(resolved_path, Ok(expected), "{request} {path:?}");
-    }
 
     #[rustfmt::skip]
     let pass = [
@@ -148,15 +148,6 @@ fn manual() {
         ..ResolveOptions::default()
     });
 
-    // The following resolver's `config_file` has no `paths` alias with `references` enabled
-    let no_paths_resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app/tsconfig.nopaths.json"),
-            references: TsconfigReferences::Paths(vec!["../project_a/conf.json".into()]),
-        })),
-        ..ResolveOptions::default()
-    });
-
     #[rustfmt::skip]
     let pass = [
         // Test normal paths alias
@@ -174,6 +165,15 @@ fn manual() {
         let resolved_path = resolver.resolve(&path, request).map(|f| f.full_path());
         assert_eq!(resolved_path, expected, "{request} {path:?}");
     }
+
+    // The following resolver's `config_file` has no `paths` alias with `references` enabled
+    let no_paths_resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("app/tsconfig.nopaths.json"),
+            references: TsconfigReferences::Paths(vec!["../project_a/conf.json".into()]),
+        })),
+        ..ResolveOptions::default()
+    });
 
     #[rustfmt::skip]
     let pass = [
@@ -238,7 +238,7 @@ fn references_with_extends() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve(f.join("src"), "@/pages").map(|f| f.full_path());
+    let resolved_path = resolver.resolve_file(f.join("src"), "@/pages").map(|f| f.full_path());
 
     assert_eq!(resolved_path, Ok(f.join("src/pages/index.tsx")));
 }

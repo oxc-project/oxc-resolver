@@ -2554,6 +2554,7 @@ fn test_cases() {
                 &cached_path,
                 case.request,
                 &case.exports_field,
+                None,
                 &mut Ctx::default(),
             )
             .map(|p| p.map(|p| p.to_path_buf()));

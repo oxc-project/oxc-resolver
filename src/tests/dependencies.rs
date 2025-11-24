@@ -93,7 +93,7 @@ mod test {
             let mut ctx = ResolveContext::default();
             let path = PathBuf::from(context);
             let resolved_path =
-                resolver.resolve_with_context(path, request, &mut ctx).map(|r| r.full_path());
+                resolver.resolve_with_context(path, request, None, &mut ctx).map(|r| r.full_path());
             assert_eq!(resolved_path, Ok(PathBuf::from(result)));
             let file_dependencies = file_dependencies.iter().map(PathBuf::from).collect();
             let missing_dependencies = missing_dependencies.iter().map(PathBuf::from).collect();

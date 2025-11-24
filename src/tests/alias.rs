@@ -219,7 +219,7 @@ fn alias_is_full_path() {
     ];
 
     for specifier in specifiers {
-        let resolution = resolver.resolve_with_context(&f, &specifier, &mut ctx);
+        let resolution = resolver.resolve_with_context(&f, &specifier, None, &mut ctx);
         assert_eq!(resolution.map(|r| r.full_path()), Ok(dir.join("index.js")));
     }
 
