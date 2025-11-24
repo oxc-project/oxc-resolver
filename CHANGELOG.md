@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.14.0](https://github.com/oxc-project/oxc-resolver/compare/v11.13.2...v11.14.0) - 2025-11-24
+
+### <!-- 0 -->🚀 Features
+
+- add `resolve_file` API for tsconfig auto discovery to work ([#860](https://github.com/oxc-project/oxc-resolver/pull/860)) (by @Boshen) - #860
+- port tsconfck (find tsconfig files) ([#854](https://github.com/oxc-project/oxc-resolver/pull/854)) (by @Boshen) - #854
+- add many.rs example for profiling resolver with many packages ([#836](https://github.com/oxc-project/oxc-resolver/pull/836)) (by @Boshen) - #836
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- apply `conditionNames: ['node', 'import']` when resolving tsconfig extends ([#869](https://github.com/oxc-project/oxc-resolver/pull/869)) (by @Boshen) - #869
+- do not resolve to `node_modules/pacakge/index` ([#849](https://github.com/oxc-project/oxc-resolver/pull/849)) (by @Boshen) - #849
+- use std::fs::canonicalize as a fallback when canonicalize fails ([#835](https://github.com/oxc-project/oxc-resolver/pull/835)) (by @Boshen) - #835
+
+### <!-- 2 -->🚜 Refactor
+
+- remove the redundant `inner_resolver` from `load_pnp` ([#862](https://github.com/oxc-project/oxc-resolver/pull/862)) (by @Boshen) - #862
+- improve `Debug` and `Display` for `CachedPath` ([#861](https://github.com/oxc-project/oxc-resolver/pull/861)) (by @Boshen) - #861
+- too_many_arguments = "allow" ([#863](https://github.com/oxc-project/oxc-resolver/pull/863)) (by @Boshen) - #863
+- change Tsconfig::parse to accept owned string; add replace_bom_with_whitespace ([#859](https://github.com/oxc-project/oxc-resolver/pull/859)) (by @Boshen) - #859
+- remove the useless getters and setters from `CompilerOptions` ([#858](https://github.com/oxc-project/oxc-resolver/pull/858)) (by @Boshen) - #858
+- add `Tsconfig:references_resolved` ([#856](https://github.com/oxc-project/oxc-resolver/pull/856)) (by @Boshen) - #856
+- move tsconfig resolution related code to its own file ([#855](https://github.com/oxc-project/oxc-resolver/pull/855)) (by @Boshen) - #855
+- use RwLock<Vec<Arc<PackageJson>> for package.json storage ([#838](https://github.com/oxc-project/oxc-resolver/pull/838)) (by @Boshen) - #838
+- do not store is_symlink in CachedPathImpl ([#850](https://github.com/oxc-project/oxc-resolver/pull/850)) (by @Boshen) - #850
+- remove CachedPathImpl::canonicaling ([#834](https://github.com/oxc-project/oxc-resolver/pull/834)) (by @Boshen) - #834
+
+### <!-- 4 -->⚡ Performance
+
+- cache all package.json resolutions for faster package.json lookup ([#853](https://github.com/oxc-project/oxc-resolver/pull/853)) (by @Boshen) - #853
+- do not canonicalize the entry path ([#848](https://github.com/oxc-project/oxc-resolver/pull/848)) (by @Boshen) - #848
+- remove Result from `CachedPathImpl::canonicalized` ([#847](https://github.com/oxc-project/oxc-resolver/pull/847)) (by @Boshen) - #847
+- fast path for node_modules/package ([#839](https://github.com/oxc-project/oxc-resolver/pull/839)) (by @Boshen) - #839
+- cache canonicalization results at every recursion level ([#843](https://github.com/oxc-project/oxc-resolver/pull/843)) (by @Boshen) - #843
+- use IdentityHasher for visited set to avoid double hashing ([#837](https://github.com/oxc-project/oxc-resolver/pull/837)) (by @Boshen) - #837
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.13.2](https://github.com/oxc-project/oxc-resolver/compare/v11.13.1...v11.13.2) - 2025-11-12
 
 ### <!-- 1 -->🐛 Bug Fixes
