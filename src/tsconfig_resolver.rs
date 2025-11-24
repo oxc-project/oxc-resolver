@@ -309,6 +309,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             _ => self
                 .clone_with_options(ResolveOptions {
                     tsconfig: None,
+                    condition_names: vec!["node".into(), "import".into()],
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig".into()],
                     #[cfg(feature = "yarn_pnp")]

@@ -196,3 +196,24 @@ fn test_extend_tsconfig_no_override_existing() {
     // Parent's baseUrl should be inherited (with proper path resolution)
     assert!(compiler_options.base_url.is_some());
 }
+
+#[test]
+fn test_extend_package() {
+    let f = super::fixture_root().join("tsconfig/cases");
+
+    let data = ["extends-esm", "extends-main"];
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    for dir in data {
+        let resolution = resolver.resolve_tsconfig(f.join(dir)).expect("resolved");
+        let compiler_options = &resolution.compiler_options;
+        assert_eq!(compiler_options.target, Some("ES2020".to_string()));
+    }
+}
