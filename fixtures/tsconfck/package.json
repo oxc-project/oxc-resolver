@@ -1,0 +1,6 @@
+{
+	"devDependencies": {
+		"@tsconfig/node18": "^18.2.4",
+		"isaacscript-tsconfig": "^7.0.1"
+	}
+}

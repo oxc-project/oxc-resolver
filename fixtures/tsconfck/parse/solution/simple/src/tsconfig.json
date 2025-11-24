@@ -1,0 +1,7 @@
+{
+  "include": ["./foo.ts"],
+  "extends": "../tsconfig.base",
+  "compilerOptions": {
+    "strict": true
+  }
+}

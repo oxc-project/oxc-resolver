@@ -19,7 +19,7 @@
 
 # Oxc Resolver
 
-Rust port of [enhanced-resolve].
+Rust port of [enhanced-resolve], [tsconfig-paths-webpack-plugin] and [tsconfck]
 
 - Released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://www.npmjs.com/package/oxc-resolver).
 - Implements the [ESM](https://nodejs.org/api/esm.html#resolution-algorithm) and [CommonJS](https://nodejs.org/api/modules.html#all-together) module resolution algorithm specification.
@@ -28,6 +28,7 @@ Rust port of [enhanced-resolve].
   - support paths alias defined in `tsconfig.compilerOptions.paths`
   - support project references defined `tsconfig.references`
   - support [template variable ${configDir} for substitution of config files directory path](https://github.com/microsoft/TypeScript/pull/58042)
+- Built-in tsconfig discovery ([tsconfck])
 - Supports in-memory file system via the `FileSystem` trait.
 - Contains `tracing` instrumentation.
 
@@ -295,12 +296,13 @@ Irrelevant tests
 
 Oxc partially copies code from the following projects.
 
-| Project                                                                   | License                                                                      |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)   | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)         |
-| [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)       | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)         |
-| [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)         | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)              |
-| [tmccombs/json-comments-rs](https://github.com/tmccombs/json-comments-rs) | [Apache 2.0](https://github.com/tmccombs/json-comments-rs/blob/main/LICENSE) |
+| Project                                                                   | License                                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [webpack/enhanced-resolve](https://github.com/webpack/enhanced-resolve)   | [MIT](https://github.com/webpack/enhanced-resolve/blob/main/LICENSE)            |
+| [dividab/tsconfig-paths](https://github.com/dividab/tsconfig-paths)       | [MIT](https://github.com/dividab/tsconfig-paths/blob/master/LICENSE)            |
+| [parcel-bundler/parcel](https://github.com/parcel-bundler/parcel)         | [MIT](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE)                 |
+| [tmccombs/json-comments-rs](https://github.com/tmccombs/json-comments-rs) | [Apache 2.0](https://github.com/tmccombs/json-comments-rs/blob/main/LICENSE)    |
+| [dominikg/tsconfck](https://github.com/dominikg/tsconfck)                 | [MIT](https://github.com/dominikg/tsconfck/blob/main/packages/tsconfck/LICENSE) |
 
 [enhanced-resolve]: https://github.com/webpack/enhanced-resolve
 [tsconfig-paths-webpack-plugin]: https://github.com/dividab/tsconfig-paths-webpack-plugin
@@ -322,3 +324,4 @@ Oxc partially copies code from the following projects.
 [docs-url]: https://docs.rs/oxc_resolver/latest/oxc_resolver
 [npm-badge]: https://img.shields.io/npm/dw/oxc-resolver?label=npm
 [npm-url]: https://www.npmjs.com/package/oxc-resolver
+[tsconfck]: https://github.com/dominikg/tsconfck

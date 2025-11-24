@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "types": ["bar"],
+    "strictNullChecks": false,
+    "noImplicitAny": true
+  },
+  "watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority"
+  },
+  "exclude": ["**/foo/*"],
+  // the following keys should not be inherited by extending
+  "something": "bla",
+  "ts-node": {
+    "skipIgnore": true
+  }
+}
