@@ -109,6 +109,9 @@ jobs:
           - os: ubuntu-latest
             target: wasm32-wasip1-threads
             build: pnpm run build:debug --release # omit --features allocator
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-ohos
+            build: pnpm build --target aarch64-unknown-linux-ohos
 
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -121,6 +124,10 @@ jobs:
           cpu: ${{ matrix.cpu }}
 
       - run: rustup target add ${{ matrix.target }}
+
+      - name: Setup OpenHarmony SDK
+        if: ${{ contains(matrix.target, 'ohos') }}
+        uses: Boshen/setup-ohos-sdk@edb865a89a712f1f15dbad932dfa9cfce849d95c # v1.0.0
 
       - uses: goto-bus-stop/setup-zig@abea47f85e598557f500fa1fd2ab7464fcb39406 # v2.2.1
         if: ${{ contains(matrix.target, 'musl') }}
