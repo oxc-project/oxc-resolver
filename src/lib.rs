@@ -175,8 +175,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
     /// For ECMAScript modules, it is the value of `import.meta.url`.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] does not work for this API, use
-    /// `ResolverGeneric::resolve_file` instead.
+    /// NOTE: [TsconfigDiscovery::Auto] does not work for this API, use [ResolverGeneric::resolve_file] instead.
     ///
     /// # Errors
     ///
@@ -197,7 +196,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     /// Resolve `specifier` for an absolute path to a file.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] only work for this API, use `ResolverGeneric::resolve_file` instead.
+    /// NOTE: [TsconfigDiscovery::Auto] only work for this API.
     ///
     /// # Errors
     ///

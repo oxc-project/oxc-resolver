@@ -37,6 +37,8 @@ impl TsconfigResolveContext {
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// Finds the `tsconfig` to which this `path` belongs.
     ///
+    /// If the `path` is inside `node_modules`, this function always returns `None`.
+    ///
     /// Algorithm:
     ///
     /// 1. Search for `tsconfig.json` in ancestor directories.
