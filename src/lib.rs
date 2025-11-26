@@ -656,10 +656,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 2. If X.js is a file, load X.js as JavaScript text. STOP
         // 3. If X.json is a file, parse X.json to a JavaScript Object. STOP
         // 4. If X.node is a file, load X.node as binary addon. STOP
-        if let Some(path) =
-            self.load_extensions(cached_path, &self.options.extensions, tsconfig, ctx)?
-        {
-            return Ok(Some(path));
+        if !ctx.fully_specified {
+            for extension in &self.options.extensions {
+                let cached_path = cached_path.add_extension(extension, self.cache.as_ref());
+                if let Some(path) = self.load_alias_or_file(&cached_path, tsconfig, ctx)? {
+                    return Ok(Some(path));
+                }
+            }
         }
         Ok(None)
     }
@@ -740,25 +743,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
-    fn load_extensions(
-        &self,
-        path: &CachedPath,
-        extensions: &[String],
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> ResolveResult {
-        if ctx.fully_specified {
-            return Ok(None);
-        }
-        for extension in extensions {
-            let cached_path = path.add_extension(extension, self.cache.as_ref());
-            if let Some(path) = self.load_alias_or_file(&cached_path, tsconfig, ctx)? {
-                return Ok(Some(path));
-            }
-        }
-        Ok(None)
-    }
-
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
         if self.options.symlinks {
             self.cache.canonicalize(cached_path)
@@ -801,21 +785,18 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        for main_file in &self.options.main_files {
-            let cached_path = cached_path.normalize_with(main_file, self.cache.as_ref());
-            if self.options.enforce_extension.is_disabled()
-                && let Some(path) = self.load_browser_field_or_alias(&cached_path, tsconfig, ctx)?
-                && self.check_restrictions(path.path())
-            {
-                return Ok(Some(path));
-            }
-            // 1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
-            // 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-            // 3. If X/index.node is a file, load X/index.node as binary addon. STOP
-            if let Some(path) =
-                self.load_extensions(&cached_path, &self.options.extensions, tsconfig, ctx)?
-            {
-                return Ok(Some(path));
+        if !ctx.fully_specified {
+            for main_file in &self.options.main_files {
+                // 1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
+                // 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
+                // 3. If X/index.node is a file, load X/index.node as binary addon. STOP
+                for extension in &self.options.extensions {
+                    let cached_path =
+                        cached_path.add_name_and_extension(main_file, extension, &self.cache);
+                    if let Some(path) = self.load_alias_or_file(&cached_path, tsconfig, ctx)? {
+                        return Ok(Some(path));
+                    }
+                }
             }
         }
         Ok(None)

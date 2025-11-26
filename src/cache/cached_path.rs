@@ -120,6 +120,23 @@ impl CachedPath {
         })
     }
 
+    pub(crate) fn add_name_and_extension<Fs: FileSystem>(
+        &self,
+        name: &str,
+        ext: &str,
+        cache: &Cache<Fs>,
+    ) -> Self {
+        SCRATCH_PATH.with_borrow_mut(|path| {
+            path.clear();
+            let s = path.as_mut_os_string();
+            s.push(self.path.as_os_str());
+            s.push(std::path::MAIN_SEPARATOR_STR);
+            s.push(name);
+            s.push(ext);
+            cache.value(path)
+        })
+    }
+
     pub(crate) fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
