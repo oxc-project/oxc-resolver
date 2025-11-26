@@ -88,7 +88,7 @@ use std::{
     borrow::Cow,
     cmp::Ordering,
     ffi::OsStr,
-    fmt, iter,
+    fmt,
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -306,16 +306,30 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let inside_node_modules = cached_path.inside_node_modules();
         if inside_node_modules {
             let mut last = None;
-            for cp in iter::successors(Some(cached_path.clone()), CachedPath::parent) {
-                if cp.is_node_modules() {
+            // Go up directories when the querying path is not a directory
+            let mut cp = cached_path.clone();
+            if !self.cache.is_dir(&cp, ctx)
+                && let Some(cv) = cp.parent()
+            {
+                cp = cv;
+            }
+            let mut cp = Some(cp);
+            while let Some(p) = cp {
+                if p.is_node_modules() {
                     break;
                 }
-                if self.cache.is_dir(&cp, ctx)
-                    && let Some(package_json) =
-                        self.cache.get_package_json(&cp, &self.options, ctx)?
+                // Skip /node_modules/@scope/package.json
+                if let Some(parent) = p.parent()
+                    && parent.is_node_modules()
+                    && let Some(filename) = p.path().file_name()
+                    && filename.as_encoded_bytes().starts_with(b"@")
                 {
+                    break;
+                }
+                if let Some(package_json) = self.cache.get_package_json(&p, &self.options, ctx)? {
                     last = Some(package_json);
                 }
+                cp = p.parent();
             }
             Ok(last)
         } else {
