@@ -99,7 +99,7 @@ impl CachedPath {
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Option<Self> {
-        let cached_path = cache.value(&self.path.join(module_name));
+        let cached_path = self.push(module_name, cache);
         cache.is_dir(&cached_path, ctx).then_some(cached_path)
     }
 
@@ -122,12 +122,21 @@ impl CachedPath {
             })
     }
 
-    pub(crate) fn add_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
+    pub(crate) fn push<Fs: FileSystem>(&self, target: &str, cache: &Cache<Fs>) -> Self {
+        SCRATCH_PATH.with_borrow_mut(|path| {
+            path.clear();
+            path.push(&self.path);
+            path.push(target);
+            cache.value(path)
+        })
+    }
+
+    pub(crate) fn add_extension<Fs: FileSystem>(&self, target: &str, cache: &Cache<Fs>) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
             s.push(self.path.as_os_str());
-            s.push(ext);
+            s.push(target);
             cache.value(path)
         })
     }
