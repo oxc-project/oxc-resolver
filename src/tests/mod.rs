@@ -1,6 +1,7 @@
 mod alias;
 mod browser_field;
 mod builtins;
+mod clear_cache;
 mod dependencies;
 mod exports_field;
 mod extension_alias;

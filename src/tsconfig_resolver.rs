@@ -120,7 +120,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             })? {
                 return Ok(Some(Arc::clone(tsconfig)));
             }
-            cache_value = cv.parent();
+            cache_value = cv.parent(&self.cache);
         }
         Ok(None)
     }
