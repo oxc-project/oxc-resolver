@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.14.1](https://github.com/oxc-project/oxc-resolver/compare/v11.14.0...v11.14.1) - 2025-11-28
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- incorrect resolution when project reference extends a tsconfig without baseUrl ([#882](https://github.com/oxc-project/oxc-resolver/pull/882)) (by @Boshen) - #882
+- store PathBuf with weak pointers to handle cache clearing ([#879](https://github.com/oxc-project/oxc-resolver/pull/879)) (by @Boshen) - #879
+
+### <!-- 4 -->⚡ Performance
+
+- remove an allocation from `CachedPath::module_directory` ([#880](https://github.com/oxc-project/oxc-resolver/pull/880)) (by @Boshen) - #880
+- skip searching for node_modules/@scope/package.json ([#876](https://github.com/oxc-project/oxc-resolver/pull/876)) (by @Boshen) - #876
+- remove the redundant `node_modules/package/index` cache value ([#875](https://github.com/oxc-project/oxc-resolver/pull/875)) (by @Boshen) - #875
+
+### <!-- 6 -->🧪 Testing
+
+- change all fixture directory names to dashed case ([#884](https://github.com/oxc-project/oxc-resolver/pull/884)) (by @Boshen) - #884
+
+### Contributors
+
+* @Boshen
+* @sapphi-red
+
 ## [11.14.0](https://github.com/oxc-project/oxc-resolver/compare/v11.13.2...v11.14.0) - 2025-11-24
 
 ### <!-- 0 -->🚀 Features
