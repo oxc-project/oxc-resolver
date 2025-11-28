@@ -43,7 +43,7 @@
 //! ## Example
 //!
 //! ```rust,ignore
-#![doc = include_str!("../examples/resolver.rs")]
+#![doc = include_str!("../examples/dir.rs")]
 //! ```
 
 mod builtins;

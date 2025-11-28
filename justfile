@@ -40,12 +40,12 @@ watch *args='':
 watch-check:
   just watch "'cargo check; cargo clippy'"
 
-watch-example *args='':
-  just watch "cargo run --example resolver -- {{args}}"
+watch-example target *args='':
+  just watch "cargo run --example {{target}} -- {{args}}"
 
 # Run the example
-example *args='':
-  cargo run --example resolver -- {{args}}
+example target *args='':
+  cargo run --example {{target}} -- {{args}}
 
 # Format all files
 fmt:
