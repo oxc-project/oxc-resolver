@@ -24,7 +24,7 @@ const TEMPLATE_VARIABLE: &str = "${configDir}";
 
 const GLOB_ALL_PATTERN: &str = "**/*";
 
-pub type CompilerOptionsPathsMap = IndexMap<String, Vec<String>, BuildHasherDefault<FxHasher>>;
+pub type CompilerOptionsPathsMap = IndexMap<String, Vec<PathBuf>, BuildHasherDefault<FxHasher>>;
 
 /// Project Reference
 ///
@@ -88,6 +88,17 @@ impl TsConfig {
         };
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
+        tsconfig.compiler_options.paths_base =
+            tsconfig.compiler_options.base_url.as_ref().map_or_else(
+                || tsconfig.directory().to_path_buf(),
+                |base_url| {
+                    if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                        base_url.clone()
+                    } else {
+                        tsconfig.directory().normalize_with(base_url)
+                    }
+                },
+            );
         Ok(tsconfig)
     }
 
@@ -149,16 +160,6 @@ impl TsConfig {
         !self.references.is_empty()
     }
 
-    /// Returns the base path from which to resolve aliases.
-    ///
-    /// The base path can be configured by the user as part of the
-    /// [CompilerOptions]. If not configured, it returns the directory in which
-    /// the tsconfig itself is found.
-    #[must_use]
-    pub(crate) fn base_path(&self) -> &Path {
-        self.compiler_options.base_url.as_ref().map_or_else(|| self.directory(), |p| p.as_path())
-    }
-
     /// Inherits settings from the given tsconfig into `self`.
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
@@ -180,31 +181,18 @@ impl TsConfig {
             self.exclude = Some(exclude.clone());
         }
 
-        let tsconfig_dir = tsconfig.directory();
         let compiler_options = &mut self.compiler_options;
 
-        if compiler_options.base_url.is_none()
-            && let Some(base_url) = &tsconfig.compiler_options.base_url
-        {
-            compiler_options.base_url = Some(if base_url.starts_with(TEMPLATE_VARIABLE) {
-                base_url.clone()
-            } else {
-                tsconfig_dir.join(base_url).normalize()
-            });
+        if compiler_options.base_url.is_none() {
+            compiler_options.base_url.clone_from(&tsconfig.compiler_options.base_url);
+            if tsconfig.compiler_options.base_url.is_some() {
+                compiler_options.paths_base.clone_from(&tsconfig.compiler_options.paths_base);
+            }
         }
-
         if compiler_options.paths.is_none() {
-            let paths_base = compiler_options.base_url.as_ref().map_or_else(
-                || tsconfig_dir.to_path_buf(),
-                |path| {
-                    if path.starts_with(TEMPLATE_VARIABLE) {
-                        path.clone()
-                    } else {
-                        tsconfig_dir.join(path).normalize()
-                    }
-                },
-            );
-            compiler_options.paths_base = paths_base;
+            if compiler_options.base_url.is_none() && tsconfig.compiler_options.base_url.is_none() {
+                compiler_options.paths_base.clone_from(&tsconfig.compiler_options.paths_base);
+            }
             compiler_options.paths.clone_from(&tsconfig.compiler_options.paths);
         }
 
@@ -328,30 +316,27 @@ impl TsConfig {
         }
 
         if let Some(base_url) = &self.compiler_options.base_url {
-            let base_url = self.adjust_path(base_url.clone());
-            self.compiler_options.base_url = Some(base_url);
+            self.compiler_options.base_url = Some(self.adjust_path(base_url.clone()));
+        }
+
+        if let Some(stripped_path) =
+            self.compiler_options.paths_base.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+        {
+            self.compiler_options.paths_base =
+                config_dir.join(stripped_path.trim_start_matches('/'));
         }
 
         if self.compiler_options.paths.is_some() {
-            // `paths_base` should use config dir if it is not resolved with base url nor extended
-            // with another tsconfig.
-            if let Some(base_url) = self.compiler_options.base_url.clone() {
-                self.compiler_options.paths_base = base_url;
-            }
-
-            if self.compiler_options.paths_base.as_os_str().is_empty() {
-                self.compiler_options.paths_base.clone_from(&config_dir);
-            }
-
             // Substitute template variable in `tsconfig.compilerOptions.paths`.
             for paths in self.compiler_options.paths.as_mut().unwrap().values_mut() {
                 for path in paths {
-                    if let Some(stripped_path) = path.strip_prefix(TEMPLATE_VARIABLE) {
-                        *path = config_dir
-                            .join(stripped_path.trim_start_matches('/'))
-                            .to_string_lossy()
-                            .to_string();
-                    }
+                    *path = if let Some(stripped_path) =
+                        path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+                    {
+                        config_dir.join(stripped_path.trim_start_matches('/'))
+                    } else {
+                        self.compiler_options.paths_base.normalize_with(&path)
+                    };
                 }
             }
         }
@@ -378,7 +363,7 @@ impl TsConfig {
         specifier: &str,
     ) -> Vec<PathBuf> {
         for tsconfig in &self.references_resolved {
-            if path.starts_with(tsconfig.base_path()) {
+            if path.starts_with(&tsconfig.compiler_options.paths_base) {
                 return tsconfig.resolve_path_alias(specifier);
             }
         }
@@ -398,10 +383,7 @@ impl TsConfig {
         }
 
         let compiler_options = &self.compiler_options;
-        let base_url_iter = compiler_options
-            .base_url
-            .as_ref()
-            .map_or_else(Vec::new, |base_url| vec![base_url.normalize_with(specifier)]);
+        let base_url_iter = vec![compiler_options.paths_base.normalize_with(specifier)];
 
         let Some(paths_map) = &compiler_options.paths else {
             return base_url_iter;
@@ -429,11 +411,11 @@ impl TsConfig {
                     paths
                         .iter()
                         .map(|path| {
-                            path.replace(
+                            PathBuf::from(path.to_string_lossy().replace(
                                 '*',
                                 &specifier[longest_prefix_length
                                     ..specifier.len() - longest_suffix_length],
-                            )
+                            ))
                         })
                         .collect::<Vec<_>>()
                 })
@@ -441,11 +423,7 @@ impl TsConfig {
             Clone::clone,
         );
 
-        paths
-            .into_iter()
-            .map(|p| compiler_options.paths_base.normalize_with(p))
-            .chain(base_url_iter)
-            .collect()
+        paths.into_iter().chain(base_url_iter).collect()
     }
 }
 
@@ -460,7 +438,7 @@ pub struct CompilerOptions {
     /// Path aliases.
     pub paths: Option<CompilerOptionsPathsMap>,
 
-    /// The actual base from where path aliases are resolved.
+    /// The "base_url" at which this tsconfig is defined.
     #[serde(skip)]
     pub(crate) paths_base: PathBuf,
 
