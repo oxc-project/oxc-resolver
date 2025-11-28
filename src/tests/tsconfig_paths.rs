@@ -276,7 +276,7 @@ fn test_paths_and_base_url() {
 #[test]
 fn test_merge_tsconfig() {
     let resolver = Resolver::default();
-    let dir = super::fixture_root().join("tsconfig/cases/merge_compiler_options");
+    let dir = super::fixture_root().join("tsconfig/cases/merge-compiler-options");
     let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
     let compiler_options = &resolution.compiler_options;
     assert_eq!(compiler_options.experimental_decorators, Some(true));
@@ -291,7 +291,7 @@ fn test_merge_tsconfig() {
 #[test]
 fn test_no_merge_tsconfig() {
     let resolver = Resolver::default();
-    let dir = super::fixture_root().join("tsconfig/cases/no_merge_compiler_options");
+    let dir = super::fixture_root().join("tsconfig/cases/no-merge-compiler-options");
     let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
     let compiler_options = &resolution.compiler_options;
     assert_eq!(compiler_options.experimental_decorators, Some(true));
@@ -306,7 +306,7 @@ fn test_no_merge_tsconfig() {
 #[test]
 fn test_template_variable() {
     let f = super::fixture_root().join("tsconfig");
-    let f2 = f.join("cases").join("paths_template_variable");
+    let f2 = f.join("cases").join("paths-template-variable");
 
     #[rustfmt::skip]
     let pass = [

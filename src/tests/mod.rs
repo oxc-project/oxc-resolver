@@ -42,7 +42,7 @@ pub fn fixture_root() -> PathBuf {
 }
 
 pub fn fixture() -> PathBuf {
-    fixture_root().join("enhanced_resolve").join("test").join("fixtures")
+    fixture_root().join("enhanced-resolve").join("test").join("fixtures")
 }
 
 #[test]

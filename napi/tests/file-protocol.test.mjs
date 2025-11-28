@@ -17,7 +17,7 @@ const rootDir = join(currentDir, '..', '..');
 const fixturesDir = join(rootDir, 'fixtures');
 const enhancedResolveRoot = join(
   fixturesDir,
-  'enhanced_resolve',
+  'enhanced-resolve',
   'test',
   'fixtures',
 );

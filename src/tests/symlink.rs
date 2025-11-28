@@ -103,7 +103,7 @@ struct SymlinkFixturePaths {
 fn prepare_symlinks<P: AsRef<Path>>(
     temp_path_segment: P,
 ) -> io::Result<Option<SymlinkFixturePaths>> {
-    let root = super::fixture_root().join("enhanced_resolve");
+    let root = super::fixture_root().join("enhanced-resolve");
     let dirname = root.join("test");
     let temp_path = dirname.join(temp_path_segment.as_ref());
     if !temp_path.exists() {

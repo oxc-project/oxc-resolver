@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::{AliasValue, ResolveError, ResolveOptions, Resolver};
 
 fn dirname() -> PathBuf {
-    super::fixture_root().join("enhanced_resolve").join("test")
+    super::fixture_root().join("enhanced-resolve").join("test")
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn prefer_absolute() {
 #[test]
 fn roots_fall_through() {
     let f = super::fixture();
-    let absolute_path = f.join("roots_fall_through/index.js");
+    let absolute_path = f.join("roots-fall-through/index.js");
     let specifier = absolute_path.to_string_lossy();
     let resolution = Resolver::new(ResolveOptions::default().with_root(&f)).resolve(&f, &specifier);
     assert_eq!(

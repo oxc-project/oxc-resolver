@@ -12,7 +12,7 @@ use memory_fs::BenchMemoryFS;
 
 fn data() -> Vec<(PathBuf, &'static str)> {
     let cwd = env::current_dir().unwrap();
-    let f1 = cwd.join("fixtures/enhanced_resolve");
+    let f1 = cwd.join("fixtures/enhanced-resolve");
     let f2 = f1.join("test/fixtures");
     vec![
         // real packages
@@ -82,7 +82,7 @@ fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(original: P, link: Q) -> io::Result<(
 }
 
 fn create_symlinks() -> io::Result<PathBuf> {
-    let root = env::current_dir()?.join("fixtures/enhanced_resolve");
+    let root = env::current_dir()?.join("fixtures/enhanced-resolve");
     let dirname = root.join("test");
     let temp_path = dirname.join("temp_symlinks");
     let create_symlink_fixtures = || -> io::Result<()> {
@@ -160,7 +160,7 @@ fn oxc_resolver_real() -> oxc_resolver::Resolver {
 fn bench_resolver_memory(c: &mut Criterion) {
     let data = data();
     let cwd = env::current_dir().unwrap();
-    let symlink_test_dir = cwd.join("fixtures/enhanced_resolve/test/temp_symlinks");
+    let symlink_test_dir = cwd.join("fixtures/enhanced-resolve/test/temp_symlinks");
 
     // check validity
     for (path, request) in &data {
@@ -370,7 +370,7 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     // Load real complex package.json from fixtures
     let complex_json_path = env::current_dir()
         .unwrap()
-        .join("fixtures/enhanced_resolve/test/fixtures/browser-module/package.json");
+        .join("fixtures/enhanced-resolve/test/fixtures/browser-module/package.json");
     let complex_json =
         fs::read_to_string(&complex_json_path).expect("Failed to read complex package.json");
 
@@ -466,8 +466,8 @@ mod memory_fs {
             // Add all parent directories for the cwd
             self.add_parent_directories(&cwd);
 
-            // Load fixtures from enhanced_resolve
-            let fixtures_base = cwd.join("fixtures/enhanced_resolve");
+            // Load fixtures from enhanced-resolve
+            let fixtures_base = cwd.join("fixtures/enhanced-resolve");
             if fixtures_base.exists() {
                 for entry in WalkDir::new(&fixtures_base)
                     .follow_links(false)
@@ -601,7 +601,7 @@ mod memory_fs {
 
         fn create_symlink_fixtures(&mut self, cwd: &Path) {
             // Create temp_symlinks directory
-            let temp_path = cwd.join("fixtures/enhanced_resolve/test/temp_symlinks");
+            let temp_path = cwd.join("fixtures/enhanced-resolve/test/temp_symlinks");
             self.directories.insert(temp_path.clone());
             self.add_parent_directories(&temp_path);
 

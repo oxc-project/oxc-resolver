@@ -21,7 +21,7 @@ const fixturesDir = join(rootDir, 'fixtures');
 
 const enhancedResolveRoot = join(
   fixturesDir,
-  'enhanced_resolve',
+  'enhanced-resolve',
   'test',
   'fixtures',
 );
@@ -86,13 +86,13 @@ for (
     ],
     [
       'from nested directory to overwritten file in module',
-      join(enhancedResolveRoot, 'multiple_modules'),
+      join(enhancedResolveRoot, 'multiple-modules'),
       'm1/a.js',
-      join(enhancedResolveRoot, 'multiple_modules/node_modules/m1/a.js'),
+      join(enhancedResolveRoot, 'multiple-modules/node_modules/m1/a.js'),
     ],
     [
       'from nested directory to not overwritten file in module',
-      join(enhancedResolveRoot, 'multiple_modules'),
+      join(enhancedResolveRoot, 'multiple-modules'),
       'm1/b.js',
       join(enhancedResolveRoot, 'node_modules/m1/b.js'),
     ],

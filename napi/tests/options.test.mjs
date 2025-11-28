@@ -6,7 +6,7 @@ import { normalizePath } from './utils.mjs';
 
 const fixtureDir = path.resolve(
   import.meta.dirname,
-  '../../fixtures/enhanced_resolve/test/fixtures',
+  '../../fixtures/enhanced-resolve/test/fixtures',
 );
 
 describe('option', () => {
