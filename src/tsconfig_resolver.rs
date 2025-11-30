@@ -298,6 +298,38 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         Ok(None)
     }
+
+    pub(crate) fn load_tsconfig_root_dirs(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
+        if cached_path.inside_node_modules() || !specifier.starts_with(".") {
+            return Ok(None);
+        }
+        let Some(tsconfig) = tsconfig else { return Ok(None) };
+        if let Some(root_dirs) = &tsconfig.compiler_options.root_dirs {
+            if let Ok(subpath) = cached_path
+                .normalize_with(specifier, &self.cache)
+                .path()
+                .strip_prefix(tsconfig.directory())
+            {
+                for root_dir in root_dirs {
+                    let target = tsconfig.directory().normalize_with(root_dir).join(subpath);
+                    let cp = self.cache.value(&target);
+                    if let Some(resolution) =
+                        self.load_as_file_or_directory(&cp, ".", Some(tsconfig), ctx)?
+                    {
+                        return Ok(Some(resolution));
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
     fn get_extended_tsconfig_path(
         &self,
         directory: &CachedPath,
