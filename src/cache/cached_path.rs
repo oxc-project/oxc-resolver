@@ -21,12 +21,12 @@ pub struct CachedPath(pub Arc<CachedPathImpl>);
 pub struct CachedPathImpl {
     pub hash: u64,
     pub path: Box<Path>,
-    pub parent: Option<(Weak<CachedPathImpl>, PathBuf)>,
+    pub parent: Option<Weak<CachedPathImpl>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
     pub canonicalized: OnceLock<(Weak<CachedPathImpl>, PathBuf)>,
-    pub node_modules: OnceLock<Option<(Weak<CachedPathImpl>, PathBuf)>>,
+    pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
     pub package_json: OnceLock<Option<PackageJsonIndex>>,
     /// `tsconfig.json` found at path.
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
@@ -40,7 +40,7 @@ impl CachedPathImpl {
         path: Box<Path>,
         is_node_modules: bool,
         inside_node_modules: bool,
-        parent: Option<(Weak<Self>, PathBuf)>,
+        parent: Option<Weak<Self>>,
     ) -> Self {
         Self {
             hash,
@@ -76,11 +76,11 @@ impl CachedPath {
     }
 
     pub(crate) fn parent<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Option<Self> {
-        self.0.parent.as_ref().and_then(|(weak, path_buf)| {
+        self.0.parent.as_ref().and_then(|weak| {
             weak.upgrade().map(CachedPath).or_else(|| {
                 // Weak pointer upgrade failed - parent was cleared from cache
-                // Recreate it from the stored PathBuf
-                Some(cache.value(path_buf))
+                // Recreate it by deriving the parent path
+                self.path().parent().map(|parent_path| cache.value(parent_path))
             })
         })
     }
@@ -110,14 +110,13 @@ impl CachedPath {
     ) -> Option<Self> {
         self.node_modules
             .get_or_init(|| {
-                self.module_directory("node_modules", cache, ctx)
-                    .map(|cp| (Arc::downgrade(&cp.0), cp.to_path_buf()))
+                self.module_directory("node_modules", cache, ctx).map(|cp| Arc::downgrade(&cp.0))
             })
             .as_ref()
-            .and_then(|(weak, path_buf)| {
+            .and_then(|weak| {
                 weak.upgrade().map(CachedPath).or_else(|| {
-                    // Weak pointer upgrade failed - recreate from stored PathBuf
-                    Some(cache.value(path_buf))
+                    // Weak pointer upgrade failed - recreate by deriving the node_modules path
+                    Some(self.push("node_modules", cache))
                 })
             })
     }
