@@ -59,7 +59,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
         let inside_node_modules =
             is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
-        let parent_weak = parent.as_ref().map(|p| (Arc::downgrade(&p.0), p.to_path_buf()));
+        let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
