@@ -942,7 +942,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     if let Some(path) = self.load_as_directory(&cached_path, tsconfig, ctx)? {
                         return Ok(Some(path));
                     }
-                } else if let Some(path) = self.load_as_file(&cached_path, tsconfig, ctx)? {
+                }
+                // Try file resolution - needed when both a directory and file exist with same name
+                // (e.g., package/subdir.js and package/subdir/)
+                if let Some(path) = self.load_as_file(&cached_path, tsconfig, ctx)? {
                     return Ok(Some(path));
                 }
             }

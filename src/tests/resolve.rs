@@ -270,14 +270,14 @@ fn file_protocol() {
 
 #[test]
 fn test_issue_subpath_without_exports() {
-    use crate::{Resolver, ResolveOptions, Resolution};
-    
+    use crate::{ResolveOptions, Resolver};
+
     // Test case from issue: resolving b/c/d from fixtures/abc/node_modules/a/index.js
     // Expected: fixtures/abc/node_modules/b/c/d.js
-    
+
     let f = super::fixture_root().join("abc/node_modules/a");
     let resolver = Resolver::new(ResolveOptions::default());
-    
+
     // Try to resolve b/c/d from inside package a
     let result = resolver.resolve(&f, "b/c/d");
     assert!(result.is_ok(), "Expected to resolve b/c/d but got error: {:?}", result);
