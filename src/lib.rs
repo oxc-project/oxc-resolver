@@ -932,7 +932,15 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
                 }
 
-                // Perf: try LOAD_AS_DIRECTORY first. No modern package manager creates `node_modules/X.js`.
+                // Only load the file if it is targeting a `X/sub/dir`.
+                if specifier != package_name
+                    && !specifier.ends_with('/')
+                    && let Some(path) = self.load_as_file(&cached_path, tsconfig, ctx)?
+                {
+                    return Ok(Some(path));
+                }
+                // Otherwise just load the directory.
+                // No modern package manager creates `node_modules/X.js`.
                 if self.cache.is_dir(&cached_path, ctx) {
                     if let Some(path) =
                         self.load_browser_field_or_alias(&cached_path, tsconfig, ctx)?
@@ -942,6 +950,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     if let Some(path) = self.load_as_directory(&cached_path, tsconfig, ctx)? {
                         return Ok(Some(path));
                     }
+                // Still need to try to load the file in case there are path aliases.
                 } else if let Some(path) = self.load_as_file(&cached_path, tsconfig, ctx)? {
                     return Ok(Some(path));
                 }
