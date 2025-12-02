@@ -49,7 +49,11 @@ fn resolve() {
         ("handle fragment edge case (no fragment)", f.clone(), "./no#fragment/#/#", f.join("no#fragment/#/#.js")),
         ("handle fragment edge case (fragment)", f.clone(), "./no#fragment/#/", f.join("no.js#fragment/#/")),
         ("handle fragment escaping", f.clone(), "./no\0#fragment/\0#/\0##fragment", f.join("no#fragment/#/#.js#fragment")),
-
+        // Test `node_modules/X/foo/` and `node_modules/X/foo.js` precedence.
+        ("file and dir precedence 1", f.clone(), "dir-and-file/foo", f.join("node_modules/dir-and-file/foo.js")),
+        ("file and dir precedence 2", f.clone(), "@scope/dir-and-file/foo", f.join("node_modules/@scope/dir-and-file/foo.js")),
+        ("file and dir precedence 1", f.clone(), "dir-and-file/foo/", f.join("node_modules/dir-and-file/foo/index.js")),
+        ("file and dir precedence 2", f.clone(), "@scope/dir-and-file/foo/", f.join("node_modules/@scope/dir-and-file/foo/index.js")),
     ];
 
     for (comment, path, request, expected) in pass {
