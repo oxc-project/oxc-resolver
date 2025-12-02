@@ -179,7 +179,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | aliasFields                           | []                        | A list of alias fields in description files                                                                                                               |
 | extensionAlias                        | {}                        | An object which maps extension to extension aliases                                                                                                       |
 | conditionNames                        | []                        | A list of exports field condition names                                                                                                                   |
-| enforceExtension                      | false                     | Enforce that a extension from extensions must be used                                                                                                     |
+| enforceExtension                      | false                     | Enforce that an extension from extensions must be used                                                                                                    |
 | exportsFields                         | ["exports"]               | A list of exports fields in description files                                                                                                             |
 | extensions                            | [".js", ".json", ".node"] | A list of extensions which should be tried for files                                                                                                      |
 | fallback                              | {}                        | Same as `alias`, but only used if default resolving fails                                                                                                 |
@@ -201,7 +201,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | Field               | Default | Description                                                                                                                                                                          |
 | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | tsconfig            | None    | TypeScript related config for resolver                                                                                                                                               |
-| tsconfig.configFile |         | A relative path to the tsconfig file based on `cwd`, or an absolute path of tsconfig file.                                                                                           |
+| tsconfig.configFile |         | A relative path to the tsconfig file based on `cwd`, or an absolute path to the tsconfig file.                                                                                       |
 | tsconfig.references | `[]`    | - 'auto': inherits from TypeScript config <br/> - `string []`: relative path (based on directory of the referencing tsconfig file) or absolute path of referenced project's tsconfig |
 
 ### Unimplemented Options
