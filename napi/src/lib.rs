@@ -12,7 +12,9 @@ use std::{
 
 use napi::{Either, Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{ResolveError, ResolveOptions, Resolution, Resolver, TsconfigDiscovery, TsconfigOptions};
+use oxc_resolver::{
+    Resolution, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
+};
 
 use self::options::{NapiResolveOptions, StrOrStrList};
 
