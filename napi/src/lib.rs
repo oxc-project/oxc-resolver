@@ -12,7 +12,7 @@ use std::{
 
 use napi::{Either, Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
-use oxc_resolver::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
+use oxc_resolver::{ResolveError, ResolveOptions, Resolution, Resolver, TsconfigDiscovery, TsconfigOptions};
 
 use self::options::{NapiResolveOptions, StrOrStrList};
 
@@ -52,8 +52,8 @@ pub struct Builtin {
     pub is_runtime_module: bool,
 }
 
-fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
-    match resolver.resolve(path, request) {
+fn map_resolution_to_result(result: Result<Resolution, ResolveError>) -> ResolveResult {
+    match result {
         Ok(resolution) => ResolveResult {
             path: Some(resolution.full_path().to_string_lossy().to_string()),
             error: None,
@@ -82,34 +82,12 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
     }
 }
 
+fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
+    map_resolution_to_result(resolver.resolve(path, request))
+}
+
 fn resolve_file(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
-    match resolver.resolve_file(path, request) {
-        Ok(resolution) => ResolveResult {
-            path: Some(resolution.full_path().to_string_lossy().to_string()),
-            error: None,
-            builtin: None,
-            module_type: resolution.module_type().map(ModuleType::from),
-            package_json_path: resolution
-                .package_json()
-                .and_then(|p| p.path().to_str())
-                .map(|p| p.to_string()),
-        },
-        Err(err) => {
-            let error = err.to_string();
-            ResolveResult {
-                path: None,
-                builtin: match err {
-                    ResolveError::Builtin { resolved, is_runtime_module } => {
-                        Some(Builtin { resolved, is_runtime_module })
-                    }
-                    _ => None,
-                },
-                module_type: None,
-                error: Some(error),
-                package_json_path: None,
-            }
-        }
-    }
+    map_resolution_to_result(resolver.resolve_file(path, request))
 }
 
 #[napi(string_enum = "lowercase")]
