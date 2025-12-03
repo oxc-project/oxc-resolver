@@ -285,6 +285,12 @@ impl TsConfig {
         {
             compiler_options.allow_js = Some(*allow_js);
         }
+
+        if compiler_options.root_dirs.is_none()
+            && let Some(root_dirs) = &tsconfig.compiler_options.root_dirs
+        {
+            compiler_options.root_dirs = Some(root_dirs.clone());
+        }
     }
     /// "Build" the root tsconfig, resolve:
     ///
@@ -324,6 +330,12 @@ impl TsConfig {
         {
             self.compiler_options.paths_base =
                 config_dir.join(stripped_path.trim_start_matches('/'));
+        }
+
+        if let Some(root_dirs) = &mut self.compiler_options.root_dirs {
+            for root_dir in root_dirs.iter_mut() {
+                *root_dir = config_dir.normalize_with(&root_dir);
+            }
         }
 
         if self.compiler_options.paths.is_some() {
@@ -483,6 +495,9 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#allowJs>
     pub allow_js: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#rootDirs>
+    pub root_dirs: Option<Vec<PathBuf>>,
 }
 
 /// Value for the "extends" field.

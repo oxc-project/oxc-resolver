@@ -370,7 +370,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         // tsconfig-paths
-        if let Some(path) = self.load_tsconfig_paths(cached_path, specifier, tsconfig)? {
+        if let Some(path) = self.load_tsconfig_paths(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
 
@@ -488,11 +488,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             c,
             Component::CurDir | Component::ParentDir | Component::Normal(_)
         )));
-        let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
         // a. LOAD_AS_FILE(Y + X)
         // b. LOAD_AS_DIRECTORY(Y + X)
         if let Some(path) = self.load_as_file_or_directory(
-            &cached_path,
+            &cached_path.normalize_with(specifier, self.cache.as_ref()),
             // ensure resolve directory only when specifier is `.`
             if specifier == "." { "./" } else { specifier },
             tsconfig,

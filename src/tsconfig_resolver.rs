@@ -260,6 +260,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         cached_path: &CachedPath,
         specifier: &str,
         tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
     ) -> ResolveResult {
         if cached_path.inside_node_modules() {
             return Ok(None);
@@ -296,8 +297,69 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Ok(Some(resolution));
             }
         }
+        if specifier.starts_with('.')
+            && let Some(path) =
+                self.load_tsconfig_root_dirs(cached_path, specifier, tsconfig, ctx)?
+        {
+            return Ok(Some(path));
+        }
         Ok(None)
     }
+
+    pub(crate) fn load_tsconfig_root_dirs(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: &TsConfig,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
+        debug_assert!(specifier.starts_with('.'));
+        debug_assert!(!cached_path.inside_node_modules());
+        let Some(root_dirs) = &tsconfig.compiler_options.root_dirs else { return Ok(None) };
+
+        // Use the containing directory, not the file itself
+        let containing_directory = if self.cache.is_dir(cached_path, ctx) {
+            cached_path.clone()
+        } else {
+            cached_path.parent(&self.cache).unwrap_or_else(|| cached_path.clone())
+        };
+        let candidate = containing_directory.normalize_with(specifier, &self.cache);
+        let mut matched_root_dir: Option<PathBuf> = None;
+        for root_dir in root_dirs {
+            let is_longest_matching_prefix = candidate.path().starts_with(root_dir)
+                && matched_root_dir
+                    .as_ref()
+                    .is_none_or(|prefix| prefix.as_os_str().len() < root_dir.as_os_str().len());
+            if is_longest_matching_prefix {
+                matched_root_dir.replace(root_dir.clone());
+            }
+        }
+        let Some(matched_root_dir) = matched_root_dir else {
+            return Ok(None);
+        };
+        if let Some(p) = self.load_as_file_or_directory(&candidate, ".", Some(tsconfig), ctx)? {
+            return Ok(Some(p));
+        }
+        // Defensive: This should never fail because we already verified the prefix match,
+        // but we handle it gracefully in case of unexpected path normalization edge cases.
+        let Ok(suffix) = candidate.path().strip_prefix(&matched_root_dir) else {
+            return Ok(None);
+        };
+        for root_dir in root_dirs {
+            if *root_dir == matched_root_dir {
+                continue;
+            }
+            let candidate = root_dir.normalize_with(suffix);
+            let cached_candidate = self.cache.value(&candidate);
+            if let Some(resolved) =
+                self.load_as_file_or_directory(&cached_candidate, ".", Some(tsconfig), ctx)?
+            {
+                return Ok(Some(resolved));
+            }
+        }
+        Ok(None)
+    }
+
     fn get_extended_tsconfig_path(
         &self,
         directory: &CachedPath,
