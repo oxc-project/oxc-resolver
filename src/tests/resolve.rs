@@ -271,3 +271,35 @@ fn file_protocol() {
 
     assert_eq!(resolver.resolve(f, "file://./main.js"), Err(resolve_error));
 }
+
+#[cfg(windows)]
+#[test]
+fn test() {
+    use crate::{TsconfigDiscovery, TsconfigOptions, TsconfigReferences};
+
+    let f = super::fixture_root().join("dot");
+
+    let cwd = f.join("foo");
+    let r1 = Resolver::new(ResolveOptions {
+        cwd: Some(cwd.clone()),
+        tsconfig: None,
+        ..Default::default()
+    });
+    let r2 = Resolver::new(ResolveOptions {
+        cwd: Some(cwd.clone()),
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Disabled,
+        })),
+        ..Default::default()
+    });
+
+    let r1_1 = r1.resolve(cwd.clone(), "foo.js");
+    let r2_1 = r2.resolve(cwd.clone(), "foo.js");
+    println!("{:?}", r2_1);
+    assert_eq!(r1_1.is_err(), r2_1.is_err());
+
+    let r1_1 = r1.resolve(cwd.clone(), "./foo.js").unwrap();
+    let r2_1 = r2.resolve(cwd.clone(), "./foo.js").unwrap();
+    assert_eq!(r1_1.path, r2_1.path);
+}
