@@ -82,6 +82,36 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
     }
 }
 
+fn resolve_file(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
+    match resolver.resolve_file(path, request) {
+        Ok(resolution) => ResolveResult {
+            path: Some(resolution.full_path().to_string_lossy().to_string()),
+            error: None,
+            builtin: None,
+            module_type: resolution.module_type().map(ModuleType::from),
+            package_json_path: resolution
+                .package_json()
+                .and_then(|p| p.path().to_str())
+                .map(|p| p.to_string()),
+        },
+        Err(err) => {
+            let error = err.to_string();
+            ResolveResult {
+                path: None,
+                builtin: match err {
+                    ResolveError::Builtin { resolved, is_runtime_module } => {
+                        Some(Builtin { resolved, is_runtime_module })
+                    }
+                    _ => None,
+                },
+                module_type: None,
+                error: Some(error),
+                package_json_path: None,
+            }
+        }
+    }
+}
+
 #[napi(string_enum = "lowercase")]
 pub enum ModuleType {
     Module,
@@ -124,6 +154,26 @@ impl Task for ResolveTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         Ok(resolve(&self.resolver, &self.directory, &self.request))
+    }
+
+    fn resolve(&mut self, _: napi::Env, result: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(result)
+    }
+}
+
+pub struct ResolveFileTask {
+    resolver: Arc<Resolver>,
+    file: PathBuf,
+    request: String,
+}
+
+#[napi]
+impl Task for ResolveFileTask {
+    type JsValue = ResolveResult;
+    type Output = ResolveResult;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        Ok(resolve_file(&self.resolver, &self.file, &self.request))
     }
 
     fn resolve(&mut self, _: napi::Env, result: Self::Output) -> napi::Result<Self::JsValue> {
@@ -183,6 +233,27 @@ impl ResolverFactory {
         let path = PathBuf::from(directory);
         let resolver = self.resolver.clone();
         AsyncTask::new(ResolveTask { resolver, directory: path, request })
+    }
+
+    /// Synchronously resolve `specifier` at an absolute path to a `file`.
+    ///
+    /// This method automatically discovers tsconfig.json by traversing parent directories.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn resolve_file_sync(&self, file: String, request: String) -> ResolveResult {
+        let path = PathBuf::from(file);
+        resolve_file(&self.resolver, &path, &request)
+    }
+
+    /// Asynchronously resolve `specifier` at an absolute path to a `file`.
+    ///
+    /// This method automatically discovers tsconfig.json by traversing parent directories.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn resolve_file_async(&self, file: String, request: String) -> AsyncTask<ResolveFileTask> {
+        let path = PathBuf::from(file);
+        let resolver = self.resolver.clone();
+        AsyncTask::new(ResolveFileTask { resolver, file: path, request })
     }
 
     fn normalize_options(op: NapiResolveOptions) -> ResolveOptions {

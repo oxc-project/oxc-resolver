@@ -53,6 +53,32 @@ const resolver = new ResolverFactory();
 assert(resolver.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
 ```
 
+#### File-based Resolution
+
+For file-based resolution with automatic tsconfig discovery, use `resolveFileSync` or `resolveFileAsync`:
+
+```javascript
+const resolver = new ResolverFactory();
+
+// Resolves from a file path (not directory)
+const result = resolver.resolveFileSync('/path/to/file.ts', './module');
+
+// Async version
+const result = await resolver.resolveFileAsync('/path/to/file.ts', './module');
+```
+
+**Key Differences:**
+- `sync(directory, specifier)` - Takes a **directory path**, uses manually configured tsconfig if provided
+- `resolveFileSync(file, specifier)` - Takes a **file path**, automatically discovers tsconfig.json by traversing parent directories
+
+**Why use `resolveFileSync`?**
+
+When resolving from a specific file (e.g., in bundlers, linters, or language servers), `resolveFileSync` automatically finds the correct `tsconfig.json` by:
+- Traversing parent directories from the file location
+- Respecting TypeScript project references
+- Honoring `include`, `exclude`, and `files` fields to determine which tsconfig applies
+- Ensuring tsconfig `paths` aliases work correctly based on the file's context
+
 #### Supports WASM
 
 See https://stackblitz.com/edit/oxc-resolver for usage example.
