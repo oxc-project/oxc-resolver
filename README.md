@@ -68,12 +68,14 @@ const result = await resolver.resolveFileAsync('/path/to/file.ts', './module');
 ```
 
 **Key Differences:**
+
 - `sync(directory, specifier)` - Takes a **directory path**, uses manually configured tsconfig if provided
 - `resolveFileSync(file, specifier)` - Takes a **file path**, automatically discovers tsconfig.json by traversing parent directories
 
 **Why use `resolveFileSync`?**
 
 When resolving from a specific file (e.g., in bundlers, linters, or language servers), `resolveFileSync` automatically finds the correct `tsconfig.json` by:
+
 - Traversing parent directories from the file location
 - Respecting TypeScript project references
 - Honoring `include`, `exclude`, and `files` fields to determine which tsconfig applies
