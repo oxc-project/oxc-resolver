@@ -11,6 +11,18 @@ export declare class ResolverFactory {
   sync(directory: string, request: string): ResolveResult
   /** Asynchronously resolve `specifier` at an absolute path to a `directory`. */
   async(directory: string, request: string): Promise<ResolveResult>
+  /**
+   * Synchronously resolve `specifier` at an absolute path to a `file`.
+   *
+   * This method automatically discovers tsconfig.json by traversing parent directories.
+   */
+  resolveFileSync(file: string, request: string): ResolveResult
+  /**
+   * Asynchronously resolve `specifier` at an absolute path to a `file`.
+   *
+   * This method automatically discovers tsconfig.json by traversing parent directories.
+   */
+  resolveFileAsync(file: string, request: string): Promise<ResolveResult>
 }
 
 /** Node.js builtin module when `Options::builtin_modules` is enabled. */
