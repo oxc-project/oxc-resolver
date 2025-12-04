@@ -210,9 +210,8 @@ pub struct TsconfigOptions {
     /// Support for Typescript Project References.
     ///
     /// * `'auto'`: use the `references` field from tsconfig of `config_file`.
-    /// * `string[]`: manually provided relative or absolute path.
-    #[napi(ts_type = "'auto' | string[]")]
-    pub references: Option<Either<String, Vec<String>>>,
+    #[napi(ts_type = "'auto'")]
+    pub references: Option<String>,
 }
 
 impl From<Restriction> for oxc_resolver::Restriction {
@@ -250,15 +249,10 @@ impl From<TsconfigOptions> for oxc_resolver::TsconfigOptions {
         oxc_resolver::TsconfigOptions {
             config_file: PathBuf::from(val.config_file),
             references: match val.references {
-                Some(Either::A(string)) if string.as_str() == "auto" => {
-                    oxc_resolver::TsconfigReferences::Auto
-                }
-                Some(Either::A(opt)) => {
+                Some(string) if string.as_str() == "auto" => oxc_resolver::TsconfigReferences::Auto,
+                Some(opt) => {
                     panic!("`{}` is not a valid option for  tsconfig references", opt)
                 }
-                Some(Either::B(paths)) => oxc_resolver::TsconfigReferences::Paths(
-                    paths.into_iter().map(PathBuf::from).collect::<Vec<_>>(),
-                ),
                 None => oxc_resolver::TsconfigReferences::Disabled,
             },
         }

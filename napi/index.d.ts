@@ -279,7 +279,6 @@ export interface TsconfigOptions {
    * Support for Typescript Project References.
    *
    * * `'auto'`: use the `references` field from tsconfig of `config_file`.
-   * * `string[]`: manually provided relative or absolute path.
    */
-  references?: 'auto' | string[]
+  references?: 'auto'
 }

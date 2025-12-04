@@ -145,18 +145,13 @@ impl TsConfig {
     /// Loads the given references into this tsconfig.
     ///
     /// Returns whether any references are defined in the tsconfig.
-    pub(crate) fn load_references(&mut self, references: &TsconfigReferences) -> bool {
+    pub(crate) fn load_references(&mut self, references: TsconfigReferences) -> bool {
         match references {
             TsconfigReferences::Disabled => {
                 self.references.drain(..);
             }
             TsconfigReferences::Auto => {}
-            TsconfigReferences::Paths(paths) => {
-                self.references =
-                    paths.iter().map(|path| ProjectReference { path: path.clone() }).collect();
-            }
         }
-
         !self.references.is_empty()
     }
 

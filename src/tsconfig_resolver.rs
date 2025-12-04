@@ -138,7 +138,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 self.load_tsconfig(
                     true,
                     &tsconfig_options.config_file,
-                    &tsconfig_options.references,
+                    tsconfig_options.references,
                     &mut ctx,
                 )
                 .map(Some)
@@ -160,9 +160,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
         let path = path.as_ref();
         let references = match &self.options.tsconfig {
-            Some(TsconfigDiscovery::Manual(o)) => &o.references,
-            Some(TsconfigDiscovery::Auto) => &TsconfigReferences::Auto,
-            None => &TsconfigReferences::Disabled,
+            Some(TsconfigDiscovery::Manual(o)) => o.references,
+            Some(TsconfigDiscovery::Auto) => TsconfigReferences::Auto,
+            None => TsconfigReferences::Disabled,
         };
         self.load_tsconfig(true, path, references, &mut TsconfigResolveContext::default())
     }
@@ -171,7 +171,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         root: bool,
         path: &Path,
-        references: &TsconfigReferences,
+        references: TsconfigReferences,
         ctx: &mut TsconfigResolveContext,
     ) -> Result<Arc<TsConfig>, ResolveError> {
         self.cache.get_tsconfig(root, path, |tsconfig| {
@@ -195,7 +195,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         let extended_tsconfig = self.load_tsconfig(
                             /* root */ false,
                             &extended_tsconfig_path,
-                            &TsconfigReferences::Disabled,
+                            TsconfigReferences::Disabled,
                             ctx,
                         )?;
                         tsconfig.extend_tsconfig(&extended_tsconfig);
@@ -247,7 +247,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let extended_tsconfig = self.load_tsconfig(
                 /* root */ false,
                 &extended_tsconfig_path,
-                &TsconfigReferences::Disabled,
+                TsconfigReferences::Disabled,
                 ctx,
             )?;
             tsconfig.extend_tsconfig(&extended_tsconfig);
@@ -277,10 +277,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             // Resolve against project references because project references are not discovered yet.
             Some(TsconfigDiscovery::Manual(o))
-                if matches!(
-                    o.references,
-                    TsconfigReferences::Auto | TsconfigReferences::Paths(_)
-                ) =>
+                if matches!(o.references, TsconfigReferences::Auto) =>
             {
                 tsconfig.resolve_references_then_self_paths(cached_path.path(), specifier)
             }

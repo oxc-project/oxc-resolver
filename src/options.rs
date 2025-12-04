@@ -494,13 +494,11 @@ pub struct TsconfigOptions {
 }
 
 /// Configuration for [TsconfigOptions::references]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum TsconfigReferences {
     Disabled,
     /// Use the `references` field from tsconfig of `config_file`.
     Auto,
-    /// Manually provided relative or absolute path.
-    Paths(Vec<PathBuf>),
 }
 
 impl Default for ResolveOptions {
