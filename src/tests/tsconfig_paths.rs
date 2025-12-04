@@ -2,11 +2,9 @@
 //!
 //! Fixtures copied from <https://github.com/parcel-bundler/parcel/tree/v2/packages/utils/node-resolver-core/test/fixture/tsconfig>.
 
-use std::path::{Path, PathBuf};
-
 use crate::{
-    JSONError, ResolveError, ResolveOptions, Resolver, TsConfig, TsconfigDiscovery,
-    TsconfigOptions, TsconfigReferences,
+    JSONError, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
+    TsconfigReferences,
 };
 
 // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/lib.rs#L2303>
@@ -28,6 +26,8 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
         (f.join("cases/extends-multiple"), None, "foo", f.join("cases/extends-multiple/foo.js")),
         (f.join("cases/absolute-alias"), None, "/images/foo.js", f.join("cases/absolute-alias/public/images/foo.ts")),
         (f.join("cases/references-extend"), Some("src/index.ts"), "ts-path", f.join("src/foo.js")),
+        // Support `base_url` 3rd case <https://github.com/microsoft/TypeScript/issues/62207>
+        (f.join("cases/base-url"), Some("src/index.ts"), "foo.js", f.join("cases/base-url/src/foo.js")),
     ];
 
     for (dir, subdir, request, expected) in pass {
@@ -62,6 +62,13 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
             Err(ResolveError::TsconfigNotFound(
                 f.join("cases").join("extends-not-found").join("not-found"),
             )),
+        ),
+        // no `base_url` <https://github.com/microsoft/TypeScript/issues/62207>
+        (
+            f.clone(),
+            "src/foo.js",
+            f.join("tsconfig.json"),
+            Err(ResolveError::NotFound("src/foo.js".to_string())),
         ),
     ];
 
@@ -171,106 +178,6 @@ fn empty() {
 
     let resolved_path = resolver.resolve_file(f.join("index.js"), "./index").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("index.js")));
-}
-
-// <https://github.com/parcel-bundler/parcel/blob/c8f5c97a01f643b4d5c333c02d019ef2618b44a5/packages/utils/node-resolver-rs/src/tsconfig.rs#L193C12-L193C12>
-#[test]
-fn test_paths() {
-    let path = Path::new("/foo");
-    let tsconfig_json = serde_json::json!({
-        "compilerOptions": {
-            "paths": {
-                "jquery": ["node_modules/jquery/dist/jquery"],
-                "*": ["generated/*"],
-                "bar/*": ["test/*"],
-                "bar/baz/*": ["baz/*", "yo/*"],
-                "@/components/*": ["components/*"],
-                "url": ["node_modules/my-url"],
-            }
-        }
-    })
-    .to_string();
-    let tsconfig =
-        TsConfig::parse(true, &path.join("tsconfig.json"), tsconfig_json).unwrap().build();
-
-    let data = [
-        ("jquery", vec!["/foo/node_modules/jquery/dist/jquery"]),
-        ("test", vec!["/foo/generated/test"]),
-        ("test/hello", vec!["/foo/generated/test/hello"]),
-        ("bar/hi", vec!["/foo/test/hi"]),
-        ("bar/baz/hi", vec!["/foo/baz/hi", "/foo/yo/hi"]),
-        ("@/components/button", vec!["/foo/components/button"]),
-        ("url", vec!["/foo/node_modules/my-url"]),
-    ];
-
-    for (specifier, expected) in data {
-        let paths = tsconfig.resolve_path_alias(specifier);
-        let expected = expected
-            .into_iter()
-            .map(PathBuf::from)
-            .chain(std::iter::once(path.join(specifier)))
-            .collect::<Vec<_>>();
-        assert_eq!(paths, expected, "{specifier}");
-    }
-}
-
-// <https://github.com/parcel-bundler/parcel/blob/c8f5c97a01f643b4d5c333c02d019ef2618b44a5/packages/utils/node-resolver-rs/src/tsconfig.rs#L233C6-L233C19>
-#[test]
-fn test_base_url() {
-    let path = Path::new("/foo/tsconfig.json");
-    let tsconfig_json = serde_json::json!({
-        "compilerOptions": {
-            "baseUrl": "./src"
-        }
-    })
-    .to_string();
-    let tsconfig = TsConfig::parse(true, path, tsconfig_json).unwrap().build();
-
-    let data = [
-        ("foo", vec!["/foo/src/foo"]),
-        ("components/button", vec!["/foo/src/components/button"]),
-        ("./jquery", vec![]),
-    ];
-
-    for (specifier, expected) in data {
-        let paths = tsconfig.resolve_path_alias(specifier);
-        let expected = expected.into_iter().map(PathBuf::from).collect::<Vec<_>>();
-        assert_eq!(paths, expected, "{specifier}");
-    }
-}
-
-// <https://github.com/parcel-bundler/parcel/blob/c8f5c97a01f643b4d5c333c02d019ef2618b44a5/packages/utils/node-resolver-rs/src/tsconfig.rs#L252>
-#[test]
-fn test_paths_and_base_url() {
-    let path = Path::new("/foo/tsconfig.json");
-    let tsconfig_json = serde_json::json!({
-        "compilerOptions": {
-            "baseUrl": "./src",
-            "paths": {
-                "*": ["generated/*"],
-                "bar/*": ["test/*"],
-                "bar/baz/*": ["baz/*", "yo/*"],
-                "@/components/*": ["components/*"]
-            }
-        }
-    })
-    .to_string();
-    let tsconfig = TsConfig::parse(true, path, tsconfig_json).unwrap().build();
-
-    let data = [
-        ("test", vec!["/foo/src/generated/test", "/foo/src/test"]),
-        ("test/hello", vec!["/foo/src/generated/test/hello", "/foo/src/test/hello"]),
-        ("bar/hi", vec!["/foo/src/test/hi", "/foo/src/bar/hi"]),
-        ("bar/baz/hi", vec!["/foo/src/baz/hi", "/foo/src/yo/hi", "/foo/src/bar/baz/hi"]),
-        ("@/components/button", vec!["/foo/src/components/button", "/foo/src/@/components/button"]),
-        ("./jquery", vec![]),
-    ];
-
-    for (specifier, expected) in data {
-        let paths = tsconfig.resolve_path_alias(specifier);
-        let expected = expected.into_iter().map(PathBuf::from).collect::<Vec<_>>();
-        assert_eq!(paths, expected, "{specifier}");
-    }
 }
 
 #[test]

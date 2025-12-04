@@ -370,7 +370,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         // tsconfig-paths
-        if let Some(path) = self.load_tsconfig_paths(cached_path, specifier, tsconfig, ctx)? {
+        if let Some(path) =
+            self.resolve_tsconfig_compiler_options(cached_path, specifier, tsconfig, ctx)?
+        {
             return Ok(path);
         }
 

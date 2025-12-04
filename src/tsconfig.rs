@@ -390,13 +390,15 @@ impl TsConfig {
         }
 
         let compiler_options = &self.compiler_options;
-        let base_url_iter = vec![compiler_options.paths_base.normalize_with(specifier)];
+
+        // if compiler_options
+        // let base_url_iter = vec![compiler_options.paths_base.normalize_with(specifier)];
 
         let Some(paths_map) = &compiler_options.paths else {
-            return base_url_iter;
+            return vec![];
         };
 
-        let paths = paths_map.get(specifier).map_or_else(
+        paths_map.get(specifier).map_or_else(
             || {
                 let mut longest_prefix_length = 0;
                 let mut longest_suffix_length = 0;
@@ -428,9 +430,14 @@ impl TsConfig {
                 })
             },
             Clone::clone,
-        );
+        )
+    }
 
-        paths.into_iter().chain(base_url_iter).collect()
+    pub(crate) fn resolve_base_url(&self, specifier: &str) -> Option<PathBuf> {
+        self.compiler_options
+            .base_url
+            .is_some()
+            .then(|| self.compiler_options.paths_base.normalize_with(specifier))
     }
 }
 
