@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.15.0](https://github.com/oxc-project/oxc-resolver/compare/v11.14.2...v11.15.0) - 2025-12-04
+
+### <!-- 0 -->🚀 Features
+
+- [**breaking**] disallow manually passing a list of references to `TsconfigOptions::references` ([#902](https://github.com/oxc-project/oxc-resolver/pull/902)) (by @Boshen)
+- support tsconfig `rootDirs` ([#885](https://github.com/oxc-project/oxc-resolver/pull/885)) (by @Boshen)
+- *(napi)* expose resolve_file API as resolveFileSync and resolveFileAsync ([#900](https://github.com/oxc-project/oxc-resolver/pull/900)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- fix resolution when resolving non-relative specifier on tsconfig baseUrl ([#903](https://github.com/oxc-project/oxc-resolver/pull/903)) (by @Boshen)
+- add fallback for statx NOSYS error on old kernels ([#901](https://github.com/oxc-project/oxc-resolver/pull/901)) (by @Boshen)
+- correct grammatical errors in documentation and comments ([#897](https://github.com/oxc-project/oxc-resolver/pull/897)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.14.2](https://github.com/oxc-project/oxc-resolver/compare/v11.14.1...v11.14.2) - 2025-12-02
 
 ### <!-- 1 -->🐛 Bug Fixes
