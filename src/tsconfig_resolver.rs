@@ -255,7 +255,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(())
     }
 
-    pub(crate) fn load_tsconfig_paths(
+    /// Resolves
+    /// * `compilerOptions.paths`
+    /// * `compilerOptions.rootDirs` (if specifier starts with `.`)
+    /// * `compilerOptions.baseUrl` (if specifier does not start with `.`)
+    // <https://github.com/microsoft/TypeScript/blob/v5.9.3/src/compiler/moduleNameResolver.ts#L1550>
+    pub(crate) fn resolve_tsconfig_compiler_options(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
@@ -285,20 +290,25 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         };
         for path in paths {
             let resolved_path = self.cache.value(&path);
-            if let Some(resolution) = self.load_as_file_or_directory(
-                &resolved_path,
-                ".",
-                Some(tsconfig),
-                &mut Ctx::default(),
-            )? {
+            if let Some(resolution) =
+                self.load_as_file_or_directory(&resolved_path, ".", Some(tsconfig), ctx)?
+            {
                 return Ok(Some(resolution));
             }
         }
-        if specifier.starts_with('.')
-            && let Some(path) =
+        if specifier.starts_with('.') {
+            if let Some(path) =
                 self.load_tsconfig_root_dirs(cached_path, specifier, tsconfig, ctx)?
-        {
-            return Ok(Some(path));
+            {
+                return Ok(Some(path));
+            }
+        } else if let Some(path) = tsconfig.resolve_base_url(specifier) {
+            let resolved_path = self.cache.value(&path);
+            if let Some(resolution) =
+                self.load_as_file_or_directory(&resolved_path, ".", Some(tsconfig), ctx)?
+            {
+                return Ok(Some(resolution));
+            }
         }
         Ok(None)
     }
