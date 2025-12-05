@@ -1611,7 +1611,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         for imports in package_json.imports_fields(&self.options.imports_fields) {
             if !has_imports {
                 has_imports = true;
-                if specifier == "#" || specifier.starts_with("#/") {
+                if specifier == "#" {
                     return Err(ResolveError::InvalidModuleSpecifier(
                         specifier.to_string(),
                         package_json.path().to_path_buf(),

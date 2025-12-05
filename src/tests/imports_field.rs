@@ -30,6 +30,9 @@ fn test_simple() {
         ("should resolve package #3", f.clone(), "#ccc/index.js", f.join("node_modules/c/index.js")),
         ("should resolve package #4", f.clone(), "#c", f.join("node_modules/c/index.js")),
         ("should resolve with wildcard pattern", f2.clone(), "#internal/i.js", f2.join("src/internal/i.js")),
+        ("wildcard #/path", f2.clone(), "#/internal/i.js", f2.join("src/internal/i.js")),
+        ("wildcard #/* 1", f2.clone(), "#/features/f", f2.join("src/features/f.js")),
+        ("wildcard #/* 2", f2.clone(), "#/features/y/y.js", f2.join("src/features/y/y.js")),
     ];
 
     for (comment, path, request, expected) in pass {
@@ -46,8 +49,6 @@ fn test_simple() {
         ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget("../b.js".to_string(), "#b".to_string(), f.join("package.json"))),
         ("should resolve package #2", f.clone(), "#a", ResolveError::PackageImportNotDefined("#a".to_string(), f.join("package.json"))),
         ("# is not allowed", f.clone(), "#", ResolveError::InvalidModuleSpecifier("#".to_string(), f.join("package.json"))),
-        ("#/ is not allowed", f.clone(), "#/", ResolveError::InvalidModuleSpecifier("#/".to_string(), f.join("package.json"))),
-        ("#/foo is not allowed", f.clone(), "#/foo", ResolveError::InvalidModuleSpecifier("#/foo".to_string(), f.join("package.json")))
     ];
 
     for (comment, path, request, error) in fail {
