@@ -1598,7 +1598,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Result<Option<CachedPath>, ResolveError> {
         // 1. Assert: specifier begins with "#".
         debug_assert!(specifier.starts_with('#'), "{specifier}");
-        //   2. If specifier is exactly equal to "#" or starts with "#/", then
+        //   2. If _specifier_ is exactly equal to _"#"_, then
         //   1. Throw an Invalid Module Specifier error.
         // 3. Let packageURL be the result of LOOKUP_PACKAGE_SCOPE(parentURL).
         // 4. If packageURL is not null, then
@@ -1611,7 +1611,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         for imports in package_json.imports_fields(&self.options.imports_fields) {
             if !has_imports {
                 has_imports = true;
-                // TODO: fill in test case for this case
                 if specifier == "#" || specifier.starts_with("#/") {
                     return Err(ResolveError::InvalidModuleSpecifier(
                         specifier.to_string(),

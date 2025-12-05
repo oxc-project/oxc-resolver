@@ -45,6 +45,9 @@ fn test_simple() {
     let fail = [
         ("should disallow resolve out of package scope", f.clone(), "#b", ResolveError::InvalidPackageTarget("../b.js".to_string(), "#b".to_string(), f.join("package.json"))),
         ("should resolve package #2", f.clone(), "#a", ResolveError::PackageImportNotDefined("#a".to_string(), f.join("package.json"))),
+        ("# is not allowed", f.clone(), "#", ResolveError::InvalidModuleSpecifier("#".to_string(), f.join("package.json"))),
+        ("#/ is not allowed", f.clone(), "#/", ResolveError::InvalidModuleSpecifier("#/".to_string(), f.join("package.json"))),
+        ("#/foo is not allowed", f.clone(), "#/foo", ResolveError::InvalidModuleSpecifier("#/foo".to_string(), f.join("package.json")))
     ];
 
     for (comment, path, request, error) in fail {
