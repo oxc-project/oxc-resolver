@@ -493,7 +493,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // a. LOAD_AS_FILE(Y + X)
         // b. LOAD_AS_DIRECTORY(Y + X)
         if let Some(path) = self.load_as_file_or_directory(
-            &cached_path.normalize_with(specifier, self.cache.as_ref()),
+            &cached_path.normalize_with(specifier, &self.cache),
             // ensure resolve directory only when specifier is `.`
             if specifier == "." { "./" } else { specifier },
             tsconfig,
@@ -673,7 +673,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 4. If X.node is a file, load X.node as binary addon. STOP
         if !ctx.fully_specified {
             for extension in &self.options.extensions {
-                let cached_path = cached_path.add_extension(extension, self.cache.as_ref());
+                let cached_path = cached_path.add_extension(extension, &self.cache);
                 if let Some(path) = self.load_alias_or_file(&cached_path, tsconfig, ctx)? {
                     return Ok(Some(path));
                 }
@@ -701,8 +701,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 };
 
                 // c. let M = X + (json main field)
-                let cached_path =
-                    cached_path.normalize_with(main_field.as_ref(), self.cache.as_ref());
+                let cached_path = cached_path.normalize_with(main_field.as_ref(), &self.cache);
                 // d. LOAD_AS_FILE(M)
                 if let Some(path) = self.load_as_file(&cached_path, tsconfig, ctx)? {
                     return Ok(Some(path));
@@ -894,7 +893,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // 1. Try to interpret X as a combination of NAME and SUBPATH where the name
                 //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
                 if !package_name.is_empty() {
-                    let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
+                    let cached_path = cached_path.normalize_with(package_name, &self.cache);
                     // Try foo/node_modules/package_name
                     if self.cache.is_dir(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -927,7 +926,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // b. LOAD_AS_FILE(DIR/X)
                 // c. LOAD_AS_DIRECTORY(DIR/X)
 
-                let cached_path = cached_path.normalize_with(specifier, self.cache.as_ref());
+                let cached_path = cached_path.normalize_with(specifier, &self.cache);
 
                 if self.options.resolve_to_context {
                     return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
@@ -1055,13 +1054,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Option<CachedPath> {
         if module_name == "node_modules" {
-            cached_path.cached_node_modules(self.cache.as_ref(), ctx)
+            cached_path.cached_node_modules(&self.cache, ctx)
         } else if cached_path.path().components().next_back()
             == Some(Component::Normal(OsStr::new(module_name)))
         {
             Some(cached_path.clone())
         } else {
-            cached_path.module_directory(module_name, self.cache.as_ref(), ctx)
+            cached_path.module_directory(module_name, &self.cache, ctx)
         }
     }
 
@@ -1249,8 +1248,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         }
                     }
                     AliasValue::Ignore => {
-                        let cached_path =
-                            cached_path.normalize_with(alias_key, self.cache.as_ref());
+                        let cached_path = cached_path.normalize_with(alias_key, &self.cache);
                         return Err(ResolveError::Ignored(cached_path.to_path_buf()));
                     }
                 }
@@ -1360,7 +1358,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let Some(filename) = path.file_name() else { return Ok(None) };
         ctx.with_fully_specified(true);
         for extension in extensions {
-            let cached_path = cached_path.replace_extension(extension, self.cache.as_ref());
+            let cached_path = cached_path.replace_extension(extension, &self.cache);
             if let Some(path) = self.load_alias_or_file(&cached_path, tsconfig, ctx)? {
                 ctx.with_fully_specified(false);
                 return Ok(Some(path));
@@ -1446,7 +1444,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     continue;
                 };
                 // 2. Set parentURL to the parent folder URL of parentURL.
-                let cached_path = cached_path.normalize_with(package_name, self.cache.as_ref());
+                let cached_path = cached_path.normalize_with(package_name, &self.cache);
                 // 3. If the folder at packageURL does not exist, then
                 //   1. Continue the next loop iteration.
                 if self.cache.is_dir(&cached_path, ctx) {
@@ -1473,7 +1471,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                             for main_field in package_json.main_fields(&self.options.main_fields) {
                                 // 1. Return the URL resolution of main in packageURL.
                                 let cached_path =
-                                    cached_path.normalize_with(main_field, self.cache.as_ref());
+                                    cached_path.normalize_with(main_field, &self.cache);
                                 if self.cache.is_file(&cached_path, ctx)
                                     && self.check_restrictions(cached_path.path())
                                 {
@@ -1810,7 +1808,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
             // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
-            return Ok(Some(package_url.normalize_with(target.as_ref(), self.cache.as_ref())));
+            return Ok(Some(package_url.normalize_with(target.as_ref(), &self.cache)));
         }
         // 2. Otherwise, if target is a non-null Object, then
         else if let Some(target) = target.as_map() {
