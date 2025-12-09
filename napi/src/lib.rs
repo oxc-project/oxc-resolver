@@ -155,6 +155,8 @@ impl ResolverFactory {
     }
 
     /// Clear the underlying cache.
+    ///
+    /// Warning: The caller must ensure that there're no ongoing resolution operations when calling this method. Otherwise, it may cause those operations to return an incorrect result.
     #[napi]
     pub fn clear_cache(&self) {
         self.resolver.clear_cache();
