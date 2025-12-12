@@ -94,13 +94,10 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 
     pub(crate) fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        path.is_dir(&self.fs).map_or_else(
-            || {
-                ctx.add_missing_dependency(path.path());
-                false
-            },
-            |b| b,
-        )
+        path.is_dir(&self.fs).unwrap_or_else(|| {
+            ctx.add_missing_dependency(path.path());
+            false
+        })
     }
 
     /// Get package.json of a path of `path`.
