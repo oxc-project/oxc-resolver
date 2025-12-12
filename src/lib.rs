@@ -133,6 +133,32 @@ impl<Fs: FileSystem> Default for ResolverGeneric<Fs> {
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
+        let options = options.sanitize();
+        let cache = Self::new_cache(&options);
+        Self { options, cache }
+    }
+
+    pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
+        Self { cache: Arc::new(Cache::new(file_system)), options: options.sanitize() }
+    }
+
+    /// Clone the resolver using the same underlying cache.
+    #[allow(clippy::unused_self)]
+    #[must_use]
+    pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
+        let options = options.sanitize();
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                let cache = Self::new_cache(&options);
+            } else {
+                let cache = Arc::clone(&self.cache);
+            }
+        }
+        Self { options, cache }
+    }
+
+    #[allow(unused)]
+    fn new_cache(options: &ResolveOptions) -> Arc<Cache<Fs>> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 let fs = Fs::new(options.yarn_pnp);
@@ -140,20 +166,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let fs = Fs::new();
             }
         }
-        let cache = Arc::new(Cache::new(fs));
-        Self { options: options.sanitize(), cache }
-    }
-}
-
-impl<Fs: FileSystem> ResolverGeneric<Fs> {
-    pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        Self { cache: Arc::new(Cache::new(file_system)), options: options.sanitize() }
-    }
-
-    /// Clone the resolver using the same underlying cache.
-    #[must_use]
-    pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
-        Self { options: options.sanitize(), cache: Arc::clone(&self.cache) }
+        Arc::new(Cache::new(fs))
     }
 
     /// Returns the options.
