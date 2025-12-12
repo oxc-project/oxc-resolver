@@ -21,12 +21,12 @@ pub struct CachedPath(pub Arc<CachedPathImpl>);
 pub struct CachedPathImpl {
     pub hash: u64,
     pub path: Box<Path>,
-    pub parent: Option<Weak<CachedPathImpl>>,
+    pub parent: Option<Weak<Self>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
-    pub canonicalized: OnceLock<(Weak<CachedPathImpl>, PathBuf)>,
-    pub node_modules: OnceLock<Option<Weak<CachedPathImpl>>>,
+    pub canonicalized: OnceLock<(Weak<Self>, PathBuf)>,
+    pub node_modules: OnceLock<Option<Weak<Self>>>,
     pub package_json: OnceLock<Option<PackageJsonIndex>>,
     /// `tsconfig.json` found at path.
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
