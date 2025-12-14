@@ -394,6 +394,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fancy-regex"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "fast-glob"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -969,7 +980,7 @@ dependencies = [
  "criterion2",
  "dirs",
  "document-features",
- "fancy-regex",
+ "fancy-regex 0.17.0",
  "fast-glob",
  "indexmap",
  "json-strip-comments",
@@ -999,7 +1010,7 @@ dependencies = [
 name = "oxc_resolver_napi"
 version = "11.15.0"
 dependencies = [
- "fancy-regex",
+ "fancy-regex 0.17.0",
  "mimalloc-safe",
  "napi",
  "napi-build",
@@ -1079,7 +1090,7 @@ checksum = "2acd0b1e3a154e7c4610b9ab31491c32e9f47db2adc0c12047301f3bacc71597"
 dependencies = [
  "byteorder",
  "concurrent_lru",
- "fancy-regex",
+ "fancy-regex 0.16.2",
  "flate2",
  "pathdiff",
  "radix_trie",
