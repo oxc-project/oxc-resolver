@@ -113,7 +113,7 @@ self_cell = "1" # Used by simd implementation for self-referential struct
 [dev-dependencies]
 criterion2 = { version = "3.0.2", default-features = false }
 dirs = { version = "6.0.0" }
-fancy-regex = { version = "^0.16.2", default-features = false, features = ["std"] }
+fancy-regex = { version = "^0.17.0", default-features = false, features = ["std"] }
 pico-args = "0.5.0"
 rayon = { version = "1.11.0" }
 vfs = "0.12.2" # for testing with in memory file system

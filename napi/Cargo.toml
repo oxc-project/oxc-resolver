@@ -22,7 +22,7 @@ doctest = false
 [dependencies]
 oxc_resolver = { workspace = true }
 
-fancy-regex = { version = "^0.16.2", default-features = false, features = ["std"] }
+fancy-regex = { version = "^0.17.0", default-features = false, features = ["std"] }
 napi = { version = "3", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3" }
 tracing-subscriber = { version = "0.3.20", optional = true, default-features = false, features = ["std", "fmt"] } # Omit the `regex` feature
