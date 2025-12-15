@@ -1,1 +1,1 @@
-export const normalizePath = (p) => p.replaceAll('\\', '/');
+export const normalizePath = (p) => p.replaceAll("\\", "/");

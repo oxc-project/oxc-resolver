@@ -27,7 +27,7 @@ oxc-resolver/
 
 ## Development Workflow
 
-`just init` has already been run, all tools (`typos-cli`, `cargo-shear`, `dprint`) are already installed, do not run `just init`.
+`just init` has already been run, all tools (`typos-cli`, `cargo-shear`) are already installed, do not run `just init`.
 
 Rust and `cargo` components `clippy`, `rust-docs` and `rustfmt` have already been installed, do not install them.
 
@@ -40,7 +40,7 @@ just ready     # Run all checks (format, lint, test, build)
 just test      # Run all tests (Rust + Node.js)
 just check     # Cargo check with all features
 just lint      # Run clippy with strict settings
-just fmt       # Format code (cargo fmt + dprint)
+just fmt       # Format code (cargo fmt + oxfmt)
 ```
 
 ## Code Conventions

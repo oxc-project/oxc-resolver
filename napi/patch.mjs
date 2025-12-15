@@ -1,9 +1,9 @@
-import fs from 'node:fs';
+import fs from "node:fs";
 
-const filename = './napi/index.js';
-let data = fs.readFileSync(filename, 'utf-8');
+const filename = "./napi/index.js";
+let data = fs.readFileSync(filename, "utf-8");
 data = data.replace(
-  '\nif (!nativeBinding) {',
+  "\nif (!nativeBinding) {",
   (s) =>
     `
 if (!nativeBinding && globalThis.process?.versions?.["webcontainer"]) {
@@ -15,9 +15,11 @@ if (!nativeBinding && globalThis.process?.versions?.["webcontainer"]) {
 }
 ` + s,
 );
-data = data + `
+data =
+  data +
+  `
 if (process.versions.pnp) {
   process.env.OXC_RESOLVER_YARN_PNP = '1'
 }
-`
+`;
 fs.writeFileSync(filename, data);
