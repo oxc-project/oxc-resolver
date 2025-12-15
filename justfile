@@ -13,7 +13,7 @@ alias r := ready
 # or install via `cargo install cargo-binstall`
 # Initialize the project by installing all the necessary tools.
 init:
-  cargo binstall cargo-shear dprint typos-cli watchexec-cli -y
+  cargo binstall cargo-shear typos-cli watchexec-cli -y
   rustup target add s390x-unknown-linux-gnu
 
 install:
@@ -51,7 +51,7 @@ example target *args='':
 fmt:
   cargo shear --fix # remove all unused dependencies
   cargo fmt --all
-  dprint fmt
+  node --run fmt
 
 # Run cargo check
 check:

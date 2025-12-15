@@ -1,9 +1,7 @@
 {
   "name": "oxc-resolver",
   "version": "11.15.0",
-  "license": "MIT",
   "description": "Oxc Resolver Node API",
-  "packageManager": "pnpm@10.25.0",
   "homepage": "https://oxc.rs",
   "repository": {
     "type": "git",
@@ -12,40 +10,34 @@
   "funding": {
     "url": "https://github.com/sponsors/Boshen"
   },
+  "license": "MIT",
   "main": "index.js",
   "browser": "browser.js",
   "files": [
+    "browser.js",
     "index.d.ts",
     "index.js",
-    "browser.js",
     "webcontainer-fallback.js"
   ],
   "scripts": {
     "test": "vitest run -r ./napi",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
     "build": "pnpm run build:debug --features allocator --release",
-    "postbuild:debug": "node napi/patch.mjs"
+    "postbuild:debug": "node napi/patch.mjs",
+    "fmt": "oxfmt"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.3.1",
     "@napi-rs/wasm-runtime": "^1.0.7",
     "@types/node": "^25.0.0",
     "emnapi": "^1.6.0",
+    "oxfmt": "^0.18.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.0"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
   },
   "napi": {
     "binaryName": "resolver",
     "packageName": "@oxc-resolver/binding",
-    "wasm": {
-      "browser": {
-        "fs": true
-      }
-    },
     "targets": [
       "aarch64-apple-darwin",
       "aarch64-linux-android",
@@ -67,6 +59,16 @@
       "x86_64-unknown-freebsd",
       "x86_64-unknown-linux-gnu",
       "x86_64-unknown-linux-musl"
-    ]
+    ],
+    "wasm": {
+      "browser": {
+        "fs": true
+      }
+    }
+  },
+  "packageManager": "pnpm@10.25.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

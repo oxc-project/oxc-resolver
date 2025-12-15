@@ -21,26 +21,13 @@ jobs:
       - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         with:
           restore-cache: false
-          tools: just,cargo-shear@1,dprint
+          tools: just,cargo-shear@1
           components: rustfmt
 
-      - name: Restore dprint plugin cache
-        id: cache-restore
-        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
-        with:
-          key: dprint-autofix-ci-${{ runner.os }}-${{ hashFiles('dprint.json') }}
-          path: ~/.cache/dprint
+      - uses: ./.github/actions/pnpm
 
       - run: just fmt
 
       - uses: autofix-ci/action@635ffb0c9798bd160680f18fd73371e355b85f27 # v1.3.2
         with:
           fail-fast: false
-
-      - name: Save dprint plugin cache
-        if: ${{ github.ref_name == 'main' }}
-        id: cache-save
-        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
-        with:
-          key: ${{ steps.cache-restore.outputs.cache-primary-key }}
-          path: ~/.cache/dprint
