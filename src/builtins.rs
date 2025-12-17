@@ -69,3 +69,11 @@ pub const NODEJS_BUILTINS: &[&str] = &[
     "worker_threads",
     "zlib",
 ];
+
+#[test]
+fn test_alphabetization() {
+    let mut sorted_builtins = NODEJS_BUILTINS.to_vec();
+    sorted_builtins.sort_unstable();
+
+    assert_eq!(sorted_builtins, NODEJS_BUILTINS);
+}
