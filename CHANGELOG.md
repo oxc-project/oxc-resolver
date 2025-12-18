@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.16.0](https://github.com/oxc-project/oxc-resolver/compare/v11.15.0...v11.16.0) - 2025-12-18
+
+### <!-- 0 -->🚀 Features
+
+- allow subpath imports that start with #/ ([#907](https://github.com/oxc-project/oxc-resolver/pull/907)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- resolve solution tsconfig for auto discovered tsconfig ([#927](https://github.com/oxc-project/oxc-resolver/pull/927)) (by @Boshen)
+- fix `clone_with_options` + `yarn_pnp: true` not working ([#916](https://github.com/oxc-project/oxc-resolver/pull/916)) (by @sapphi-red)
+
+### <!-- 2 -->🚜 Refactor
+
+- s/self.cache.as_ref()/&self.cache ([#910](https://github.com/oxc-project/oxc-resolver/pull/910)) (by @Boshen)
+
+### <!-- 6 -->🧪 Testing
+
+- Add a test to ensure NODEJS_BUILTINS is alphabetized. ([#926](https://github.com/oxc-project/oxc-resolver/pull/926)) (by @connorshea)
+- add test cases for package imports starting with `#` or `#/` ([#905](https://github.com/oxc-project/oxc-resolver/pull/905)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @connorshea
+* @renovate[bot]
+* @sapphi-red
+
 ## [11.15.0](https://github.com/oxc-project/oxc-resolver/compare/v11.14.2...v11.15.0) - 2025-12-04
 
 ### <!-- 0 -->🚀 Features
