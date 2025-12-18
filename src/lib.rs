@@ -229,7 +229,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn resolve_file_impl(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
-        let mut ctx = Ctx::default();
+        let mut ctx = Ctx { resolve_file: true, ..Ctx::default() };
         let dir = path.parent().unwrap();
         let tsconfig = self.find_tsconfig(path)?;
         self.resolve_tracing(dir, specifier, tsconfig.as_deref(), &mut ctx)

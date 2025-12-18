@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
     "composite": true,
+    "allowJs": true,
     "paths": {
       "foo": ["${configDir}/src/foo.js"]
     }
-  }
+  },
+  "files": ["./src/foo.js"]
 }

@@ -20,7 +20,9 @@ pub struct ResolveContext {
     pub resolving_alias: Option<String>,
 
     /// For avoiding infinite recursion, which will cause stack overflow.
-    depth: u8,
+    pub depth: u8,
+
+    pub resolve_file: bool,
 }
 
 impl ResolveContext {

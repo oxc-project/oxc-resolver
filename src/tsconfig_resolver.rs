@@ -280,11 +280,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             {
                 tsconfig.resolve_path_alias(specifier)
             }
-            // Resolve against project references because project references are not discovered yet.
             Some(TsconfigDiscovery::Manual(o))
                 if matches!(o.references, TsconfigReferences::Auto) =>
             {
-                tsconfig.resolve_references_then_self_paths(cached_path.path(), specifier)
+                if ctx.resolve_file {
+                    // This is the solution tsconfig, resolve directly.
+                    tsconfig.resolve_path_alias(specifier)
+                } else {
+                    // This is the manually provided tsconfig, resolve against project references..
+                    tsconfig.resolve_references_then_self_paths(cached_path.path(), specifier)
+                }
             }
             None | Some(TsconfigDiscovery::Manual(_)) => return Ok(None),
         };

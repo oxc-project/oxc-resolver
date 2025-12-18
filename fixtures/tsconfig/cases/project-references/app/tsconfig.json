@@ -2,6 +2,7 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": "./",
+    "allowJs": true,
     "paths": {
       "@/*": ["./aliased/*"]
     }
@@ -19,5 +20,6 @@
     {
       "path": "../../paths-template-variable/tsconfig.json"
     }
-  ]
+  ],
+  "include": ["**/*"]
 }

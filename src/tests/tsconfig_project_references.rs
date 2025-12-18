@@ -147,7 +147,8 @@ fn references_with_extends() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve_file(f.join("src"), "@/pages").map(|f| f.full_path());
+    let file = f.join("src").join("src").join("index.tsx");
+    let resolved_path = resolver.resolve_file(file, "@/pages").map(|f| f.full_path());
 
     assert_eq!(resolved_path, Ok(f.join("src/pages/index.tsx")));
 }
