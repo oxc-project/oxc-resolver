@@ -3,6 +3,7 @@
   "version": "11.16.0",
   "description": "Oxc Resolver Node API",
   "homepage": "https://oxc.rs",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oxc-project/oxc-resolver.git"
@@ -10,15 +11,18 @@
   "funding": {
     "url": "https://github.com/sponsors/Boshen"
   },
-  "license": "MIT",
-  "main": "index.js",
-  "browser": "browser.js",
   "files": [
     "browser.js",
     "index.d.ts",
     "index.js",
     "webcontainer-fallback.js"
   ],
+  "main": "index.js",
+  "browser": "browser.js",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "test": "vitest run -r ./napi",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
@@ -31,7 +35,7 @@
     "@napi-rs/wasm-runtime": "^1.0.7",
     "@types/node": "^25.0.0",
     "emnapi": "^1.6.0",
-    "oxfmt": "^0.18.0",
+    "oxfmt": "^0.19.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.0"
   },
@@ -66,9 +70,5 @@
       }
     }
   },
-  "packageManager": "pnpm@10.25.0",
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  }
+  "packageManager": "pnpm@10.25.0"
 }
