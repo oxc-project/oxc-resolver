@@ -3,6 +3,4 @@
 # typos
 
 [files]
-extend-exclude = [
-  "CHANGELOG.md",
-]
+extend-exclude = ["CHANGELOG.md"]
