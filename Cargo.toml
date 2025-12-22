@@ -51,7 +51,7 @@ unimplemented = "warn"
 # This increases readability, avoids `clone` mindlessly and heap allocating on accident.
 clone_on_ref_ptr = "warn"
 # These two are mutually exclusive, I like `mod.rs` files for better fuzzy searches on module entries.
-self_named_module_files = "warn" # "-Wclippy::mod_module_files"
+self_named_module_files = "warn"             # "-Wclippy::mod_module_files"
 empty_drop = "warn"
 empty_structs_with_brackets = "warn"
 exit = "warn"
@@ -87,7 +87,9 @@ papaya = "0.2"
 parking_lot = "0.12"
 rustc-hash = { version = "2" }
 serde = { version = "1", features = ["derive"] } # derive for Deserialize from package.json
-serde_json = { version = "1", features = ["preserve_order"] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
+serde_json = { version = "1", features = [
+  "preserve_order",
+] } # preserve_order: package_json.exports requires order such as `["require", "import", "default"]`
 simdutf8 = { version = "0.1" }
 thiserror = "2"
 tracing = "0.1"
@@ -108,7 +110,7 @@ windows = { version = "0.62.2", features = ["Win32_Storage_FileSystem"] }
 [target.'cfg(target_endian = "little")'.dependencies]
 # simd-json only works on little-endian systems
 simd-json = { version = "0.17.0", default-features = false, features = ["runtime-detection"] }
-self_cell = "1" # Used by simd implementation for self-referential struct
+self_cell = "1"                                                                                # Used by simd implementation for self-referential struct
 
 [dev-dependencies]
 criterion2 = { version = "3.0.2", default-features = false }
@@ -116,8 +118,8 @@ dirs = { version = "6.0.0" }
 fancy-regex = { version = "^0.17.0", default-features = false, features = ["std"] }
 pico-args = "0.5.0"
 rayon = { version = "1.11.0" }
-vfs = "0.12.2" # for testing with in memory file system
-walkdir = "2" # for loading benchmark fixtures
+vfs = "0.12.2"                                                                      # for testing with in memory file system
+walkdir = "2"                                                                       # for loading benchmark fixtures
 
 [target.'cfg(target_os = "windows")'.dev-dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Storage", "Win32_Storage_FileSystem"] }
@@ -142,7 +144,7 @@ debug = false
 [profile.wasm-test]
 inherits = "test"
 debug = true
-opt-level = "z" # Avoid too many locals errors during wasmtime testing
+opt-level = "z"   # Avoid too many locals errors during wasmtime testing
 
 [package.metadata.docs.rs]
 all-features = true
@@ -156,8 +158,8 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 strip = "symbols" # set to `false` for debug information
-debug = false # set to `true` for debug information
-panic = "abort" # Let it crash and force ourselves to write safe Rust.
+debug = false     # set to `true` for debug information
+panic = "abort"   # Let it crash and force ourselves to write safe Rust.
 
 [profile.release.package.regex-automata]
 opt-level = "z" # Optimize for size.
