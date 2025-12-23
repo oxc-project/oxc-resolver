@@ -3,30 +3,19 @@ name: Setup Node and pnpm
 description: Setup Node.js and pnpm with caching, and install yarn fixtures
 
 inputs:
-  registry-url:
-    default: 'https://registry.npmjs.org'
-    required: false
-    description: 'Optional registry to set up for auth. Will set the registry in a project level .npmrc and .yarnrc file, and set up auth to read in from env.NODE_AUTH_TOKEN.'
-
-  scope:
-    required: false
-    description: 'Optional scope for authenticating against scoped registries. Will fall back to the repository owner when using the GitHub Packages registry (https://npm.pkg.github.com/).'
-
   architecture:
     required: false
-    description: 'Optional architecture for Node.js (e.g., x64, arm64). If not specified, defaults to the runner architecture.'
+    description: "Optional architecture for Node.js (e.g., x64, arm64). If not specified, defaults to the runner architecture."
 
   cpu:
     required: false
-    description: 'Optional CPU architecture for pnpm supportedArchitectures configuration (e.g., x64, arm64).'
+    description: "Optional CPU architecture for pnpm supportedArchitectures configuration (e.g., x64, arm64)."
 
 runs:
   using: composite
   steps:
     - uses: oxc-project/setup-node@8958a8e040102244b619c4a94fccb657a44b1c21 # v1.0.6
       with:
-        registry-url: ${{ inputs.registry-url }}
-        scope: ${{ inputs.scope }}
         architecture: ${{ inputs.architecture }}
         cpu: ${{ inputs.cpu }}
 
