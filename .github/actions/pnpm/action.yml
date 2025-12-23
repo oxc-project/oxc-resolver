@@ -33,6 +33,7 @@ runs:
     - name: Install yarn fixtures
       shell: bash
       run: |
+        corepack enable
         cd fixtures/pnp
         yarn install
 
