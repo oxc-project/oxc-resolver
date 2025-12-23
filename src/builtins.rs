@@ -38,6 +38,7 @@ pub const NODEJS_BUILTINS: &[&str] = &[
     "http2",
     "https",
     "inspector",
+    "inspector/promises",
     "module",
     "net",
     "os",
@@ -49,6 +50,7 @@ pub const NODEJS_BUILTINS: &[&str] = &[
     "punycode",
     "querystring",
     "readline",
+    "readline/promises",
     "repl",
     "stream",
     "stream/consumers",
@@ -66,8 +68,13 @@ pub const NODEJS_BUILTINS: &[&str] = &[
     "util/types",
     "v8",
     "vm",
+    "wasi",
     "worker_threads",
     "zlib",
+    "node:sea",
+    "node:sqlite",
+    "node:test",
+    "node:test/reporters",
 ];
 
 #[test]
