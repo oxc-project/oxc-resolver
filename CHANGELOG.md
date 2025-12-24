@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.16.1](https://github.com/oxc-project/oxc-resolver/compare/v11.16.0...v11.16.1) - 2025-12-24
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- only recreate the cache when `yarn_pnp` is toggled ([#943](https://github.com/oxc-project/oxc-resolver/pull/943)) (by @Boshen)
+- resolve absolute path to package with trailing slash ([#942](https://github.com/oxc-project/oxc-resolver/pull/942)) (by @Boshen)
+- show yarn pnp errors as-is instead of NotFound error ([#939](https://github.com/oxc-project/oxc-resolver/pull/939)) (by @sapphi-red)
+
+### <!-- 2 -->🚜 Refactor
+
+- replace builtins.rs with nodejs-built-in-modules crate ([#940](https://github.com/oxc-project/oxc-resolver/pull/940)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+* @sapphi-red
+
 ## [11.16.0](https://github.com/oxc-project/oxc-resolver/compare/v11.15.0...v11.16.0) - 2025-12-18
 
 ### <!-- 0 -->🚀 Features
