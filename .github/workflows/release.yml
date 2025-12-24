@@ -21,16 +21,10 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.OXC_BOT_PAT }}
-          persist-credentials: true # required by release-plz
-
-      - uses: oxc-project/release-plz-action@12ee013e577af39a0b75f282e04064658afca86e # v1.0.1
+      - uses: oxc-project/release-plz@f9c5540b74a583d84808d7e5c523d5006d06a6a9 # v1.0.5
         id: release-plz
-        env:
-          GITHUB_TOKEN: ${{ secrets.OXC_BOT_PAT }}
+        with:
+          PAT: ${{ secrets.OXC_BOT_PAT }}
 
       - uses: oxc-project/setup-rust@c8224157c0bf235aabc633e8cd50d344f087a7de # v1.0.12
         with:
