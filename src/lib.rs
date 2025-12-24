@@ -46,7 +46,6 @@
 #![doc = include_str!("../examples/dir.rs")]
 //! ```
 
-mod builtins;
 mod cache;
 mod context;
 mod error;
@@ -65,7 +64,6 @@ mod windows;
 mod tests;
 
 pub use crate::{
-    builtins::NODEJS_BUILTINS,
     cache::{Cache, CachedPath},
     error::{JSONError, ResolveError, SpecifierError},
     file_system::{FileMetadata, FileSystem, FileSystemOs},
@@ -447,7 +445,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     fn require_core(&self, specifier: &str) -> Result<(), ResolveError> {
         if self.options.builtin_modules {
             let is_runtime_module = specifier.starts_with("node:");
-            if is_runtime_module || NODEJS_BUILTINS.binary_search(&specifier).is_ok() {
+            if is_runtime_module
+                || nodejs_built_in_modules::BUILTINS.binary_search(&specifier).is_ok()
+            {
                 let resolved = if is_runtime_module {
                     specifier.to_string()
                 } else {
