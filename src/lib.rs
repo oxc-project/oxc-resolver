@@ -485,7 +485,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         // 2. If X begins with '/'
         //   a. set Y to be the file system root
-        let path = self.cache.value(Path::new(specifier));
+        let path = self.cache.value(Path::new(specifier.trim_end_matches('/')));
         if let Some(path) = self.load_as_file_or_directory(&path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }

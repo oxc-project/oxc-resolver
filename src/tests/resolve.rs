@@ -9,10 +9,15 @@ fn resolve() {
     let resolver = Resolver::default();
 
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
+    let m2 = f.join("node_modules").join("m2");
+    let m2_specifier = m2.to_string_lossy().to_string();
+    let m2_trailing_slash = m2_specifier.clone() + "/";
 
     #[rustfmt::skip]
     let pass = [
         ("absolute path", f.clone(), main1_js_path.as_str(), f.join("main1.js")),
+        ("absolute path to package", f.clone(), m2_specifier.as_str(), m2.join("b.js")),
+        ("absolute path to package with trailing slash", f.clone(), m2_trailing_slash.as_str(), m2.join("b.js")),
         ("file with .js", f.clone(), "./main1.js", f.join("main1.js")),
         ("file without extension", f.clone(), "./main1", f.join("main1.js")),
         ("another file with .js", f.clone(), "./a.js", f.join("a.js")),
