@@ -132,7 +132,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
         let options = options.sanitize();
-        let cache = Self::new_cache(&options);
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                let fs = Fs::new(options.yarn_pnp);
+            } else {
+                let fs = Fs::new();
+            }
+        }
+        let cache = Arc::new(Cache::new(fs));
         Self { options, cache }
     }
 
@@ -147,24 +154,18 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let options = options.sanitize();
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                let cache = Self::new_cache(&options);
+                let cache = if (options.yarn_pnp && !self.options.yarn_pnp)
+                    || (!options.yarn_pnp && self.options.yarn_pnp)
+                {
+                    Arc::new(Cache::new(Fs::new(options.yarn_pnp)))
+                } else {
+                    Arc::clone(&self.cache)
+                };
             } else {
                 let cache = Arc::clone(&self.cache);
             }
         }
         Self { options, cache }
-    }
-
-    #[allow(unused)]
-    fn new_cache(options: &ResolveOptions) -> Arc<Cache<Fs>> {
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "yarn_pnp")] {
-                let fs = Fs::new(options.yarn_pnp);
-            } else {
-                let fs = Fs::new();
-            }
-        }
-        Arc::new(Cache::new(fs))
     }
 
     /// Returns the options.
@@ -178,6 +179,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// Warning: The caller must ensure that there're no ongoing resolution operations when calling this method. Otherwise, it may cause those operations to return an incorrect result.
     pub fn clear_cache(&self) {
         self.cache.clear();
+    }
+
+    /// Check if two resolvers share the same cache (for testing).
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub(crate) fn shares_cache_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.cache, &other.cache)
     }
 
     /// Resolve `specifier` at an absolute path to a `directory`.
