@@ -1058,7 +1058,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
 
             Ok(pnp::Resolution::Skipped) => Ok(None),
-            Err(_) => Err(ResolveError::NotFound(specifier.to_string())),
+            Err(err) => Err(ResolveError::YarnPnpError(err)),
         }
     }
 
