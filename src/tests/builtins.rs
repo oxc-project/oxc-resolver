@@ -16,85 +16,27 @@ fn builtins() {
 
     let resolver = Resolver::new(ResolveOptions::default().with_builtin_modules(true));
 
-    let pass = [
-        "_http_agent",
-        "_http_client",
-        "_http_common",
-        "_http_incoming",
-        "_http_outgoing",
-        "_http_server",
-        "_stream_duplex",
-        "_stream_passthrough",
-        "_stream_readable",
-        "_stream_transform",
-        "_stream_wrap",
-        "_stream_writable",
-        "_tls_common",
-        "_tls_wrap",
-        "assert",
-        "assert/strict",
-        "async_hooks",
-        "buffer",
-        "child_process",
-        "cluster",
-        "console",
-        "constants",
-        "crypto",
-        "dgram",
-        "diagnostics_channel",
-        "dns",
-        "dns/promises",
-        "domain",
-        "events",
-        "fs",
-        "fs/promises",
-        "http",
-        "http2",
-        "https",
-        "inspector",
-        "module",
-        "net",
-        "os",
-        "path",
-        "path/posix",
-        "path/win32",
-        "perf_hooks",
-        "process",
-        "punycode",
-        "querystring",
-        "readline",
-        "repl",
-        "stream",
-        "stream/consumers",
-        "stream/promises",
-        "stream/web",
-        "string_decoder",
-        "sys",
-        "timers",
-        "timers/promises",
-        "tls",
-        "trace_events",
-        "tty",
-        "url",
-        "util",
-        "util/types",
-        "v8",
-        "vm",
-        "worker_threads",
-        "zlib",
-    ];
-
-    for request in pass {
+    for request in nodejs_built_in_modules::BUILTINS {
         let prefixed_request = format!("node:{request}");
         for request in [prefixed_request.clone(), request.to_string()] {
             let starts_with_node = request.starts_with("node:");
-            let resolved_path = resolver.resolve(f, &request).map(|r| r.full_path());
+            let resolved_path = resolver.resolve(f, &request);
             let err = ResolveError::Builtin {
                 resolved: prefixed_request.clone(),
                 is_runtime_module: starts_with_node,
             };
             assert_eq!(resolved_path, Err(err), "{request}");
         }
+    }
+
+    for request in nodejs_built_in_modules::BUILTINS_WITH_MANDATORY_NODE_PREFIX {
+        let resolved_path = resolver.resolve(f, request);
+        assert_eq!(resolved_path, Err(ResolveError::NotFound(request.to_string())), "{request}");
+
+        let prefixed_request = format!("node:{request}");
+        let resolved_path = resolver.resolve(f, &prefixed_request);
+        let err = ResolveError::Builtin { resolved: prefixed_request, is_runtime_module: true };
+        assert_eq!(resolved_path, Err(err), "{request}");
     }
 }
 
