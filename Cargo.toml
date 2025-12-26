@@ -82,7 +82,7 @@ cfg-if = "1"
 fast-glob = "1"
 indexmap = { version = "2", features = ["serde"] }
 json-strip-comments = "3.1"
-nodejs-built-in-modules = "0.0.1"
+nodejs-built-in-modules = "1.0.0"
 once_cell = "1" # Use `std::sync::OnceLock::get_or_try_init` when it is stable.
 papaya = "0.2"
 parking_lot = "0.12"
