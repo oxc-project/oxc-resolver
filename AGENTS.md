@@ -82,15 +82,15 @@ let resolution = resolver.resolve("/path/to/project", "./module");
 ### Node.js
 
 ```javascript
-import resolve, { ResolverFactory } from 'oxc-resolver';
+import resolve, { ResolverFactory } from "oxc-resolver";
 
 // Simple resolve
-const result = resolve.sync(process.cwd(), './module');
+const result = resolve.sync(process.cwd(), "./module");
 
 // Advanced usage
 const resolver = new ResolverFactory({
-  conditionNames: ['node', 'import'],
-  extensions: ['.js', '.ts', '.json'],
+  conditionNames: ["node", "import"],
+  extensions: [".js", ".ts", ".json"],
 });
 ```
 

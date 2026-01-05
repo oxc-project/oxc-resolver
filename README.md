@@ -41,16 +41,16 @@ See index.d.ts for `resolveSync` and `ResolverFactory` API.
 Quick example:
 
 ```javascript
-import assert from 'assert';
-import path from 'path';
-import resolve, { ResolverFactory } from './index.js';
+import assert from "assert";
+import path from "path";
+import resolve, { ResolverFactory } from "./index.js";
 
 // `resolve`
-assert(resolve.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
+assert(resolve.sync(process.cwd(), "./index.js").path, path.join(cwd, "index.js"));
 
 // `ResolverFactory`
 const resolver = new ResolverFactory();
-assert(resolver.sync(process.cwd(), './index.js').path, path.join(cwd, 'index.js'));
+assert(resolver.sync(process.cwd(), "./index.js").path, path.join(cwd, "index.js"));
 ```
 
 #### File-based Resolution
@@ -61,10 +61,10 @@ For file-based resolution with automatic tsconfig discovery, use `resolveFileSyn
 const resolver = new ResolverFactory();
 
 // Resolves from a file path (not directory)
-const result = resolver.resolveFileSync('/path/to/file.ts', './module');
+const result = resolver.resolveFileSync("/path/to/file.ts", "./module");
 
 // Async version
-const result = await resolver.resolveFileAsync('/path/to/file.ts', './module');
+const result = await resolver.resolveFileAsync("/path/to/file.ts", "./module");
 ```
 
 **Key Differences:**
@@ -159,11 +159,11 @@ To support both CJS and ESM with the same cache:
 
 ```javascript
 const esmResolver = new ResolverFactory({
-  conditionNames: ['node', 'import'],
+  conditionNames: ["node", "import"],
 });
 
 const cjsResolver = esmResolver.cloneWithOptions({
-  conditionNames: ['node', 'require'],
+  conditionNames: ["node", "require"],
 });
 ```
 
