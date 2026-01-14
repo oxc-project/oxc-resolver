@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.16.3](https://github.com/oxc-project/oxc-resolver/compare/v11.16.2...v11.16.3) - 2026-01-14
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- prevent tsconfig cache pollution with separate raw and built caches ([#970](https://github.com/oxc-project/oxc-resolver/pull/970)) (by @Boshen)
+- use `/fixtures` path for WASI target (by @Boshen)
+
+### <!-- 3 -->📚 Documentation
+
+- *(README.md)* update logo ([#968](https://github.com/oxc-project/oxc-resolver/pull/968)) (by @sapphi-red)
+
+### <!-- 6 -->🧪 Testing
+
+- use CARGO_MANIFEST_DIR instead `env::current_dir` (by @Boshen)
+- fix skipped tests in options.test.mjs (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+* @sapphi-red
+
 ## [11.16.1](https://github.com/oxc-project/oxc-resolver/compare/v11.16.0...v11.16.1) - 2025-12-24
 
 ### <!-- 1 -->🐛 Bug Fixes
