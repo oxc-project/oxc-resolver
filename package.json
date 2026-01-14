@@ -33,11 +33,11 @@
   "devDependencies": {
     "@napi-rs/cli": "^3.5.0",
     "@napi-rs/wasm-runtime": "^1.1.0",
-    "@types/node": "^25.0.3",
+    "@types/node": "^25.0.8",
     "emnapi": "^1.7.1",
     "oxfmt": "^0.24.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.17"
   },
   "napi": {
     "binaryName": "resolver",
