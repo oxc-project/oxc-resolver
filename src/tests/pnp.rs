@@ -56,14 +56,14 @@ fn pnp_basic() {
     assert_eq!(
         resolver.resolve(&fixture, "preact").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/preact-npm-10.26.9-90e1df1a58-15f187e327.zip/node_modules/preact/dist/preact.mjs"
+            ".yarn/cache/preact-npm-10.28.2-a02cd8b867-eb60bf526e.zip/node_modules/preact/dist/preact.mjs"
         )),
     );
 
     assert_eq!(
         resolver.resolve(&fixture, "preact/devtools").map(|r| r.full_path()),
         Ok(fixture.join(
-            ".yarn/cache/preact-npm-10.26.9-90e1df1a58-15f187e327.zip/node_modules/preact/devtools/dist/devtools.mjs"
+            ".yarn/cache/preact-npm-10.28.2-a02cd8b867-eb60bf526e.zip/node_modules/preact/devtools/dist/devtools.mjs"
         )),
     );
 

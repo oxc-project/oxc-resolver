@@ -703,14 +703,14 @@ __metadata:
     lib: "link:./shared"
     lodash.zip: "npm:^4.2.0"
     pragmatic-drag-and-drop: "npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2"
-    preact: "npm:^10.26.5"
+    preact: "npm:^10.28.2"
   languageName: unknown
   linkType: soft
 
-"preact@npm:^10.26.5":
-  version: 10.26.9
-  resolution: "preact@npm:10.26.9"
-  checksum: 10c0/15f187e3278ae749b70e887f88bb01be63ebcc2eea46ffa86be69180716db40b8b4304e9768767fd68a5910ef5fd1f9ea6389e17cd25e950be76574d568e8fc3
+"preact@npm:^10.28.2":
+  version: 10.28.2
+  resolution: "preact@npm:10.28.2"
+  checksum: 10c0/eb60bf526eb6971701e6ac9c25236aca451f17f99e9c24704419196989b15bb576ed3101e084b151cd0fb30546b3e5e1ba73b774e8be2f2ed8187db42ec65faf
   languageName: node
   linkType: hard
 
