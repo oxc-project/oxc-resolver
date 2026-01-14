@@ -34,12 +34,12 @@ mod tsconfig_root_dirs;
 #[cfg(target_os = "windows")]
 mod windows;
 
-use std::{env, path::PathBuf, sync::Arc, thread};
+use std::{path::PathBuf, sync::Arc, thread};
 
 use crate::Resolver;
 
 pub fn fixture_root() -> PathBuf {
-    env::current_dir().unwrap().join("fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures")
 }
 
 pub fn fixture() -> PathBuf {
@@ -49,7 +49,7 @@ pub fn fixture() -> PathBuf {
 #[test]
 #[cfg_attr(target_os = "wasi", ignore)]
 fn threaded_environment() {
-    let cwd = env::current_dir().unwrap();
+    let cwd = fixture_root();
     let resolver = Arc::new(Resolver::default());
     for _ in 0..2 {
         _ = thread::spawn({

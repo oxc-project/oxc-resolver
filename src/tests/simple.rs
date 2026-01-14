@@ -1,13 +1,11 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/simple.test.js>
 
-use std::env;
-
 use crate::{Resolution, Resolver};
 
 #[test]
 fn resolve_abs_main() {
     let resolver = Resolver::default();
-    let dirname = env::current_dir().unwrap().join("fixtures");
+    let dirname = super::fixture_root();
     let f = dirname.join("invalid/main.js");
     // a's main field id `/dist/index.js`
     let resolution = resolver.resolve(&f, "a").unwrap();
@@ -18,7 +16,7 @@ fn resolve_abs_main() {
 #[test]
 fn simple() {
     // mimic `enhanced-resolve/test/simple.test.js`
-    let dirname = env::current_dir().unwrap().join("fixtures");
+    let dirname = super::fixture_root();
     let f = dirname.join("enhanced-resolve/test");
 
     let resolver = Resolver::default();
