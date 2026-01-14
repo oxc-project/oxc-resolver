@@ -292,6 +292,54 @@ fn test_parent_base_url() {
     }
 }
 
+#[test]
+fn test_tsconfig_mixed_root_non_root_cache() {
+    let f = super::fixture_root().join("tsconfig");
+    let f2 = f.join("cases").join("simple-paths");
+
+    // NOTE: should remove this line before merging as it's not thread safe
+    std::env::set_current_dir(&f2).unwrap();
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
+    let resolved_path =
+        resolver.resolve_file(f2.join("foo.ts"), "bar/index.ts").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f2.join("bar/index.ts")));
+}
+
+#[test]
+fn test_tsconfig_mixed_root_non_root_cache2() {
+    let f = super::fixture_root().join("tsconfig");
+    let f2 = f.join("cases").join("extends-paths");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+    resolver.cache.get_tsconfig(true, &f2.join("tsconfig.base.json"), |_| Ok(())).unwrap();
+    let resolved_path =
+        resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f2.join("src/index.js")));
+}
+
+#[test]
+fn test_tsconfig_mixed_root_non_root_cache3() {
+    let f = super::fixture_root().join("tsconfig");
+    let f2 = f.join("cases").join("extends-paths");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
+    let resolved_path =
+        resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f2.join("src/index.js")));
+}
+
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows_test {
     use std::path::{Path, PathBuf};

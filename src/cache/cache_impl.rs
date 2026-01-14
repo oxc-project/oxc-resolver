@@ -30,7 +30,10 @@ pub struct Cache<Fs> {
     pub(crate) fs: Fs,
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
     pub(crate) package_jsons: RwLock<Vec<Arc<PackageJson>>>,
-    pub(crate) tsconfigs: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    /// Cache for raw/unbuilt tsconfigs (used when extending).
+    pub(crate) tsconfigs_raw: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    /// Cache for built/resolved tsconfigs (used for resolution).
+    pub(crate) tsconfigs_built: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
 }
@@ -38,7 +41,8 @@ pub struct Cache<Fs> {
 impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
         self.paths.pin().clear();
-        self.tsconfigs.pin().clear();
+        self.tsconfigs_raw.pin().clear();
+        self.tsconfigs_built.pin().clear();
         self.package_jsons.write().clear();
     }
 
@@ -210,10 +214,24 @@ impl<Fs: FileSystem> Cache<Fs> {
         path: &Path,
         callback: F, // callback for modifying tsconfig with `extends`
     ) -> Result<Arc<TsConfig>, ResolveError> {
-        let tsconfigs = self.tsconfigs.pin();
-        if let Some(tsconfig) = tsconfigs.get(path) {
-            return Ok(Arc::clone(tsconfig));
+        // For root=true (caller tsconfig), check built cache first
+        if root {
+            let tsconfigs_built = self.tsconfigs_built.pin();
+            if let Some(tsconfig) = tsconfigs_built.get(path) {
+                return Ok(Arc::clone(tsconfig));
+            }
         }
+
+        // Check raw cache (callback applied, not built) - only for root=false
+        // For root=true, we need to run the callback to ensure extends are processed
+        if !root {
+            let tsconfigs_raw = self.tsconfigs_raw.pin();
+            if let Some(tsconfig) = tsconfigs_raw.get(path) {
+                return Ok(Arc::clone(tsconfig));
+            }
+        }
+
+        // Not in any cache, parse from file
         let meta = self.fs.metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
@@ -232,10 +250,25 @@ impl<Fs: FileSystem> Cache<Fs> {
             TsConfig::parse(root, &tsconfig_path, tsconfig_string).map_err(|error| {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
             })?;
+
+        // Run callback (extends/references processing)
         callback(&mut tsconfig)?;
-        let tsconfig = Arc::new(tsconfig.build());
-        tsconfigs.insert(path.to_path_buf(), Arc::clone(&tsconfig));
-        Ok(tsconfig)
+
+        // Cache raw version (callback applied, not built)
+        tsconfig.set_should_build(false);
+        let raw_tsconfig = Arc::new(tsconfig.clone());
+        self.tsconfigs_raw.pin().insert(path.to_path_buf(), Arc::clone(&raw_tsconfig));
+
+        if root {
+            // Build and cache built version
+            tsconfig.set_should_build(true);
+            let tsconfig = Arc::new(tsconfig.build());
+            self.tsconfigs_built.pin().insert(path.to_path_buf(), Arc::clone(&tsconfig));
+            Ok(tsconfig)
+        } else {
+            // Return unbuilt version
+            Ok(raw_tsconfig)
+        }
     }
 
     #[cfg(feature = "yarn_pnp")]
@@ -274,7 +307,11 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
             package_jsons: RwLock::new(Vec::with_capacity(512)),
-            tsconfigs: HashMap::builder()
+            tsconfigs_raw: HashMap::builder()
+                .hasher(BuildHasherDefault::default())
+                .resize_mode(papaya::ResizeMode::Blocking)
+                .build(),
+            tsconfigs_built: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
