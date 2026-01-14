@@ -39,7 +39,16 @@ use std::{path::PathBuf, sync::Arc, thread};
 use crate::Resolver;
 
 pub fn fixture_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures")
+    // In WASI, the filesystem is mounted at `/` so we use `/fixtures`.
+    // In native builds, we use CARGO_MANIFEST_DIR.
+    #[cfg(target_os = "wasi")]
+    {
+        PathBuf::from("/fixtures")
+    }
+    #[cfg(not(target_os = "wasi"))]
+    {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures")
+    }
 }
 
 pub fn fixture() -> PathBuf {
