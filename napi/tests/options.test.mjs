@@ -40,8 +40,8 @@ describe("option", () => {
         /\/exports-field\/src\/index\.js$/,
       );
     };
-    it("should allow string as field item", createTest(["broken"]));
-    it("should allow json path array as field item", createTest([["broken"]]));
+    it("should allow string as field item", () => createTest(["broken"]));
+    it("should allow json path array as field item", () => createTest([["broken"]]));
   });
 
   describe("mainFields", () => {
@@ -49,8 +49,8 @@ describe("option", () => {
       const resolver = new ResolverFactory({ mainFields });
       assert.match(normalizePath(resolver.sync(fixtureDir, "../..").path), /\/lib\/index\.js$/);
     };
-    it("should use `'main'` as default", createTest(undefined));
-    it("should allow field string", createTest("main"));
-    it("should allow field array", createTest(["main"]));
+    it("should use `'main'` as default", () => createTest(undefined));
+    it("should allow field string", () => createTest("main"));
+    it("should allow field array", () => createTest(["main"]));
   });
 });
