@@ -29,18 +29,23 @@ pub type CompilerOptionsPathsMap = IndexMap<String, Vec<PathBuf>, BuildHasherDef
 /// Project Reference
 ///
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ProjectReference {
     pub path: PathBuf,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
     /// Whether this is the caller tsconfig.
     /// Used for final template variable substitution when all configs are extended and merged.
     #[serde(skip)]
     pub root: bool,
+
+    /// Whether `build()` should normalize paths.
+    /// Set to true when caching to ensure paths are always normalized regardless of `root`.
+    #[serde(skip)]
+    should_build: bool,
 
     /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
     #[serde(skip)]
@@ -107,6 +112,17 @@ impl TsConfig {
     #[must_use]
     pub fn root(&self) -> bool {
         self.root
+    }
+
+    /// Whether `build()` should normalize paths.
+    #[must_use]
+    pub fn should_build(&self) -> bool {
+        self.should_build
+    }
+
+    /// Set whether `build()` should normalize paths.
+    pub fn set_should_build(&mut self, should_build: bool) {
+        self.should_build = should_build;
     }
 
     /// Returns the path where the `tsconfig.json` was found.
@@ -294,8 +310,9 @@ impl TsConfig {
     /// * `baseUrl` to absolute path
     #[must_use]
     pub(crate) fn build(mut self) -> Self {
-        // Only the root tsconfig requires paths resolution.
-        if !self.root() {
+        // Only build if should_build is true.
+        // This is controlled separately from `root` to avoid cache pollution.
+        if !self.should_build {
             return self;
         }
 
@@ -444,7 +461,7 @@ impl TsConfig {
 /// Compiler Options
 ///
 /// <https://www.typescriptlang.org/tsconfig#compilerOptions>
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
     pub base_url: Option<PathBuf>,
