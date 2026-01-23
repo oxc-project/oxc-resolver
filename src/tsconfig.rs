@@ -350,9 +350,9 @@ impl TsConfig {
             }
         }
 
-        if self.compiler_options.paths.is_some() {
+        if let Some(paths_map) = &mut self.compiler_options.paths {
             // Substitute template variable in `tsconfig.compilerOptions.paths`.
-            for paths in self.compiler_options.paths.as_mut().unwrap().values_mut() {
+            for paths in paths_map.values_mut() {
                 for path in paths {
                     *path = if let Some(stripped_path) =
                         path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
