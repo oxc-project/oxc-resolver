@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.16.4](https://github.com/oxc-project/oxc-resolver/compare/v11.16.3...v11.16.4) - 2026-01-23
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- resolve clippy unnecessary_unwrap warning ([#980](https://github.com/oxc-project/oxc-resolver/pull/980)) (by @Boshen)
+
+### Contributors
+
+* @leegeunhyeok
+* @Boshen
+
 ## [11.16.3](https://github.com/oxc-project/oxc-resolver/compare/v11.16.2...v11.16.3) - 2026-01-14
 
 ### <!-- 1 -->🐛 Bug Fixes
