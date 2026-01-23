@@ -25,7 +25,10 @@ pub struct CachedPathImpl {
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
-    pub canonicalized: OnceLock<(Weak<Self>, PathBuf)>,
+    /// Cached canonicalization result.
+    /// - `None` means canonical path == self (no symlink in path), avoids PathBuf allocation
+    /// - `Some((weak, path))` means canonical path differs (symlink was resolved)
+    pub canonicalized: OnceLock<Option<(Weak<Self>, PathBuf)>>,
     pub node_modules: OnceLock<Option<Weak<Self>>>,
     pub package_json: OnceLock<Option<PackageJsonIndex>>,
     /// `tsconfig.json` found at path.

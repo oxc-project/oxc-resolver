@@ -345,17 +345,20 @@ impl<Fs: FileSystem> Cache<Fs> {
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
         // Check cache first - if this path was already canonicalized, return the cached result
-        if let Some((weak, path_buf)) = path.canonicalized.get() {
-            return weak
-                .upgrade()
-                .map(CachedPath)
-                .or_else(|| {
-                    // Weak pointer upgrade failed - recreate from stored PathBuf
-                    Some(self.value(path_buf))
-                })
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-                });
+        if let Some(cached) = path.canonicalized.get() {
+            return match cached {
+                // None means canonical == self (no symlink in path)
+                None => Ok(path.clone()),
+                // Some means canonical differs - try weak ref first, fallback to PathBuf
+                Some((weak, path_buf)) => weak
+                    .upgrade()
+                    .map(CachedPath)
+                    .or_else(|| Some(self.value(path_buf)))
+                    .ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists")
+                            .into()
+                    }),
+            };
         }
 
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
@@ -397,9 +400,14 @@ impl<Fs: FileSystem> Cache<Fs> {
             },
         )?;
 
-        // Cache the result before removing from visited set
-        // This ensures parent canonicalization results are cached and reused
-        let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.to_path_buf()));
+        // Cache the result:
+        // - None if canonical == self (avoids PathBuf allocation for ~63% of paths)
+        // - Some(...) if canonical differs (symlink was resolved)
+        if res.path().as_os_str() == path.path().as_os_str() {
+            let _ = path.canonicalized.set(None);
+        } else {
+            let _ = path.canonicalized.set(Some((Arc::downgrade(&res.0), res.to_path_buf())));
+        }
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
