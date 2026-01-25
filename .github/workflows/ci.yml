@@ -37,7 +37,7 @@ jobs:
           - os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: taiki-e/checkout-action@afad4df3ab3122b166e8226ac83be4d981fb64e8 # v1.3.2
+      - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
       - uses: oxc-project/setup-rust@c8224157c0bf235aabc633e8cd50d344f087a7de # v1.0.12
         with:
           save-cache: ${{ github.ref_name == 'main' }}
@@ -52,7 +52,7 @@ jobs:
     name: Test big-endian # s390x-unknown-linux-gnu is a big-endian
     runs-on: ubuntu-latest
     steps:
-      - uses: taiki-e/checkout-action@afad4df3ab3122b166e8226ac83be4d981fb64e8 # v1.3.2
+      - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
       - uses: oxc-project/setup-rust@c8224157c0bf235aabc633e8cd50d344f087a7de # v1.0.12
         with:
           save-cache: ${{ github.ref_name == 'main' }}
@@ -70,7 +70,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: taiki-e/checkout-action@afad4df3ab3122b166e8226ac83be4d981fb64e8 # v1.3.2
+      - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
       - uses: oxc-project/setup-rust@c8224157c0bf235aabc633e8cd50d344f087a7de # v1.0.12
         with:
           components: clippy rust-docs
@@ -84,7 +84,7 @@ jobs:
     name: Test wasm32-wasip1
     runs-on: ubuntu-latest
     steps:
-      - uses: taiki-e/checkout-action@afad4df3ab3122b166e8226ac83be4d981fb64e8 # v1.3.2
+      - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
 
       - uses: oxc-project/setup-rust@c8224157c0bf235aabc633e8cd50d344f087a7de # v1.0.12
         with:
@@ -107,7 +107,7 @@ jobs:
     name: Check wasm32-unknown-unknown
     runs-on: ubuntu-latest
     steps:
-      - uses: taiki-e/checkout-action@afad4df3ab3122b166e8226ac83be4d981fb64e8 # v1.3.2
+      - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
 
       - uses: oxc-project/setup-rust@c8224157c0bf235aabc633e8cd50d344f087a7de # v1.0.12
         with:
@@ -123,7 +123,7 @@ jobs:
     name: Test wasi target
     runs-on: ubuntu-latest
     steps:
-      - uses: taiki-e/checkout-action@afad4df3ab3122b166e8226ac83be4d981fb64e8 # v1.3.2
+      - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
 
       - uses: oxc-project/setup-rust@c8224157c0bf235aabc633e8cd50d344f087a7de # v1.0.12
         with:
