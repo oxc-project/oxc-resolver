@@ -35,7 +35,7 @@
     "@napi-rs/wasm-runtime": "^1.1.0",
     "@types/node": "^25.0.8",
     "emnapi": "^1.7.1",
-    "oxfmt": "^0.26.0",
+    "oxfmt": "^0.27.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   },
