@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.17.0](https://github.com/oxc-project/oxc-resolver/compare/v11.16.4...v11.17.0) - 2026-01-29
+
+### <!-- 0 -->🚀 Features
+
+- allow access to inner data in error related types ([#990](https://github.com/oxc-project/oxc-resolver/pull/990)) (by @sapphi-red)
+
+### Contributors
+
+* @sapphi-red
+
 ## [11.16.4](https://github.com/oxc-project/oxc-resolver/compare/v11.16.3...v11.16.4) - 2026-01-23
 
 ### <!-- 1 -->🐛 Bug Fixes
