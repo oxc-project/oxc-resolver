@@ -187,6 +187,13 @@ impl From<io::Error> for ResolveError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CircularPathBufs(Vec<PathBuf>);
 
+impl CircularPathBufs {
+    #[must_use]
+    pub fn paths(&self) -> &[PathBuf] {
+        &self.0
+    }
+}
+
 impl Display for CircularPathBufs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, path) in self.0.iter().enumerate() {
@@ -209,6 +216,13 @@ impl From<Vec<PathBuf>> for CircularPathBufs {
 /// Helper type for formatting condition names in error messages
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConditionNames(Vec<String>);
+
+impl ConditionNames {
+    #[must_use]
+    pub fn names(&self) -> &[String] {
+        &self.0
+    }
+}
 
 impl From<Vec<String>> for ConditionNames {
     fn from(conditions: Vec<String>) -> Self {
