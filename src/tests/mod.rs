@@ -3,6 +3,7 @@ mod browser_field;
 mod builtins;
 mod clear_cache;
 mod dependencies;
+mod dts_resolver;
 mod exports_field;
 mod extension_alias;
 mod extensions;
