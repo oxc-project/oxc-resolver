@@ -27,6 +27,20 @@ export declare class ResolverFactory {
    * This method automatically discovers tsconfig.json by traversing parent directories.
    */
   resolveFileAsync(file: string, request: string): Promise<ResolveResult>
+  /**
+   * Synchronously resolve `specifier` for TypeScript declaration files.
+   *
+   * `file` is the absolute path to the containing file.
+   * Uses TypeScript's `moduleResolution: "bundler"` algorithm.
+   */
+  resolveDtsSync(file: string, request: string): ResolveResult
+  /**
+   * Asynchronously resolve `specifier` for TypeScript declaration files.
+   *
+   * `file` is the absolute path to the containing file.
+   * Uses TypeScript's `moduleResolution: "bundler"` algorithm.
+   */
+  resolveDtsAsync(file: string, request: string): Promise<ResolveResult>
 }
 
 /** Node.js builtin module when `Options::builtin_modules` is enabled. */
