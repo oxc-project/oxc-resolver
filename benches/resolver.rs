@@ -403,11 +403,70 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_tsconfig_paths_aliases(c: &mut Criterion) {
+    use oxc_resolver::{
+        ResolveOptions, ResolverGeneric, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    };
+
+    let mut group = c.benchmark_group("tsconfig_paths_aliases_memory");
+
+    for alias_count in [200usize, 1000usize] {
+        let (fs, importer, tsconfig_path, requests) =
+            BenchMemoryFS::with_large_tsconfig_paths_fixture(alias_count);
+        let resolver = ResolverGeneric::new_with_file_system(
+            fs,
+            ResolveOptions {
+                tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                    config_file: tsconfig_path,
+                    references: TsconfigReferences::Disabled,
+                })),
+                extensions: vec![".ts".into(), ".js".into()],
+                ..ResolveOptions::default()
+            },
+        );
+
+        // Check validity with first/middle/last aliases.
+        let idx_mid = alias_count / 2;
+        for idx in [0usize, idx_mid, alias_count - 1] {
+            assert!(
+                resolver.resolve_file(&importer, &requests[idx]).is_ok(),
+                "alias_count={alias_count} request={}",
+                requests[idx]
+            );
+        }
+
+        let single_request = requests[alias_count - 1].clone();
+
+        group.bench_with_input(
+            BenchmarkId::new("single-request", alias_count),
+            &single_request,
+            |b, request| {
+                b.iter(|| {
+                    _ = resolver.resolve_file(&importer, request);
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("all-requests", alias_count),
+            &requests,
+            |b, requests| {
+                b.iter(|| {
+                    for request in requests {
+                        _ = resolver.resolve_file(&importer, request);
+                    }
+                });
+            },
+        );
+    }
+}
+
 criterion_group!(
     resolver,
     bench_resolver_memory,
     bench_resolver_real,
-    bench_package_json_deserialization
+    bench_package_json_deserialization,
+    bench_tsconfig_paths_aliases
 );
 criterion_main!(resolver);
 
@@ -419,6 +478,7 @@ mod memory_fs {
     //! variance during benchmark execution. This ensures stable, reproducible benchmark results.
 
     use std::{
+        fmt::Write as _,
         fs, io,
         path::{Path, PathBuf},
     };
@@ -453,11 +513,53 @@ mod memory_fs {
             BENCH_FS.clone()
         }
 
+        pub fn with_large_tsconfig_paths_fixture(
+            alias_count: usize,
+        ) -> (Self, PathBuf, PathBuf, Vec<String>) {
+            let mut fs = Self::new();
+            let cwd = std::env::current_dir().unwrap();
+            let root = cwd.join("fixtures/bench-tsconfig-paths");
+
+            // Ensure root directory exists in the memory filesystem.
+            fs.directories.insert(root.clone());
+            fs.add_parent_directories(&root);
+
+            let importer = root.join("app/main.ts");
+            fs.insert_file(&importer, b"export const benchmark = true;".to_vec());
+
+            let tsconfig_path = root.join("tsconfig.json");
+            let mut requests = Vec::with_capacity(alias_count);
+            let mut tsconfig_json = String::from(r#"{"compilerOptions":{"baseUrl":".","paths":{"#);
+
+            for i in 0..alias_count {
+                let alias_id = format!("{i:04}");
+                let request = format!("@pkg{alias_id}/file");
+                requests.push(request);
+
+                let target = root.join(format!("src/pkg{alias_id}/file.ts"));
+                fs.insert_file(&target, b"export default 1;".to_vec());
+
+                if i > 0 {
+                    tsconfig_json.push(',');
+                }
+                _ = write!(tsconfig_json, "\"@pkg{alias_id}/*\":[\"src/pkg{alias_id}/*\"]",);
+            }
+            tsconfig_json.push_str("}}}");
+            fs.insert_file(&tsconfig_path, tsconfig_json.into_bytes());
+
+            (fs, importer, tsconfig_path, requests)
+        }
+
         fn add_parent_directories(&mut self, path: &Path) {
             // Add all parent directories of a path
             for ancestor in path.ancestors().skip(1) {
                 self.directories.insert(ancestor.to_path_buf());
             }
+        }
+
+        fn insert_file(&mut self, path: &Path, content: Vec<u8>) {
+            self.files.insert(path.to_path_buf(), content);
+            self.add_parent_directories(path);
         }
 
         fn load_fixtures(&mut self) {
