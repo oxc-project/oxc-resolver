@@ -46,6 +46,7 @@
 #![doc = include_str!("../examples/dir.rs")]
 //! ```
 
+mod alias;
 mod cache;
 mod context;
 mod error;
@@ -93,7 +94,12 @@ use std::{
 
 use rustc_hash::FxHashSet;
 
-use crate::{context::ResolveContext as Ctx, path::SLASH_START, specifier::Specifier};
+use crate::{
+    alias::{CompiledAlias, compile_alias},
+    context::ResolveContext as Ctx,
+    path::SLASH_START,
+    specifier::Specifier,
+};
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
@@ -114,6 +120,7 @@ pub type Resolver = ResolverGeneric<FileSystemOs>;
 pub struct ResolverGeneric<Fs> {
     options: ResolveOptions,
     cache: Arc<Cache<Fs>>,
+    alias: CompiledAlias,
 }
 
 impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
@@ -132,6 +139,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
         let options = options.sanitize();
+        let alias = compile_alias(&options.alias);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 let fs = Fs::new(options.yarn_pnp);
@@ -140,11 +148,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         }
         let cache = Arc::new(Cache::new(fs));
-        Self { options, cache }
+        Self { options, cache, alias }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        Self { cache: Arc::new(Cache::new(file_system)), options: options.sanitize() }
+        let options = options.sanitize();
+        let alias = compile_alias(&options.alias);
+        Self { cache: Arc::new(Cache::new(file_system)), options, alias }
     }
 
     /// Clone the resolver using the same underlying cache.
@@ -152,6 +162,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         let options = options.sanitize();
+        let alias = compile_alias(&options.alias);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 let cache = if (options.yarn_pnp && !self.options.yarn_pnp)
@@ -165,7 +176,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let cache = Arc::clone(&self.cache);
             }
         }
-        Self { options, cache }
+        Self { options, cache, alias }
     }
 
     /// Returns the options.
@@ -398,9 +409,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
 
         // enhanced-resolve: try alias
-        if let Some(path) =
-            self.load_alias(cached_path, specifier, &self.options.alias, tsconfig, ctx)?
-        {
+        if let Some(path) = self.load_alias(cached_path, specifier, &self.alias, tsconfig, ctx)? {
             return Ok(path);
         }
 
@@ -442,8 +451,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Err(err);
             }
             // enhanced-resolve: try fallback
-            self.load_alias(cached_path, specifier, &self.options.fallback, tsconfig, ctx)
-                .and_then(|value| value.ok_or(err))
+            self.load_alias_by_options(
+                cached_path,
+                specifier,
+                &self.options.fallback,
+                tsconfig,
+                ctx,
+            )
+            .and_then(|value| value.ok_or(err))
         })
     }
 
@@ -857,7 +872,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if !self.options.alias.is_empty() {
             let alias_specifier = cached_path.path().to_string_lossy();
             if let Some(path) =
-                self.load_alias(cached_path, &alias_specifier, &self.options.alias, tsconfig, ctx)?
+                self.load_alias(cached_path, &alias_specifier, &self.alias, tsconfig, ctx)?
             {
                 return Ok(Some(path));
             }
@@ -1222,131 +1237,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx.with_fully_specified(false);
         let package_url = self.cache.value(package_json.path().parent().unwrap());
         self.require(&package_url, new_specifier, None, ctx).map(Some)
-    }
-
-    /// enhanced-resolve: AliasPlugin for [ResolveOptions::alias] and [ResolveOptions::fallback].
-    fn load_alias(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        aliases: &Alias,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> ResolveResult {
-        for (alias_key_raw, specifiers) in aliases {
-            let mut alias_key_has_wildcard = false;
-            let alias_key = if let Some(alias_key) = alias_key_raw.strip_suffix('$') {
-                if alias_key != specifier {
-                    continue;
-                }
-                alias_key
-            } else if alias_key_raw.contains('*') {
-                alias_key_has_wildcard = true;
-                alias_key_raw
-            } else {
-                let strip_package_name = Self::strip_package_name(specifier, alias_key_raw);
-                if strip_package_name.is_none() {
-                    continue;
-                }
-                alias_key_raw
-            };
-            // It should stop resolving when all of the tried alias values
-            // failed to resolve.
-            // <https://github.com/webpack/enhanced-resolve/blob/570337b969eee46120a18b62b72809a3246147da/lib/AliasPlugin.js#L65>
-            let mut should_stop = false;
-            for r in specifiers {
-                match r {
-                    AliasValue::Path(alias_value) => {
-                        if let Some(path) = self.load_alias_value(
-                            cached_path,
-                            alias_key,
-                            alias_key_has_wildcard,
-                            alias_value,
-                            specifier,
-                            tsconfig,
-                            ctx,
-                            &mut should_stop,
-                        )? {
-                            return Ok(Some(path));
-                        }
-                    }
-                    AliasValue::Ignore => {
-                        let cached_path = cached_path.normalize_with(alias_key, &self.cache);
-                        return Err(ResolveError::Ignored(cached_path.to_path_buf()));
-                    }
-                }
-            }
-            if should_stop {
-                return Err(ResolveError::MatchedAliasNotFound(
-                    specifier.to_string(),
-                    alias_key.to_string(),
-                ));
-            }
-        }
-        Ok(None)
-    }
-
-    fn load_alias_value(
-        &self,
-        cached_path: &CachedPath,
-        alias_key: &str,
-        alias_key_has_wild_card: bool,
-        alias_value: &str,
-        request: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-        should_stop: &mut bool,
-    ) -> ResolveResult {
-        if request != alias_value
-            && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
-        {
-            let new_specifier = if alias_key_has_wild_card {
-                // Resolve wildcard, e.g. `@/*` -> `./src/*`
-                let Some(alias_key) = alias_key.split_once('*').and_then(|(prefix, suffix)| {
-                    request
-                        .strip_prefix(prefix)
-                        .and_then(|specifier| specifier.strip_suffix(suffix))
-                }) else {
-                    return Ok(None);
-                };
-                if alias_value.contains('*') {
-                    Cow::Owned(alias_value.replacen('*', alias_key, 1))
-                } else {
-                    Cow::Borrowed(alias_value)
-                }
-            } else {
-                let tail = &request[alias_key.len()..];
-                if tail.is_empty() {
-                    Cow::Borrowed(alias_value)
-                } else {
-                    let alias_path = Path::new(alias_value).normalize();
-                    // Must not append anything to alias_value if it is a file.
-                    let cached_alias_path = self.cache.value(&alias_path);
-                    if self.cache.is_file(&cached_alias_path, ctx) {
-                        return Ok(None);
-                    }
-                    // Remove the leading slash so the final path is concatenated.
-                    let tail = tail.trim_start_matches(SLASH_START);
-                    if tail.is_empty() {
-                        Cow::Borrowed(alias_value)
-                    } else {
-                        let normalized = alias_path.normalize_with(tail);
-                        Cow::Owned(normalized.to_string_lossy().to_string())
-                    }
-                }
-            };
-
-            *should_stop = true;
-            ctx.with_fully_specified(false);
-            return match self.require(cached_path, new_specifier.as_ref(), tsconfig, ctx) {
-                Err(ResolveError::NotFound(_) | ResolveError::MatchedAliasNotFound(_, _)) => {
-                    Ok(None)
-                }
-                Ok(path) => return Ok(Some(path)),
-                Err(err) => return Err(err),
-            };
-        }
-        Ok(None)
     }
 
     /// Given an extension alias map `{".js": [".ts", ".js"]}`,

@@ -3,7 +3,8 @@
 use std::{env, path::PathBuf};
 
 use oxc_resolver::{
-    EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
+    AliasValue, EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions,
+    Resolver,
 };
 
 fn dir() -> PathBuf {
@@ -132,4 +133,25 @@ fn options_api() {
         .with_prefer_relative(true)
         .with_root(PathBuf::new())
         .with_symbolic_link(true);
+}
+
+#[test]
+fn clone_with_options_recompiles_alias() {
+    let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
+
+    let base_resolver = Resolver::new(ResolveOptions {
+        alias: vec![("alias-target".into(), vec![AliasValue::from("./a")])],
+        ..ResolveOptions::default()
+    });
+
+    let cloned_resolver = base_resolver.clone_with_options(ResolveOptions {
+        alias: vec![("alias-target".into(), vec![AliasValue::from("./b")])],
+        ..ResolveOptions::default()
+    });
+
+    let base = base_resolver.resolve(&fixture, "alias-target").unwrap().into_path_buf();
+    let cloned = cloned_resolver.resolve(&fixture, "alias-target").unwrap().into_path_buf();
+
+    assert_eq!(base, fixture.join("a.js"));
+    assert_eq!(cloned, fixture.join("b.js"));
 }
