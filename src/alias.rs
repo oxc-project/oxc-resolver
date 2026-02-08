@@ -48,6 +48,18 @@ pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
 }
 
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
+    pub(super) fn load_alias_by_options(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        aliases: &Alias,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<Option<CachedPath>, ResolveError> {
+        let compiled_aliases = compile_alias(aliases);
+        self.load_alias(cached_path, specifier, &compiled_aliases, tsconfig, ctx)
+    }
+
     /// enhanced-resolve: AliasPlugin for [crate::ResolveOptions::alias] and [crate::ResolveOptions::fallback].
     pub(super) fn load_alias(
         &self,

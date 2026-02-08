@@ -121,7 +121,6 @@ pub struct ResolverGeneric<Fs> {
     options: ResolveOptions,
     cache: Arc<Cache<Fs>>,
     alias: CompiledAlias,
-    fallback: CompiledAlias,
 }
 
 impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
@@ -141,7 +140,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn new(options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
-        let fallback = compile_alias(&options.fallback);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 let fs = Fs::new(options.yarn_pnp);
@@ -150,14 +148,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         }
         let cache = Arc::new(Cache::new(fs));
-        Self { options, cache, alias, fallback }
+        Self { options, cache, alias }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
-        let fallback = compile_alias(&options.fallback);
-        Self { cache: Arc::new(Cache::new(file_system)), options, alias, fallback }
+        Self { cache: Arc::new(Cache::new(file_system)), options, alias }
     }
 
     /// Clone the resolver using the same underlying cache.
@@ -166,7 +163,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
-        let fallback = compile_alias(&options.fallback);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 let cache = if (options.yarn_pnp && !self.options.yarn_pnp)
@@ -180,7 +176,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let cache = Arc::clone(&self.cache);
             }
         }
-        Self { options, cache, alias, fallback }
+        Self { options, cache, alias }
     }
 
     /// Returns the options.
@@ -455,8 +451,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 return Err(err);
             }
             // enhanced-resolve: try fallback
-            self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)
-                .and_then(|value| value.ok_or(err))
+            self.load_alias_by_options(
+                cached_path,
+                specifier,
+                &self.options.fallback,
+                tsconfig,
+                ctx,
+            )
+            .and_then(|value| value.ok_or(err))
         })
     }
 
