@@ -11,7 +11,6 @@ use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
 use once_cell::sync::OnceCell;
 use papaya::{HashMap, HashSet};
-use parking_lot::RwLock;
 use rustc_hash::FxHasher;
 
 use super::borrowed_path::BorrowedCachedPath;
@@ -22,14 +21,11 @@ use crate::{
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
-pub type PackageJsonIndex = usize;
-
 /// Cache implementation used for caching filesystem access.
 #[derive(Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
-    pub(crate) package_jsons: RwLock<Vec<Arc<PackageJson>>>,
     /// Cache for raw/unbuilt tsconfigs (used when extending).
     pub(crate) tsconfigs_raw: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     /// Cache for built/resolved tsconfigs (used for resolution).
@@ -43,7 +39,6 @@ impl<Fs: FileSystem> Cache<Fs> {
         self.paths.pin().clear();
         self.tsconfigs_raw.pin().clear();
         self.tsconfigs_built.pin().clear();
-        self.package_jsons.write().clear();
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -145,9 +140,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 break;
             }
         }
-        self.find_package_json_impl(&path, options, ctx).map(|option_index| {
-            option_index.and_then(|index| self.package_jsons.read().get(index).cloned())
-        })
+        self.find_package_json_impl(&path, options, ctx)
     }
 
     /// Find package.json of a path by traversing parent directories.
@@ -160,7 +153,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         path: &CachedPath,
         options: &ResolveOptions,
         ctx: &mut Ctx,
-    ) -> Result<Option<PackageJsonIndex>, ResolveError> {
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
         path.package_json
             .get_or_try_init(|| {
@@ -184,16 +177,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                     real_path,
                     package_json_bytes,
                 )
-                .map(|package_json| {
-                    let arc = Arc::new(package_json);
-                    let index = {
-                        let mut arena = self.package_jsons.write();
-                        let index = arena.len();
-                        arena.push(arc);
-                        index
-                    };
-                    Some(index)
-                })
+                .map(|package_json| Some(Arc::new(package_json)))
                 .map_err(ResolveError::Json)
                 // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
                 .inspect(|_| {
@@ -306,7 +290,6 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
-            package_jsons: RwLock::new(Vec::with_capacity(512)),
             tsconfigs_raw: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)

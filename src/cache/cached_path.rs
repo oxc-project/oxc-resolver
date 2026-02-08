@@ -11,9 +11,8 @@ use cfg_if::cfg_if;
 use once_cell::sync::OnceCell as OnceLock;
 
 use super::cache_impl::Cache;
-use super::cache_impl::PackageJsonIndex;
 use super::thread_local::SCRATCH_PATH;
-use crate::{FileSystem, TsConfig, context::ResolveContext as Ctx};
+use crate::{FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx};
 
 #[derive(Clone)]
 pub struct CachedPath(pub Arc<CachedPathImpl>);
@@ -27,7 +26,7 @@ pub struct CachedPathImpl {
     pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
     pub canonicalized: OnceLock<(Weak<Self>, PathBuf)>,
     pub node_modules: OnceLock<Option<Weak<Self>>>,
-    pub package_json: OnceLock<Option<PackageJsonIndex>>,
+    pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     /// `tsconfig.json` found at path.
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
     /// `tsconfig.json` after resolving `references`, `files`, `include` and `extend`.
