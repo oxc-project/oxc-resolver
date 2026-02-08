@@ -409,56 +409,40 @@ fn bench_tsconfig_paths_aliases(c: &mut Criterion) {
     };
 
     let mut group = c.benchmark_group("tsconfig_paths_aliases_memory");
+    let alias_count = 200usize;
+    let (fs, importer, tsconfig_path, requests) =
+        BenchMemoryFS::with_large_tsconfig_paths_fixture(alias_count);
+    let resolver = ResolverGeneric::new_with_file_system(
+        fs,
+        ResolveOptions {
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: tsconfig_path,
+                references: TsconfigReferences::Disabled,
+            })),
+            extensions: vec![".ts".into(), ".js".into()],
+            ..ResolveOptions::default()
+        },
+    );
 
-    for alias_count in [200usize] {
-        let (fs, importer, tsconfig_path, requests) =
-            BenchMemoryFS::with_large_tsconfig_paths_fixture(alias_count);
-        let resolver = ResolverGeneric::new_with_file_system(
-            fs,
-            ResolveOptions {
-                tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: tsconfig_path,
-                    references: TsconfigReferences::Disabled,
-                })),
-                extensions: vec![".ts".into(), ".js".into()],
-                ..ResolveOptions::default()
-            },
-        );
-
-        // Check validity with first/middle/last aliases.
-        let idx_mid = alias_count / 2;
-        for idx in [0usize, idx_mid, alias_count - 1] {
-            assert!(
-                resolver.resolve_file(&importer, &requests[idx]).is_ok(),
-                "alias_count={alias_count} request={}",
-                requests[idx]
-            );
-        }
-
-        let single_request = requests[alias_count - 1].clone();
-
-        group.bench_with_input(
-            BenchmarkId::new("single-request", alias_count),
-            &single_request,
-            |b, request| {
-                b.iter(|| {
-                    _ = resolver.resolve_file(&importer, request);
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("all-requests", alias_count),
-            &requests,
-            |b, requests| {
-                b.iter(|| {
-                    for request in requests {
-                        _ = resolver.resolve_file(&importer, request);
-                    }
-                });
-            },
+    // Check validity by resolving every alias once.
+    for request in &requests {
+        assert!(
+            resolver.resolve_file(&importer, request).is_ok(),
+            "alias_count={alias_count} request={request}"
         );
     }
+
+    group.bench_with_input(
+        BenchmarkId::from_parameter("query each alias"),
+        &requests,
+        |b, requests| {
+            b.iter(|| {
+                for request in requests {
+                    _ = resolver.resolve_file(&importer, request);
+                }
+            });
+        },
+    );
 }
 
 criterion_group!(
