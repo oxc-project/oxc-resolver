@@ -1,11 +1,13 @@
 use std::{
     borrow::Cow,
+    cmp::Reverse,
     fmt::Debug,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
+use compact_str::CompactString;
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
@@ -363,6 +365,10 @@ impl TsConfig {
                     };
                 }
             }
+            self.compiler_options.compiled_paths =
+                Some(Arc::new(CompiledTsconfigPaths::new(paths_map)));
+        } else {
+            self.compiler_options.compiled_paths = None;
         }
 
         self
@@ -408,46 +414,21 @@ impl TsConfig {
 
         let compiler_options = &self.compiler_options;
 
-        // if compiler_options
-        // let base_url_iter = vec![compiler_options.paths_base.normalize_with(specifier)];
-
         let Some(paths_map) = &compiler_options.paths else {
             return vec![];
         };
 
-        paths_map.get(specifier).map_or_else(
-            || {
-                let mut longest_prefix_length = 0;
-                let mut longest_suffix_length = 0;
-                let mut best_key: Option<&String> = None;
+        if let Some(paths) = paths_map.get(specifier) {
+            return paths.clone();
+        }
 
-                for key in paths_map.keys() {
-                    if let Some((prefix, suffix)) = key.split_once('*')
-                        && (best_key.is_none() || prefix.len() > longest_prefix_length)
-                        && specifier.starts_with(prefix)
-                        && specifier.ends_with(suffix)
-                    {
-                        longest_prefix_length = prefix.len();
-                        longest_suffix_length = suffix.len();
-                        best_key.replace(key);
-                    }
-                }
+        if let Some(compiled_paths) = &compiler_options.compiled_paths
+            && let Some(paths) = compiled_paths.resolve(specifier)
+        {
+            return paths;
+        }
 
-                best_key.and_then(|key| paths_map.get(key)).map_or_else(Vec::new, |paths| {
-                    paths
-                        .iter()
-                        .map(|path| {
-                            PathBuf::from(path.to_string_lossy().replace(
-                                '*',
-                                &specifier[longest_prefix_length
-                                    ..specifier.len() - longest_suffix_length],
-                            ))
-                        })
-                        .collect::<Vec<_>>()
-                })
-            },
-            Clone::clone,
-        )
+        Vec::new()
     }
 
     pub(crate) fn resolve_base_url(&self, specifier: &str) -> Option<PathBuf> {
@@ -468,6 +449,10 @@ pub struct CompilerOptions {
 
     /// Path aliases.
     pub paths: Option<CompilerOptionsPathsMap>,
+
+    /// Pre-compiled wildcard path aliases for faster runtime matching.
+    #[serde(skip)]
+    compiled_paths: Option<Arc<CompiledTsconfigPaths>>,
 
     /// The "base_url" at which this tsconfig is defined.
     #[serde(skip)]
@@ -624,5 +609,90 @@ impl TsConfig {
             TS_EXTENSIONS.contains(&ext)
                 || if allow_js { JS_EXTENSIONS.contains(&ext) } else { false }
         })
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct CompiledTsconfigPaths {
+    wildcard_patterns: Vec<CompiledTsconfigPathPattern>,
+}
+
+#[derive(Clone, Debug)]
+struct CompiledTsconfigPathPattern {
+    prefix: CompactString,
+    suffix: CompactString,
+    prefix_len: usize,
+    suffix_len: usize,
+    targets: Vec<CompiledTsconfigPathTarget>,
+}
+
+#[derive(Clone, Debug)]
+enum CompiledTsconfigPathTarget {
+    Static(PathBuf),
+    Wildcard { prefix: CompactString, suffix: CompactString },
+}
+
+impl CompiledTsconfigPaths {
+    fn new(paths_map: &CompilerOptionsPathsMap) -> Self {
+        let mut wildcard_patterns = paths_map
+            .iter()
+            .filter_map(|(key, paths)| {
+                let (prefix, suffix) = key.split_once('*')?;
+                let targets = paths
+                    .iter()
+                    .map(|path| {
+                        let path_str = path.to_string_lossy();
+                        path_str.split_once('*').map_or_else(
+                            || CompiledTsconfigPathTarget::Static(path.clone()),
+                            |(target_prefix, target_suffix)| CompiledTsconfigPathTarget::Wildcard {
+                                prefix: CompactString::new(target_prefix),
+                                suffix: CompactString::new(target_suffix),
+                            },
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                Some(CompiledTsconfigPathPattern {
+                    prefix: CompactString::new(prefix),
+                    suffix: CompactString::new(suffix),
+                    prefix_len: prefix.len(),
+                    suffix_len: suffix.len(),
+                    targets,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        // Match longer prefixes first. Equal-length prefixes keep insertion order.
+        wildcard_patterns.sort_by_key(|pattern| Reverse(pattern.prefix_len));
+
+        Self { wildcard_patterns }
+    }
+
+    fn resolve(&self, specifier: &str) -> Option<Vec<PathBuf>> {
+        self.wildcard_patterns.iter().find_map(|pattern| {
+            if !specifier.starts_with(pattern.prefix.as_str())
+                || !specifier.ends_with(pattern.suffix.as_str())
+                || specifier.len() < pattern.prefix_len + pattern.suffix_len
+            {
+                return None;
+            }
+            let wildcard = &specifier[pattern.prefix_len..specifier.len() - pattern.suffix_len];
+            Some(pattern.targets.iter().map(|target| target.resolve(wildcard)).collect())
+        })
+    }
+}
+
+impl CompiledTsconfigPathTarget {
+    fn resolve(&self, wildcard: &str) -> PathBuf {
+        match self {
+            Self::Static(path) => path.clone(),
+            Self::Wildcard { prefix, suffix } => {
+                let mut resolved =
+                    String::with_capacity(prefix.len() + wildcard.len() + suffix.len());
+                resolved.push_str(prefix.as_str());
+                resolved.push_str(wildcard);
+                resolved.push_str(suffix.as_str());
+                PathBuf::from(resolved)
+            }
+        }
     }
 }
