@@ -79,6 +79,7 @@ name = "dir"
 
 [dependencies]
 cfg-if = "1"
+compact_str = "0.8"
 fast-glob = "1"
 indexmap = { version = "2", features = ["serde"] }
 json-strip-comments = "3.1"

@@ -1,5 +1,7 @@
 use std::{borrow::Cow, path::Path};
 
+use compact_str::CompactString;
+
 use crate::{
     Alias, AliasValue, CachedPath, FileSystem, ResolveError, ResolverGeneric, TsConfig,
     context::ResolveContext as Ctx,
@@ -10,7 +12,7 @@ pub type CompiledAlias = Vec<CompiledAliasEntry>;
 
 #[derive(Clone)]
 pub struct CompiledAliasEntry {
-    key: String,
+    key: CompactString,
     match_kind: AliasMatchKind,
     specifiers: Vec<AliasValue>,
 }
@@ -19,7 +21,7 @@ pub struct CompiledAliasEntry {
 pub enum AliasMatchKind {
     Exact,
     Prefix,
-    Wildcard { prefix: String, suffix: String },
+    Wildcard { prefix: CompactString, suffix: CompactString },
 }
 
 pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
@@ -30,17 +32,17 @@ pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
                 || {
                     if let Some((prefix, suffix)) = key.split_once('*') {
                         (
-                            key.clone(),
+                            CompactString::new(key),
                             AliasMatchKind::Wildcard {
-                                prefix: prefix.to_string(),
-                                suffix: suffix.to_string(),
+                                prefix: CompactString::new(prefix),
+                                suffix: CompactString::new(suffix),
                             },
                         )
                     } else {
-                        (key.clone(), AliasMatchKind::Prefix)
+                        (CompactString::new(key), AliasMatchKind::Prefix)
                     }
                 },
-                |stripped_key| (stripped_key.to_string(), AliasMatchKind::Exact),
+                |stripped_key| (CompactString::new(stripped_key), AliasMatchKind::Exact),
             );
             CompiledAliasEntry { key, match_kind, specifiers: specifiers.clone() }
         })
@@ -138,8 +140,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 AliasMatchKind::Wildcard { prefix, suffix } => {
                     // Resolve wildcard, e.g. `@/*` -> `./src/*`
                     let Some(alias_key) = request
-                        .strip_prefix(prefix)
-                        .and_then(|specifier| specifier.strip_suffix(suffix))
+                        .strip_prefix(prefix.as_str())
+                        .and_then(|specifier| specifier.strip_suffix(suffix.as_str()))
                     else {
                         return Ok(None);
                     };
