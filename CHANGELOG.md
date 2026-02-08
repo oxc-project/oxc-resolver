@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.17.1](https://github.com/oxc-project/oxc-resolver/compare/v11.17.0...v11.17.1) - 2026-02-08
+
+### <!-- 4 -->⚡ Performance
+
+- *(resolve)* reuse dot-prefixed subpath in exports/imports ([#1004](https://github.com/oxc-project/oxc-resolver/pull/1004)) (by @Boshen)
+- *(cache)* remove package.json index arena indirection ([#1003](https://github.com/oxc-project/oxc-resolver/pull/1003)) (by @Boshen)
+- *(tsconfig)* precompile wildcard path alias matcher ([#1001](https://github.com/oxc-project/oxc-resolver/pull/1001)) (by @Boshen)
+- precompile alias match metadata in resolver hot path ([#999](https://github.com/oxc-project/oxc-resolver/pull/999)) (by @Boshen)
+
+### <!-- 9 -->💼 Other
+
+- add tsconfig paths alias scalability benchmark ([#1002](https://github.com/oxc-project/oxc-resolver/pull/1002)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.17.0](https://github.com/oxc-project/oxc-resolver/compare/v11.16.4...v11.17.0) - 2026-01-29
 
 ### <!-- 0 -->🚀 Features
