@@ -1121,10 +1121,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
         //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
         // Note: The subpath is not prepended with a dot on purpose
+        let dot_subpath = Self::dot_subpath(subpath);
         for exports in package_json.exports_fields(&self.options.exports_fields) {
             if let Some(path) = self.package_exports_resolve(
                 cached_path,
-                &format!(".{subpath}"),
+                dot_subpath.as_ref(),
                 &exports,
                 tsconfig,
                 ctx,
@@ -1161,10 +1162,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Note: The subpath is not prepended with a dot on purpose
             // because `package_exports_resolve` matches subpath without the leading dot.
             let package_url = self.cache.value(package_json.path.parent().unwrap());
+            let dot_subpath = Self::dot_subpath(subpath);
             for exports in package_json.exports_fields(&self.options.exports_fields) {
                 if let Some(cached_path) = self.package_exports_resolve(
                     &package_url,
-                    &format!(".{subpath}"),
+                    dot_subpath.as_ref(),
                     &exports,
                     tsconfig,
                     ctx,
@@ -1341,6 +1343,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
+        let dot_subpath = Self::dot_subpath(subpath);
 
         // 3. If packageSpecifier is a Node.js builtin module name, then
         //   1. Return the string "node:" concatenated with packageSpecifier.
@@ -1370,7 +1373,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         for exports in package_json.exports_fields(&self.options.exports_fields) {
                             if let Some(path) = self.package_exports_resolve(
                                 &cached_path,
-                                &format!(".{subpath}"),
+                                dot_subpath.as_ref(),
                                 &exports,
                                 tsconfig,
                                 ctx,
@@ -1393,9 +1396,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                             }
                         }
                     }
-                    let subpath = format!(".{subpath}");
                     ctx.with_fully_specified(false);
-                    return self.require(&cached_path, &subpath, tsconfig, ctx).map(Some);
+                    return self
+                        .require(&cached_path, dot_subpath.as_ref(), tsconfig, ctx)
+                        .map(Some);
                 }
             }
         }
@@ -1829,6 +1833,19 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let package_subpath =
             separator_index.map_or("", |separator_index| &specifier[separator_index..]);
         (package_name, package_subpath)
+    }
+
+    fn dot_subpath(subpath: &str) -> Cow<'_, str> {
+        if subpath.is_empty() {
+            return Cow::Borrowed(".");
+        }
+        if subpath.starts_with('.') {
+            return Cow::Borrowed(subpath);
+        }
+        let mut dot_subpath = String::with_capacity(subpath.len() + 1);
+        dot_subpath.push('.');
+        dot_subpath.push_str(subpath);
+        Cow::Owned(dot_subpath)
     }
 
     /// PATTERN_KEY_COMPARE(keyA, keyB)
