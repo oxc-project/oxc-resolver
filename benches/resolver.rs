@@ -410,7 +410,7 @@ fn bench_tsconfig_paths_aliases(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("tsconfig_paths_aliases_memory");
 
-    for alias_count in [200usize, 1000usize] {
+    for alias_count in [200usize] {
         let (fs, importer, tsconfig_path, requests) =
             BenchMemoryFS::with_large_tsconfig_paths_fixture(alias_count);
         let resolver = ResolverGeneric::new_with_file_system(
