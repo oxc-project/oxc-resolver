@@ -403,11 +403,54 @@ fn bench_package_json_deserialization(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_tsconfig_paths_aliases(c: &mut Criterion) {
+    use oxc_resolver::{
+        ResolveOptions, ResolverGeneric, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    };
+
+    let mut group = c.benchmark_group("tsconfig_paths_aliases_memory");
+    let alias_count = 200usize;
+    let (fs, importer, tsconfig_path, requests) =
+        BenchMemoryFS::with_large_tsconfig_paths_fixture(alias_count);
+    let resolver = ResolverGeneric::new_with_file_system(
+        fs,
+        ResolveOptions {
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: tsconfig_path,
+                references: TsconfigReferences::Disabled,
+            })),
+            extensions: vec![".ts".into(), ".js".into()],
+            ..ResolveOptions::default()
+        },
+    );
+
+    // Check validity by resolving every alias once.
+    for request in &requests {
+        assert!(
+            resolver.resolve_file(&importer, request).is_ok(),
+            "alias_count={alias_count} request={request}"
+        );
+    }
+
+    group.bench_with_input(
+        BenchmarkId::from_parameter("query each alias"),
+        &requests,
+        |b, requests| {
+            b.iter(|| {
+                for request in requests {
+                    _ = resolver.resolve_file(&importer, request);
+                }
+            });
+        },
+    );
+}
+
 criterion_group!(
     resolver,
     bench_resolver_memory,
     bench_resolver_real,
-    bench_package_json_deserialization
+    bench_package_json_deserialization,
+    bench_tsconfig_paths_aliases
 );
 criterion_main!(resolver);
 
@@ -453,6 +496,28 @@ mod memory_fs {
             BENCH_FS.clone()
         }
 
+        pub fn with_large_tsconfig_paths_fixture(
+            alias_count: usize,
+        ) -> (Self, PathBuf, PathBuf, Vec<String>) {
+            let fs = Self::new();
+            let cwd = std::env::current_dir().unwrap();
+            let root = cwd.join(format!("fixtures/bench-tsconfig-paths/{alias_count}"));
+            let importer = root.join("app/main.ts");
+            let tsconfig_path = root.join("tsconfig.json");
+            assert!(
+                fs.files.contains_key(&importer),
+                "missing benchmark fixture: {}",
+                importer.display()
+            );
+            assert!(
+                fs.files.contains_key(&tsconfig_path),
+                "missing benchmark fixture: {}",
+                tsconfig_path.display()
+            );
+            let requests = (0..alias_count).map(|i| format!("@pkg{i:04}/file")).collect();
+            (fs, importer, tsconfig_path, requests)
+        }
+
         fn add_parent_directories(&mut self, path: &Path) {
             // Add all parent directories of a path
             for ancestor in path.ancestors().skip(1) {
@@ -467,41 +532,42 @@ mod memory_fs {
             self.add_parent_directories(&cwd);
 
             // Load fixtures from enhanced-resolve
-            let fixtures_base = cwd.join("fixtures/enhanced-resolve");
-            if fixtures_base.exists() {
-                for entry in WalkDir::new(&fixtures_base)
-                    .follow_links(false)
-                    .into_iter()
-                    .filter_map(Result::ok)
-                {
-                    let path = entry.path();
-                    let Ok(metadata) = fs::symlink_metadata(path) else { continue };
-
-                    // Store with absolute paths
-                    let abs_path = path.to_path_buf();
-
-                    if metadata.is_symlink() {
-                        if let Ok(target) = fs::read_link(path) {
-                            self.symlinks.insert(abs_path.clone(), target);
-                            self.add_parent_directories(&abs_path);
-                        }
-                    } else if metadata.is_dir() {
-                        self.directories.insert(abs_path.clone());
-                        self.add_parent_directories(&abs_path);
-                    } else if metadata.is_file()
-                        && let Ok(content) = fs::read(path)
-                    {
-                        self.files.insert(abs_path.clone(), content);
-                        self.add_parent_directories(&abs_path);
-                    }
-                }
-            }
+            self.load_directory_tree(&cwd.join("fixtures/enhanced-resolve"));
+            self.load_directory_tree(&cwd.join("fixtures/bench-tsconfig-paths"));
 
             // Load specific node_modules packages for benchmarks
             self.load_node_modules_packages(&cwd);
 
             // Create symlink fixtures for benchmark (10000 symlinks)
             self.create_symlink_fixtures(&cwd);
+        }
+
+        fn load_directory_tree(&mut self, root: &Path) {
+            if !root.exists() {
+                return;
+            }
+            for entry in WalkDir::new(root).follow_links(false).into_iter().filter_map(Result::ok) {
+                let path = entry.path();
+                let Ok(metadata) = fs::symlink_metadata(path) else { continue };
+
+                // Store with absolute paths
+                let abs_path = path.to_path_buf();
+
+                if metadata.is_symlink() {
+                    if let Ok(target) = fs::read_link(path) {
+                        self.symlinks.insert(abs_path.clone(), target);
+                        self.add_parent_directories(&abs_path);
+                    }
+                } else if metadata.is_dir() {
+                    self.directories.insert(abs_path.clone());
+                    self.add_parent_directories(&abs_path);
+                } else if metadata.is_file()
+                    && let Ok(content) = fs::read(path)
+                {
+                    self.files.insert(abs_path.clone(), content);
+                    self.add_parent_directories(&abs_path);
+                }
+            }
         }
 
         fn load_node_modules_packages(&mut self, cwd: &Path) {
