@@ -129,6 +129,36 @@ impl PackageJson {
         self.value.as_object().and_then(|obj| obj.get("exports")).map(ImportsExportsEntry)
     }
 
+    /// The "types" field in package.json.
+    ///
+    /// Used by TypeScript to find type declarations for a package.
+    #[must_use]
+    pub fn types(&self) -> Option<&str> {
+        self.value.as_object().and_then(|obj| obj.get("types")).and_then(|v| v.as_str())
+    }
+
+    /// The "typings" field in package.json (legacy equivalent of "types").
+    ///
+    /// Used by TypeScript to find type declarations for a package.
+    #[must_use]
+    pub fn typings(&self) -> Option<&str> {
+        self.value.as_object().and_then(|obj| obj.get("typings")).and_then(|v| v.as_str())
+    }
+
+    /// The "typesVersions" field in package.json.
+    ///
+    /// Returns the raw JSON value for the "typesVersions" field, which maps
+    /// TypeScript version ranges to path redirect maps.
+    ///
+    /// <https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html#version-selection-with-typesversions>
+    pub(crate) fn types_versions(&self) -> Option<ImportsExportsMap<'_>> {
+        self.value
+            .as_object()
+            .and_then(|obj| obj.get("typesVersions"))
+            .and_then(|v| v.as_object())
+            .map(ImportsExportsMap)
+    }
+
     /// The "main" field defines the entry point of a package when imported by
     /// name via a node_modules lookup. Its value should be a path.
     ///
