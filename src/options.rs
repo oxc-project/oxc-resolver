@@ -411,7 +411,7 @@ impl ResolveOptions {
             }
         }
 
-        self.modules.extend(NodePath::build());
+        self.modules.extend(NodePath::build().iter().cloned());
 
         self
     }

@@ -1,6 +1,6 @@
 //! Test public APIs
 
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, process::Command};
 
 use oxc_resolver::{
     AliasValue, EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions,
@@ -159,25 +159,36 @@ fn clone_with_options_recompiles_alias() {
 #[test]
 #[cfg_attr(target_family = "wasm", ignore)]
 fn node_path_resolves_from_env() {
+    let child_env = "__OXC_NODE_PATH_CHILD";
+    let project_env = "__OXC_NODE_PATH_PROJECT";
+    let expected_env = "__OXC_NODE_PATH_EXPECTED";
+
+    if env::var_os(child_env).is_some() {
+        let project = PathBuf::from(env::var_os(project_env).unwrap());
+        let expected = PathBuf::from(env::var_os(expected_env).unwrap());
+        let resolved = Resolver::default().resolve(&project, "m1/a.js").map(|r| r.full_path());
+        assert_eq!(resolved, Ok(expected));
+        return;
+    }
+
     let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
     let project = dir().join("tests");
     let node_path_root = fixture.join("multiple-modules/node_modules");
     let expected = node_path_root.join("m1/a.js");
     let node_path = env::join_paths([node_path_root]).unwrap();
-
-    let previous_node_path = env::var_os("NODE_PATH");
-    // SAFETY: This test sets NODE_PATH for a local resolution call and restores it right after.
-    unsafe { env::set_var("NODE_PATH", node_path) };
-    let resolved = Resolver::default().resolve(&project, "m1/a.js").map(|r| r.full_path());
-    match previous_node_path {
-        Some(previous) => {
-            // SAFETY: Restores NODE_PATH to its original value.
-            unsafe { env::set_var("NODE_PATH", previous) };
-        }
-        None => {
-            // SAFETY: Restores process env by removing NODE_PATH when it was originally unset.
-            unsafe { env::remove_var("NODE_PATH") };
-        }
-    }
-    assert_eq!(resolved, Ok(expected));
+    let output = Command::new(env::current_exe().unwrap())
+        .arg("--exact")
+        .arg("node_path_resolves_from_env")
+        .env(child_env, "1")
+        .env("NODE_PATH", node_path)
+        .env(project_env, project)
+        .env(expected_env, expected)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "child test failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
