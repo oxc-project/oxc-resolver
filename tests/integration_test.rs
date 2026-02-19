@@ -157,11 +157,11 @@ fn clone_with_options_recompiles_alias() {
 }
 
 #[test]
-fn node_path_fallback() {
+fn node_path_resolves_from_env() {
     let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
-    let project = fixture.clone();
+    let project = dir().join("tests");
     let node_path_root = fixture.join("multiple-modules/node_modules");
-    let expected = fixture.join("node_modules/m1/a.js");
+    let expected = node_path_root.join("m1/a.js");
     let node_path = env::join_paths([node_path_root]).unwrap();
 
     let previous_node_path = env::var_os("NODE_PATH");
