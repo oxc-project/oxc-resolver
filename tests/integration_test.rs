@@ -155,3 +155,28 @@ fn clone_with_options_recompiles_alias() {
     assert_eq!(base, fixture.join("a.js"));
     assert_eq!(cloned, fixture.join("b.js"));
 }
+
+#[test]
+fn node_path_precedence() {
+    let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
+    let project = fixture.clone();
+    let node_path_root = fixture.join("multiple-modules/node_modules");
+    let expected = node_path_root.join("m1/a.js");
+    let node_path = env::join_paths([node_path_root]).unwrap();
+
+    let previous_node_path = env::var_os("NODE_PATH");
+    // SAFETY: This test sets NODE_PATH for a local resolution call and restores it right after.
+    unsafe { env::set_var("NODE_PATH", node_path) };
+    let resolved = Resolver::default().resolve(&project, "m1/a.js").map(|r| r.full_path());
+    match previous_node_path {
+        Some(previous) => {
+            // SAFETY: Restores NODE_PATH to its original value.
+            unsafe { env::set_var("NODE_PATH", previous) };
+        }
+        None => {
+            // SAFETY: Restores process env by removing NODE_PATH when it was originally unset.
+            unsafe { env::remove_var("NODE_PATH") };
+        }
+    }
+    assert_eq!(resolved, Ok(expected));
+}

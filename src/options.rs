@@ -4,6 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::node_path::NodePath;
+
 /// Module Resolution Options
 ///
 /// Options are directly ported from [enhanced-resolve](https://github.com/webpack/enhanced-resolve#resolver-options).
@@ -114,7 +116,10 @@ pub struct ResolveOptions {
 
     /// A list of directories to resolve modules from, can be absolute path or folder name.
     ///
-    /// Default `["node_modules"]`
+    /// Default `["node_modules"]`.
+    ///
+    /// When `NODE_PATH` is set, parsed entries from `NODE_PATH` are prepended during option
+    /// sanitization.
     pub modules: Vec<String>,
 
     /// Resolve to a context instead of a file.
@@ -405,6 +410,11 @@ impl ResolveOptions {
                 self.enforce_extension = EnforceExtension::Disabled;
             }
         }
+
+        let mut modules = NodePath::build();
+        modules.extend(std::mem::take(&mut self.modules));
+        self.modules = modules;
+
         self
     }
 }
