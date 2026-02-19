@@ -226,7 +226,11 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | fullySpecified                        | false                     | Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests) |
 | mainFields                            | ["main"]                  | A list of main fields in description files                                                                                                                |
 | mainFiles                             | ["index"]                 | A list of main files in directories                                                                                                                       |
-| modules                               | ["node_modules"]          | A list of directories to resolve modules from, can be absolute path or folder name. Parsed `NODE_PATH` entries are prepended automatically when set.      |
+<<<<<<< HEAD
+| modules                               | ["node_modules"]          | A list of directories to resolve modules from, can be absolute path or folder name. Absolute `NODE_PATH` entries are appended automatically when set.     |
+=======
+| modules                               | ["node_modules"]          | A list of directories to resolve modules from, can be absolute path or folder name. Absolute `NODE_PATH` entries are appended automatically when set.     |
+>>>>>>> 54f8267 (fix: align NODE_PATH handling with Node fallback semantics)
 | resolveToContext                      | false                     | Resolve to a context instead of a file                                                                                                                    |
 | preferRelative                        | false                     | Prefer to resolve module requests as relative request and fallback to resolving as module                                                                 |
 | preferAbsolute                        | false                     | Prefer to resolve server-relative urls as absolute paths before falling back to resolve in roots                                                          |

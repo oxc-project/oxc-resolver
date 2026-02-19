@@ -13,6 +13,7 @@ impl NodePath {
         };
 
         let mut entries = env::split_paths(&node_path)
+            .filter(|path| path.is_absolute())
             .map(|path| path.to_string_lossy().into_owned())
             .collect::<Vec<_>>();
         entries.reserve(1);

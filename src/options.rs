@@ -118,7 +118,7 @@ pub struct ResolveOptions {
     ///
     /// Default `["node_modules"]`.
     ///
-    /// When `NODE_PATH` is set, parsed entries from `NODE_PATH` are prepended during option
+    /// When `NODE_PATH` is set, absolute entries from `NODE_PATH` are appended during option
     /// sanitization.
     pub modules: Vec<String>,
 
@@ -411,8 +411,8 @@ impl ResolveOptions {
             }
         }
 
-        let mut modules = NodePath::build();
-        modules.extend(std::mem::take(&mut self.modules));
+        let mut modules = std::mem::take(&mut self.modules);
+        modules.extend(NodePath::build());
         self.modules = modules;
 
         self
