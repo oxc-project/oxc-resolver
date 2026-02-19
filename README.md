@@ -212,34 +212,28 @@ The following options are aligned with [enhanced-resolve], and is implemented fo
 
 See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/index.d.ts) for Node.js usage.
 
-| Field            | Default                   | Description                                                                                                                                               |
-| ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| alias            | {}                        | A hash map of module alias configurations                                                                                                                 |
-| aliasFields      | []                        | A list of alias fields in description files                                                                                                               |
-| extensionAlias   | {}                        | An object which maps extension to extension aliases                                                                                                       |
-| conditionNames   | []                        | A list of exports field condition names                                                                                                                   |
-| enforceExtension | false                     | Enforce that an extension from extensions must be used                                                                                                    |
-| exportsFields    | ["exports"]               | A list of exports fields in description files                                                                                                             |
-| extensions       | [".js", ".json", ".node"] | A list of extensions which should be tried for files                                                                                                      |
-| fallback         | {}                        | Same as `alias`, but only used if default resolving fails                                                                                                 |
-| fileSystem       |                           | The file system which should be used                                                                                                                      |
-| fullySpecified   | false                     | Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests) |
-| mainFields       | ["main"]                  | A list of main fields in description files                                                                                                                |
-| mainFiles        | ["index"]                 | A list of main files in directories                                                                                                                       |
-
-<<<<<<< HEAD
-| modules | ["node_modules"] | A list of directories to resolve modules from, can be absolute path or folder name. Absolute `NODE_PATH` entries are appended automatically when set. |
-=======
-| modules | ["node_modules"] | A list of directories to resolve modules from, can be absolute path or folder name. Absolute `NODE_PATH` entries are appended automatically when set. |
-
-> > > > > > > 54f8267 (fix: align NODE_PATH handling with Node fallback semantics)
-> > > > > > > | resolveToContext | false | Resolve to a context instead of a file |
-> > > > > > > | preferRelative | false | Prefer to resolve module requests as relative request and fallback to resolving as module |
-> > > > > > > | preferAbsolute | false | Prefer to resolve server-relative urls as absolute paths before falling back to resolve in roots |
-> > > > > > > | restrictions | [] | A list of resolve restrictions |
-> > > > > > > | roots | [] | A list of root paths |
-> > > > > > > | symlinks | true | Whether to resolve symlinks to their symlinked location |
-> > > > > > > | allowPackageExportsInDirectoryResolve | false | Allow `exports` field in `require('../directory')`. Not part of `enhanced-resolve`. |
+| Field                                 | Default                   | Description                                                                                                                                               |
+| ------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| alias                                 | {}                        | A hash map of module alias configurations                                                                                                                 |
+| aliasFields                           | []                        | A list of alias fields in description files                                                                                                               |
+| extensionAlias                        | {}                        | An object which maps extension to extension aliases                                                                                                       |
+| conditionNames                        | []                        | A list of exports field condition names                                                                                                                   |
+| enforceExtension                      | false                     | Enforce that an extension from extensions must be used                                                                                                    |
+| exportsFields                         | ["exports"]               | A list of exports fields in description files                                                                                                             |
+| extensions                            | [".js", ".json", ".node"] | A list of extensions which should be tried for files                                                                                                      |
+| fallback                              | {}                        | Same as `alias`, but only used if default resolving fails                                                                                                 |
+| fileSystem                            |                           | The file system which should be used                                                                                                                      |
+| fullySpecified                        | false                     | Request passed to resolve is already fully specified and extensions or main files are not resolved for it (they are still resolved for internal requests) |
+| mainFields                            | ["main"]                  | A list of main fields in description files                                                                                                                |
+| mainFiles                             | ["index"]                 | A list of main files in directories                                                                                                                       |
+| modules                               | ["node_modules"]          | A list of directories to resolve modules from, can be absolute path or folder name. Absolute `NODE_PATH` entries are appended automatically when set.     |
+| resolveToContext                      | false                     | Resolve to a context instead of a file                                                                                                                    |
+| preferRelative                        | false                     | Prefer to resolve module requests as relative request and fallback to resolving as module                                                                 |
+| preferAbsolute                        | false                     | Prefer to resolve server-relative urls as absolute paths before falling back to resolve in roots                                                          |
+| restrictions                          | []                        | A list of resolve restrictions                                                                                                                            |
+| roots                                 | []                        | A list of root paths                                                                                                                                      |
+| symlinks                              | true                      | Whether to resolve symlinks to their symlinked location                                                                                                   |
+| allowPackageExportsInDirectoryResolve | false                     | Allow `exports` field in `require('../directory')`. Not part of `enhanced-resolve`.                                                                       |
 
 ### TypeScript Configuration
 

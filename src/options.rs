@@ -411,9 +411,7 @@ impl ResolveOptions {
             }
         }
 
-        let mut modules = std::mem::take(&mut self.modules);
-        modules.extend(NodePath::build());
-        self.modules = modules;
+        self.modules.extend(NodePath::build());
 
         self
     }

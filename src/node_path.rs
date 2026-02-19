@@ -1,5 +1,7 @@
 use std::{env, ffi::OsString};
 
+/// `NODE_PATH` support aligned with Node.js module loading docs:
+/// <https://nodejs.org/api/modules.html#loading-from-the-global-folders>
 pub struct NodePath;
 
 impl NodePath {
@@ -9,14 +11,12 @@ impl NodePath {
 
     fn parse(node_path: Option<OsString>) -> Vec<String> {
         let Some(node_path) = node_path else {
-            return Vec::with_capacity(1);
+            return Vec::new();
         };
 
-        let mut entries = env::split_paths(&node_path)
+        env::split_paths(&node_path)
             .filter(|path| path.is_absolute())
             .map(|path| path.to_string_lossy().into_owned())
-            .collect::<Vec<_>>();
-        entries.reserve(1);
-        entries
+            .collect::<Vec<_>>()
     }
 }
