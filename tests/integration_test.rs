@@ -157,6 +157,7 @@ fn clone_with_options_recompiles_alias() {
 }
 
 #[test]
+#[cfg_attr(target_family = "wasm", ignore)]
 fn node_path_resolves_from_env() {
     let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
     let project = dir().join("tests");
