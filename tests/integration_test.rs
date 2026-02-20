@@ -158,6 +158,7 @@ fn clone_with_options_recompiles_alias() {
 
 #[test]
 #[cfg_attr(target_family = "wasm", ignore)]
+#[cfg_attr(target_arch = "s390x", ignore)]
 fn node_path_resolves_from_env() {
     let child_env = "__OXC_NODE_PATH_CHILD";
     let project_env = "__OXC_NODE_PATH_PROJECT";
