@@ -1,6 +1,6 @@
 //! Test public APIs
 
-use std::{env, path::PathBuf, sync::Once};
+use std::{env, path::PathBuf};
 
 use oxc_resolver::{
     AliasValue, EnforceExtension, Resolution, ResolveContext, ResolveError, ResolveOptions,
@@ -11,21 +11,7 @@ fn dir() -> PathBuf {
     env::current_dir().unwrap()
 }
 
-fn init_node_path() {
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
-        let node_path_root = fixture.join("multiple-modules/node_modules");
-        let node_path = env::join_paths([node_path_root]).unwrap();
-        // SAFETY: `NODE_PATH` is initialized once before resolver creation in this test binary.
-        unsafe {
-            env::set_var("NODE_PATH", node_path);
-        }
-    });
-}
-
 fn resolve(specifier: &str) -> Resolution {
-    init_node_path();
     let path = dir();
     Resolver::new(ResolveOptions::default()).resolve(path, specifier).unwrap()
 }
@@ -60,7 +46,6 @@ fn package_json() {
 
 #[test]
 fn tsconfig() {
-    init_node_path();
     let resolver = Resolver::new(ResolveOptions::default());
     let tsconfig = resolver.resolve_tsconfig("./tests").unwrap();
     assert!(tsconfig.root);
@@ -69,7 +54,6 @@ fn tsconfig() {
 
 #[test]
 fn tsconfig_extends_self_reference() {
-    init_node_path();
     let resolver = Resolver::new(ResolveOptions::default());
     let err = resolver.resolve_tsconfig("./tests/tsconfig_self_reference.json").unwrap_err();
     assert_eq!(
@@ -86,7 +70,6 @@ fn tsconfig_extends_self_reference() {
 
 #[test]
 fn tsconfig_extends_circular_reference() {
-    init_node_path();
     let resolver = Resolver::new(ResolveOptions::default());
     let err = resolver.resolve_tsconfig("./tests/tsconfig_circular_reference_a.json").unwrap_err();
     assert_eq!(
@@ -104,14 +87,12 @@ fn tsconfig_extends_circular_reference() {
 
 #[test]
 fn clear_cache() {
-    init_node_path();
     let resolver = Resolver::new(ResolveOptions::default());
     resolver.clear_cache(); // exists
 }
 
 #[test]
 fn options() {
-    init_node_path();
     let resolver = Resolver::new(ResolveOptions::default());
     let options = resolver.options();
     assert!(!format!("{options:?}").is_empty());
@@ -119,14 +100,12 @@ fn options() {
 
 #[test]
 fn debug_resolver() {
-    init_node_path();
     let resolver = Resolver::new(ResolveOptions::default());
     assert!(!format!("{resolver:?}").is_empty());
 }
 
 #[test]
 fn dependencies() {
-    init_node_path();
     let path = dir();
     let mut ctx = ResolveContext::default();
     let _ = Resolver::new(ResolveOptions::default()).resolve_with_context(
@@ -141,7 +120,6 @@ fn dependencies() {
 
 #[test]
 fn options_api() {
-    init_node_path();
     _ = ResolveOptions::default()
         .with_builtin_modules(true)
         .with_condition_names(&[])
@@ -159,7 +137,6 @@ fn options_api() {
 
 #[test]
 fn clone_with_options_recompiles_alias() {
-    init_node_path();
     let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
 
     let base_resolver = Resolver::new(ResolveOptions {
@@ -177,15 +154,4 @@ fn clone_with_options_recompiles_alias() {
 
     assert_eq!(base, fixture.join("a.js"));
     assert_eq!(cloned, fixture.join("b.js"));
-}
-
-#[test]
-#[cfg_attr(target_family = "wasm", ignore)]
-fn node_path_resolves_from_env() {
-    init_node_path();
-    let project = dir().join("tests");
-    let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
-    let expected = fixture.join("multiple-modules/node_modules/m1/a.js");
-    let resolved = Resolver::default().resolve(&project, "m1/a.js").map(|r| r.full_path());
-    assert_eq!(resolved, Ok(expected));
 }
