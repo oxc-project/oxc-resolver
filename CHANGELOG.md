@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.18.0](https://github.com/oxc-project/oxc-resolver/compare/v11.17.1...v11.18.0) - 2026-02-20
+
+### <!-- 0 -->🚀 Features
+
+- support NODE_PATH module lookup ([#1020](https://github.com/oxc-project/oxc-resolver/pull/1020)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.17.1](https://github.com/oxc-project/oxc-resolver/compare/v11.17.0...v11.17.1) - 2026-02-08
 
 ### <!-- 4 -->⚡ Performance
