@@ -141,6 +141,7 @@ fn dependencies() {
 
 #[test]
 fn options_api() {
+    init_node_path();
     _ = ResolveOptions::default()
         .with_builtin_modules(true)
         .with_condition_names(&[])
