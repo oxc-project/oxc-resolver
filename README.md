@@ -32,7 +32,7 @@
 
 Rust port of [enhanced-resolve], [tsconfig-paths-webpack-plugin] and [tsconfck]
 
-- Released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://www.npmjs.com/package/oxc-resolver).
+- Released on [crates.io](https://crates.io/crates/oxc_resolver) and [npm](https://npmx.dev/package/oxc-resolver).
 - Implements the [ESM](https://nodejs.org/api/esm.html#resolution-algorithm) and [CommonJS](https://nodejs.org/api/modules.html#all-together) module resolution algorithm specification.
 - Built-in [tsconfig-paths-webpack-plugin]
   - support extending tsconfig defined in `tsconfig.extends`
@@ -362,5 +362,5 @@ Oxc partially copies code from the following projects.
 [docs-badge]: https://img.shields.io/docsrs/oxc_resolver
 [docs-url]: https://docs.rs/oxc_resolver/latest/oxc_resolver
 [npm-badge]: https://img.shields.io/npm/dw/oxc-resolver?label=npm
-[npm-url]: https://www.npmjs.com/package/oxc-resolver
+[npm-url]: https://npmx.dev/package/oxc-resolver
 [tsconfck]: https://github.com/dominikg/tsconfck
