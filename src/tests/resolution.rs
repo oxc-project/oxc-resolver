@@ -1,11 +1,16 @@
 use std::path::{Path, PathBuf};
 
-use crate::Resolution;
+use crate::{Cache, FileSystem as _, FileSystemOs, Resolution};
 
 #[test]
 fn test() {
+    #[cfg(feature = "yarn_pnp")]
+    let cache = Cache::new(FileSystemOs::new(false));
+    #[cfg(not(feature = "yarn_pnp"))]
+    let cache = Cache::new(FileSystemOs::new());
+    let cached_path = cache.value(Path::new("foo"));
     let resolution = Resolution {
-        path: PathBuf::from("foo"),
+        cached_path,
         query: Some("?query".to_string()),
         fragment: Some("#fragment".to_string()),
         package_json: None,

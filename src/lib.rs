@@ -290,7 +290,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let r = self.resolve_impl(directory, specifier, tsconfig, ctx);
         match &r {
             Ok(r) => {
-                tracing::debug!(options = ?self.options, path = ?directory, specifier = specifier, ret = ?r.path);
+                tracing::debug!(options = ?self.options, path = ?directory, specifier = specifier, ret = ?r.path());
             }
             Err(err) => {
                 tracing::debug!(options = ?self.options, path = ?directory, specifier = specifier, err = ?err);
@@ -310,17 +310,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
         let cached_path = self.cache.value(path);
         let cached_path = self.require(&cached_path, specifier, tsconfig, ctx)?;
-        let path = self.load_realpath(&cached_path)?;
+        let real_path = self.load_realpath(&cached_path)?;
 
         let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
         if let Some(package_json) = &package_json {
             // path must be inside the package.
-            debug_assert!(path.starts_with(package_json.directory()));
+            debug_assert!(real_path.path().starts_with(package_json.directory()));
         }
         let module_type = self.esm_file_format(&cached_path, ctx)?;
 
         Ok(Resolution {
-            path,
+            cached_path: real_path,
             query: ctx.query.take(),
             fragment: ctx.fragment.take(),
             package_json,
@@ -796,11 +796,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
-    fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
+    fn load_realpath(&self, cached_path: &CachedPath) -> Result<CachedPath, ResolveError> {
         if self.options.symlinks {
             self.cache.canonicalize(cached_path)
         } else {
-            Ok(cached_path.to_path_buf())
+            Ok(cached_path.clone())
         }
     }
 

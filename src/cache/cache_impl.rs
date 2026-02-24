@@ -61,7 +61,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
-            path.to_path_buf().into_boxed_path(),
+            Box::from(path),
             is_node_modules,
             inside_node_modules,
             parent_weak,
@@ -70,14 +70,14 @@ impl<Fs: FileSystem> Cache<Fs> {
         cached_path
     }
 
-    pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
+    pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
         let cached_path = self.canonicalize_impl(path)?;
-        let path = cached_path.to_path_buf();
         cfg_if! {
             if #[cfg(target_os = "windows")] {
-                crate::windows::strip_windows_prefix(path)
+                let path = cached_path.to_path_buf();
+                crate::windows::strip_windows_prefix(path).map(|p| self.value(&p))
             } else {
-                Ok(path)
+                Ok(cached_path)
             }
         }
     }
@@ -167,7 +167,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                     });
                 };
                 let real_path = if options.symlinks {
-                    self.canonicalize(path)?.join("package.json")
+                    self.canonicalize(path)?.path().join("package.json")
                 } else {
                     package_json_path.clone()
                 };
@@ -328,17 +328,8 @@ impl<Fs: FileSystem> Cache<Fs> {
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
         // Check cache first - if this path was already canonicalized, return the cached result
-        if let Some((weak, path_buf)) = path.canonicalized.get() {
-            return weak
-                .upgrade()
-                .map(CachedPath)
-                .or_else(|| {
-                    // Weak pointer upgrade failed - recreate from stored PathBuf
-                    Some(self.value(path_buf))
-                })
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-                });
+        if let Some((weak, fallback_path)) = path.canonicalized.get() {
+            return Ok(weak.upgrade().map_or_else(|| self.value(fallback_path), CachedPath));
         }
 
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
@@ -382,7 +373,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Cache the result before removing from visited set
         // This ensures parent canonicalization results are cached and reused
-        let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.to_path_buf()));
+        let _ = path.canonicalized.set((Arc::downgrade(&res.0), Box::from(res.path())));
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
