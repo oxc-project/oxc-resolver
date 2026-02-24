@@ -123,6 +123,26 @@ impl Task for ResolveFileTask {
     }
 }
 
+pub struct ResolveDtsTask {
+    resolver: Arc<Resolver>,
+    file: PathBuf,
+    request: String,
+}
+
+#[napi]
+impl Task for ResolveDtsTask {
+    type JsValue = ResolveResult;
+    type Output = ResolveResult;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        Ok(resolve_dts(&self.resolver, &self.file, &self.request))
+    }
+
+    fn resolve(&mut self, _: napi::Env, result: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(result)
+    }
+}
+
 #[napi]
 pub struct ResolverFactory {
     resolver: Arc<Resolver>,
@@ -198,6 +218,29 @@ impl ResolverFactory {
         let path = PathBuf::from(file);
         let resolver = self.resolver.clone();
         AsyncTask::new(ResolveFileTask { resolver, file: path, request })
+    }
+
+    /// Synchronously resolve `specifier` for TypeScript declaration files.
+    ///
+    /// `file` is the absolute path to the containing file.
+    /// Uses TypeScript's `moduleResolution: "bundler"` algorithm.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn resolve_dts_sync(&self, file: String, request: String) -> ResolveResult {
+        let path = PathBuf::from(file);
+        resolve_dts(&self.resolver, &path, &request)
+    }
+
+    /// Asynchronously resolve `specifier` for TypeScript declaration files.
+    ///
+    /// `file` is the absolute path to the containing file.
+    /// Uses TypeScript's `moduleResolution: "bundler"` algorithm.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn resolve_dts_async(&self, file: String, request: String) -> AsyncTask<ResolveDtsTask> {
+        let path = PathBuf::from(file);
+        let resolver = self.resolver.clone();
+        AsyncTask::new(ResolveDtsTask { resolver, file: path, request })
     }
 
     fn normalize_options(op: NapiResolveOptions) -> ResolveOptions {
@@ -338,4 +381,8 @@ fn resolve(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
 
 fn resolve_file(resolver: &Resolver, path: &Path, request: &str) -> ResolveResult {
     map_resolution_to_result(resolver.resolve_file(path, request))
+}
+
+fn resolve_dts(resolver: &Resolver, file: &Path, request: &str) -> ResolveResult {
+    map_resolution_to_result(resolver.resolve_dts(file, request))
 }

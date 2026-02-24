@@ -49,6 +49,7 @@
 mod alias;
 mod cache;
 mod context;
+mod dts_resolver;
 mod error;
 mod file_system;
 mod node_path;
