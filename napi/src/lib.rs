@@ -334,6 +334,7 @@ impl ResolverFactory {
                 .map(|roots| roots.into_iter().map(PathBuf::from).collect::<Vec<_>>())
                 .unwrap_or(default.roots),
             symlinks: op.symlinks.unwrap_or(default.symlinks),
+            node_path: op.node_path.unwrap_or(default.node_path),
             builtin_modules: op.builtin_modules.unwrap_or(default.builtin_modules),
             module_type: op.module_type.unwrap_or(default.module_type),
             allow_package_exports_in_directory_resolve: op

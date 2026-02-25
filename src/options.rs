@@ -170,6 +170,17 @@ pub struct ResolveOptions {
     /// Default `true`
     pub symlinks: bool,
 
+    /// Whether to read the `NODE_PATH` environment variable and append its entries to
+    /// [`modules`](ResolveOptions::modules).
+    ///
+    /// `NODE_PATH` is a deprecated Node.js feature that is not part of ESM resolution.
+    /// Set this to `false` to disable the behavior.
+    ///
+    /// See <https://nodejs.org/api/modules.html#loading-from-the-global-folders>
+    ///
+    /// Default `true`
+    pub node_path: bool,
+
     /// Whether to parse [module.builtinModules](https://nodejs.org/api/module.html#modulebuiltinmodules) or not.
     /// For example, "zlib" will throw [crate::ResolveError::Builtin] when set to true.
     ///
@@ -212,6 +223,20 @@ impl ResolveOptions {
     #[must_use]
     pub fn with_condition_names(mut self, names: &[&str]) -> Self {
         self.condition_names = names.iter().map(ToString::to_string).collect::<Vec<String>>();
+        self
+    }
+
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    ///
+    /// let options = ResolveOptions::default().with_node_path(false);
+    /// assert_eq!(options.node_path, false)
+    /// ```
+    #[must_use]
+    pub const fn with_node_path(mut self, flag: bool) -> Self {
+        self.node_path = flag;
         self
     }
 
@@ -411,7 +436,9 @@ impl ResolveOptions {
             }
         }
 
-        self.modules.extend_from_slice(NodePath::build());
+        if self.node_path {
+            self.modules.extend_from_slice(NodePath::build());
+        }
 
         self
     }
@@ -533,6 +560,7 @@ impl Default for ResolveOptions {
             restrictions: vec![],
             roots: vec![],
             symlinks: true,
+            node_path: true,
             builtin_modules: false,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
@@ -605,6 +633,9 @@ impl fmt::Display for ResolveOptions {
         if self.symlinks {
             write!(f, "symlinks:{:?},", self.symlinks)?;
         }
+        if !self.node_path {
+            write!(f, "node_path:{:?},", self.node_path)?;
+        }
         if self.builtin_modules {
             write!(f, "builtin_modules:{:?},", self.builtin_modules)?;
         }
@@ -676,6 +707,7 @@ mod test {
             cwd: None,
             alias: vec![],
             alias_fields: vec![],
+            node_path: true,
             builtin_modules: false,
             condition_names: vec![],
             enforce_extension: EnforceExtension::Disabled,

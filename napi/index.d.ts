@@ -226,6 +226,15 @@ export interface NapiResolveOptions {
    */
   symlinks?: boolean
   /**
+   * Whether to read the `NODE_PATH` environment variable and append its entries to `modules`.
+   *
+   * `NODE_PATH` is a deprecated Node.js feature that is not part of ESM resolution.
+   * Set this to `false` to disable the behavior.
+   *
+   * Default `true`
+   */
+  nodePath?: boolean
+  /**
    * Whether to parse [module.builtinModules](https://nodejs.org/api/module.html#modulebuiltinmodules) or not.
    * For example, "zlib" will throw [crate::ResolveError::Builtin] when set to true.
    *
