@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.19.0](https://github.com/oxc-project/oxc-resolver/compare/v11.18.0...v11.19.0) - 2026-02-25
+
+### <!-- 0 -->🚀 Features
+
+- add `node_path` option to disable `NODE_PATH` env var behavior ([#1031](https://github.com/oxc-project/oxc-resolver/pull/1031)) (by @Boshen)
+- add DTS resolver matching TypeScript's bundler mode ([#997](https://github.com/oxc-project/oxc-resolver/pull/997)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- remove invalid debug_assert for symlink + package.json ([#1032](https://github.com/oxc-project/oxc-resolver/pull/1032)) (by @Boshen)
+
+### <!-- 3 -->📚 Documentation
+
+- map npm package links to npmx.dev ([#1028](https://github.com/oxc-project/oxc-resolver/pull/1028)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.18.0](https://github.com/oxc-project/oxc-resolver/compare/v11.17.1...v11.18.0) - 2026-02-20
 
 ### <!-- 0 -->🚀 Features
