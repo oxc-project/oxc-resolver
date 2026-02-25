@@ -229,7 +229,13 @@ impl<Fs: FileSystem> Cache<Fs> {
         let tsconfig_string = self
             .fs
             .read_to_string(&tsconfig_path)
-            .map_err(|_| ResolveError::TsconfigNotFound(path.to_path_buf()))?;
+            .map_err(|err| {
+                if err.kind() == io::ErrorKind::NotFound {
+                    ResolveError::TsconfigNotFound(path.to_path_buf())
+                } else {
+                    ResolveError::from(err)
+                }
+            })?;
         let mut tsconfig =
             TsConfig::parse(root, &tsconfig_path, tsconfig_string).map_err(|error| {
                 ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
