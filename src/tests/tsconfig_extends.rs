@@ -3,7 +3,7 @@
 //! Tests the `extend_tsconfig` method which is responsible for inheriting
 //! settings from one tsconfig into another.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
@@ -195,6 +195,154 @@ fn test_extend_tsconfig_no_override_existing() {
     assert_eq!(compiler_options.target, Some("ES2020".to_string()));
     // Parent's baseUrl should be inherited (with proper path resolution)
     assert!(compiler_options.base_url.is_some());
+}
+
+/// When a tsconfig's `extends` target does not exist,
+/// `resolve_tsconfig` should return `TsconfigNotFound`.
+#[test]
+fn test_extend_tsconfig_not_found() {
+    use crate::ResolveError;
+
+    let f = super::fixture_root().join("tsconfig/cases/extends-not-found");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Disabled,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigNotFound(_))),
+        "expected TsconfigNotFound for missing extends target, got {result:?}",
+    );
+}
+
+/// When a tsconfig's `references` target does not exist,
+/// `resolve_tsconfig` should return `TsconfigNotFound`.
+#[test]
+fn test_references_not_found() {
+    use crate::ResolveError;
+
+    let f = super::fixture_root().join("tsconfig/cases/references-not-found");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigNotFound(_))),
+        "expected TsconfigNotFound for missing references target, got {result:?}",
+    );
+}
+
+/// A filesystem wrapper that returns `PermissionDenied` for `read_to_string`
+/// on a specific path, delegating everything else to the real OS filesystem.
+struct UnreadableFs {
+    unreadable_path: PathBuf,
+}
+
+impl crate::FileSystem for UnreadableFs {
+    #[cfg(not(feature = "yarn_pnp"))]
+    fn new() -> Self {
+        unreachable!()
+    }
+
+    #[cfg(feature = "yarn_pnp")]
+    fn new(_yarn_pnp: bool) -> Self {
+        unreachable!()
+    }
+
+    fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        std::fs::read(path)
+    }
+
+    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+        if path == self.unreadable_path {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "permission denied",
+            ));
+        }
+        crate::FileSystemOs::read_to_string(path)
+    }
+
+    fn metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
+        crate::FileSystemOs::metadata(path)
+    }
+
+    fn symlink_metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
+        crate::FileSystemOs::symlink_metadata(path)
+    }
+
+    fn read_link(&self, path: &Path) -> Result<PathBuf, crate::ResolveError> {
+        crate::FileSystemOs::read_link(path)
+    }
+
+    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        crate::FileSystemOs::canonicalize(path)
+    }
+}
+
+/// When a tsconfig's `extends` target exists but is not readable (e.g. permission denied),
+/// `resolve_tsconfig` should return an `IOError` (not silently skip it).
+#[test]
+fn test_extend_tsconfig_unreadable_file() {
+    use crate::ResolveError;
+
+    let f = super::fixture_root().join("tsconfig/cases/extends-unreadable");
+
+    let fs = UnreadableFs { unreadable_path: f.join("base.json") };
+    let resolver = crate::ResolverGeneric::new_with_file_system(
+        fs,
+        ResolveOptions {
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: f.join("tsconfig.json"),
+                references: TsconfigReferences::Disabled,
+            })),
+            ..ResolveOptions::default()
+        },
+    );
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::IOError(_))),
+        "expected IOError for unreadable extends target, got {result:?}",
+    );
+}
+
+/// When a tsconfig's `references` target exists but is not readable (e.g. permission denied),
+/// `resolve_tsconfig` should return an `IOError`.
+#[test]
+fn test_references_unreadable_file() {
+    use crate::ResolveError;
+
+    let f = super::fixture_root().join("tsconfig/cases/references-unreadable");
+
+    let fs = UnreadableFs { unreadable_path: f.join("referenced/tsconfig.json") };
+    let resolver = crate::ResolverGeneric::new_with_file_system(
+        fs,
+        ResolveOptions {
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: f.join("tsconfig.json"),
+                references: TsconfigReferences::Auto,
+            })),
+            ..ResolveOptions::default()
+        },
+    );
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::IOError(_))),
+        "expected IOError for unreadable references target, got {result:?}",
+    );
 }
 
 #[test]

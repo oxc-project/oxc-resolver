@@ -113,7 +113,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let tsconfig_path = cv.path.join("tsconfig.json");
                 let tsconfig_path = self.cache.value(&tsconfig_path);
                 if self.cache.is_file(&tsconfig_path, &mut ctx) {
-                    self.resolve_tsconfig(tsconfig_path.path()).map(Some)
+                    match self.resolve_tsconfig(tsconfig_path.path()) {
+                        Ok(tsconfig) => Ok(Some(tsconfig)),
+                        // Skip unreadable tsconfig files (e.g. permission denied)
+                        // and continue walking parent directories
+                        Err(ResolveError::IOError(_)) => Ok(None),
+                        Err(e) => Err(e),
+                    }
                 } else {
                     Ok(None)
                 }
