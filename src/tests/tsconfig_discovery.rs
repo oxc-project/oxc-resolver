@@ -34,9 +34,8 @@ fn tsconfig_discovery_skips_unreadable_file() {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
 
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("target")
-        .join("test_unreadable_tsconfig");
+    let dir =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("test_unreadable_tsconfig");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
 
