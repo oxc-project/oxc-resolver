@@ -1066,7 +1066,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 // it could be a directory with `package.json` that redirects to another file,
                 // take `@atlaskit/pragmatic-drag-and-drop` for example, as described at import-js/eslint-import-resolver-typescript#409
                 if let Ok(Some(result)) = self.load_as_directory(
-                    &self.cache.value(&path.join(inner_request.clone()).normalize()),
+                    &self.cache.value(&path.join(&*inner_request).normalize()),
                     tsconfig,
                     ctx,
                 ) {
