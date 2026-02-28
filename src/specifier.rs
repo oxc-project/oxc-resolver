@@ -44,22 +44,22 @@ impl<'a> Specifier<'a> {
         let mut query_start: Option<usize> = None;
         let mut fragment_start: Option<usize> = None;
 
-        let mut prev = specifier.chars().next().unwrap();
+        let mut prev = specifier.as_bytes()[0];
         // Optimize for the common case: most specifiers don't have escaped characters
         let mut escaped_indexes: Option<Vec<usize>> = None;
-        for (i, c) in specifier.char_indices().skip(skip) {
-            if c == '?' && query_start.is_none() {
+        for (i, &b) in specifier.as_bytes().iter().enumerate().skip(skip) {
+            if b == b'?' && query_start.is_none() {
                 query_start = Some(i);
             }
-            if c == '#' {
-                if prev == '\0' {
+            if b == b'#' {
+                if prev == b'\0' {
                     escaped_indexes.get_or_insert_with(Vec::new).push(i - 1);
                 } else {
                     fragment_start = Some(i);
                     break;
                 }
             }
-            prev = c;
+            prev = b;
         }
 
         let (path, query, fragment) = match (query_start, fragment_start) {
@@ -73,12 +73,13 @@ impl<'a> Specifier<'a> {
         };
 
         let path = escaped_indexes.map_or(Cow::Borrowed(path), |escaped_indexes| {
-            Cow::Owned(
-                path.chars()
-                    .enumerate()
-                    .filter_map(|(i, c)| (!escaped_indexes.contains(&i)).then_some(c))
-                    .collect::<String>(),
-            )
+            let mut s = String::with_capacity(path.len());
+            for (i, &b) in path.as_bytes().iter().enumerate() {
+                if !escaped_indexes.contains(&i) {
+                    s.push(b as char);
+                }
+            }
+            Cow::Owned(s)
         });
 
         (path, query, fragment)
