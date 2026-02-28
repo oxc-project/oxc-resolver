@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.19.1](https://github.com/oxc-project/oxc-resolver/compare/v11.19.0...v11.19.1) - 2026-02-28
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- resolve normalized path on Windows even for `symlinks: false` ([#1036](https://github.com/oxc-project/oxc-resolver/pull/1036)) (by @sapphi-red)
+- skip unreadable tsconfig files during auto-discovery ([#1033](https://github.com/oxc-project/oxc-resolver/pull/1033)) (by @longlho)
+
+### <!-- 2 -->🚜 Refactor
+
+- clean up commented-out code in parse_package_specifier ([#1035](https://github.com/oxc-project/oxc-resolver/pull/1035)) (by @Boshen)
+
+### <!-- 4 -->⚡ Performance
+
+- remove unnecessary String clone in PnP resolution ([#1039](https://github.com/oxc-project/oxc-resolver/pull/1039)) (by @Boshen)
+- use byte operations instead of char iteration in specifier parser ([#1038](https://github.com/oxc-project/oxc-resolver/pull/1038)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @sapphi-red
+* @longlho
+
 ## [11.19.0](https://github.com/oxc-project/oxc-resolver/compare/v11.18.0...v11.19.0) - 2026-02-25
 
 ### <!-- 0 -->🚀 Features
