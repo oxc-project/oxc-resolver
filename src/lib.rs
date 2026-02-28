@@ -1805,34 +1805,20 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     // Returns (module, subpath)
     // https://github.com/nodejs/node/blob/8f0f17e1e3b6c4e58ce748e06343c5304062c491/lib/internal/modules/esm/resolve.js#L688
+    // NOTE: Package name validation (leading `.`, percent-encoding, `\\` separators) is not implemented.
+    // https://github.com/nodejs/node/blob/8f0f17e1e3b6c4e58ce748e06343c5304062c491/lib/internal/modules/esm/resolve.js#L705C1-L714C1
     fn parse_package_specifier(specifier: &str) -> (&str, &str) {
         let mut separator_index = specifier.as_bytes().iter().position(|b| *b == b'/');
-        // let mut valid_package_name = true;
-        // let mut is_scoped = false;
-        if specifier.starts_with('@') {
-            // is_scoped = true;
-            if separator_index.is_none() || specifier.is_empty() {
-                // valid_package_name = false;
-            } else if let Some(index) = &separator_index {
-                separator_index = specifier.as_bytes()[*index + 1..]
-                    .iter()
-                    .position(|b| *b == b'/')
-                    .map(|i| i + *index + 1);
-            }
+        if specifier.starts_with('@')
+            && let Some(index) = &separator_index
+        {
+            separator_index = specifier.as_bytes()[*index + 1..]
+                .iter()
+                .position(|b| *b == b'/')
+                .map(|i| i + *index + 1);
         }
         let package_name =
             separator_index.map_or(specifier, |separator_index| &specifier[..separator_index]);
-
-        // TODO: https://github.com/nodejs/node/blob/8f0f17e1e3b6c4e58ce748e06343c5304062c491/lib/internal/modules/esm/resolve.js#L705C1-L714C1
-        // Package name cannot have leading . and cannot have percent-encoding or
-        // \\ separators.
-        // if (RegExpPrototypeExec(invalidPackageNameRegEx, packageName) !== null)
-        // validPackageName = false;
-
-        // if (!validPackageName) {
-        // throw new ERR_INVALID_MODULE_SPECIFIER(
-        // specifier, 'is not a valid package name', fileURLToPath(base));
-        // }
         let package_subpath =
             separator_index.map_or("", |separator_index| &specifier[separator_index..]);
         (package_name, package_subpath)
