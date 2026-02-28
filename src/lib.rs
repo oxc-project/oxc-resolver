@@ -797,6 +797,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.options.symlinks {
             self.cache.canonicalize(cached_path)
         } else {
+            // On Windows, collect from components to normalize forward slashes to backslashes.
+            #[cfg(target_os = "windows")]
+            if cached_path.path().as_os_str().as_encoded_bytes().contains(&b'/') {
+                return Ok(cached_path.path().components().collect());
+            }
             Ok(cached_path.to_path_buf())
         }
     }
