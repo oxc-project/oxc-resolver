@@ -148,6 +148,6 @@ jobs:
         run: cargo test --target wasm32-wasip1-threads --profile wasm-test -- --nocapture
         timeout-minutes: 3
         env:
-          CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER: "wasmtime run -W bulk-memory=y -W threads=y -S threads=y --dir ${{ github.workspace }}::/ --"
+          CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER: "wasmtime run -W bulk-memory=y -W threads=y -W shared-memory=y -S threads=y --dir ${{ github.workspace }}::/ --"
 
       - run: git diff --exit-code # Must commit index.d.ts
