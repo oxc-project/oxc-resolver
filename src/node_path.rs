@@ -1,4 +1,4 @@
-use std::{env, ffi::OsString, sync::OnceLock};
+use std::sync::OnceLock;
 
 static NODE_PATH: OnceLock<Vec<String>> = OnceLock::new();
 
@@ -16,18 +16,19 @@ impl NodePath {
                 }
                 #[cfg(not(target_family = "wasm"))]
                 {
-                    Self::parse(env::var_os("NODE_PATH"))
+                    Self::parse(std::env::var_os("NODE_PATH"))
                 }
             })
             .as_slice()
     }
 
-    fn parse(node_path: Option<OsString>) -> Vec<String> {
+    #[cfg(not(target_family = "wasm"))]
+    fn parse(node_path: Option<std::ffi::OsString>) -> Vec<String> {
         let Some(node_path) = node_path else {
             return Vec::new();
         };
 
-        env::split_paths(&node_path)
+        std::env::split_paths(&node_path)
             .filter(|path| path.is_absolute())
             .map(|path| path.to_string_lossy().into_owned())
             .collect::<Vec<_>>()
