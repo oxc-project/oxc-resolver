@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.19.2](https://github.com/oxc-project/oxc-resolver/compare/v11.19.1...v11.19.2) - 2026-03-02
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- avoid wasm/wasi dead-code lint in NodePath ([#1043](https://github.com/oxc-project/oxc-resolver/pull/1043)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.19.1](https://github.com/oxc-project/oxc-resolver/compare/v11.19.0...v11.19.1) - 2026-02-28
 
 ### <!-- 1 -->🐛 Bug Fixes
