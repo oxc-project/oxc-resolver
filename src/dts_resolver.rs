@@ -304,6 +304,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 {
                     return Some(p);
                 }
+                // TS: `extensions & Extensions.Json && tryExtension(Extension.Json)`
+                if let Some(p) = self.dts_try_file(base, ".json", ctx) {
+                    return Some(p);
+                }
             }
             ".tsx" | ".jsx" => {
                 if extensions.contains(Extensions::TYPESCRIPT) {
@@ -404,9 +408,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
             // TS uses getRelativePathFromDirectory to compute the specifier,
             // which strips the "./" prefix from package.json entry values.
-            let vp_specifier = entry
-                .map(|e| e.strip_prefix("./").unwrap_or(e))
-                .unwrap_or("index");
+            let vp_specifier = entry.map_or("index", |e| e.strip_prefix("./").unwrap_or(e));
             if let Some(path) = self.dts_resolve_via_version_paths(
                 extensions,
                 vp_specifier,
