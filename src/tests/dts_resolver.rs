@@ -211,3 +211,30 @@ fn mangle_scoped_multi_slash() {
         "scope__pkg/sub"
     );
 }
+
+// -------- Package imports (#) with DTS substitution --------
+
+#[test]
+fn package_imports_dts_substitution() {
+    let r = resolver();
+    let result = r.resolve_dts(dts_fixture().join("pkg-imports/main.ts"), "#internal").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("pkg-imports/src/index.d.mts"));
+}
+
+// -------- Package self-reference with DTS substitution --------
+
+#[test]
+fn package_self_dts_substitution() {
+    let r = resolver();
+    let result = r.resolve_dts(dts_fixture().join("pkg-self/src/main.ts"), "pkg-self").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("pkg-self/dist/index.d.mts"));
+}
+
+// -------- Exports pointing to nonexistent file --------
+
+#[test]
+fn exports_nonexistent_returns_error() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "exports-no-file");
+    assert!(result.is_err());
+}

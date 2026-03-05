@@ -549,12 +549,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             for exports in pkg.exports_fields(&self.options.exports_fields) {
                 if let Ok(Some(path)) =
                     self.package_exports_resolve(&pkg_dir, &subpath, &exports, None, ctx)
+                    && let Some(resolved) = self.dts_resolve_esm_match(&path, ctx)
                 {
-                    // Try to resolve the ESM match (file may need extension)
-                    if let Some(resolved) = self.dts_resolve_esm_match(&path, ctx) {
-                        return Ok(Some(resolved));
-                    }
-                    return Ok(Some(path));
+                    return Ok(Some(resolved));
                 }
             }
             // exports blocks types/typings/main
@@ -593,12 +590,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn dts_resolve_esm_match(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> Option<CachedPath> {
-        // Try declaration/TS extension substitution first (e.g. .mjs -> .d.mts)
-        let extensions = Extensions::TYPESCRIPT.union(Extensions::DECLARATION);
-        if let Some(path) = self.dts_resolve_as_file(extensions, cached_path, ctx) {
-            return Some(path);
+        // Try DTS extension substitution first (e.g., .mjs -> .d.mts)
+        let extensions =
+            Extensions::TYPESCRIPT.union(Extensions::DECLARATION).union(Extensions::JAVASCRIPT);
+        if let Some(resolved) = self.dts_resolve_as_file(extensions, cached_path, ctx) {
+            return Some(resolved);
         }
-        // Fall back to original file if it exists
+        // Fall back to the raw file if it exists
         if self.cache.is_file(cached_path, ctx) {
             return Some(cached_path.clone());
         }
@@ -739,7 +737,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        self.load_package_imports(cached_path, specifier, None, ctx)
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
+        else {
+            return Ok(None);
+        };
+        if let Some(path) = self.package_imports_resolve(specifier, &package_json, None, ctx)?
+            && let Some(resolved) = self.dts_resolve_esm_match(&path, ctx)
+        {
+            return Ok(Some(resolved));
+        }
+        Ok(None)
     }
 
     // -------- Package self --------
@@ -750,6 +757,29 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        self.load_package_self(cached_path, specifier, None, ctx)
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
+        else {
+            return Ok(None);
+        };
+        if let Some(subpath) = package_json
+            .name()
+            .and_then(|package_name| Self::strip_package_name(specifier, package_name))
+        {
+            let package_url = self.cache.value(package_json.path.parent().unwrap());
+            let dot_subpath = Self::dot_subpath(subpath);
+            for exports in package_json.exports_fields(&self.options.exports_fields) {
+                if let Some(path) = self.package_exports_resolve(
+                    &package_url,
+                    dot_subpath.as_ref(),
+                    &exports,
+                    None,
+                    ctx,
+                )? && let Some(resolved) = self.dts_resolve_esm_match(&path, ctx)
+                {
+                    return Ok(Some(resolved));
+                }
+            }
+        }
+        Ok(None)
     }
 }

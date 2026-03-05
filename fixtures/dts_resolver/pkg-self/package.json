@@ -1,0 +1,1 @@
+{ "name": "pkg-self", "exports": { ".": { "import": "./dist/index.mjs" } } }
