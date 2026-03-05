@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite-plus';
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   fmt: {
-    "$schema": "./node_modules/oxfmt/configuration_schema.json",
-    "ignorePatterns": [
+    $schema: "./node_modules/oxfmt/configuration_schema.json",
+    ignorePatterns: [
       "CHANGELOG.md",
       "fixtures",
       "napi/browser.js",
@@ -14,8 +14,7 @@ export default defineConfig({
       "napi/resolver.wasi.cjs",
       "napi/wasi-worker-browser.mjs",
       "napi/wasi-worker.mjs",
-      "napi/webcontainer-fallback.js"
-    ]
+      "napi/webcontainer-fallback.js",
+    ],
   },
-  
 });

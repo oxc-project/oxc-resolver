@@ -36,8 +36,8 @@
     "@types/node": "^25.0.8",
     "emnapi": "^1.7.1",
     "typescript": "^5.9.3",
-    "vitest": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "napi": {
     "binaryName": "resolver",
