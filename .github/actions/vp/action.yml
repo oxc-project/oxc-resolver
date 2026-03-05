@@ -41,10 +41,10 @@ runs:
       run: |
         corepack enable
         cd fixtures/pnp
-        yarn install
+        corepack yarn install
 
         cd ../global-pnp
-        yarn install
+        corepack yarn install
 
         cd ../yarn
-        yarn install
+        corepack yarn install
