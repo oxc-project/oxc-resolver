@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, test } from "vitest";
 
@@ -32,6 +32,16 @@ test("resolveFileSync error handling", () => {
   const result = resolver.resolveFileSync(testFile, "./nonexistent-file");
   assert.isNotNull(result.error);
   assert.isAbove(result.error.length, 0);
+  assert.isUndefined(result.path);
+});
+
+test("resolveFileSync rejects parentless file path", () => {
+  const resolver = new ResolverFactory();
+  const rootPath = parse(process.cwd()).root;
+
+  const result = resolver.resolveFileSync(rootPath, "./resolver.test.mjs");
+  assert.isDefined(result.error);
+  assert.match(result.error, /expects a file path/);
   assert.isUndefined(result.path);
 });
 

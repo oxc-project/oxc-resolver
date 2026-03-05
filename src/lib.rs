@@ -235,10 +235,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// # Errors
     ///
     /// * See [ResolveError]
-    ///
-    /// # Panics
-    ///
-    /// * If the provided path is not a file.
+    /// * Returns an invalid input error if the provided path has no parent.
     pub fn resolve_file<P: AsRef<Path>>(
         &self,
         file: P,
@@ -249,9 +246,23 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn resolve_file_impl(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
         let mut ctx = Ctx { resolve_file: true, ..Ctx::default() };
-        let dir = path.parent().unwrap();
+        let Some(dir) = path.parent() else {
+            return Err(Self::invalid_resolve_file_path_error(path));
+        };
         let tsconfig = self.find_tsconfig(path)?;
         self.resolve_tracing(dir, specifier, tsconfig.as_deref(), &mut ctx)
+    }
+
+    #[cold]
+    fn invalid_resolve_file_path_error(path: &Path) -> ResolveError {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!(
+                "resolve_file expects a file path, got path without parent: {}",
+                path.display()
+            ),
+        )
+        .into()
     }
 
     /// Resolve `specifier` at absolute `path` with [ResolveContext]

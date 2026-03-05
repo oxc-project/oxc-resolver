@@ -148,6 +148,25 @@ fn resolve_edge_cases() {
 }
 
 #[test]
+fn resolve_file_rejects_parentless_path() {
+    let resolver = Resolver::default();
+    let root = std::env::current_dir()
+        .expect("get current dir")
+        .ancestors()
+        .last()
+        .expect("get root ancestor")
+        .to_path_buf();
+
+    let error =
+        resolver.resolve_file(&root, "./main1.js").expect_err("expected invalid input error");
+    let ResolveError::IOError(io_error) = error else {
+        panic!("expected IOError, got {error:?}");
+    };
+    let io_error: std::io::Error = io_error.into();
+    assert_eq!(io_error.kind(), std::io::ErrorKind::InvalidInput);
+}
+
+#[test]
 fn resolve_dot() {
     let f = super::fixture_root().join("dot");
     let foo_dir: std::path::PathBuf = f.join("foo");
