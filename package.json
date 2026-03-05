@@ -26,7 +26,7 @@
   "scripts": {
     "test": "vp test run -r ./napi",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
-    "build": "pnpm run build:debug --features allocator --release",
+    "build": "vp run build:debug --features allocator --release",
     "postbuild:debug": "node napi/patch.mjs",
     "fmt": "vp fmt"
   },

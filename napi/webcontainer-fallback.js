@@ -14,7 +14,7 @@ if (!fs.existsSync(bindingEntry)) {
   const bindingPkg = `@oxc-resolver/binding-wasm32-wasi@${version}`;
   // eslint-disable-next-line: no-console
   console.log(`[oxc-resolver] Downloading ${bindingPkg} on WebContainer...`);
-  childProcess.execFileSync('pnpm', ['i', bindingPkg], {
+  childProcess.execFileSync('vp', ['i', bindingPkg], {
     cwd: baseDir,
     stdio: 'inherit',
   });

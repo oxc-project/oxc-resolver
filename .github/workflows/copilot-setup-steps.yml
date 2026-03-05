@@ -35,4 +35,4 @@ jobs:
           tools: just,watchexec-cli,cargo-insta,typos-cli,cargo-shear
           components: clippy rust-docs rustfmt
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp

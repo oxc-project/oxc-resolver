@@ -49,43 +49,43 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            build: pnpm build
+            build: vp build
           - os: windows-latest
             target: aarch64-pc-windows-msvc
-            build: pnpm build
+            build: vp build
           - os: windows-latest
             target: i686-pc-windows-msvc
             architecture: x86
             cpu: ia32
-            build: pnpm build
+            build: vp build
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            build: pnpm build --use-napi-cross
+            build: vp build --use-napi-cross
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            build: pnpm build -x
+            build: vp build -x
           - os: ubuntu-latest
             target: aarch64-linux-android
-            build: pnpm build
+            build: vp build
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            build: pnpm build --use-napi-cross
+            build: vp build --use-napi-cross
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            build: pnpm build -x
+            build: vp build -x
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
-            build: pnpm build --use-napi-cross
+            build: vp build --use-napi-cross
           - os: ubuntu-latest
             target: armv7-linux-androideabi
             architecture: x64
-            build: pnpm build
+            build: vp build
           - os: ubuntu-latest
             target: armv7-unknown-linux-musleabihf
-            build: pnpm build -x
+            build: vp build -x
           - os: ubuntu-latest
             target: powerpc64le-unknown-linux-gnu
-            build: pnpm build --use-napi-cross
+            build: vp build --use-napi-cross
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
             build: |-
@@ -93,32 +93,32 @@ jobs:
               sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y &&
               export TARGET_CC=riscv64-linux-gnu-gcc &&
               export CXX=riscv64-linux-gnu-g++ &&
-              pnpm build
+              vp build
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-musl
-            build: pnpm build -x
+            build: vp build -x
           - os: ubuntu-latest
             target: s390x-unknown-linux-gnu
-            build: export CFLAGS="-fuse-ld=lld" && pnpm build --use-napi-cross
+            build: export CFLAGS="-fuse-ld=lld" && vp build --use-napi-cross
           - os: macos-latest
             target: x86_64-apple-darwin
-            build: pnpm build
+            build: vp build
           - os: macos-latest
             target: aarch64-apple-darwin
-            build: pnpm build
+            build: vp build
           - os: ubuntu-latest
             target: wasm32-wasip1-threads
-            build: pnpm run build:debug --release # omit --features allocator
+            build: vp run build:debug --release # omit --features allocator
           - os: ubuntu-latest
             target: aarch64-unknown-linux-ohos
-            build: pnpm build --target aarch64-unknown-linux-ohos
+            build: vp build --target aarch64-unknown-linux-ohos
 
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
         with:
           architecture: ${{ matrix.architecture }}
           cpu: ${{ matrix.cpu }}
@@ -182,10 +182,10 @@ jobs:
             ls -lah
             whoami
             env
-            export COREPACK_INTEGRITY_KEYS=0
-            sudo corepack enable
-            pnpm install
-            pnpm build --target x86_64-unknown-freebsd
+            curl -fsSL https://staging.viteplus.dev/install.sh | bash
+            export PATH="$HOME/.vite-plus/bin:$PATH"
+            vp install
+            vp build --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf target
       - name: Upload artifact
@@ -206,16 +206,19 @@ jobs:
     steps:
       - uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: .node-version
-          cache: pnpm
+          package-manager-cache: false
+
+      - uses: voidzero-dev/setup-vp@bd1d5cdfff6feadf7edfdf85d0a66e8b3415ee4a # v1
+        with:
+          cache: true
+          run-install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: vp install --frozen-lockfile
 
       - name: Download Artifacts
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
@@ -227,13 +230,13 @@ jobs:
       - name: Prepare dirs and artifacts
         run: |
           cp package.json napi/package.json
-          pnpm napi create-npm-dirs
-          pnpm napi artifacts --npm-dir npm --build-output-dir napi
+          vp napi create-npm-dirs
+          vp napi artifacts --npm-dir npm --build-output-dir napi
 
       - name: Publish npm packages as latest
         run: |
           # Using trusted publishing, no token is required.
-          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
+          vp napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
 
           # Publish root package
           cp package.json napi/package.json

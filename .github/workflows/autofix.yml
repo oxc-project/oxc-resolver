@@ -24,7 +24,7 @@ jobs:
           tools: just,cargo-shear@1
           components: rustfmt
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
 
       - run: just fmt
 

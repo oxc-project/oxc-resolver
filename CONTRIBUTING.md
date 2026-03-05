@@ -16,6 +16,6 @@ just test
 ## Napi
 
 ```bash
-pnpm run build
-pnpm test
+vp build
+vp test
 ```

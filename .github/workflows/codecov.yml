@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: taiki-e/checkout-action@3ab630d442e198ebb0ca30872832406ca01c46eb # v1.4.0
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
 
       - uses: oxc-project/setup-rust@704e1648ce532a12b4d6fb98db0ba10afa3ae879 # v1.0.13
         with:

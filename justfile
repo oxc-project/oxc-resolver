@@ -17,7 +17,7 @@ init:
   rustup target add s390x-unknown-linux-gnu
 
 install:
-  pnpm install
+  vp install
   cd fixtures/pnp; yarn
   cd fixtures/global-pnp; yarn
   cd fixtures/yarn; yarn

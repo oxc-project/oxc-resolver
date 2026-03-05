@@ -43,7 +43,7 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
           tools: just
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
       - run: cargo check --all-features --locked
       - run: just test
         timeout-minutes: 3
@@ -58,7 +58,7 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: s390x-unknown-linux-gnu
           tools: cross
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
       - run: cross check --all-features --locked --target s390x-unknown-linux-gnu
       - run: cross test --target s390x-unknown-linux-gnu
         timeout-minutes: 3
@@ -92,7 +92,7 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
           tools: wasmtime
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
 
       - name: Install target
         run: rustup target add wasm32-wasip1
@@ -131,15 +131,15 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
           tools: wasmtime
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
 
       - name: Build
         run: |
           rustup target add wasm32-wasip1-threads
-          pnpm build --target wasm32-wasip1-threads
+          vp build --target wasm32-wasip1-threads
 
       - name: Test
-        run: pnpm run test
+        run: vp run test
         timeout-minutes: 3
         env:
           WASI_TEST: 1

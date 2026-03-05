@@ -30,7 +30,7 @@ jobs:
         with:
           cache-key: warm
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
 
       - name: Bump package.json
         if: ${{ steps.release-plz.outputs.prs_created }}
@@ -48,7 +48,7 @@ jobs:
 
             jq --arg version "${version}" '.version = ($version)' package.json > tmp
             mv tmp package.json
-            pnpm build
+            vp build
 
             gh pr checkout $pr_number
             git add .

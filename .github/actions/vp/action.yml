@@ -1,0 +1,50 @@
+name: Setup Node and vp
+
+description: Setup Node.js and vp with caching, and install yarn fixtures
+
+inputs:
+  architecture:
+    required: false
+    description: "Optional architecture for Node.js (e.g., x64, arm64). If not specified, defaults to the runner architecture."
+
+  cpu:
+    required: false
+    description: "Optional CPU architecture for supportedArchitectures configuration (e.g., x64, arm64)."
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      with:
+        node-version-file: .node-version
+        architecture: ${{ inputs.architecture }}
+        package-manager-cache: false
+
+    - name: Set CPU architecture for package manager
+      if: ${{ inputs.cpu }}
+      shell: bash
+      run: node -e 'console.log(`\nsupportedArchitectures:\n  cpu:\n    - ${process.env.CPU_ARCH}`)' >> pnpm-workspace.yaml
+      env:
+        CPU_ARCH: ${{ inputs.cpu }}
+
+    - uses: voidzero-dev/setup-vp@bd1d5cdfff6feadf7edfdf85d0a66e8b3415ee4a # v1
+      with:
+        cache: true
+        run-install: false
+
+    - name: Install dependencies
+      shell: bash
+      run: vp install --frozen-lockfile --ignore-scripts
+
+    - name: Install yarn fixtures
+      shell: bash
+      run: |
+        corepack enable
+        cd fixtures/pnp
+        yarn install
+
+        cd ../global-pnp
+        yarn install
+
+        cd ../yarn
+        yarn install

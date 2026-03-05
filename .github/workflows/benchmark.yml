@@ -31,7 +31,7 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
           tools: cargo-codspeed
 
-      - uses: ./.github/actions/pnpm
+      - uses: ./.github/actions/vp
 
       - run: cargo codspeed build --features codspeed
         env:

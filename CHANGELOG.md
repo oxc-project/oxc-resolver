@@ -837,7 +837,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
-- `cargo upgrade` && `pnpm upgrade`
+- `cargo upgrade` && `vp upgrade`
 - bring back the symlink optimization ([#298](https://github.com/oxc-project/oxc-resolver/pull/298))
 - *(deps)* update rust crate criterion2 to v2
 
