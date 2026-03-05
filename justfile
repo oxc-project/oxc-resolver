@@ -69,7 +69,7 @@ test:
 # Lint the whole project
 lint:
   cargo clippy --all-features --all-targets -- --deny warnings
-  npx oxlint
+  vp lint
 
 # Generate doc
 doc:

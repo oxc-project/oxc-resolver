@@ -30,9 +30,6 @@ importers:
       emnapi:
         specifier: ^1.7.1
         version: 1.8.1
-      oxlint:
-        specifier: latest
-        version: 1.51.0(oxlint-tsgolint@0.15.0)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
