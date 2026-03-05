@@ -100,6 +100,14 @@ See https://stackblitz.com/edit/oxc-resolver for usage example.
 
 See [docs.rs/oxc_resolver](https://docs.rs/oxc_resolver/latest/oxc_resolver).
 
+## Development Setup
+
+Install `vp` globally:
+
+```bash
+curl -fsSL https://staging.viteplus.dev/install.sh | bash
+```
+
 ### [Yarn Plug'n'Play](https://yarnpkg.com/features/pnp)
 
 - For node.js, yarn pnp should work without any configuration, given the following conditions:
