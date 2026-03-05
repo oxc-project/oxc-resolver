@@ -741,10 +741,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         else {
             return Ok(None);
         };
-        if let Some(path) = self.package_imports_resolve(specifier, &package_json, None, ctx)?
-            && let Some(resolved) = self.dts_resolve_esm_match(&path, ctx)
-        {
-            return Ok(Some(resolved));
+        if let Some(path) = self.package_imports_resolve(specifier, &package_json, None, ctx)? {
+            // DTS substitution (e.g. .mjs -> .d.mts), fall back to raw path
+            // to block further resolution when imports matched
+            return Ok(Some(self.dts_resolve_esm_match(&path, ctx).unwrap_or(path)));
         }
         Ok(None)
     }
@@ -774,9 +774,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     &exports,
                     None,
                     ctx,
-                )? && let Some(resolved) = self.dts_resolve_esm_match(&path, ctx)
-                {
-                    return Ok(Some(resolved));
+                )? {
+                    // DTS substitution (e.g. .mjs -> .d.mts), fall back to raw path
+                    // to block node_modules lookup when exports matched
+                    return Ok(Some(self.dts_resolve_esm_match(&path, ctx).unwrap_or(path)));
                 }
             }
         }
