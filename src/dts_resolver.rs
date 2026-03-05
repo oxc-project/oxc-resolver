@@ -593,13 +593,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn dts_resolve_esm_match(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> Option<CachedPath> {
+        // Try declaration/TS extension substitution first (e.g. .mjs -> .d.mts)
+        let extensions = Extensions::TYPESCRIPT.union(Extensions::DECLARATION);
+        if let Some(path) = self.dts_resolve_as_file(extensions, cached_path, ctx) {
+            return Some(path);
+        }
+        // Fall back to original file if it exists
         if self.cache.is_file(cached_path, ctx) {
             return Some(cached_path.clone());
         }
-        // Try as file with TS extensions
-        let extensions =
-            Extensions::TYPESCRIPT.union(Extensions::DECLARATION).union(Extensions::JAVASCRIPT);
-        self.dts_resolve_as_file(extensions, cached_path, ctx)
+        None
     }
 
     // -------- @types name mangling --------
