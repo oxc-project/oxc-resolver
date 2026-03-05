@@ -212,7 +212,7 @@ jobs:
           node-version-file: .node-version
           package-manager-cache: false
 
-      - uses: voidzero-dev/setup-vp@bd1d5cdfff6feadf7edfdf85d0a66e8b3415ee4a # v1
+      - uses: voidzero-dev/setup-vp@4a524139920f87f9f7080d3b8545acac019e1852 # v1.0.0
         with:
           cache: true
           run-install: false
