@@ -221,6 +221,13 @@ fn package_imports_dts_substitution() {
     assert_eq!(result.path(), dts_fixture().join("pkg-imports/src/index.d.mts"));
 }
 
+#[test]
+fn package_imports_directory_target() {
+    let r = resolver();
+    let result = r.resolve_dts(dts_fixture().join("pkg-imports-dir/main.ts"), "#internal").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("pkg-imports-dir/src/index.d.ts"));
+}
+
 // -------- Package self-reference with DTS substitution --------
 
 #[test]

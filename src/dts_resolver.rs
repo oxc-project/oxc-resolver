@@ -600,6 +600,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if self.cache.is_file(cached_path, ctx) {
             return Some(cached_path.clone());
         }
+        // Try as directory (e.g., ./src -> ./src/index.d.ts)
+        if let Ok(Some(resolved)) = self.dts_resolve_as_directory(extensions, cached_path, ctx) {
+            return Some(resolved);
+        }
         None
     }
 
