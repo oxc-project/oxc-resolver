@@ -18,9 +18,10 @@ init:
 
 install:
   vp install
-  cd fixtures/pnp; yarn
-  cd fixtures/global-pnp; yarn
-  cd fixtures/yarn; yarn
+  corepack enable
+  cd fixtures/pnp; corepack yarn
+  cd fixtures/global-pnp; corepack yarn
+  cd fixtures/yarn; corepack yarn
 
 # When ready, run the same CI commands
 ready:
@@ -64,7 +65,7 @@ test:
   cargo test --all-features
   node --run build
   node --run test
-  cd fixtures/pnp; yarn test
+  cd fixtures/pnp; corepack yarn test
 
 # Lint the whole project
 lint:
