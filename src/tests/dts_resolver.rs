@@ -173,6 +173,19 @@ fn no_types_not_resolved() {
     assert_eq!(result.path(), dts_fixture().join("node_modules/no-types/index.js"));
 }
 
+// -------- exports: ESM match finds declaration over JS --------
+
+#[test]
+fn exports_esm_match_finds_declaration() {
+    // When exports resolves to .mjs but .d.mts exists, prefer .d.mts
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "exports-dts-for-mjs").unwrap();
+    assert_eq!(
+        result.path(),
+        dts_fixture().join("node_modules/exports-dts-for-mjs/dist/index.d.mts")
+    );
+}
+
 // -------- @types name mangling --------
 
 #[test]
