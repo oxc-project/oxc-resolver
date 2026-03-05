@@ -549,9 +549,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             for exports in pkg.exports_fields(&self.options.exports_fields) {
                 if let Ok(Some(path)) =
                     self.package_exports_resolve(&pkg_dir, &subpath, &exports, None, ctx)
-                    && let Some(resolved) = self.dts_resolve_esm_match(&path, ctx)
                 {
-                    return Ok(Some(resolved));
+                    if let Some(resolved) = self.dts_resolve_esm_match(&path, ctx) {
+                        return Ok(Some(resolved));
+                    }
+                    // Exports matched but target not resolvable - block ancestor walk
+                    return Err(ResolveError::NotFound(specifier.to_string()));
                 }
             }
             // exports blocks types/typings/main
@@ -590,7 +593,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn dts_resolve_esm_match(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> Option<CachedPath> {
-        // Try DTS extension substitution first (e.g., .mjs -> .d.mts)
+        // Preserve explicit declaration targets (.d.ts, .d.mts, .d.cts) to avoid
+        // rewriting them to .ts/.mts/.cts when both files exist
+        let path_str = cached_path.path().to_string_lossy();
+        let is_declaration = path_str.ends_with(".d.ts")
+            || path_str.ends_with(".d.mts")
+            || path_str.ends_with(".d.cts");
+        if is_declaration && self.cache.is_file(cached_path, ctx) {
+            return Some(cached_path.clone());
+        }
+        // Try DTS extension substitution (e.g., .mjs -> .d.mts)
         let extensions =
             Extensions::TYPESCRIPT.union(Extensions::DECLARATION).union(Extensions::JAVASCRIPT);
         if let Some(resolved) = self.dts_resolve_as_file(extensions, cached_path, ctx) {
