@@ -108,7 +108,7 @@ jobs:
             build: vp build
           - os: ubuntu-latest
             target: wasm32-wasip1-threads
-            build: vp run build:debug --release # omit --features allocator
+            build: vp run build:debug --release && vp run postbuild:debug # omit --features allocator
           - os: ubuntu-latest
             target: aarch64-unknown-linux-ohos
             build: vp build --target aarch64-unknown-linux-ohos

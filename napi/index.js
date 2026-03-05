@@ -566,14 +566,6 @@ if (!nativeBinding && globalThis.process?.versions?.["webcontainer"]) {
   }
 }
 
-if (!nativeBinding && globalThis.process?.versions?.["webcontainer"]) {
-  try {
-    nativeBinding = require('./webcontainer-fallback.js');
-  } catch (err) {
-    loadErrors.push(err)
-  }
-}
-
 if (!nativeBinding) {
   if (loadErrors.length > 0) {
     throw new Error(
@@ -596,10 +588,6 @@ module.exports.ResolverFactory = nativeBinding.ResolverFactory
 module.exports.EnforceExtension = nativeBinding.EnforceExtension
 module.exports.ModuleType = nativeBinding.ModuleType
 module.exports.sync = nativeBinding.sync
-
-if (process.versions.pnp) {
-  process.env.OXC_RESOLVER_YARN_PNP = '1'
-}
 
 if (process.versions.pnp) {
   process.env.OXC_RESOLVER_YARN_PNP = '1'
