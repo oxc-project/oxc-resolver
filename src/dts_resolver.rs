@@ -431,13 +431,20 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 entry = pkg.main_fields(&main_fields).next();
             }
             if let Some(entry_str) = entry {
+                // TS: "Even if extensions is DtsOnly, we can still look up a .ts file
+                // as a result of package.json 'types'"
+                let expanded = if extensions == Extensions::DECLARATION {
+                    Extensions::TYPESCRIPT.union(Extensions::DECLARATION)
+                } else {
+                    extensions
+                };
                 let entry_path = candidate.normalize_with(entry_str, &self.cache);
-                if let Some(path) = self.dts_resolve_as_file(extensions, &entry_path, ctx) {
+                if let Some(path) = self.dts_resolve_as_file(expanded, &entry_path, ctx) {
                     return Ok(Some(path));
                 }
                 if self.cache.is_dir(&entry_path, ctx) {
                     let index = entry_path.push("index", &self.cache);
-                    if let Some(path) = self.dts_resolve_as_file(extensions, &index, ctx) {
+                    if let Some(path) = self.dts_resolve_as_file(expanded, &index, ctx) {
                         return Ok(Some(path));
                     }
                 }
