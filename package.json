@@ -24,20 +24,20 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "test": "vitest run -r ./napi",
+    "test": "vp test run -r ./napi",
     "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
     "build": "pnpm run build:debug --features allocator --release",
     "postbuild:debug": "node napi/patch.mjs",
-    "fmt": "oxfmt"
+    "fmt": "vp fmt"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.5.0",
     "@napi-rs/wasm-runtime": "^1.1.0",
     "@types/node": "^25.0.8",
     "emnapi": "^1.7.1",
-    "oxfmt": "^0.36.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.17"
+    "vitest": "catalog:",
+    "vite-plus": "catalog:"
   },
   "napi": {
     "binaryName": "resolver",

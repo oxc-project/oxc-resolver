@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { assert, describe, it } from "vitest";
+import { assert, describe, it } from "vite-plus/test";
 
 import { ResolverFactory } from "../index.js";
 import { normalizePath } from "./utils.mjs";
