@@ -7,6 +7,7 @@
     "axios": "1.8.4",
     "decimal.js": "10.5.0",
     "ipaddr.js": "2.2.0",
+    "magic-string": "0.30.17",
     "mathjs": "14.4.0",
     "minimatch": "10.0.1",
     "postcss": "8.5.3",
