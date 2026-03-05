@@ -35,6 +35,7 @@
     "@napi-rs/wasm-runtime": "^1.1.0",
     "@types/node": "^25.0.8",
     "emnapi": "^1.7.1",
+    "oxlint": "latest",
     "typescript": "^5.9.3",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
