@@ -402,7 +402,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 entry = pkg.main_fields(&main_fields).next();
             }
 
-            let vp_specifier = entry.unwrap_or("index");
+            // TS uses getRelativePathFromDirectory to compute the specifier,
+            // which strips the "./" prefix from package.json entry values.
+            let vp_specifier = entry
+                .map(|e| e.strip_prefix("./").unwrap_or(e))
+                .unwrap_or("index");
             if let Some(path) = self.dts_resolve_via_version_paths(
                 extensions,
                 vp_specifier,
