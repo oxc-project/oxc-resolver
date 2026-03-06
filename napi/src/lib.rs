@@ -151,13 +151,16 @@ pub struct ResolverFactory {
 #[napi]
 impl ResolverFactory {
     #[napi(constructor)]
-    pub fn new(options: Option<NapiResolveOptions>) -> Self {
+    pub fn new(options: Option<NapiResolveOptions>) -> napi::Result<Self> {
         #[cfg(feature = "tracing-subscriber")]
         {
             tracing::init_tracing();
         }
-        let options = options.map_or_else(ResolveOptions::default, Self::normalize_options);
-        Self { resolver: Arc::new(Resolver::new(options)) }
+        let options = match options {
+            Some(op) => Self::normalize_options(op)?,
+            None => ResolveOptions::default(),
+        };
+        Ok(Self { resolver: Arc::new(Resolver::new(options)) })
     }
 
     #[napi]
@@ -168,10 +171,10 @@ impl ResolverFactory {
 
     /// Clone the resolver using the same underlying cache.
     #[napi]
-    pub fn clone_with_options(&self, options: NapiResolveOptions) -> Self {
-        Self {
-            resolver: Arc::new(self.resolver.clone_with_options(Self::normalize_options(options))),
-        }
+    pub fn clone_with_options(&self, options: NapiResolveOptions) -> napi::Result<Self> {
+        Ok(Self {
+            resolver: Arc::new(self.resolver.clone_with_options(Self::normalize_options(options)?)),
+        })
     }
 
     /// Clear the underlying cache.
@@ -243,15 +246,22 @@ impl ResolverFactory {
         AsyncTask::new(ResolveDtsTask { resolver, file: path, request })
     }
 
-    fn normalize_options(op: NapiResolveOptions) -> ResolveOptions {
+    fn normalize_options(op: NapiResolveOptions) -> napi::Result<ResolveOptions> {
         let default = ResolveOptions::default();
         // merging options
-        ResolveOptions {
+        Ok(ResolveOptions {
             cwd: None,
-            tsconfig: op.tsconfig.map(|value| match value {
-                Either::A(_) => TsconfigDiscovery::Auto,
-                Either::B(options) => TsconfigDiscovery::Manual(TsconfigOptions::from(options)),
-            }),
+            tsconfig: op
+                .tsconfig
+                .map(|value| -> napi::Result<_> {
+                    match value {
+                        Either::A(_) => Ok(TsconfigDiscovery::Auto),
+                        Either::B(options) => {
+                            Ok(TsconfigDiscovery::Manual(TsconfigOptions::try_from(options)?))
+                        }
+                    }
+                })
+                .transpose()?,
             alias: op
                 .alias
                 .map(|alias| {
@@ -325,9 +335,10 @@ impl ResolverFactory {
                 .map(|restrictions| {
                     restrictions
                         .into_iter()
-                        .map(|restriction| restriction.into())
-                        .collect::<Vec<_>>()
+                        .map(|restriction| restriction.try_into())
+                        .collect::<napi::Result<Vec<_>>>()
                 })
+                .transpose()?
                 .unwrap_or(default.restrictions),
             roots: op
                 .roots
@@ -342,7 +353,7 @@ impl ResolverFactory {
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: default.yarn_pnp,
-        }
+        })
     }
 }
 

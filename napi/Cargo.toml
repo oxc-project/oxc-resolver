@@ -23,7 +23,7 @@ doctest = false
 oxc_resolver = { workspace = true }
 
 fancy-regex = { version = "^0.17.0", default-features = false, features = ["std"] }
-napi = { version = "3", default-features = false, features = ["napi3", "serde-json"] }
+napi = { version = "3.8", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3" }
 tracing-subscriber = { version = "0.3.22", optional = true, default-features = false, features = [
   "std",
