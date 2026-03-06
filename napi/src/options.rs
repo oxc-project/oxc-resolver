@@ -222,22 +222,23 @@ pub struct TsconfigOptions {
     pub references: Option<String>,
 }
 
-impl From<Restriction> for oxc_resolver::Restriction {
-    fn from(val: Restriction) -> Self {
+impl TryFrom<Restriction> for oxc_resolver::Restriction {
+    type Error = napi::Error;
+
+    fn try_from(val: Restriction) -> napi::Result<Self> {
         match (val.path, val.regex) {
-            (None, None) => {
-                panic!("Should specify path or regex")
-            }
+            (None, None) => Err(napi::Error::from_reason("Should specify path or regex")),
             (None, Some(regex)) => {
-                let re = Regex::new(&regex).unwrap();
-                oxc_resolver::Restriction::Fn(Arc::new(move |path| {
+                let re = Regex::new(&regex)
+                    .map_err(|e| napi::Error::from_reason(format!("Invalid regex: {e}")))?;
+                Ok(oxc_resolver::Restriction::Fn(Arc::new(move |path| {
                     re.is_match(path.to_str().unwrap_or_default()).unwrap_or(false)
-                }))
+                })))
             }
-            (Some(path), None) => oxc_resolver::Restriction::Path(PathBuf::from(path)),
-            (Some(_), Some(_)) => {
-                panic!("Restriction can't be path and regex at the same time")
-            }
+            (Some(path), None) => Ok(oxc_resolver::Restriction::Path(PathBuf::from(path))),
+            (Some(_), Some(_)) => Err(napi::Error::from_reason(
+                "Restriction can't be path and regex at the same time",
+            )),
         }
     }
 }
@@ -252,18 +253,22 @@ impl From<EnforceExtension> for oxc_resolver::EnforceExtension {
     }
 }
 
-impl From<TsconfigOptions> for oxc_resolver::TsconfigOptions {
-    fn from(val: TsconfigOptions) -> Self {
-        oxc_resolver::TsconfigOptions {
+impl TryFrom<TsconfigOptions> for oxc_resolver::TsconfigOptions {
+    type Error = napi::Error;
+
+    fn try_from(val: TsconfigOptions) -> napi::Result<Self> {
+        Ok(oxc_resolver::TsconfigOptions {
             config_file: PathBuf::from(val.config_file),
             references: match val.references {
                 Some(string) if string.as_str() == "auto" => oxc_resolver::TsconfigReferences::Auto,
                 Some(opt) => {
-                    panic!("`{}` is not a valid option for  tsconfig references", opt)
+                    return Err(napi::Error::from_reason(format!(
+                        "`{opt}` is not a valid option for tsconfig references"
+                    )));
                 }
                 None => oxc_resolver::TsconfigReferences::Disabled,
             },
-        }
+        })
     }
 }
 

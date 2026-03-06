@@ -16,7 +16,7 @@ pub fn init_tracing() {
                 |_| Targets::new(),
                 |env_var| {
                     use std::str::FromStr;
-                    Targets::from_str(&env_var).unwrap()
+                    Targets::from_str(&env_var).unwrap_or_default()
                 },
             ))
             .with(tracing_subscriber::fmt::layer())
