@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { assert, describe, test } from "vitest";
+import { assert, describe, test } from "vite-plus/test";
 
 let ResolverFactory;
 
