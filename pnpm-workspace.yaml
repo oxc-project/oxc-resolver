@@ -5,20 +5,20 @@ packages:
   - fixtures/tsconfck
   - fixtures/pnpm-workspace/**
 
-ignoredBuiltDependencies:
-  - esbuild
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@latest
+  vite-plus: ^0.1.11
+  vitest: npm:@voidzero-dev/vite-plus-test@latest
 
 ignoreScripts: true
 
-# For `windows_symlinked_longfilename` in tests/resolve_test.rs
-virtualStoreDirMaxLength: 1024
-catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@latest
-  vitest: npm:@voidzero-dev/vite-plus-test@latest
-  vite-plus: latest
+ignoredBuiltDependencies:
+  - esbuild
+
 overrides:
   vite: "catalog:"
   vitest: "catalog:"
+
 peerDependencyRules:
   allowAny:
     - vite
@@ -26,3 +26,5 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
     vitest: "*"
+
+virtualStoreDirMaxLength: 1024

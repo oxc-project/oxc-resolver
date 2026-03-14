@@ -18,7 +18,7 @@ fn data() -> Vec<(PathBuf, &'static str)> {
         // real packages
         (cwd.clone(), "@napi-rs/cli"),
         (cwd.clone(), "@napi-rs/wasm-runtime"),
-        (cwd.clone(), "vitest"),
+        (cwd.clone(), "vite-plus"),
         (cwd.clone(), "emnapi"),
         (cwd, "typescript"),
         // relative path
@@ -578,7 +578,7 @@ mod memory_fs {
 
             // Only load these specific packages needed for benchmarks
             let packages =
-                ["@napi-rs/cli", "@napi-rs/wasm-runtime", "vitest", "emnapi", "typescript"];
+                ["@napi-rs/cli", "@napi-rs/wasm-runtime", "vite-plus", "emnapi", "typescript"];
 
             for package_name in packages {
                 let package_path = node_modules.join(package_name);
