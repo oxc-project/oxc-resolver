@@ -30,6 +30,9 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
         |rest| ("", rest),
     );
 
+    // WHATWG URL spec: "localhost" is normalized to empty host
+    let hostname = if hostname.eq_ignore_ascii_case("localhost") { "" } else { hostname };
+
     file_url_to_path(specifier, hostname, pathname, query_fragment)
 }
 
