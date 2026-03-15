@@ -12,9 +12,6 @@ catalog:
 
 ignoreScripts: true
 
-ignoredBuiltDependencies:
-  - esbuild
-
 overrides:
   vite: "catalog:"
   vitest: "catalog:"
