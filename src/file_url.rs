@@ -20,8 +20,14 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
     // Extract hostname and pathname
     // file:///path → hostname="" pathname="/path"
     // file://host/path → hostname="host" pathname="/path"
+    // file://C:/path → drive letter, treat as pathname (no hostname)
     let (hostname, pathname) = path_with_host.strip_prefix('/').map_or_else(
         || {
+            // Check for Windows drive letter in authority position (e.g. file://C:/path)
+            let bytes = path_with_host.as_bytes();
+            if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+                return ("", path_with_host);
+            }
             // file://host/... → hostname is everything before first /
             path_with_host
                 .find('/')
@@ -150,6 +156,8 @@ mod tests {
             resolve_file_protocol("file:///C:/Users/test/file.js").unwrap(),
             "C:\\Users\\test\\file.js"
         );
+        // Drive letter without leading slash (file://C:/...)
+        assert_eq!(resolve_file_protocol("file://C:/repo/main.js").unwrap(), "C:\\repo\\main.js");
     }
 
     #[cfg(not(windows))]
