@@ -29,7 +29,7 @@ importers:
         version: 25.0.8
       emnapi:
         specifier: ^1.7.1
-        version: 1.8.1
+        version: 1.9.0
       oxfmt:
         specifier: ^0.40.0
         version: 0.40.0
@@ -1455,8 +1455,8 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
-  emnapi@1.8.1:
-    resolution: {integrity: sha512-34i2BbgHx1LnEO4JCGQYo6h6s4e4KrdWtdTHfllBNLbXSHPmdIHplxKejfabsRK+ukNciqVdalB+fxMibqHdaQ==}
+  emnapi@1.9.0:
+    resolution: {integrity: sha512-o/MgVYc9Xa92jNd5pk+PRtFx/IuWlILW1vqm9UU7V49Cnos+bK2y982HEtXcRgkdtxZylYBaGWEznC9Alo6xhg==}
     peerDependencies:
       node-addon-api: '>= 6.1.0'
     peerDependenciesMeta:
@@ -2184,7 +2184,7 @@ snapshots:
       '@octokit/rest': 22.0.1
       clipanion: 4.0.0-rc.4(typanion@3.14.0)
       colorette: 2.0.20
-      emnapi: 1.8.1
+      emnapi: 1.9.0
       es-toolkit: 1.43.0
       js-yaml: 4.1.1
       obug: 2.1.1
@@ -2848,7 +2848,7 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  emnapi@1.8.1: {}
+  emnapi@1.9.0: {}
 
   emoji-regex@10.6.0: {}
 
