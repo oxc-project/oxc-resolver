@@ -128,6 +128,7 @@ mod tests {
         assert_eq!(resolve_file_protocol("https://example.com").unwrap(), "https://example.com");
     }
 
+    #[cfg(not(windows))]
     #[test]
     fn basic_file_url() {
         assert_eq!(
@@ -137,6 +138,16 @@ mod tests {
         assert_eq!(resolve_file_protocol("file:///tmp/test").unwrap(), "/tmp/test");
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn basic_file_url_windows() {
+        assert_eq!(
+            resolve_file_protocol("file:///C:/Users/test/file.js").unwrap(),
+            "C:\\Users\\test\\file.js"
+        );
+    }
+
+    #[cfg(not(windows))]
     #[test]
     fn percent_decoding() {
         assert_eq!(
@@ -145,6 +156,13 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn percent_decoding_windows() {
+        assert_eq!(resolve_file_protocol("file:///C:/my%20file.js").unwrap(), "C:\\my file.js");
+    }
+
+    #[cfg(not(windows))]
     #[test]
     fn query_and_fragment_preserved() {
         assert_eq!(
@@ -161,10 +179,52 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn query_and_fragment_preserved_windows() {
+        assert_eq!(
+            resolve_file_protocol("file:///C:/file.js?query=1").unwrap(),
+            "C:\\file.js?query=1"
+        );
+        assert_eq!(
+            resolve_file_protocol("file:///C:/file.js#fragment").unwrap(),
+            "C:\\file.js#fragment"
+        );
+    }
+
+    #[cfg(not(windows))]
     #[test]
     fn localhost_normalized() {
         assert_eq!(resolve_file_protocol("file://localhost/etc/passwd").unwrap(), "/etc/passwd");
         assert_eq!(resolve_file_protocol("file://LOCALHOST/etc/passwd").unwrap(), "/etc/passwd");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn localhost_normalized_windows() {
+        assert_eq!(resolve_file_protocol("file://localhost/C:/file.js").unwrap(), "C:\\file.js");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_unc_path() {
+        assert_eq!(
+            resolve_file_protocol("file://server/share/file.js").unwrap(),
+            "\\\\server\\share\\file.js"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_rejects_no_drive_letter() {
+        assert!(resolve_file_protocol("file:///no_drive/file.js").is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_rejects_encoded_backslash() {
+        assert!(resolve_file_protocol("file:///C:/path%5Cto").is_err());
+        assert!(resolve_file_protocol("file:///C:/path%5cto").is_err());
     }
 
     #[cfg(not(windows))]
