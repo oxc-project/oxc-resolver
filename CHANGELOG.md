@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.19.2](https://github.com/oxc-project/oxc-resolver/compare/v11.19.1...v11.19.2) - 2026-03-15
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- avoid panic in resolve_file for parentless paths ([#1053](https://github.com/oxc-project/oxc-resolver/pull/1053)) (by @Boshen)
+- *(dts)* strip ./ prefix from package entry when matching typesVersions ([#1051](https://github.com/oxc-project/oxc-resolver/pull/1051)) (by @Boshen)
+- *(dts)* expand Declaration to TypeScript|Declaration for package entry resolution ([#1050](https://github.com/oxc-project/oxc-resolver/pull/1050)) (by @Boshen)
+- *(dts)* prefer declaration extensions over JS in exports-resolved paths ([#1047](https://github.com/oxc-project/oxc-resolver/pull/1047)) (by @Boshen)
+- avoid wasm/wasi dead-code lint in NodePath ([#1043](https://github.com/oxc-project/oxc-resolver/pull/1043)) (by @Boshen)
+- *(napi)* replace panics with error returns to prevent WASM traps ([#1055](https://github.com/oxc-project/oxc-resolver/pull/1055)) (by @Boshen)
+
+### <!-- 2 -->🚜 Refactor
+
+- replace `url` crate with `percent-encoding` ([#1065](https://github.com/oxc-project/oxc-resolver/pull/1065)) (by @Boshen)
+
+### Contributors
+
+* @renovate[bot]
+* @Boshen
+
 ## [11.19.1](https://github.com/oxc-project/oxc-resolver/compare/v11.19.0...v11.19.1) - 2026-02-28
 
 ### <!-- 1 -->🐛 Bug Fixes
