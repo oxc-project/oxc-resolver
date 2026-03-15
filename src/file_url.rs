@@ -30,8 +30,13 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
         |rest| ("", rest),
     );
 
-    // WHATWG URL spec: "localhost" is normalized to empty host
-    let hostname = if hostname.eq_ignore_ascii_case("localhost") { "" } else { hostname };
+    // WHATWG URL spec: "localhost" (including percent-encoded forms) is normalized to empty host
+    let decoded_host;
+    let hostname = {
+        decoded_host =
+            percent_encoding::percent_decode_str(hostname).decode_utf8_lossy().into_owned();
+        if decoded_host.eq_ignore_ascii_case("localhost") { "" } else { decoded_host.as_str() }
+    };
 
     file_url_to_path(specifier, hostname, pathname, query_fragment)
 }
@@ -197,6 +202,11 @@ mod tests {
     fn localhost_normalized() {
         assert_eq!(resolve_file_protocol("file://localhost/etc/passwd").unwrap(), "/etc/passwd");
         assert_eq!(resolve_file_protocol("file://LOCALHOST/etc/passwd").unwrap(), "/etc/passwd");
+        // Percent-encoded "localhost"
+        assert_eq!(
+            resolve_file_protocol("file://local%68ost/etc/passwd").unwrap(),
+            "/etc/passwd"
+        );
     }
 
     #[cfg(windows)]
