@@ -203,10 +203,7 @@ mod tests {
         assert_eq!(resolve_file_protocol("file://localhost/etc/passwd").unwrap(), "/etc/passwd");
         assert_eq!(resolve_file_protocol("file://LOCALHOST/etc/passwd").unwrap(), "/etc/passwd");
         // Percent-encoded "localhost"
-        assert_eq!(
-            resolve_file_protocol("file://local%68ost/etc/passwd").unwrap(),
-            "/etc/passwd"
-        );
+        assert_eq!(resolve_file_protocol("file://local%68ost/etc/passwd").unwrap(), "/etc/passwd");
     }
 
     #[cfg(windows)]
