@@ -116,3 +116,82 @@ fn file_url_to_path(
     result.push_str(query_fragment);
     Ok(Cow::Owned(result))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn non_file_url_passthrough() {
+        assert_eq!(resolve_file_protocol("./foo.js").unwrap(), "./foo.js");
+        assert_eq!(resolve_file_protocol("bar").unwrap(), "bar");
+        assert_eq!(resolve_file_protocol("https://example.com").unwrap(), "https://example.com");
+    }
+
+    #[test]
+    fn basic_file_url() {
+        assert_eq!(
+            resolve_file_protocol("file:///home/user/file.js").unwrap(),
+            "/home/user/file.js"
+        );
+        assert_eq!(resolve_file_protocol("file:///tmp/test").unwrap(), "/tmp/test");
+    }
+
+    #[test]
+    fn percent_decoding() {
+        assert_eq!(
+            resolve_file_protocol("file:///home/user/my%20file.js").unwrap(),
+            "/home/user/my file.js"
+        );
+    }
+
+    #[test]
+    fn query_and_fragment_preserved() {
+        assert_eq!(
+            resolve_file_protocol("file:///path/to/file.js?query=1").unwrap(),
+            "/path/to/file.js?query=1"
+        );
+        assert_eq!(
+            resolve_file_protocol("file:///path/to/file.js#fragment").unwrap(),
+            "/path/to/file.js#fragment"
+        );
+        assert_eq!(
+            resolve_file_protocol("file:///path/to/file.js?q=1#frag").unwrap(),
+            "/path/to/file.js?q=1#frag"
+        );
+    }
+
+    #[test]
+    fn localhost_normalized() {
+        assert_eq!(resolve_file_protocol("file://localhost/etc/passwd").unwrap(), "/etc/passwd");
+        assert_eq!(resolve_file_protocol("file://LOCALHOST/etc/passwd").unwrap(), "/etc/passwd");
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn posix_rejects_hostname() {
+        assert!(resolve_file_protocol("file://remotehost/path").is_err());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn posix_rejects_encoded_slash() {
+        assert!(resolve_file_protocol("file:///path%2Fto").is_err());
+        assert!(resolve_file_protocol("file:///path%2fto").is_err());
+    }
+
+    #[test]
+    fn invalid_utf8_rejected() {
+        assert!(resolve_file_protocol("file:///path/%FF").is_err());
+    }
+
+    #[test]
+    fn has_encoded_separators_single_pass() {
+        assert!(!has_encoded_separators("normal/path"));
+        assert!(!has_encoded_separators("path%20with%20spaces"));
+        assert!(has_encoded_separators("path%2Fslash"));
+        assert!(has_encoded_separators("path%2fslash"));
+        assert!(!has_encoded_separators("%2"));
+        assert!(!has_encoded_separators(""));
+    }
+}
