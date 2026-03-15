@@ -278,16 +278,15 @@ fn resolve_normalized_on_windows() {
 #[cfg(windows)]
 #[test]
 fn file_protocol() {
-    use url::Url;
-
     let f = super::fixture();
 
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
-    let file_protocol_path = Url::from_file_path(main1_js_path.clone()).unwrap();
+    // Construct file:/// URL manually: forward-slash the path and prepend file:///
+    let file_protocol_path = format!("file:///{}", main1_js_path.replace('\\', "/"));
 
     let resolver = Resolver::default();
 
-    let resolution = resolver.resolve(&f, file_protocol_path.as_str()).ok();
+    let resolution = resolver.resolve(&f, &file_protocol_path).ok();
     let resolved_path = resolution.as_ref().map(Resolution::full_path);
     assert_eq!(resolved_path, Some(f.join("main1.js")));
 
