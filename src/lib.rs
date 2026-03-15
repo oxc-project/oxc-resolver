@@ -52,6 +52,8 @@ mod context;
 mod dts_resolver;
 mod error;
 mod file_system;
+#[cfg(not(target_arch = "wasm32"))]
+mod file_url;
 mod node_path;
 mod options;
 mod package_json;
@@ -424,7 +426,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
         cfg_if::cfg_if! {
             if #[cfg(not(target_arch = "wasm32"))] {
-                let specifier = resolve_file_protocol(specifier)?;
+                let specifier = file_url::resolve_file_protocol(specifier)?;
                 let specifier = specifier.as_ref();
             }
         };
@@ -1949,32 +1951,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // Step 11.2 .. 12 omitted, which involves detecting file content.
             _ => Ok(None),
         }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveError> {
-    if specifier.starts_with("file://") {
-        url::Url::parse(specifier)
-            .map_err(|_| ())
-            .and_then(|url| {
-                url.to_file_path().map(|path| {
-                    let mut result = path.to_string_lossy().to_string();
-                    // Preserve query and fragment from the URL
-                    if let Some(query) = url.query() {
-                        result.push('?');
-                        result.push_str(query);
-                    }
-                    if let Some(fragment) = url.fragment() {
-                        result.push('#');
-                        result.push_str(fragment);
-                    }
-                    Cow::Owned(result)
-                })
-            })
-            .map_err(|()| ResolveError::PathNotSupported(PathBuf::from(specifier)))
-    } else {
-        Ok(Cow::Borrowed(specifier))
     }
 }
 
