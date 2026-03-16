@@ -33,9 +33,6 @@ repository.workspace = true
 rust-version.workspace = true
 description.workspace = true
 
-[lib]
-doctest = false
-
 [[bench]]
 name = "resolver"
 harness = false
