@@ -31,6 +31,9 @@ pub struct CachedPathImpl {
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
     /// `tsconfig.json` after resolving `references`, `files`, `include` and `extend`.
     pub resolved_tsconfig: OnceLock<Option<Arc<TsConfig>>>,
+    /// Cached result of `find_tsconfig_auto` walk from this directory upward.
+    /// Only accessed via `get()`/`set()` to avoid deadlocks.
+    pub nearest_tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
 
 impl CachedPathImpl {
@@ -53,6 +56,7 @@ impl CachedPathImpl {
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),
             resolved_tsconfig: OnceLock::new(),
+            nearest_tsconfig: OnceLock::new(),
         }
     }
 }

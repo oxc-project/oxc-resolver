@@ -70,11 +70,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if !cached_path.path.is_absolute() {
             return Ok(None);
         }
-        let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
-        let _enter = span.enter();
         cached_path
             .resolved_tsconfig
             .get_or_try_init(|| {
+                let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
+                let _enter = span.enter();
                 self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
                     option_tsconfig.map(|tsconfig| {
                         let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
@@ -108,7 +108,21 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         let mut ctx = Ctx::default();
         let mut cache_value = Some(cached_path.clone());
+        // Track visited paths to propagate the walk result back.
+        // After a walk completes, all visited paths get the result cached in `nearest_tsconfig`.
+        // Future walks that reach any of these paths short-circuit in O(1).
+        // Pre allocate 8 slots for the most common cases.
+        let mut visited: Vec<CachedPath> = Vec::with_capacity(8);
         while let Some(cv) = cache_value {
+            // if a previous walk already resolved this path,
+            // reuse that result and propagate to everything we visited on the way here.
+            if let Some(result) = cv.nearest_tsconfig.get() {
+                for v in &visited {
+                    v.nearest_tsconfig.get_or_init(|| result.clone());
+                }
+                return Ok(result.clone());
+            }
+            visited.push(cv.clone());
             if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
                 let tsconfig_path = cv.path.join("tsconfig.json");
                 let tsconfig_path = self.cache.value(&tsconfig_path);
@@ -124,9 +138,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     Ok(None)
                 }
             })? {
-                return Ok(Some(Arc::clone(tsconfig)));
+                let result = Some(Arc::clone(tsconfig));
+                for v in &visited {
+                    v.nearest_tsconfig.get_or_init(|| result.clone());
+                }
+                return Ok(result);
             }
             cache_value = cv.parent(&self.cache);
+        }
+        // No tsconfig found — propagate None to all visited paths.
+        for v in &visited {
+            v.nearest_tsconfig.get_or_init(|| None);
         }
         Ok(None)
     }
