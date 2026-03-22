@@ -114,7 +114,7 @@ dirs = { version = "6.0.0" }
 fancy-regex = { version = "^0.17.0", default-features = false, features = ["std"] }
 pico-args = "0.5.0"
 rayon = { version = "1.11.0" }
-vfs = "0.12.2" # for testing with in memory file system
+vfs = "0.13.0" # for testing with in memory file system
 walkdir = "2" # for loading benchmark fixtures
 
 [target.'cfg(target_os = "windows")'.dev-dependencies]
