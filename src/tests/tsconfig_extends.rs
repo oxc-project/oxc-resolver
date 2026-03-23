@@ -3,7 +3,10 @@
 //! Tests the `extend_tsconfig` method which is responsible for inheriting
 //! settings from one tsconfig into another.
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
@@ -180,8 +183,9 @@ fn test_extend_tsconfig_no_override_existing() {
     })
     .to_string();
 
-    let parent_tsconfig = TsConfig::parse(true, parent_path, parent_config).unwrap().build();
-    let mut child_tsconfig = TsConfig::parse(true, child_path, child_config).unwrap();
+    let parent_tsconfig =
+        TsConfig::parse(true, parent_path, parent_path, parent_config).unwrap().build();
+    let mut child_tsconfig = TsConfig::parse(true, child_path, child_path, child_config).unwrap();
 
     // Perform the extension
     child_tsconfig.extend_tsconfig(&parent_tsconfig);
@@ -364,4 +368,125 @@ fn test_extend_package() {
         let compiler_options = &resolution.compiler_options;
         assert_eq!(compiler_options.target, Some("ES2020".to_string()));
     }
+}
+
+/// Create a directory symlink, cleaning up any stale one from previous runs.
+/// Returns `false` if symlinks are not supported on this platform.
+#[cfg_attr(target_family = "wasm", allow(dead_code))]
+fn create_dir_symlink(target: &Path, link: &Path) -> bool {
+    let _ = fs::remove_file(link);
+    let _ = fs::remove_dir_all(link);
+
+    #[cfg(target_family = "unix")]
+    {
+        std::os::unix::fs::symlink(target, link).unwrap();
+        true
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::os::windows::fs::symlink_dir(target, link).unwrap();
+        true
+    }
+    #[cfg(target_family = "wasm")]
+    {
+        false
+    }
+}
+
+/// Assert that `@app/foo` resolves to `extends-symlink/src/foo.ts` (via the real
+/// base config path), not `extends-symlink/project/src/foo.ts` (via the symlink).
+fn assert_symlink_extends_resolves_correctly(config_file: PathBuf, resolve_dir: &Path) {
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file,
+            references: TsconfigReferences::Disabled,
+        })),
+        extensions: vec![".ts".into(), ".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver
+        .resolve(resolve_dir, "@app/foo")
+        .expect("should resolve @app/foo via tsconfig paths")
+        .full_path();
+    assert!(
+        resolved_path.ends_with("src/foo.ts"),
+        "expected path ending with src/foo.ts, got {resolved_path:?}"
+    );
+    assert!(
+        !resolved_path.to_string_lossy().contains("project/src"),
+        "should resolve to root src/foo.ts, not project/src/foo.ts, got {resolved_path:?}"
+    );
+}
+
+/// When a tsconfig extends another via a symlinked package name (e.g. pnpm workspace),
+/// `baseUrl` and `paths` should be resolved relative to the real (canonical) path
+/// of the extended tsconfig, matching TypeScript's behavior.
+#[test]
+#[cfg_attr(target_family = "wasm", ignore)]
+fn test_extend_tsconfig_via_symlink_package() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
+    let symlink_path = f.join("project/node_modules/shared-config");
+    let real_target = f.join("real-configs").canonicalize().unwrap();
+
+    if !create_dir_symlink(&real_target, &symlink_path) {
+        return;
+    }
+
+    // extends: "shared-config/base"
+    assert_symlink_extends_resolves_correctly(f.join("project/tsconfig.json"), &f.join("project"));
+
+    let _ = fs::remove_file(&symlink_path);
+    let _ = fs::remove_dir_all(&symlink_path);
+}
+
+/// Same as above but with a relative `extends` path going through a symlinked directory.
+#[test]
+#[cfg_attr(target_family = "wasm", ignore)]
+fn test_extend_tsconfig_via_symlink_relative() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
+    let symlink_path = f.join("project/configs");
+    let real_target = f.join("real-configs").canonicalize().unwrap();
+
+    if !create_dir_symlink(&real_target, &symlink_path) {
+        return;
+    }
+
+    // extends: "./configs/base.json"
+    assert_symlink_extends_resolves_correctly(
+        f.join("project/tsconfig.relative.json"),
+        &f.join("project"),
+    );
+
+    let _ = fs::remove_file(&symlink_path);
+    let _ = fs::remove_dir_all(&symlink_path);
+}
+
+/// Same as above but with an absolute `extends` path going through a symlinked directory.
+#[test]
+#[cfg_attr(target_family = "wasm", ignore)]
+fn test_extend_tsconfig_via_symlink_absolute() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
+    // Use a unique symlink name to avoid racing with the relative test
+    let symlink_path = f.join("project/configs-abs");
+    let real_target = f.join("real-configs").canonicalize().unwrap();
+
+    if !create_dir_symlink(&real_target, &symlink_path) {
+        return;
+    }
+
+    // Write a tsconfig with an absolute extends path at runtime (not portable for fixtures)
+    let absolute_tsconfig = f.join("project/tsconfig.absolute.json");
+    let absolute_extends = symlink_path.join("base.json");
+    fs::write(
+        &absolute_tsconfig,
+        format!(r#"{{ "extends": "{}" }}"#, absolute_extends.to_string_lossy().replace('\\', "/")),
+    )
+    .unwrap();
+
+    assert_symlink_extends_resolves_correctly(absolute_tsconfig.clone(), &f.join("project"));
+
+    let _ = fs::remove_file(&absolute_tsconfig);
+    let _ = fs::remove_file(&symlink_path);
+    let _ = fs::remove_dir_all(&symlink_path);
 }
