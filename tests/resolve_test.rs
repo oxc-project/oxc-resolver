@@ -6,6 +6,10 @@ fn dir() -> PathBuf {
     env::current_dir().unwrap()
 }
 
+fn fixture() -> PathBuf {
+    dir().join("fixtures/integration")
+}
+
 #[test]
 fn chinese() {
     let dir = dir();
@@ -225,8 +229,7 @@ fn minimatch() {
 #[test]
 // regression: https://github.com/NicholasLYang/oxc-repro
 fn nested_symlinks() {
-    let dir = dir();
-    let dir = dir.join("fixtures/nested-symlink");
+    let dir = fixture().join("nested-symlink");
     assert_eq!(
         Resolver::new(ResolveOptions::default())
             // ./apps/web/nm/@repo/typescript-config is a symlink
@@ -270,8 +273,7 @@ fn windows_symlinked_longfilename() {
 
 #[test]
 fn package_json_with_bom() {
-    let dir = dir();
-    let dir = dir.join("fixtures/misc");
+    let dir = dir().join("fixtures/misc");
     assert_eq!(
         Resolver::new(ResolveOptions::default())
             .resolve(&dir, "./package-json-with-bom")

@@ -11,33 +11,37 @@ fn dir() -> PathBuf {
     env::current_dir().unwrap()
 }
 
+fn fixture() -> PathBuf {
+    dir().join("fixtures/integration")
+}
+
 fn resolve(specifier: &str) -> Resolution {
-    let path = dir();
+    let path = fixture();
     Resolver::new(ResolveOptions::default()).resolve(path, specifier).unwrap()
 }
 
 #[test]
 fn clone() {
-    let resolution = resolve("./tests/package.json");
+    let resolution = resolve("./package.json");
     assert_eq!(resolution.clone(), resolution);
 }
 
 #[test]
 fn debug() {
-    let resolution = resolve("./tests/package.json");
+    let resolution = resolve("./package.json");
     let s = format!("{resolution:?}");
     assert!(!s.is_empty());
 }
 
 #[test]
 fn eq() {
-    let resolution = resolve("./tests/package.json");
+    let resolution = resolve("./package.json");
     assert_eq!(resolution, resolution);
 }
 
 #[test]
 fn package_json() {
-    let resolution = resolve("./tests/package.json");
+    let resolution = resolve("./package.json");
     let package_json = resolution.package_json().unwrap();
     assert_eq!(package_json.name().unwrap(), "name");
     assert_eq!(package_json.r#type().unwrap().to_string(), "module".to_string());
@@ -47,21 +51,23 @@ fn package_json() {
 #[test]
 fn tsconfig() {
     let resolver = Resolver::new(ResolveOptions::default());
-    let tsconfig = resolver.resolve_tsconfig("./tests").unwrap();
+    let tsconfig = resolver.resolve_tsconfig("./fixtures/integration").unwrap();
     assert!(tsconfig.root);
-    assert_eq!(tsconfig.path, PathBuf::from("./tests/tsconfig.json"));
+    assert_eq!(tsconfig.path, PathBuf::from("./fixtures/integration/tsconfig.json"));
 }
 
 #[test]
 fn tsconfig_extends_self_reference() {
     let resolver = Resolver::new(ResolveOptions::default());
-    let err = resolver.resolve_tsconfig("./tests/tsconfig_self_reference.json").unwrap_err();
+    let err = resolver
+        .resolve_tsconfig("./fixtures/integration/tsconfig_self_reference.json")
+        .unwrap_err();
     assert_eq!(
         err,
         ResolveError::TsconfigCircularExtend(
             vec![
-                "./tests/tsconfig_self_reference.json".into(),
-                "./tests/tsconfig_self_reference.json".into()
+                "./fixtures/integration/tsconfig_self_reference.json".into(),
+                "./fixtures/integration/tsconfig_self_reference.json".into()
             ]
             .into()
         )
@@ -71,14 +77,16 @@ fn tsconfig_extends_self_reference() {
 #[test]
 fn tsconfig_extends_circular_reference() {
     let resolver = Resolver::new(ResolveOptions::default());
-    let err = resolver.resolve_tsconfig("./tests/tsconfig_circular_reference_a.json").unwrap_err();
+    let err = resolver
+        .resolve_tsconfig("./fixtures/integration/tsconfig_circular_reference_a.json")
+        .unwrap_err();
     assert_eq!(
         err,
         ResolveError::TsconfigCircularExtend(
             vec![
-                "./tests/tsconfig_circular_reference_a.json".into(),
-                "./tests/tsconfig_circular_reference_b.json".into(),
-                "./tests/tsconfig_circular_reference_a.json".into(),
+                "./fixtures/integration/tsconfig_circular_reference_a.json".into(),
+                "./fixtures/integration/tsconfig_circular_reference_b.json".into(),
+                "./fixtures/integration/tsconfig_circular_reference_a.json".into(),
             ]
             .into()
         )
@@ -106,11 +114,11 @@ fn debug_resolver() {
 
 #[test]
 fn dependencies() {
-    let path = dir();
+    let path = fixture();
     let mut ctx = ResolveContext::default();
     let _ = Resolver::new(ResolveOptions::default()).resolve_with_context(
         path,
-        "./tests/package.json",
+        "./package.json",
         None,
         &mut ctx,
     );
