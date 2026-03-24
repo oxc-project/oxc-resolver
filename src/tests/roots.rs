@@ -94,7 +94,7 @@ fn roots_fall_through() {
 #[test]
 fn should_resolve_slash() {
     let f = super::fixture();
-    let dir_with_index = super::fixture_root().join("./misc/dir-with-index");
+    let dir_with_index = super::fixture_root().join("./integration/misc/dir-with-index");
 
     #[rustfmt::skip]
     let pass = [

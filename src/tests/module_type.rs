@@ -2,7 +2,7 @@ use crate::{ModuleType, ResolveOptions, Resolver};
 
 #[test]
 fn test() {
-    let f = super::fixture_root().join("misc").join("module-type");
+    let f = super::fixture_root().join("integration/misc").join("module-type");
 
     let resolver = Resolver::new(ResolveOptions { module_type: true, ..ResolveOptions::default() });
 

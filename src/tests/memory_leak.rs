@@ -5,7 +5,7 @@ use crate::Resolver;
 /// Test to prove memory leak in `CachedPath` Arc cycles
 #[test]
 fn test_memory_leak_arc_cycles() {
-    let f = super::fixture_root().join("misc");
+    let f = super::fixture_root().join("integration/misc");
 
     let resolver = Resolver::default();
 
@@ -28,7 +28,7 @@ fn test_memory_leak_arc_cycles() {
 fn test_canonicalized_path_not_dropped() {
     use crate::ResolveOptions;
 
-    let f = super::fixture_root().join("misc");
+    let f = super::fixture_root().join("integration/misc");
 
     let resolver = Resolver::new(ResolveOptions { symlinks: true, ..Default::default() });
 
@@ -48,7 +48,7 @@ fn test_canonicalized_path_not_dropped() {
 /// Test to ensure canonicalized paths that are not in cache remain accessible
 #[test]
 fn test_canonicalized_path_weak_reference() {
-    let f = super::fixture_root().join("misc");
+    let f = super::fixture_root().join("integration/misc");
 
     let resolver = Resolver::default();
 

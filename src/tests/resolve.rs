@@ -168,7 +168,7 @@ fn resolve_file_rejects_parentless_path() {
 
 #[test]
 fn resolve_dot() {
-    let f = super::fixture_root().join("resolve/dot");
+    let f = super::fixture_root().join("integration/dot");
     let foo_dir: std::path::PathBuf = f.join("foo");
     let resolver = Resolver::default();
     let foo_index = foo_dir.join("index.js");
@@ -195,7 +195,7 @@ fn resolve_dot() {
 
 #[test]
 fn abnormal_relative() {
-    let f = super::fixture_root().join("resolve/abnormal-relative-with-node_modules");
+    let f = super::fixture_root().join("integration/abnormal-relative-with-node_modules");
 
     let base = f.join("foo/bar/baz");
 
@@ -229,7 +229,7 @@ fn abnormal_relative() {
         );
     }
 
-    let f = super::fixture_root().join("resolve/abnormal-relative-without-node_modules");
+    let f = super::fixture_root().join("integration/abnormal-relative-without-node_modules");
 
     let base = f.join("foo/bar/baz");
 

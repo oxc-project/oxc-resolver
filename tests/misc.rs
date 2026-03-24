@@ -15,17 +15,17 @@ fn fixture() -> PathBuf {
 #[test]
 fn chinese() {
     let dir = dir();
-    let specifier = "./fixtures/misc/中文/中文.js";
+    let specifier = "./fixtures/integration/misc/中文/中文.js";
     let resolution = Resolver::new(ResolveOptions::default()).resolve(&dir, specifier);
     assert_eq!(
         resolution.map(Resolution::into_path_buf),
-        Ok(dir.join("fixtures/misc/中文/中文.js"))
+        Ok(dir.join("fixtures/integration/misc/中文/中文.js"))
     );
 }
 
 #[test]
 fn package_json_with_bom() {
-    let dir = dir().join("fixtures/misc");
+    let dir = dir().join("fixtures/integration/misc");
     assert_eq!(
         Resolver::new(ResolveOptions::default())
             .resolve(&dir, "./package-json-with-bom")

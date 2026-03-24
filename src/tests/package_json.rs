@@ -4,7 +4,7 @@ use crate::Resolver;
 
 #[test]
 fn test() {
-    let f = super::fixture_root().join("misc");
+    let f = super::fixture_root().join("integration/misc");
 
     let resolver = Resolver::default();
 
@@ -29,7 +29,7 @@ fn test() {
 
 #[test]
 fn adjacent_to_node_modules() {
-    let f = super::fixture_root().join("misc");
+    let f = super::fixture_root().join("integration/misc");
 
     let resolver = Resolver::default();
 
@@ -51,7 +51,7 @@ fn adjacent_to_node_modules() {
 fn package_json_with_symlinks_true() {
     use crate::ResolveOptions;
 
-    let f = super::fixture_root().join("misc");
+    let f = super::fixture_root().join("integration/misc");
     let resolver = Resolver::new(ResolveOptions { symlinks: true, ..ResolveOptions::default() });
 
     let path = f.join("dir-with-index");
