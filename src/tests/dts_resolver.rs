@@ -1,4 +1,4 @@
-use crate::{ResolveOptions, Resolver};
+use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
 
 fn dts_fixture() -> std::path::PathBuf {
     super::fixture_root().join("dts_resolver")
@@ -184,6 +184,141 @@ fn exports_esm_match_finds_declaration() {
         result.path(),
         dts_fixture().join("node_modules/exports-dts-for-mjs/dist/index.d.mts")
     );
+}
+
+// -------- package.json types field (not typings) --------
+
+#[test]
+fn types_field() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "with-types").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("node_modules/with-types/types/index.d.ts"));
+}
+
+#[test]
+fn typings_takes_precedence_over_types() {
+    // pkg.typings().or_else(|| pkg.types()) — typings wins
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "with-both-types-fields").unwrap();
+    assert_eq!(
+        result.path(),
+        dts_fixture().join("node_modules/with-both-types-fields/typings.d.ts")
+    );
+}
+
+// -------- Error cases --------
+
+#[test]
+fn completely_unresolvable_package() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "completely-empty");
+    assert!(result.is_err());
+}
+
+#[test]
+fn nonexistent_package() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "this-package-does-not-exist");
+    assert_eq!(result, Err(ResolveError::NotFound("this-package-does-not-exist".into())));
+}
+
+#[test]
+fn node_protocol_returns_not_found() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "node:fs");
+    assert_eq!(result, Err(ResolveError::NotFound("node:fs".into())));
+}
+
+// -------- Package imports (#) --------
+
+#[test]
+fn hash_import() {
+    let r = resolver();
+    let containing = dts_fixture().join("hash-import/index.ts");
+    let result = r.resolve_dts(containing, "#internal").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("hash-import/src/internal.d.ts"));
+}
+
+// -------- tsconfig paths --------
+
+#[test]
+fn tsconfig_paths_in_dts() {
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into(), "types".into()],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: dts_fixture().join("with-tsconfig/tsconfig.json"),
+            references: crate::TsconfigReferences::Disabled,
+        })),
+        ..ResolveOptions::default()
+    });
+    let containing = dts_fixture().join("with-tsconfig/index.ts");
+    let result = r.resolve_dts(containing, "@lib/utils").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("with-tsconfig/lib/utils.ts"));
+}
+
+// -------- Extension substitution: .mjs → .mts priority --------
+
+#[test]
+fn extension_substitution_mjs_prefers_mts() {
+    // When both .mts and .d.mts exist, .mts should win (TypeScript first)
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "./extension-substitution/priority.mjs").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("extension-substitution/priority.mts"));
+}
+
+// -------- Extension substitution: .json → .d.json.ts --------
+
+#[test]
+fn extension_substitution_json_to_d_json_ts() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "./extension-substitution/qux.json").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("extension-substitution/qux.d.json.ts"));
+}
+
+// -------- Extension substitution: .tsx --------
+
+#[test]
+fn extension_substitution_tsx() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "./extension-substitution/comp.tsx").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("extension-substitution/comp.tsx"));
+}
+
+// -------- Self-referencing package --------
+
+#[test]
+fn self_referencing_package() {
+    let r = resolver();
+    let containing = dts_fixture().join("node_modules/with-self-ref/src/index.ts");
+    let result = r.resolve_dts(containing, "with-self-ref").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("node_modules/with-self-ref/types/index.d.ts"));
+}
+
+// -------- typesVersions subpath --------
+
+#[test]
+fn subpath_with_types_versions() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "with-subpath/sub/foo").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("node_modules/with-subpath/dist/foo.d.ts"));
+}
+
+// -------- Module type detection in DTS --------
+
+#[test]
+fn dts_module_type_mts() {
+    let r = resolver();
+    // exports-dts-for-mjs resolves to .d.mts which should be ModuleType::Module
+    let result = r.resolve_dts(containing_file(), "exports-dts-for-mjs").unwrap();
+    assert_eq!(result.module_type(), Some(crate::ModuleType::Module));
+}
+
+#[test]
+fn dts_module_type_cts() {
+    let r = resolver();
+    // .d.cts should be ModuleType::CommonJs
+    let result = r.resolve_dts(containing_file(), "./extension-substitution/baz.cjs").unwrap();
+    assert_eq!(result.module_type(), Some(crate::ModuleType::CommonJs));
 }
 
 // -------- @types name mangling --------

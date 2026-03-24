@@ -15,6 +15,7 @@ mod memory_fs;
 mod memory_leak;
 mod missing;
 mod module_type;
+mod modules;
 mod package_json;
 #[cfg(feature = "yarn_pnp")]
 mod pnp;

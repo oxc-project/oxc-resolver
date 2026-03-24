@@ -106,6 +106,25 @@ fn prefer_relative() {
 }
 
 #[test]
+fn prefer_relative_local_over_node_modules() {
+    // When both ./main1.js and node_modules/main1 exist, prefer_relative picks local file
+    let f = super::fixture().join("prefer-relative");
+    let resolver =
+        Resolver::new(ResolveOptions { prefer_relative: true, ..ResolveOptions::default() });
+    let resolved_path = resolver.resolve(&f, "main1.js").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("main1.js")));
+}
+
+#[test]
+fn no_prefer_relative_uses_node_modules() {
+    // Without prefer_relative, bare specifier goes to node_modules
+    let f = super::fixture().join("prefer-relative");
+    let resolver = Resolver::default();
+    let resolved_path = resolver.resolve(&f, "main1").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("node_modules/main1/index.js")));
+}
+
+#[test]
 fn resolve_to_context() {
     let f = super::fixture();
     let resolver =

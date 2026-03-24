@@ -1,6 +1,6 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/scoped-packages.test.js>
 
-use crate::{Resolution, ResolveOptions, Resolver};
+use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn scoped_packages() {
@@ -27,4 +27,38 @@ fn scoped_packages() {
         let package_json_path = f.join("node_modules").join(package).join("package.json");
         assert_eq!(resolved_package_json, Some(package_json_path), "{path:?} {request}");
     }
+}
+
+#[test]
+fn scoped_packages_with_exports() {
+    let f = super::fixture().join("scoped");
+
+    let resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into()],
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve(&f, "@scope/pack3").map(|r| r.full_path());
+    assert_eq!(result, Ok(f.join("node_modules/@scope/pack3/esm/index.js")));
+}
+
+#[test]
+fn scoped_packages_subpath_export() {
+    let f = super::fixture().join("scoped");
+
+    let resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into()],
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve(&f, "@scope/pack3/utils").map(|r| r.full_path());
+    assert_eq!(result, Ok(f.join("node_modules/@scope/pack3/utils/index.js")));
+}
+
+#[test]
+fn scoped_packages_not_found() {
+    let f = super::fixture().join("scoped");
+    let resolver = Resolver::default();
+    let result = resolver.resolve(&f, "@scope/nonexistent");
+    assert_eq!(result, Err(ResolveError::NotFound("@scope/nonexistent".into())));
 }
