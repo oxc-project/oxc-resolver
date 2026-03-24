@@ -3,7 +3,7 @@ packages:
   - napi
   - fixtures/pnpm
   - fixtures/tsconfck
-  - fixtures/pnpm-workspace/**
+  - fixtures/pnpm/pnpm-workspace/**
 
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest

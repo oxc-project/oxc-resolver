@@ -19,7 +19,7 @@ init:
 install:
   pnpm install
   cd fixtures/pnp; yarn
-  cd fixtures/global-pnp; yarn
+  cd fixtures/pnp/global-pnp; yarn
   cd fixtures/yarn; yarn
 
 # When ready, run the same CI commands

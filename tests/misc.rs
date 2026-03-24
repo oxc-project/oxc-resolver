@@ -55,18 +55,16 @@ fn nested_symlinks() {
 }
 
 #[test]
-#[cfg_attr(target_family = "wasm", ignore)]
-fn node_path_resolves_from_env() {
+fn node_path_resolves_from_modules() {
     let enhanced_resolve = dir().join("fixtures/enhanced-resolve/test/fixtures");
     let project = fixture();
     let node_path_root = enhanced_resolve.join("multiple-modules/node_modules");
-    let node_path = env::join_paths([node_path_root]).unwrap();
-    // SAFETY: this test sets NODE_PATH before constructing the resolver.
-    unsafe {
-        env::set_var("NODE_PATH", node_path);
-    }
+    let resolver = Resolver::new(ResolveOptions {
+        modules: vec!["node_modules".to_string(), node_path_root.to_string_lossy().to_string()],
+        ..ResolveOptions::default()
+    });
 
     let expected = enhanced_resolve.join("multiple-modules/node_modules/m1/a.js");
-    let resolved = Resolver::default().resolve(&project, "m1/a.js").map(|r| r.full_path());
-    assert_eq!(resolved, Ok(expected));
+    let result = resolver.resolve(&project, "m1/a.js").map(|r| r.full_path());
+    assert_eq!(result, Ok(expected));
 }

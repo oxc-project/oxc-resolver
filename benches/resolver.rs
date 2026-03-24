@@ -501,7 +501,7 @@ mod memory_fs {
         ) -> (Self, PathBuf, PathBuf, Vec<String>) {
             let fs = Self::new();
             let cwd = std::env::current_dir().unwrap();
-            let root = cwd.join(format!("fixtures/bench-tsconfig-paths/{alias_count}"));
+            let root = cwd.join(format!("fixtures/tsconfig/bench-tsconfig-paths/{alias_count}"));
             let importer = root.join("app/main.ts");
             let tsconfig_path = root.join("tsconfig.json");
             assert!(
@@ -533,7 +533,7 @@ mod memory_fs {
 
             // Load fixtures from enhanced-resolve
             self.load_directory_tree(&cwd.join("fixtures/enhanced-resolve"));
-            self.load_directory_tree(&cwd.join("fixtures/bench-tsconfig-paths"));
+            self.load_directory_tree(&cwd.join("fixtures/tsconfig/bench-tsconfig-paths"));
 
             // Load specific node_modules packages for benchmarks
             self.load_node_modules_packages(&cwd);

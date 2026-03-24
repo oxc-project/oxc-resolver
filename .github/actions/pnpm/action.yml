@@ -26,8 +26,8 @@ runs:
         cd fixtures/pnp
         yarn install
 
-        cd ../global-pnp
+        cd global-pnp
         yarn install
 
-        cd ../yarn
+        cd ../../yarn
         yarn install

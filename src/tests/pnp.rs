@@ -182,7 +182,7 @@ fn resolve_global_cache() {
     #[cfg(not(windows))]
     let global_cache = home_dir.join(".yarn/berry/cache");
 
-    let fixture = super::fixture_root().join("global-pnp");
+    let fixture = super::fixture_root().join("pnp/global-pnp");
     let resolver = Resolver::new(ResolveOptions {
         cwd: Some(fixture),
         yarn_pnp: true,

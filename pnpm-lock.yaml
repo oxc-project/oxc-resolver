@@ -70,22 +70,22 @@ importers:
         specifier: 6.1.17
         version: 6.1.17(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
 
-  fixtures/pnpm-workspace:
+  fixtures/pnpm/pnpm-workspace:
     dependencies:
       enhanced-resolve:
         specifier: ^5.18.2
         version: 5.18.3
       oxc-resolver:
         specifier: workspace:*
-        version: link:../..
+        version: link:../../..
 
-  fixtures/pnpm-workspace/packages/app:
+  fixtures/pnpm/pnpm-workspace/packages/app:
     dependencies:
       '@monorepo/lib':
         specifier: workspace:*
         version: link:../lib
 
-  fixtures/pnpm-workspace/packages/lib:
+  fixtures/pnpm/pnpm-workspace/packages/lib:
     dependencies:
       react:
         specifier: ^19.1.0
