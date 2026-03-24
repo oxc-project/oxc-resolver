@@ -18,8 +18,10 @@ oxc-resolver is a Rust port of webpack's enhanced-resolve, providing ESM and Com
 ```
 oxc-resolver/
 ├── src/                 # Core Rust implementation
+│   └── tests/           # Unit tests (one file per feature area)
+├── tests/               # Integration tests
+├── fixtures/            # Test fixtures (real files on disk, not generated)
 ├── napi/               # Node.js NAPI bindings
-├── tests/              # Test fixtures and data
 ├── examples/           # Usage examples
 ├── benches/            # Performance benchmarks
 └── .github/            # GitHub workflows and configs
@@ -106,10 +108,35 @@ const resolver = new ResolverFactory({
 
 ### Adding Tests
 
-- Add Rust tests in `src/tests/`
-- Add Node.js tests in `napi/`
-- Use existing fixtures in `tests/` directory
-- Ensure tests work on Windows, macOS, and Linux
+Tests must use **fixture directories** with real files on disk. Do not dynamically create files, directories, or temp folders in tests — always add fixture files and commit them to the repository.
+
+#### Where to put test code
+
+- **Unit tests** (`src/tests/`): Test individual resolution features (aliases, extensions, exports, etc.). Each file maps to a feature area. Use `super::fixture_root()` to access `fixtures/`.
+- **Integration tests** (`tests/`): Test end-to-end resolution behavior. Use `env::current_dir().unwrap().join("fixtures/integration")` to access fixtures.
+- **Node.js tests** (`napi/`): Test the NAPI bindings with vitest.
+
+#### Where to put fixtures
+
+```
+fixtures/
+├── enhanced-resolve/      # Ported from webpack/enhanced-resolve (shared by many unit tests)
+├── integration/           # Integration test fixtures (tests/ directory)
+│   ├── misc/              # Unicode paths, BOM handling, package.json edge cases
+│   ├── dot/               # Dot-path resolution
+│   └── ...
+├── dts_resolver/          # .d.ts resolution fixtures
+├── invalid/               # Invalid configuration scenarios
+├── pnp/                   # Yarn Plug'n'Play fixtures
+├── pnpm/                  # pnpm node_modules structure
+├── tsconfck/              # tsconfck compatibility
+├── tsconfig/              # TypeScript config resolution
+└── yarn/                  # Yarn monorepo fixtures
+```
+
+- Add new fixtures under the directory that matches the test file or feature area.
+- For integration tests, add fixtures under `fixtures/integration/`.
+- Ensure tests work on Windows, macOS, and Linux.
 
 ## Common Patterns
 
