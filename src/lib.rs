@@ -42,9 +42,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,ignore
-#![doc = include_str!("../examples/dir.rs")]
-//! ```
+//! See [examples/dir.rs](https://github.com/oxc-project/oxc-resolver/blob/main/examples/dir.rs).
 
 mod alias;
 mod cache;
