@@ -144,6 +144,49 @@ fn options_api() {
 }
 
 #[test]
+fn error_display_circular_path_bufs() {
+    let resolver = Resolver::new(ResolveOptions::default());
+    let err = resolver
+        .resolve_tsconfig("./fixtures/integration/tsconfig_circular_reference_a.json")
+        .unwrap_err();
+    let display = format!("{err}");
+    assert!(display.contains("circularly"), "{display}");
+    assert!(display.contains(" -> "), "should use arrow separator: {display}");
+
+    // Test the inner paths accessor
+    if let ResolveError::TsconfigCircularExtend(circular) = &err {
+        assert_eq!(circular.paths().len(), 3);
+    } else {
+        panic!("Expected TsconfigCircularExtend");
+    }
+}
+
+#[test]
+fn error_display_package_path_not_exported() {
+    let f = dir().join("fixtures/enhanced-resolve/test/fixtures/exports-field");
+    // Single condition name
+    let resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["webpack".into()],
+        fully_specified: true,
+        ..ResolveOptions::default()
+    });
+    let err = resolver.resolve(&f, "exports-field/anything/else").unwrap_err();
+    let display = format!("{err}");
+    assert!(display.contains("is not exported"), "{display}");
+    assert!(display.contains(r#""webpack""#), "should show condition name: {display}");
+
+    // Multiple conditions
+    let resolver2 = Resolver::new(ResolveOptions {
+        condition_names: vec!["webpack".into(), "node".into()],
+        fully_specified: true,
+        ..ResolveOptions::default()
+    });
+    let err2 = resolver2.resolve(&f, "exports-field/anything/else").unwrap_err();
+    let display2 = format!("{err2}");
+    assert!(display2.contains("conditions"), "should say 'conditions' for multiple: {display2}");
+}
+
+#[test]
 fn clone_with_options_recompiles_alias() {
     let fixture = dir().join("fixtures/enhanced-resolve/test/fixtures");
 

@@ -1,0 +1,1 @@
+{"name": "hash-import", "imports": {"#internal": "./src/internal.d.ts"}}
