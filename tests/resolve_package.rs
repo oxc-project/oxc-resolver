@@ -1,24 +1,11 @@
+//! Test resolving real-world packages from pnpm node_modules.
+
 use std::{env, path::PathBuf};
 
-use oxc_resolver::{ModuleType, Resolution, ResolveError, ResolveOptions, Resolver};
+use oxc_resolver::{ModuleType, ResolveError, ResolveOptions, Resolver};
 
 fn dir() -> PathBuf {
     env::current_dir().unwrap()
-}
-
-fn fixture() -> PathBuf {
-    dir().join("fixtures/integration")
-}
-
-#[test]
-fn chinese() {
-    let dir = dir();
-    let specifier = "./fixtures/misc/中文/中文.js";
-    let resolution = Resolver::new(ResolveOptions::default()).resolve(&dir, specifier);
-    assert_eq!(
-        resolution.map(Resolution::into_path_buf),
-        Ok(dir.join("fixtures/misc/中文/中文.js"))
-    );
 }
 
 #[test]
@@ -38,7 +25,7 @@ fn styled_components() {
         ResolveOptions { alias_fields: vec![vec!["browser".into()]], ..ResolveOptions::default() };
     let resolution = Resolver::new(options).resolve(&path, specifier);
     assert_eq!(
-        resolution.map(Resolution::into_path_buf),
+        resolution.map(oxc_resolver::Resolution::into_path_buf),
         Ok(module_path.join("dist").join("styled-components.browser.cjs.js"))
     );
 
@@ -226,26 +213,6 @@ fn minimatch() {
     assert_eq!(resolution.module_type(), Some(ModuleType::CommonJs));
 }
 
-#[test]
-// regression: https://github.com/NicholasLYang/oxc-repro
-fn nested_symlinks() {
-    let dir = fixture().join("nested-symlink");
-    assert_eq!(
-        Resolver::new(ResolveOptions::default())
-            // ./apps/web/nm/@repo/typescript-config is a symlink
-            .resolve(&dir, "./apps/web/nm/@repo/typescript-config/index.js")
-            .map(oxc_resolver::Resolution::into_path_buf),
-        Ok(dir.join("nm/index.js"))
-    );
-    assert_eq!(
-        Resolver::new(ResolveOptions::default())
-            // ./apps/tooling is a symlink
-            .resolve(&dir, "./apps/tooling/typescript-config/index.js")
-            .map(oxc_resolver::Resolution::into_path_buf),
-        Ok(dir.join("nm/index.js"))
-    );
-}
-
 // NOTE: pnpm v10 shortens windows directory path.
 // `virtualStoreDirMaxLength: 1024` is set in pnpm-workspace.yaml to keep the long name.
 #[test]
@@ -269,15 +236,4 @@ fn windows_symlinked_longfilename() {
     let resolution =
         Resolver::new(ResolveOptions::default()).resolve(&path, specifier).map(|r| r.full_path());
     assert_eq!(resolution, Ok(module_path));
-}
-
-#[test]
-fn package_json_with_bom() {
-    let dir = dir().join("fixtures/misc");
-    assert_eq!(
-        Resolver::new(ResolveOptions::default())
-            .resolve(&dir, "./package-json-with-bom")
-            .map(Resolution::into_path_buf),
-        Ok(dir.join("package-json-with-bom/index.js"))
-    );
 }
