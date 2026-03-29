@@ -37,7 +37,7 @@
     "@types/node": "^25.0.8",
     "emnapi": "^1.7.1",
     "oxfmt": "^0.42.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.0",
     "vite-plus": "catalog:"
   },
   "napi": {
