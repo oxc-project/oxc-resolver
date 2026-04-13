@@ -522,17 +522,13 @@ enum GlobPattern<'a> {
 
 /// Tsconfig resolver
 impl TsConfig {
-    pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
-        if !tsconfig.references_resolved.is_empty()
-            && let Some(solution_tsconfig) = tsconfig
-                .references_resolved
-                .iter()
-                .find(|referenced| referenced.is_file_included_in_tsconfig(path))
-                .map(Arc::clone)
-        {
-            return solution_tsconfig;
-        }
+    pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Option<Arc<Self>> {
         tsconfig
+            .references_resolved
+            .iter()
+            .find(|referenced| referenced.is_file_included_in_tsconfig(path))
+            .map(Arc::clone)
+            .or_else(|| tsconfig.is_file_included_in_tsconfig(path).then_some(tsconfig))
     }
 
     fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {

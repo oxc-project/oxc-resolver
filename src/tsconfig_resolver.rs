@@ -75,13 +75,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         cached_path
             .resolved_tsconfig
             .get_or_try_init(|| {
-                self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
-                    option_tsconfig.map(|tsconfig| {
-                        let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
-                        tracing::debug!(path = %cached_path, ret = ?r);
-                        r
-                    })
-                })
+                let tsconfig = self.find_tsconfig_impl(cached_path)?;
+                tracing::debug!(path = %cached_path, ret = ?tsconfig);
+                Ok(tsconfig)
             })
             .cloned()
     }
@@ -98,7 +94,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         match &self.options.tsconfig {
             None => Ok(None),
             Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path),
-            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o),
+            Some(TsconfigDiscovery::Manual(o)) => {
+                self.find_tsconfig_manual(o).map(|option_tsconfig| {
+                    option_tsconfig.map(|tsconfig| {
+                        TsConfig::resolve_tsconfig_solution(
+                            Arc::clone(&tsconfig),
+                            cached_path.path(),
+                        )
+                        .unwrap_or(tsconfig)
+                    })
+                })
+            }
         }
     }
 
@@ -123,8 +129,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 } else {
                     Ok(None)
                 }
-            })? {
-                return Ok(Some(Arc::clone(tsconfig)));
+            })? && let Some(r) =
+                TsConfig::resolve_tsconfig_solution(Arc::clone(tsconfig), cached_path.path())
+            {
+                return Ok(Some(r));
             }
             cache_value = cv.parent(&self.cache);
         }

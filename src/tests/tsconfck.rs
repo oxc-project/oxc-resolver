@@ -59,29 +59,29 @@ fn part_of_solution() {
     let root = super::fixture_root().join("tsconfck").join("parse").join("solution");
 
     let pass = [
-        ("simple", "src/foo.ts", "src/tsconfig.json"),
-        ("simple", "tests/foo.ts", "tests/tsconfig.json"),
-        ("mixed", "src/bar.mts", "tsconfig.src.json"),
-        ("mixed", "src/baz.cts", "tsconfig.src.json"),
-        ("mixed", "src/foo.ts", "tsconfig.src.json"),
-        ("mixed", "src/foo.spec.ts", "tsconfig.test.json"),
-        ("referenced-extends-original", "src/foo.ts", "src/tsconfig.src.json"),
-        ("referenced-extends-original", "tests/foo.test.ts", "tests/tsconfig.test.json"),
-        ("referenced-with-configDir", "src/foo.ts", "tsconfig.src.json"),
+        ("simple", "src/foo.ts", Some("src/tsconfig.json")),
+        ("simple", "tests/foo.ts", Some("tests/tsconfig.json")),
+        ("mixed", "src/bar.mts", Some("tsconfig.src.json")),
+        ("mixed", "src/baz.cts", Some("tsconfig.src.json")),
+        ("mixed", "src/foo.ts", Some("tsconfig.src.json")),
+        ("mixed", "src/foo.spec.ts", Some("tsconfig.test.json")),
+        ("referenced-extends-original", "src/foo.ts", Some("src/tsconfig.src.json")),
+        ("referenced-extends-original", "tests/foo.test.ts", Some("tests/tsconfig.test.json")),
+        ("referenced-with-configDir", "src/foo.ts", Some("tsconfig.src.json")),
         (
             "referenced-with-configDir-and-extends",
             "packages/foo/src/foo.ts",
-            "packages/foo/tsconfig.foo.json",
+            Some("packages/foo/tsconfig.foo.json"),
         ),
-        ("referenced-with-implicit-globs", "src/foo.ts", "tsconfig.src.json"),
-        ("referenced-with-implicit-globs", "tests/foo.test.ts", "tsconfig.test.json"),
+        ("referenced-with-implicit-globs", "src/foo.ts", Some("tsconfig.src.json")),
+        ("referenced-with-implicit-globs", "tests/foo.test.ts", Some("tsconfig.test.json")),
         // not part of tsconfck
-        ("referenced-files", "src/foo.ts", "tsconfig.foo.json"),
-        ("referenced-files", "src/bar.ts", "tsconfig.json"),
-        ("referenced-include", "src/foo.ts", "tsconfig.foo.json"),
-        ("referenced-include", "src/bar.ts", "tsconfig.bar.json"),
-        ("referenced-exclude", "src/foo.ts", "tsconfig.foo.json"),
-        ("referenced-exclude", "src/bar.ts", "tsconfig.bar.json"),
+        ("referenced-files", "src/foo.ts", Some("tsconfig.foo.json")),
+        ("referenced-files", "src/bar.ts", None),
+        ("referenced-include", "src/foo.ts", Some("tsconfig.foo.json")),
+        ("referenced-include", "src/bar.ts", Some("tsconfig.bar.json")),
+        ("referenced-exclude", "src/foo.ts", Some("tsconfig.foo.json")),
+        ("referenced-exclude", "src/bar.ts", Some("tsconfig.bar.json")),
     ];
 
     let resolver = Resolver::new(ResolveOptions {
@@ -90,8 +90,12 @@ fn part_of_solution() {
     });
     for (dir, specifier, expected) in pass {
         let dir = root.join(dir);
-        let tsconfig = resolver.find_tsconfig(dir.join(specifier)).unwrap().unwrap();
-        assert_eq!(tsconfig.path.clone(), dir.join(expected), "{dir:?} {specifier}");
+        let tsconfig = resolver.find_tsconfig(dir.join(specifier)).unwrap();
+        assert_eq!(
+            tsconfig.map(|t| t.path.clone()),
+            expected.map(|e| dir.join(e)),
+            "{dir:?} {specifier}"
+        );
     }
 }
 
