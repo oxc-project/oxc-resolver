@@ -32,10 +32,12 @@
     "postbuild:debug": "node napi/patch.mjs"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.5.0",
-    "@napi-rs/wasm-runtime": "^1.1.0",
+    "@emnapi/core": "^1.9.2",
+    "@emnapi/runtime": "^1.9.2",
+    "@napi-rs/cli": "^3.6.1",
+    "@napi-rs/wasm-runtime": "^1.1.3",
     "@types/node": "^25.0.8",
-    "emnapi": "^1.7.1",
+    "emnapi": "^1.9.2",
     "typescript": "^6.0.0",
     "vite-plus": "catalog:"
   },
