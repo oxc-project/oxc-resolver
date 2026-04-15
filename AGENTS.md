@@ -42,7 +42,7 @@ just ready     # Run all checks (format, lint, test, build)
 just test      # Run all tests (Rust + Node.js)
 just check     # Cargo check with all features
 just lint      # Run clippy with strict settings
-just fmt       # Format code (cargo fmt + oxfmt)
+just fmt       # Format code (cargo fmt + vp fmt)
 ```
 
 ## Code Conventions
