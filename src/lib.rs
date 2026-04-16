@@ -1236,7 +1236,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         if ctx.resolving_alias.as_ref().is_some_and(|s| s == new_specifier) {
             // Complete when resolving to self `{"./a.js": "./a.js"}`
-            if new_specifier.strip_prefix("./").filter(|s| path.ends_with(Path::new(s))).is_some() {
+            if new_specifier
+                .strip_prefix("./")
+                .as_ref()
+                .is_some_and(|s| path.ends_with(Path::new(s)))
+            {
                 return if self.cache.is_file(cached_path, ctx) {
                     if self.check_restrictions(cached_path.path()) {
                         Ok(Some(cached_path.clone()))
