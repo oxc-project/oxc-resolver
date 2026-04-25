@@ -61,7 +61,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
-            path.to_path_buf().into_boxed_path(),
+            Box::from(path),
             is_node_modules,
             inside_node_modules,
             parent_weak,
