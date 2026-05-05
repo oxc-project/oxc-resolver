@@ -524,8 +524,6 @@ enum GlobPattern<'a> {
 impl TsConfig {
     pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
         if !tsconfig.references_resolved.is_empty()
-            && tsconfig.is_file_extension_allowed_in_tsconfig(path)
-            && !tsconfig.is_file_included_in_tsconfig(path)
             && let Some(solution_tsconfig) = tsconfig
                 .references_resolved
                 .iter()
@@ -538,6 +536,10 @@ impl TsConfig {
     }
 
     fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {
+        // 0. Check extension first - each tsconfig uses its own allowJs setting
+        if !self.is_file_extension_allowed_in_tsconfig(path) {
+            return false;
+        }
         // 1. Check files array (highest priority - overrides exclude)
         if self.files.as_ref().is_some_and(|files| files.iter().any(|file| Path::new(file) == path))
         {
@@ -549,32 +551,32 @@ impl TsConfig {
                 if self.files.is_some() {
                     false
                 } else {
-                    self.is_glob_matches(path, GlobPattern::All)
+                    Self::is_glob_matches(path, GlobPattern::All)
                 }
             },
-            |include_patterns| self.is_glob_matches(path, GlobPattern::Pattern(include_patterns)),
+            |include_patterns| Self::is_glob_matches(path, GlobPattern::Pattern(include_patterns)),
         );
         // 3. Check exclude patterns
         if is_included {
             return self.exclude.as_ref().is_none_or(|exclude_patterns| {
-                !self.is_glob_matches(path, GlobPattern::Pattern(exclude_patterns))
+                !Self::is_glob_matches(path, GlobPattern::Pattern(exclude_patterns))
             });
         }
         false
     }
 
-    fn is_glob_matches(&self, path: &Path, pattern: GlobPattern) -> bool {
+    fn is_glob_matches(path: &Path, pattern: GlobPattern) -> bool {
         let path_str = path.to_string_lossy().replace('\\', "/");
         match pattern {
-            GlobPattern::All => self.is_glob_match(GLOB_ALL_PATTERN, path, &path_str),
+            GlobPattern::All => Self::is_glob_match(GLOB_ALL_PATTERN, &path_str),
             GlobPattern::Pattern(patterns) => patterns.iter().any(|pattern| {
                 let pattern = pattern.to_string_lossy().replace('\\', "/");
-                self.is_glob_match(pattern.as_ref(), path, &path_str)
+                Self::is_glob_match(pattern.as_ref(), &path_str)
             }),
         }
     }
 
-    fn is_glob_match(&self, pattern: &str, path: &Path, path_str: &str) -> bool {
+    fn is_glob_match(pattern: &str, path_str: &str) -> bool {
         if pattern == path_str {
             return true;
         }
@@ -594,10 +596,6 @@ impl TsConfig {
         } else {
             Cow::Borrowed(pattern)
         };
-        // Fast check: if pattern ends with *, filename must have valid extension
-        if pattern.ends_with('*') && !self.is_file_extension_allowed_in_tsconfig(path) {
-            return false;
-        }
         fast_glob::glob_match(pattern.as_ref(), path_str)
     }
 
