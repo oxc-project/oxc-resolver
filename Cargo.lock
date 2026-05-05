@@ -804,6 +804,7 @@ dependencies = [
  "fast-glob",
  "indexmap",
  "json-strip-comments",
+ "memchr",
  "nodejs-built-in-modules",
  "once_cell",
  "papaya",
