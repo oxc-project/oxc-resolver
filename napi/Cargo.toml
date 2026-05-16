@@ -25,22 +25,22 @@ oxc_resolver = { workspace = true }
 fancy-regex = { version = "^0.17.0", default-features = false, features = ["std"] }
 napi = { version = "3.8", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3" }
-tracing-subscriber = { version = "0.3.22", optional = true, default-features = false, features = [
+tracing-subscriber = { version = "0.3.23", optional = true, default-features = false, features = [
   "std",
   "fmt",
 ] } # Omit the `regex` feature
 
 [target.'cfg(not(any(target_os = "linux", target_os = "freebsd", target_arch = "arm", target_family = "wasm")))'.dependencies]
-mimalloc-safe = { version = "0.1.55", optional = true, features = ["skip_collect_on_exit"] }
+mimalloc-safe = { version = "0.1.56", optional = true, features = ["skip_collect_on_exit"] }
 
 [target.'cfg(all(target_os = "linux", not(target_arch = "arm"), not(target_arch = "aarch64")))'.dependencies]
-mimalloc-safe = { version = "0.1.55", optional = true, features = [
+mimalloc-safe = { version = "0.1.56", optional = true, features = [
   "skip_collect_on_exit",
   "local_dynamic_tls",
 ] }
 
 [target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
-mimalloc-safe = { version = "0.1.55", optional = true, features = [
+mimalloc-safe = { version = "0.1.56", optional = true, features = [
   "skip_collect_on_exit",
   "local_dynamic_tls",
   "no_opt_arch",
