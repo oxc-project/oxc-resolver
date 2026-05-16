@@ -40,6 +40,8 @@ harness = false
 [lints.clippy]
 all = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }
+# `simd-json` -> `halfbrown` pulls in `hashbrown` 0.16, while `indexmap`/`serde_json` pull in 0.17.
+multiple_crate_versions = "allow"
 # restriction
 dbg_macro = "warn"
 todo = "warn"
