@@ -356,17 +356,6 @@ dependencies = [
 
 [[package]]
 name = "fancy-regex"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
-dependencies = [
- "bit-set",
- "regex-automata",
- "regex-syntax",
-]
-
-[[package]]
-name = "fancy-regex"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1e1dacd0d2082dfcf1351c4bdd566bbe89a2b263235a2b50058f1e130a47277"
@@ -592,9 +581,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "json-strip-comments"
-version = "3.1.0"
+version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25376d12b2f6ae53f986f86e2a808a56af03d72284ae24fc35a2e290d09ee3c3"
+checksum = "9301b34ecbe81051a62001a2dfa56d906628efdfbc68153e0a4d5eba58181ece"
 dependencies = [
  "memchr",
 ]
@@ -623,9 +612,9 @@ dependencies = [
 
 [[package]]
 name = "libmimalloc-sys2"
-version = "0.1.52"
+version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "485536c42886efc110f22bd03c543604e1a3ef7ffe13a29f114b2ed36d62afe3"
+checksum = "1c601df46d9245293af01d2e82529bef06fd46d7428cd079ba2ab73fe452e9fb"
 dependencies = [
  "cc",
  "cmake",
@@ -672,9 +661,9 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
 name = "mimalloc-safe"
-version = "0.1.56"
+version = "0.1.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a022c8c9ec9504034b60dd4cf12914cc348a19765dfdde50c1c1cc04961eb28"
+checksum = "339faed83010f7e29846491de7db305c2624384271776cb27e08c9e44ee692c0"
 dependencies = [
  "libmimalloc-sys2",
 ]
@@ -817,7 +806,7 @@ dependencies = [
  "criterion2",
  "dirs",
  "document-features",
- "fancy-regex 0.17.0",
+ "fancy-regex",
  "fast-glob",
  "indexmap",
  "json-strip-comments",
@@ -847,7 +836,7 @@ dependencies = [
 name = "oxc_resolver_napi"
 version = "11.19.1"
 dependencies = [
- "fancy-regex 0.17.0",
+ "fancy-regex",
  "mimalloc-safe",
  "napi",
  "napi-build",
@@ -904,7 +893,7 @@ checksum = "d021b5b4a2ea34bf137831fbbc5856e9c7ca70861f95a0f8dc51323b6e821faa"
 dependencies = [
  "byteorder",
  "concurrent_lru",
- "fancy-regex 0.18.0",
+ "fancy-regex",
  "flate2",
  "indexmap",
  "nodejs-built-in-modules",
