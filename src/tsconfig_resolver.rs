@@ -53,7 +53,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         path: P,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
-        let path = path.as_ref();
+        // Vite plugins may append query params to real file paths (e.g. `file.tsx?custom=foo`), which are not valid filesystem path components.
+        let path = crate::path::strip_query_and_fragment(path.as_ref());
         let cached_path = self.cache.value(path);
         self.find_tsconfig_tracing(&cached_path)
     }

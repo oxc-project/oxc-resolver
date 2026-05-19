@@ -3,9 +3,22 @@
 //! Code adapted from the following libraries
 //! * [path-absolutize](https://docs.rs/path-absolutize)
 //! * [normalize_path](https://docs.rs/normalize-path)
-use std::path::{Component, Path, PathBuf};
+use std::{
+    ffi::OsStr,
+    path::{Component, Path, PathBuf},
+};
 
 pub const SLASH_START: &[char; 2] = &['/', '\\'];
+
+/// Strip query parameters (`?...`) and hash fragments (`#...`) from a file path.
+pub fn strip_query_and_fragment(path: &Path) -> &Path {
+    let bytes = path.as_os_str().as_encoded_bytes();
+    let Some(end) = memchr::memchr2(b'?', b'#', bytes) else {
+        return path;
+    };
+    // SAFETY: Splitting at ASCII `?` or `#` preserves valid OsStr encoding.
+    Path::new(unsafe { OsStr::from_encoded_bytes_unchecked(&bytes[..end]) })
+}
 
 /// Extension trait to add path normalization to std's [`Path`].
 pub trait PathUtil {
@@ -156,4 +169,27 @@ fn normalize_relative() {
     assert_eq!(Path::new("foo/.././foo/").normalize_relative(), Path::new("foo"));
     assert_eq!(Path::new("foo../../..").normalize_relative(), Path::new(".."));
     assert_eq!(Path::new("jest-runner-../../").normalize_relative(), Path::new(""));
+}
+
+#[test]
+fn test_strip_query_and_fragment() {
+    assert_eq!(strip_query_and_fragment(Path::new("/src/foo.ts")), Path::new("/src/foo.ts"));
+    assert_eq!(
+        strip_query_and_fragment(Path::new("/src/foo.ts?custom=foo")),
+        Path::new("/src/foo.ts")
+    );
+    assert_eq!(
+        strip_query_and_fragment(Path::new("/src/foo.ts#fragment")),
+        Path::new("/src/foo.ts")
+    );
+    assert_eq!(
+        strip_query_and_fragment(Path::new("/src/foo.ts?key=val#frag")),
+        Path::new("/src/foo.ts")
+    );
+    assert_eq!(
+        strip_query_and_fragment(Path::new("/src/foo.ts#frag?key=val")),
+        Path::new("/src/foo.ts")
+    );
+    assert_eq!(strip_query_and_fragment(Path::new("")), Path::new(""));
+    assert_eq!(strip_query_and_fragment(Path::new("?query")), Path::new(""));
 }
