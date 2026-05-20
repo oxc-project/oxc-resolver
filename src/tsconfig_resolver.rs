@@ -11,19 +11,30 @@ use crate::{
 
 #[derive(Default)]
 pub struct TsconfigResolveContext {
+    /// Original paths, used for error messages.
     extended_configs: Vec<PathBuf>,
+    /// Real (canonical) paths, used for circular detection so that symlinked
+    /// paths are correctly identified as the same file.
+    extended_configs_real: Vec<PathBuf>,
 }
 
 impl TsconfigResolveContext {
-    pub fn with_extended_file<R, T: FnOnce(&mut Self) -> R>(&mut self, path: PathBuf, cb: T) -> R {
+    pub fn with_extended_file<R, T: FnOnce(&mut Self) -> R>(
+        &mut self,
+        path: PathBuf,
+        real_path: PathBuf,
+        cb: T,
+    ) -> R {
         self.extended_configs.push(path);
+        self.extended_configs_real.push(real_path);
         let result = cb(self);
         self.extended_configs.pop();
+        self.extended_configs_real.pop();
         result
     }
 
-    pub fn is_already_extended(&self, path: &Path) -> bool {
-        self.extended_configs.iter().any(|config| config == path)
+    pub fn is_already_extended(&self, real_path: &Path) -> bool {
+        self.extended_configs_real.iter().any(|config| config == real_path)
     }
 
     pub fn get_extended_configs_with(&self, path: PathBuf) -> Vec<PathBuf> {
@@ -184,7 +195,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
-            if ctx.is_already_extended(tsconfig.path()) {
+            if ctx.is_already_extended(&tsconfig.real_path) {
                 return Err(ResolveError::TsconfigCircularExtend(
                     ctx.get_extended_configs_with(tsconfig.path().to_path_buf()).into(),
                 ));
@@ -196,18 +207,22 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
                 .collect::<Result<Vec<_>, _>>()?;
             if !extended_tsconfig_paths.is_empty() {
-                ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
-                    for extended_tsconfig_path in extended_tsconfig_paths {
-                        let extended_tsconfig = self.load_tsconfig(
-                            /* root */ false,
-                            &extended_tsconfig_path,
-                            TsconfigReferences::Disabled,
-                            ctx,
-                        )?;
-                        tsconfig.extend_tsconfig(&extended_tsconfig);
-                    }
-                    Result::Ok::<(), ResolveError>(())
-                })?;
+                ctx.with_extended_file(
+                    tsconfig.path().to_owned(),
+                    tsconfig.real_path.clone(),
+                    |ctx| {
+                        for extended_tsconfig_path in extended_tsconfig_paths {
+                            let extended_tsconfig = self.load_tsconfig(
+                                /* root */ false,
+                                &extended_tsconfig_path,
+                                TsconfigReferences::Disabled,
+                                ctx,
+                            )?;
+                            tsconfig.extend_tsconfig(&extended_tsconfig);
+                        }
+                        Result::Ok::<(), ResolveError>(())
+                    },
+                )?;
             }
 
             if tsconfig.load_references(references) {

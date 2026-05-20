@@ -53,6 +53,14 @@ pub struct TsConfig {
     #[serde(skip)]
     pub path: PathBuf,
 
+    /// Canonical (real) path to `tsconfig.json`, with symlinks resolved.
+    ///
+    /// TypeScript computes `baseUrl` and `paths` relative to the real path of the
+    /// tsconfig, not the symlink location. TypeScript's `preserveSymlinks` option
+    /// only affects module resolution, not tsconfig `extends` resolution.
+    #[serde(skip)]
+    pub real_path: PathBuf,
+
     #[serde(default)]
     pub files: Option<Vec<PathBuf>>,
 
@@ -84,7 +92,12 @@ impl TsConfig {
     /// # Errors
     ///
     /// * Any error that can be returned by `serde_json::from_str()`.
-    pub fn parse(root: bool, path: &Path, json: String) -> Result<Self, serde_json::Error> {
+    pub fn parse(
+        root: bool,
+        path: &Path,
+        real_path: &Path,
+        json: String,
+    ) -> Result<Self, serde_json::Error> {
         let mut json = json.into_bytes();
         replace_bom_with_whitespace(&mut json);
         _ = json_strip_comments::strip_slice(&mut json);
@@ -95,14 +108,16 @@ impl TsConfig {
         };
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
+        tsconfig.real_path = real_path.to_path_buf();
+        let real_directory = tsconfig.real_directory();
         tsconfig.compiler_options.paths_base =
             tsconfig.compiler_options.base_url.as_ref().map_or_else(
-                || tsconfig.directory().to_path_buf(),
+                || real_directory.to_path_buf(),
                 |base_url| {
                     if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
                         base_url.clone()
                     } else {
-                        tsconfig.directory().normalize_with(base_url)
+                        real_directory.normalize_with(base_url)
                     }
                 },
             );
@@ -144,6 +159,17 @@ impl TsConfig {
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
         self.path.parent().unwrap()
+    }
+
+    /// Directory to `tsconfig.json`, with symlinks resolved.
+    ///
+    /// # Panics
+    ///
+    /// * When the `tsconfig.json` real path is misconfigured.
+    #[must_use]
+    pub fn real_directory(&self) -> &Path {
+        debug_assert!(self.real_path.file_name().is_some());
+        self.real_path.parent().unwrap()
     }
 
     /// Returns any paths to tsconfigs that should be extended by this tsconfig.

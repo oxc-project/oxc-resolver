@@ -233,10 +233,13 @@ impl<Fs: FileSystem> Cache<Fs> {
                 ResolveError::from(err)
             }
         })?;
+        let tsconfig_real_path = self
+            .canonicalize(&self.value(&tsconfig_path))
+            .unwrap_or_else(|_| tsconfig_path.to_path_buf());
         let mut tsconfig =
-            TsConfig::parse(root, &tsconfig_path, tsconfig_string).map_err(|error| {
-                ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
-            })?;
+            TsConfig::parse(root, &tsconfig_path, &tsconfig_real_path, tsconfig_string).map_err(
+                |error| ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error),
+            )?;
 
         // Run callback (extends/references processing)
         callback(&mut tsconfig)?;
