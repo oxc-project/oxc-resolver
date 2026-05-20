@@ -65,8 +65,8 @@ fn part_of_solution() {
         ("mixed", "src/baz.cts", "tsconfig.src.json"),
         ("mixed", "src/foo.ts", "tsconfig.src.json"),
         ("mixed", "src/foo.spec.ts", "tsconfig.test.json"),
-        ("referenced-extends-original", "src/foo.ts", "tsconfig.json"),
-        ("referenced-extends-original", "tests/foo.test.ts", "tsconfig.json"),
+        ("referenced-extends-original", "src/foo.ts", "src/tsconfig.src.json"),
+        ("referenced-extends-original", "tests/foo.test.ts", "tests/tsconfig.test.json"),
         ("referenced-with-configDir", "src/foo.ts", "tsconfig.src.json"),
         (
             "referenced-with-configDir-and-extends",
