@@ -331,13 +331,13 @@ impl<Fs: FileSystem> Cache<Fs> {
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
         // Check cache first - if this path was already canonicalized, return the cached result
-        if let Some((weak, path_buf)) = path.canonicalized.get() {
+        if let Some((weak, path_box)) = path.canonicalized.get() {
             return weak
                 .upgrade()
                 .map(CachedPath)
                 .or_else(|| {
-                    // Weak pointer upgrade failed - recreate from stored PathBuf
-                    Some(self.value(path_buf))
+                    // Weak pointer upgrade failed - recreate from the stored canonical path
+                    Some(self.value(path_box))
                 })
                 .ok_or_else(|| {
                     io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
@@ -385,7 +385,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Cache the result before removing from visited set
         // This ensures parent canonicalization results are cached and reused
-        let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.to_path_buf()));
+        let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.0.path.clone()));
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
