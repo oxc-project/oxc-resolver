@@ -72,18 +72,15 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
         let _enter = span.enter();
-        cached_path
-            .resolved_tsconfig
-            .get_or_try_init(|| {
-                self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
-                    option_tsconfig.map(|tsconfig| {
-                        let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
-                        tracing::debug!(path = %cached_path, ret = ?r);
-                        r
-                    })
+        cached_path.resolved_tsconfig.get_or_try_init(|| {
+            self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
+                option_tsconfig.map(|tsconfig| {
+                    let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
+                    tracing::debug!(path = %cached_path, ret = ?r);
+                    r
                 })
             })
-            .cloned()
+        })
     }
 
     /// Find tsconfig.json of a path by traversing parent directories.
@@ -124,7 +121,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     Ok(None)
                 }
             })? {
-                return Ok(Some(Arc::clone(tsconfig)));
+                return Ok(Some(tsconfig));
             }
             cache_value = cv.parent(&self.cache);
         }
@@ -136,20 +133,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         tsconfig_options: &TsconfigOptions,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         // Cache the loaded tsconfig in /
-        self.cache
-            .value(Path::new("/"))
-            .tsconfig
-            .get_or_try_init(|| {
-                let mut ctx = TsconfigResolveContext::default();
-                self.load_tsconfig(
-                    true,
-                    &tsconfig_options.config_file,
-                    tsconfig_options.references,
-                    &mut ctx,
-                )
-                .map(Some)
-            })
-            .cloned()
+        self.cache.value(Path::new("/")).tsconfig.get_or_try_init(|| {
+            let mut ctx = TsconfigResolveContext::default();
+            self.load_tsconfig(
+                true,
+                &tsconfig_options.config_file,
+                tsconfig_options.references,
+                &mut ctx,
+            )
+            .map(Some)
+        })
     }
 
     /// Resolve `tsconfig`.

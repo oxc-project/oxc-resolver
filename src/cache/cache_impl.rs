@@ -154,29 +154,22 @@ impl<Fs: FileSystem> Cache<Fs> {
         options: &ResolveOptions,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
-        // Change to `std::sync::OnceLock::get_or_try_init` when it is stable.
-        path.package_json
-            .get_or_try_init(|| {
-                let package_json_path = path.path.join("package.json");
-                let Ok(package_json_bytes) = self.fs.read(&package_json_path) else {
-                    if let Some(deps) = &mut ctx.missing_dependencies {
-                        deps.push(package_json_path);
-                    }
-                    return path.parent(self).map_or(Ok(None), |parent| {
-                        self.find_package_json_impl(&parent, options, ctx)
-                    });
-                };
-                let real_path = if options.symlinks {
-                    self.canonicalize(path)?.join("package.json")
-                } else {
-                    package_json_path.clone()
-                };
-                PackageJson::parse(
-                    &self.fs,
-                    package_json_path.clone(),
-                    real_path,
-                    package_json_bytes,
-                )
+        path.package_json.get_or_try_init(|| {
+            let package_json_path = path.path.join("package.json");
+            let Ok(package_json_bytes) = self.fs.read(&package_json_path) else {
+                if let Some(deps) = &mut ctx.missing_dependencies {
+                    deps.push(package_json_path);
+                }
+                return path.parent(self).map_or(Ok(None), |parent| {
+                    self.find_package_json_impl(&parent, options, ctx)
+                });
+            };
+            let real_path = if options.symlinks {
+                self.canonicalize(path)?.join("package.json")
+            } else {
+                package_json_path.clone()
+            };
+            PackageJson::parse(&self.fs, package_json_path.clone(), real_path, package_json_bytes)
                 .map(|package_json| Some(Arc::new(package_json)))
                 .map_err(ResolveError::Json)
                 // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
@@ -188,8 +181,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                         deps.push(package_json_path.clone());
                     }
                 })
-            })
-            .cloned()
+        })
     }
 
     pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(

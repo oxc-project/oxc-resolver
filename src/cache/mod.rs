@@ -2,6 +2,7 @@ mod borrowed_path;
 mod cache_impl;
 mod cached_path;
 mod hasher;
+mod once_arc;
 mod thread_local;
 
 pub use cache_impl::Cache;
