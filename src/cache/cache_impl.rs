@@ -160,9 +160,9 @@ impl<Fs: FileSystem> Cache<Fs> {
                 if let Some(deps) = &mut ctx.missing_dependencies {
                     deps.push(package_json_path);
                 }
-                return path.parent(self).map_or(Ok(None), |parent| {
-                    self.find_package_json_impl(&parent, options, ctx)
-                });
+                return path
+                    .parent(self)
+                    .map_or(Ok(None), |parent| self.find_package_json_impl(&parent, options, ctx));
             };
             let real_path = if options.symlinks {
                 self.canonicalize(path)?.join("package.json")
