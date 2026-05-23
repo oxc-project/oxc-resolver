@@ -73,9 +73,14 @@ impl<'a> Specifier<'a> {
         };
 
         let path = escaped_indexes.map_or(Cow::Borrowed(path), |escaped_indexes| {
-            let mut s = String::with_capacity(path.len());
+            // `escaped_indexes` is populated in scan order, so it is already sorted ascending.
+            // Avoid `Vec::contains` (O(K) per byte) by walking both in lockstep.
+            let mut s = String::with_capacity(path.len() - escaped_indexes.len());
+            let mut idx_iter = escaped_indexes.iter().copied().peekable();
             for (i, &b) in path.as_bytes().iter().enumerate() {
-                if !escaped_indexes.contains(&i) {
+                if idx_iter.peek() == Some(&i) {
+                    idx_iter.next();
+                } else {
                     s.push(b as char);
                 }
             }
