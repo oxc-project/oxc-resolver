@@ -1,5 +1,6 @@
 mod borrowed_path;
 mod cache_impl;
+mod cached_meta;
 mod cached_path;
 mod hasher;
 mod thread_local;

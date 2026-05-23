@@ -11,6 +11,7 @@ use cfg_if::cfg_if;
 use once_cell::sync::OnceCell as OnceLock;
 
 use super::cache_impl::Cache;
+use super::cached_meta::CachedMeta;
 use super::thread_local::SCRATCH_PATH;
 use crate::{FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx};
 
@@ -23,7 +24,9 @@ pub struct CachedPathImpl {
     pub parent: Option<Weak<Self>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
-    pub meta: OnceLock<Option<(/* is_file */ bool, /* is_dir */ bool)>>, // None means not found.
+    /// Cached `(is_file, is_dir)` filesystem metadata packed into one byte. See
+    /// [`CachedMeta`] for the encoding and the rationale for skipping `OnceLock`.
+    pub meta: CachedMeta,
     /// Stored as `Box<Path>` (not `PathBuf`) to save 8 bytes per cached path entry —
     /// the canonical path is set once and never mutated.
     pub canonicalized: OnceLock<(Weak<Self>, Box<Path>)>,
@@ -49,7 +52,7 @@ impl CachedPathImpl {
             parent,
             is_node_modules,
             inside_node_modules,
-            meta: OnceLock::new(),
+            meta: CachedMeta::new(),
             canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
@@ -237,7 +240,7 @@ impl CachedPath {
 
 impl CachedPath {
     fn metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<(bool, bool)> {
-        *self.meta.get_or_init(|| fs.metadata(&self.path).ok().map(|r| (r.is_file, r.is_dir)))
+        self.meta.get_or_init(|| fs.metadata(&self.path).ok().map(|r| (r.is_file, r.is_dir)))
     }
 
     pub(crate) fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
