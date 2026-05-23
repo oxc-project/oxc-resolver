@@ -330,18 +330,13 @@ impl<Fs: FileSystem> Cache<Fs> {
         path: &CachedPath,
         visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
     ) -> Result<CachedPath, ResolveError> {
-        // Check cache first - if this path was already canonicalized, return the cached result
-        if let Some((weak, path_box)) = path.canonicalized.get() {
-            return weak
-                .upgrade()
-                .map(CachedPath)
-                .or_else(|| {
-                    // Weak pointer upgrade failed - recreate from the stored canonical path
-                    Some(self.value(path_box))
-                })
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-                });
+        // Check cache first - if this path was already canonicalized, return the cached result.
+        // If the weak upgrade fails (cache was cleared concurrently), surface a `NotFound`
+        // so `canonicalize_impl`'s outer fallback re-runs `fs.canonicalize`.
+        if let Some(weak) = path.canonicalized.get() {
+            return weak.upgrade().map(CachedPath).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
+            });
         }
 
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
@@ -385,7 +380,7 @@ impl<Fs: FileSystem> Cache<Fs> {
 
         // Cache the result before removing from visited set
         // This ensures parent canonicalization results are cached and reused
-        let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.0.path.clone()));
+        let _ = path.canonicalized.set(Arc::downgrade(&res.0));
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
