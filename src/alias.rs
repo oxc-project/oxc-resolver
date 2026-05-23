@@ -15,6 +15,11 @@ pub struct CompiledAliasEntry {
     key: CompactString,
     match_kind: AliasMatchKind,
     specifiers: Vec<AliasValue>,
+    /// First byte of the key (or wildcard prefix), cached so the alias loop can fast-reject
+    /// non-matching entries without dispatching into the match-kind branch. `None` means an
+    /// empty key/prefix — which can match any specifier (e.g. a `*` wildcard) — so the entry
+    /// is always evaluated.
+    match_first_byte: Option<u8>,
 }
 
 #[derive(Clone)]
@@ -44,7 +49,11 @@ pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
                 },
                 |stripped_key| (CompactString::new(stripped_key), AliasMatchKind::Exact),
             );
-            CompiledAliasEntry { key, match_kind, specifiers: specifiers.clone() }
+            let match_first_byte = match &match_kind {
+                AliasMatchKind::Exact | AliasMatchKind::Prefix => key.as_bytes().first().copied(),
+                AliasMatchKind::Wildcard { prefix, .. } => prefix.as_bytes().first().copied(),
+            };
+            CompiledAliasEntry { key, match_kind, specifiers: specifiers.clone(), match_first_byte }
         })
         .collect()
 }
@@ -72,6 +81,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<Option<CachedPath>, ResolveError> {
         for alias in aliases {
+            // Fast-reject entries whose required first byte doesn't match the specifier.
+            // `match_first_byte == None` means the entry can match any specifier (e.g. an
+            // empty wildcard prefix), so it always proceeds. The first-byte load is inlined
+            // so it is skipped entirely when `aliases` is empty (the default config) or when
+            // every iteration short-circuits on a `None` `match_first_byte`.
+            if let Some(required) = alias.match_first_byte
+                && Some(required) != specifier.as_bytes().first().copied()
+            {
+                continue;
+            }
             let alias_key = alias.key.as_str();
             match &alias.match_kind {
                 AliasMatchKind::Exact => {
