@@ -81,10 +81,24 @@ pub struct TsConfig {
 impl TsConfig {
     /// Parses the tsconfig from a JSON string.
     ///
+    /// `path` is the requested path (used as identity for cache lookup and error
+    /// reporting). `canonical_path` anchors `baseUrl` / `paths` at the real
+    /// tsconfig directory when `extends` traverses a symlink. Callers that don't
+    /// care about symlinks may pass the same value for both.
+    ///
     /// # Errors
     ///
     /// * Any error that can be returned by `serde_json::from_str()`.
-    pub fn parse(root: bool, path: &Path, json: String) -> Result<Self, serde_json::Error> {
+    ///
+    /// # Panics
+    ///
+    /// * When `canonical_path` has no parent directory.
+    pub fn parse(
+        root: bool,
+        path: &Path,
+        canonical_path: &Path,
+        json: String,
+    ) -> Result<Self, serde_json::Error> {
         let mut json = json.into_bytes();
         replace_bom_with_whitespace(&mut json);
         _ = json_strip_comments::strip_slice(&mut json);
@@ -95,14 +109,15 @@ impl TsConfig {
         };
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
+        let canonical_directory = canonical_path.parent().unwrap();
         tsconfig.compiler_options.paths_base =
             tsconfig.compiler_options.base_url.as_ref().map_or_else(
-                || tsconfig.directory().to_path_buf(),
+                || canonical_directory.to_path_buf(),
                 |base_url| {
                     if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
                         base_url.clone()
                     } else {
-                        tsconfig.directory().normalize_with(base_url)
+                        canonical_directory.normalize_with(base_url)
                     }
                 },
             );

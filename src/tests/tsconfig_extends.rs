@@ -180,8 +180,9 @@ fn test_extend_tsconfig_no_override_existing() {
     })
     .to_string();
 
-    let parent_tsconfig = TsConfig::parse(true, parent_path, parent_config).unwrap().build();
-    let mut child_tsconfig = TsConfig::parse(true, child_path, child_config).unwrap();
+    let parent_tsconfig =
+        TsConfig::parse(true, parent_path, parent_path, parent_config).unwrap().build();
+    let mut child_tsconfig = TsConfig::parse(true, child_path, child_path, child_config).unwrap();
 
     // Perform the extension
     child_tsconfig.extend_tsconfig(&parent_tsconfig);
@@ -364,4 +365,36 @@ fn test_extend_package() {
         let compiler_options = &resolution.compiler_options;
         assert_eq!(compiler_options.target, Some("ES2020".to_string()));
     }
+}
+
+fn assert_extends_symlink_resolves_to_canonical(config_file: &Path) {
+    let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: config_file.to_path_buf(),
+            references: TsconfigReferences::Disabled,
+        })),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let path = resolver.resolve(f.join("project"), "@app/foo").unwrap().full_path();
+    assert_eq!(path, f.join("src/foo.ts"), "should resolve via canonical baseUrl, not symlink");
+
+    // The caller-supplied path is preserved as identity; `paths_base` is canonical.
+    let tsconfig = resolver.resolve_tsconfig(config_file).unwrap();
+    assert_eq!(tsconfig.path.as_path(), config_file);
+    assert_eq!(tsconfig.compiler_options.paths_base, f);
+}
+
+#[test]
+fn test_extend_tsconfig_via_symlink_package() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
+    assert_extends_symlink_resolves_to_canonical(&f.join("project/tsconfig.json"));
+}
+
+#[test]
+fn test_extend_tsconfig_via_symlink_relative() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
+    assert_extends_symlink_resolves_to_canonical(&f.join("project/tsconfig.relative.json"));
 }
