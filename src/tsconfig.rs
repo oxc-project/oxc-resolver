@@ -121,6 +121,13 @@ impl TsConfig {
                     }
                 },
             );
+        if let Some(root_dirs) = &mut tsconfig.compiler_options.root_dirs {
+            for root_dir in root_dirs.iter_mut() {
+                if !root_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                    *root_dir = canonical_directory.normalize_with(&root_dir);
+                }
+            }
+        }
         Ok(tsconfig)
     }
 
@@ -363,7 +370,11 @@ impl TsConfig {
 
         if let Some(root_dirs) = &mut self.compiler_options.root_dirs {
             for root_dir in root_dirs.iter_mut() {
-                *root_dir = config_dir.normalize_with(&root_dir);
+                if let Some(stripped_path) =
+                    root_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+                {
+                    *root_dir = config_dir.join(stripped_path.trim_start_matches('/'));
+                }
             }
         }
 

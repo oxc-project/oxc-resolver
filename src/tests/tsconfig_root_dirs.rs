@@ -101,3 +101,20 @@ fn test() {
         );
     }
 }
+
+#[test]
+fn test_root_dirs_via_extends() {
+    let f = super::fixture_root().join("tsconfig/cases/root-dirs-extends");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Disabled,
+        })),
+        extensions: vec![".ts".into(), ".d.ts".into()],
+        ..ResolveOptions::default()
+    });
+    let from = f.join("src/routes/+page.ts");
+    let path = resolver.resolve(&from, "./$types").map(|r| r.full_path());
+    let expected = f.join(".svelte-kit/types/src/routes/$types.d.ts");
+    assert_eq!(path, Ok(expected), "from {from:?} resolve ./$types");
+}
