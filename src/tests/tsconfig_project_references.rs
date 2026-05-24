@@ -152,3 +152,19 @@ fn references_with_extends() {
 
     assert_eq!(resolved_path, Ok(f.join("src/pages/index.tsx")));
 }
+
+#[test]
+fn referenced_paths_win_over_root_with_no_paths() {
+    let f = super::fixture_root().join("tsconfig/cases/project-references-priority");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path =
+        resolver.resolve_file(f.join("app/index.ts"), "1/foo").map(|f| f.full_path());
+
+    assert_eq!(resolved_path, Ok(f.join("lib/foo.ts")));
+}

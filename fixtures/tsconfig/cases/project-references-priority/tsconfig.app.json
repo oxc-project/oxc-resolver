@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "moduleResolution": "bundler",
+    "paths": {
+      "1/*": ["./lib/*"]
+    }
+  },
+  "include": ["app", "lib"]
+}

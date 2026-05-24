@@ -551,7 +551,6 @@ impl TsConfig {
     pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
         if !tsconfig.references_resolved.is_empty()
             && tsconfig.is_file_extension_allowed_in_tsconfig(path)
-            && !tsconfig.is_file_included_in_tsconfig(path)
             && let Some(solution_tsconfig) = tsconfig
                 .references_resolved
                 .iter()
