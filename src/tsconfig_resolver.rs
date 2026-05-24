@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     CachedPath, Ctx, FileSystem, ResolveError, ResolveOptions, ResolveResult, ResolverGeneric,
-    SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    Specifier, SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
     path::PathUtil,
 };
 
@@ -53,7 +53,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         path: P,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
-        let path = path.as_ref();
+        let path = path.as_ref().to_string_lossy();
+        let specifier = Specifier::parse(path.as_ref()).map_err(ResolveError::Specifier)?;
+        let path = Path::new(specifier.path());
         let cached_path = self.cache.value(path);
         self.find_tsconfig_tracing(&cached_path)
     }

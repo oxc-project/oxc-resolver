@@ -61,3 +61,23 @@ fn tsconfig_discovery_skips_unreadable_file() {
         "expected Ok(None) for unreadable tsconfig, got {result:?}",
     );
 }
+
+#[test]
+fn tsconfig_discovery_query_params() {
+    let f = super::fixture_root().join("tsconfig/cases/query-params");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let p = f.join("src/index.ts");
+    let expected_tsconfig = f.join("tsconfig.app.json");
+
+    let tsconfig = resolver.find_tsconfig(&p).unwrap().unwrap();
+    assert_eq!(tsconfig.path, expected_tsconfig);
+
+    let path_with_both = format!("{}?custom=foo#fragment", p.display());
+    let tsconfig = resolver.find_tsconfig(&path_with_both).unwrap().unwrap();
+    assert_eq!(tsconfig.path, expected_tsconfig,);
+}
