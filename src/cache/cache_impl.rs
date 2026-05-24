@@ -21,11 +21,34 @@ use crate::{
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
+/// Returns true if `path` has any ancestor directory whose final segment is
+/// `node_modules` (excluding the path itself).
+///
+/// Used by `Cache::value` to compute `inside_node_modules` without recursively
+/// interning the entire parent chain.
+fn path_is_inside_node_modules(path: &Path) -> bool {
+    let mut current = path.parent();
+    while let Some(p) = current {
+        if p.file_name().is_some_and(|name| name == "node_modules") {
+            return true;
+        }
+        current = p.parent();
+    }
+    false
+}
+
 /// Cache implementation used for caching filesystem access.
 #[derive(Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
     pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
+    /// Memo of canonical (symlink-resolved) paths. Keyed by *source* path so the
+    /// recursion in `canonicalize_path_arc` can short-circuit on intermediate
+    /// ancestors without materialising a full `CachedPath` for each one.
+    ///
+    /// The value is an `Arc<Path>` so multiple aliases pointing at the same
+    /// canonical target share a single allocation of the canonical name.
+    pub(crate) canonical_paths: HashMap<Box<Path>, Arc<Path>, BuildHasherDefault<FxHasher>>,
     /// Cache for raw/unbuilt tsconfigs (used when extending).
     pub(crate) tsconfigs_raw: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     /// Cache for built/resolved tsconfigs (used for resolution).
@@ -37,6 +60,7 @@ pub struct Cache<Fs> {
 impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
         self.paths.pin().clear();
+        self.canonical_paths.pin().clear();
         self.tsconfigs_raw.pin().clear();
         self.tsconfigs_built.pin().clear();
     }
@@ -54,25 +78,24 @@ impl<Fs: FileSystem> Cache<Fs> {
         if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
             return entry.clone();
         }
-        let parent = path.parent().map(|p| self.value(p));
-        let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
-        let inside_node_modules =
-            is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
-        let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
+        // Compute these flags from the path string alone; do NOT recurse into the
+        // parent. Materialising every ancestor in the cache is wasted memory —
+        // most ancestors are never queried, and `parent()` lazily inserts on demand.
+        let is_node_modules = path.file_name().is_some_and(|name| name == "node_modules");
+        let inside_node_modules = is_node_modules || path_is_inside_node_modules(path);
         let cached_path = CachedPath(Arc::new(CachedPathImpl::new(
             hash,
             path.to_path_buf().into_boxed_path(),
             is_node_modules,
             inside_node_modules,
-            parent_weak,
         )));
         paths.insert(cached_path.clone());
         cached_path
     }
 
     pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
-        let cached_path = self.canonicalize_impl(path)?;
-        let path = cached_path.to_path_buf();
+        let canonical = self.canonicalize_arc(path)?;
+        let path = canonical.to_path_buf();
         cfg_if! {
             if #[cfg(target_os = "windows")] {
                 crate::windows::strip_windows_prefix(path)
@@ -296,6 +319,10 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
+            canonical_paths: HashMap::builder()
+                .hasher(BuildHasherDefault::default())
+                .resize_mode(papaya::ResizeMode::Blocking)
+                .build(),
             tsconfigs_raw: HashMap::builder()
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
@@ -309,89 +336,152 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
     }
 
-    /// Returns the canonical path, resolving all symbolic links.
+    /// Returns the canonical (symlink-resolved) path of `path` as an
+    /// `Arc<Path>`. No `CachedPath` entries are created for the intermediate
+    /// ancestors walked during resolution — the whole computation runs on raw
+    /// `Path` / `PathBuf` and memoises results in [`Cache::canonical_paths`].
     ///
-    /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
-    pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
-        // Each canonicalization chain gets its own visited set for circular symlink detection
-        let mut visited = StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
-
-        // canonicalize_with_visited now handles caching at every recursion level
-        self.canonicalize_with_visited(path, &mut visited).or_else(|err| {
-            // Fallback: if canonicalization fails and path's cache was cleared,
-            // try direct FS canonicalize without caching the result
-            self.fs
-                .canonicalize(path.path())
-                .map(|canonical| self.value(&canonical))
-                .map_err(|_| err)
-        })
-    }
-
-    /// Internal helper for canonicalization with circular symlink detection.
-    fn canonicalize_with_visited(
-        &self,
-        path: &CachedPath,
-        visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
-    ) -> Result<CachedPath, ResolveError> {
-        // Check cache first - if this path was already canonicalized, return the cached result
-        if let Some((weak, path_box)) = path.canonicalized.get() {
-            return weak
-                .upgrade()
-                .map(CachedPath)
-                .or_else(|| {
-                    // Weak pointer upgrade failed - recreate from the stored canonical path
-                    Some(self.value(path_box))
-                })
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-                });
+    /// Used as the back-end for both the public-facing
+    /// [`Cache::canonicalize`] and the per-entry slot
+    /// `CachedPathImpl::canonicalized`.
+    pub(crate) fn canonicalize_arc(&self, path: &CachedPath) -> Result<Arc<Path>, ResolveError> {
+        // Per-entry fast path.
+        if let Some(canonical) = path.canonicalized.get() {
+            return Ok(Arc::clone(canonical));
         }
 
-        // Check for circular symlink by tracking visited paths in the current canonicalization chain
-        if !visited.insert(path.hash) {
+        let mut visited = StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
+        let canonical = self.canonicalize_path_arc(path.path(), &mut visited).or_else(|err| {
+            // Fallback: if the recursive canonicalisation fails for any
+            // reason (e.g. visited-set corruption from concurrent races),
+            // ask the filesystem directly without caching.
+            self.fs
+                .canonicalize(path.path())
+                .map(|p| Arc::<Path>::from(p.into_boxed_path()))
+                .map_err(|_| err)
+        })?;
+
+        let _ = path.canonicalized.set(Arc::clone(&canonical));
+        Ok(canonical)
+    }
+
+    /// Recursive canonicalisation that operates on `&Path` rather than
+    /// `CachedPath` so that intermediate ancestors don't pollute the main path
+    /// cache. Each intermediate result is memoised in
+    /// [`Cache::canonical_paths`].
+    fn canonicalize_path_arc(
+        &self,
+        path: &Path,
+        visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
+    ) -> Result<Arc<Path>, ResolveError> {
+        // Memo lookup. `Box<Path>` borrows as `Path` so we can probe with a
+        // borrowed key.
+        {
+            let canonical_paths = self.canonical_paths.pin();
+            if let Some(canonical) = canonical_paths.get(path) {
+                return Ok(Arc::clone(canonical));
+            }
+        }
+
+        // Circular-symlink detection. The hash matches what `Cache::value`
+        // uses, so the visited set is consistent with `CachedPath::hash` even
+        // though we're not handling `CachedPath` here.
+        let hash = {
+            let mut hasher = FxHasher::default();
+            path.as_os_str().hash(&mut hasher);
+            hasher.finish()
+        };
+        if !visited.insert(hash) {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
 
-        let res = path.parent(self).map_or_else(
-            || Ok(path.normalize_root(self)),
-            |parent| {
-                self.canonicalize_with_visited(&parent, visited).and_then(|parent_canonical| {
-                    let normalized = parent_canonical
-                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
+        let canonical: Arc<Path> = match path.parent() {
+            None => normalize_root_path(path),
+            Some(parent) => {
+                let parent_canonical = self.canonicalize_path_arc(parent, visited)?;
+                let suffix = path.strip_prefix(parent).unwrap_or_else(|_| Path::new(""));
 
-                    if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
-                        let link = self.fs.read_link(normalized.path())?;
-                        if link.is_absolute() {
-                            return self.canonicalize_with_visited(
-                                &self.value(&link.normalize()),
-                                visited,
-                            );
-                        } else if let Some(dir) = normalized.parent(self) {
-                            // Symlink is relative `../../foo.js`, use the path directory
-                            // to resolve this symlink.
-                            return self.canonicalize_with_visited(
-                                &dir.normalize_with(&link, self),
-                                visited,
-                            );
-                        }
-                        debug_assert!(
-                            false,
-                            "Failed to get path parent for {}.",
-                            normalized.path().display()
+                // Build parent_canonical / suffix, normalising any
+                // CurDir/ParentDir components defensively.
+                let mut normalized = PathBuf::with_capacity(
+                    parent_canonical.as_os_str().len() + 1 + suffix.as_os_str().len(),
+                );
+                normalized.push(&*parent_canonical);
+                push_path_normalised(&mut normalized, suffix);
+
+                if self.fs.symlink_metadata(path).is_ok_and(|m| m.is_symlink) {
+                    let link = self.fs.read_link(&normalized)?;
+                    if link.is_absolute() {
+                        self.canonicalize_path_arc(&link.normalize(), visited)?
+                    } else if let Some(dir) = normalized.parent() {
+                        let mut combined = PathBuf::with_capacity(
+                            dir.as_os_str().len() + 1 + link.as_os_str().len(),
                         );
+                        combined.push(dir);
+                        push_path_normalised(&mut combined, &link);
+                        self.canonicalize_path_arc(&combined, visited)?
+                    } else {
+                        Arc::<Path>::from(normalized.into_boxed_path())
                     }
+                } else {
+                    Arc::<Path>::from(normalized.into_boxed_path())
+                }
+            }
+        };
 
-                    Ok(normalized)
-                })
-            },
-        )?;
+        visited.remove(&hash);
+        self.canonical_paths.pin().insert(Box::<Path>::from(path), Arc::clone(&canonical));
+        Ok(canonical)
+    }
+}
 
-        // Cache the result before removing from visited set
-        // This ensures parent canonicalization results are cached and reused
-        let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.0.path.clone()));
+/// On Windows, paths produced by `Path::parent` may end in `/`; the OS prefers
+/// `\`. Mirrors the per-CachedPath fix-up that the old `normalize_root` did,
+/// but on a raw `Path`.
+#[cfg(target_os = "windows")]
+fn normalize_root_path(path: &Path) -> Arc<Path> {
+    if path.as_os_str().as_encoded_bytes().last() == Some(&b'/') {
+        let mut s = path.to_string_lossy().into_owned();
+        s.pop();
+        s.push('\\');
+        Arc::<Path>::from(PathBuf::from(s).into_boxed_path())
+    } else {
+        Arc::<Path>::from(path.to_path_buf().into_boxed_path())
+    }
+}
 
-        // Remove from visited set when unwinding the recursion
-        visited.remove(&path.hash);
-        Ok(res)
+#[cfg(not(target_os = "windows"))]
+fn normalize_root_path(path: &Path) -> Arc<Path> {
+    Arc::<Path>::from(path.to_path_buf().into_boxed_path())
+}
+
+/// Append `tail`'s components onto `base`, treating `CurDir` and `ParentDir`
+/// the way `PathBuf::push` does NOT — i.e. normalising them. Equivalent to the
+/// existing `CachedPath::normalize_with` body but operating on a raw `PathBuf`.
+fn push_path_normalised(base: &mut PathBuf, tail: &Path) {
+    use std::path::Component;
+
+    for component in tail.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                base.pop();
+            }
+            Component::Normal(c) => {
+                cfg_if! {
+                    if #[cfg(target_family = "wasm")] {
+                        // Strip the trailing \0 introduced by https://github.com/nodejs/uvwasi/issues/262
+                        base.push(c.to_string_lossy().trim_end_matches('\0'));
+                    } else {
+                        base.push(c);
+                    }
+                }
+            }
+            Component::Prefix(_) | Component::RootDir => {
+                // An absolute component overrides whatever came before.
+                base.clear();
+                base.push(component);
+            }
+        }
     }
 }

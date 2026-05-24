@@ -21,15 +21,16 @@ pub struct CachedPath(pub Arc<CachedPathImpl>);
 pub struct CachedPathImpl {
     pub hash: u64,
     pub path: Box<Path>,
-    pub parent: Option<Weak<Self>>,
     pub is_node_modules: bool,
     pub inside_node_modules: bool,
     /// Cached `(is_file, is_dir)` filesystem metadata packed into one byte. See
     /// [`CachedMeta`] for the encoding and the rationale for skipping `OnceLock`.
     pub meta: CachedMeta,
-    /// Stored as `Box<Path>` (not `PathBuf`) to save 8 bytes per cached path entry —
-    /// the canonical path is set once and never mutated.
-    pub canonicalized: OnceLock<(Weak<Self>, Box<Path>)>,
+    /// Canonical (symlink-resolved) path. Stored as `Arc<Path>` so that all aliases
+    /// pointing at the same on-disk file can share a single allocation of the
+    /// canonical name. `Arc<Path>` is the same 16 bytes as `Box<Path>` but
+    /// cloneable in O(1).
+    pub canonicalized: OnceLock<Arc<Path>>,
     pub node_modules: OnceLock<Option<Weak<Self>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     /// `tsconfig.json` found at path.
@@ -44,12 +45,10 @@ impl CachedPathImpl {
         path: Box<Path>,
         is_node_modules: bool,
         inside_node_modules: bool,
-        parent: Option<Weak<Self>>,
     ) -> Self {
         Self {
             hash,
             path,
-            parent,
             is_node_modules,
             inside_node_modules,
             meta: CachedMeta::new(),
@@ -80,13 +79,10 @@ impl CachedPath {
     }
 
     pub(crate) fn parent<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Option<Self> {
-        self.0.parent.as_ref().and_then(|weak| {
-            weak.upgrade().map(CachedPath).or_else(|| {
-                // Weak pointer upgrade failed - parent was cleared from cache
-                // Recreate it by deriving the parent path
-                self.path().parent().map(|parent_path| cache.value(parent_path))
-            })
-        })
+        // The parent CachedPath is no longer eagerly seeded on construction —
+        // we materialise on demand. This keeps the per-entry footprint small
+        // and avoids interning ancestors that callers never query.
+        self.path().parent().map(|parent_path| cache.value(parent_path))
     }
 
     pub(crate) fn is_node_modules(&self) -> bool {
@@ -216,25 +212,6 @@ impl CachedPath {
 
             cache.value(path)
         })
-    }
-
-    #[inline]
-    #[cfg(windows)]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Self {
-        if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
-            let mut path_string = self.path.to_string_lossy().into_owned();
-            path_string.pop();
-            path_string.push('\\');
-            cache.value(&PathBuf::from(path_string))
-        } else {
-            self.clone()
-        }
-    }
-
-    #[inline]
-    #[cfg(not(windows))]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &Cache<Fs>) -> Self {
-        self.clone()
     }
 }
 
