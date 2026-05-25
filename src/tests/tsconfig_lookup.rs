@@ -193,7 +193,6 @@ fn extends_folder_resolves_to_tsconfig_json() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[ignore = "bug: oxc-resolver merges extends array with first-wins instead of TypeScript's spec'd later-wins"]
 fn extends_array_last_wins() {
     let f = super::fixture_root().join("tsconfig/cases/extends-array-last-wins");
 

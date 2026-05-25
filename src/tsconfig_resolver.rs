@@ -200,14 +200,20 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 ));
             }
 
-            // Extend tsconfig
+            // Extend tsconfig.
+            //
+            // Per TypeScript spec, when the `extends` field is an array later
+            // configurations take precedence over earlier ones. Since
+            // `extend_tsconfig` only fills `None` fields, we iterate in reverse
+            // so that the last base sets fields first and earlier bases can no
+            // longer override them — net effect: later wins.
             let extended_tsconfig_paths = tsconfig
                 .extends()
                 .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
                 .collect::<Result<Vec<_>, _>>()?;
             if !extended_tsconfig_paths.is_empty() {
                 ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
-                    for extended_tsconfig_path in extended_tsconfig_paths {
+                    for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
                         let extended_tsconfig = self.load_tsconfig(
                             /* root */ false,
                             &extended_tsconfig_path,
@@ -259,7 +265,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             .extends()
             .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
             .collect::<Result<Vec<_>, _>>()?;
-        for extended_tsconfig_path in extended_tsconfig_paths {
+        // Iterate in reverse so that later `extends` entries take precedence —
+        // see comment in `load_tsconfig`.
+        for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
             let extended_tsconfig = self.load_tsconfig(
                 /* root */ false,
                 &extended_tsconfig_path,
