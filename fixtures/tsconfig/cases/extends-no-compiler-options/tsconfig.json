@@ -1,0 +1,6 @@
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "target": "ES2020"
+  }
+}

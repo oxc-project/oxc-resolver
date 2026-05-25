@@ -1,0 +1,6 @@
+{
+  "extends": [],
+  "compilerOptions": {
+    "target": "ES2020"
+  }
+}
