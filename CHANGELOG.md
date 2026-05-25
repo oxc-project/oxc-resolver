@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.19.2](https://github.com/oxc-project/oxc-resolver/compare/v11.19.1...v11.19.2) - 2026-05-25
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- *(tsconfig)* apply later-wins semantics for extends array ([#1156](https://github.com/oxc-project/oxc-resolver/pull/1156)) (by @Boshen)
+- *(tsconfig)* walk past a tsconfig that doesn't claim the file ([#1154](https://github.com/oxc-project/oxc-resolver/pull/1154)) (by @Boshen)
+- *(tsconfig)* let project references take priority over their parent ([#1151](https://github.com/oxc-project/oxc-resolver/pull/1151)) (by @Boshen)
+- *(tsconfig)* resolve `rootDirs` against the config that declared them ([#1150](https://github.com/oxc-project/oxc-resolver/pull/1150)) (by @Boshen)
+- *(tsconfig)* resolve `baseUrl` / `paths` against the canonical tsconfig path ([#1148](https://github.com/oxc-project/oxc-resolver/pull/1148)) (by @Boshen)
+- strip query fragments when calling `find_tsconfig` ([#1147](https://github.com/oxc-project/oxc-resolver/pull/1147)) (by @Boshen)
+- avoid panic in resolve_file for parentless paths ([#1053](https://github.com/oxc-project/oxc-resolver/pull/1053)) (by @Boshen)
+- *(dts)* strip ./ prefix from package entry when matching typesVersions ([#1051](https://github.com/oxc-project/oxc-resolver/pull/1051)) (by @Boshen)
+- *(dts)* expand Declaration to TypeScript|Declaration for package entry resolution ([#1050](https://github.com/oxc-project/oxc-resolver/pull/1050)) (by @Boshen)
+- *(dts)* prefer declaration extensions over JS in exports-resolved paths ([#1047](https://github.com/oxc-project/oxc-resolver/pull/1047)) (by @Boshen)
+- avoid wasm/wasi dead-code lint in NodePath ([#1043](https://github.com/oxc-project/oxc-resolver/pull/1043)) (by @Boshen)
+- *(napi)* replace panics with error returns to prevent WASM traps ([#1055](https://github.com/oxc-project/oxc-resolver/pull/1055)) (by @Boshen)
+
+### <!-- 2 -->🚜 Refactor
+
+- remove clear_cache test that dynamically creates fixtures (by @Boshen)
+- move resolve and misc fixtures into fixtures/integration (by @Boshen)
+- replace ignored doctest with link to example (by @Boshen)
+- consolidate fixture directories for better test file mapping (by @Boshen)
+- replace `url` crate with `percent-encoding` ([#1065](https://github.com/oxc-project/oxc-resolver/pull/1065)) (by @Boshen)
+
+### <!-- 4 -->⚡ Performance
+
+- *(cache)* pack CachedPathImpl::meta into a CachedMeta byte ([#1144](https://github.com/oxc-project/oxc-resolver/pull/1144)) (by @Boshen)
+- *(cache)* store canonical path as Box<Path> instead of PathBuf ([#1143](https://github.com/oxc-project/oxc-resolver/pull/1143)) (by @Boshen)
+- *(alias)* fast-reject alias entries by cached first byte ([#1142](https://github.com/oxc-project/oxc-resolver/pull/1142)) (by @Boshen)
+
+### <!-- 6 -->🧪 Testing
+
+- *(tsconfig)* port lookup scenarios from typescript-go ([#1155](https://github.com/oxc-project/oxc-resolver/pull/1155)) (by @Boshen)
+- add 28 tests to improve coverage (92% → 93%) ([#1082](https://github.com/oxc-project/oxc-resolver/pull/1082)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.19.1](https://github.com/oxc-project/oxc-resolver/compare/v11.19.0...v11.19.1) - 2026-02-28
 
 ### <!-- 1 -->🐛 Bug Fixes
