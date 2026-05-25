@@ -222,7 +222,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let mut ctx = Ctx::default();
         let path = directory.as_ref();
         let tsconfig = match &self.options.tsconfig {
-            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o)?,
+            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o, &mut ctx)?,
             _ => None,
         };
         self.resolve_tracing(path, specifier, tsconfig.as_deref(), &mut ctx)

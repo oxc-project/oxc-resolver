@@ -4,10 +4,19 @@ use std::{
 };
 
 use crate::{
-    CachedPath, Ctx, FileSystem, ResolveError, ResolveOptions, ResolveResult, ResolverGeneric,
-    Specifier, SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-    path::PathUtil,
+    CachedPath, Ctx, FileSystem, ResolveContext, ResolveError, ResolveOptions, ResolveResult,
+    ResolverGeneric, Specifier, SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions,
+    TsconfigReferences, path::PathUtil,
 };
+
+fn merge_dependencies(ctx: &mut Ctx, resolve_context: &mut ResolveContext) {
+    if let Some(deps) = &mut ctx.file_dependencies {
+        resolve_context.file_dependencies.extend(deps.drain(..));
+    }
+    if let Some(deps) = &mut ctx.missing_dependencies {
+        resolve_context.missing_dependencies.extend(deps.drain(..));
+    }
+}
 
 #[derive(Default)]
 pub struct TsconfigResolveContext {
@@ -53,16 +62,46 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         path: P,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
-        let path = path.as_ref().to_string_lossy();
+        self.find_tsconfig_impl_entry(path.as_ref(), &mut Ctx::default())
+    }
+
+    /// Same as [`Self::find_tsconfig`], but also records every tsconfig file
+    /// that was read (or attempted) on `resolve_context`.
+    ///
+    /// Dependencies are populated even when this method returns an error, so
+    /// callers can watch every file that contributed to the failed load.
+    ///
+    /// # Errors
+    ///
+    /// * Returns an error if the tsconfig is invalid, including any extended or referenced tsconfigs.
+    pub fn find_tsconfig_with_context<P: AsRef<Path>>(
+        &self,
+        path: P,
+        resolve_context: &mut ResolveContext,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        let mut ctx = Ctx::default();
+        ctx.init_file_dependencies();
+        let result = self.find_tsconfig_impl_entry(path.as_ref(), &mut ctx);
+        merge_dependencies(&mut ctx, resolve_context);
+        result
+    }
+
+    fn find_tsconfig_impl_entry(
+        &self,
+        path: &Path,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        let path = path.to_string_lossy();
         let specifier = Specifier::parse(path.as_ref()).map_err(ResolveError::Specifier)?;
         let path = Path::new(specifier.path());
         let cached_path = self.cache.value(path);
-        self.find_tsconfig_tracing(&cached_path)
+        self.find_tsconfig_tracing(&cached_path, ctx)
     }
 
     fn find_tsconfig_tracing(
         &self,
         cached_path: &CachedPath,
+        ctx: &mut Ctx,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         // Don't discover tsconfig for paths inside node_modules
         if cached_path.inside_node_modules() {
@@ -74,10 +113,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
         let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
         let _enter = span.enter();
-        cached_path
+        let result = cached_path
             .resolved_tsconfig
             .get_or_try_init(|| {
-                self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
+                self.find_tsconfig_impl(cached_path, ctx).map(|option_tsconfig| {
                     option_tsconfig.map(|tsconfig| {
                         let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
                         tracing::debug!(path = %cached_path, ret = ?r);
@@ -85,7 +124,15 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     })
                 })
             })
-            .cloned()
+            .cloned()?;
+        // On cache hit, the closure above didn't run, so dependencies were
+        // never recorded against this ctx. Walk the cached tsconfig and emit
+        // them explicitly. Recording is idempotent because callers dedupe via
+        // FxHashSet at the boundary.
+        if let Some(tsconfig) = &result {
+            crate::Cache::<Fs>::record_tsconfig_dependencies(tsconfig, ctx);
+        }
+        Ok(result)
     }
 
     /// Find tsconfig.json of a path by traversing parent directories.
@@ -96,27 +143,28 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     fn find_tsconfig_impl(
         &self,
         cached_path: &CachedPath,
+        ctx: &mut Ctx,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         match &self.options.tsconfig {
             None => Ok(None),
-            Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path),
-            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o),
+            Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path, ctx),
+            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o, ctx),
         }
     }
 
     fn find_tsconfig_auto(
         &self,
         cached_path: &CachedPath,
+        ctx: &mut Ctx,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
-        let mut ctx = Ctx::default();
         let mut cache_value = Some(cached_path.clone());
         let mut fallback: Option<Arc<TsConfig>> = None;
         while let Some(cv) = cache_value {
-            if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
+            let entry = cv.tsconfig.get_or_try_init(|| {
                 let tsconfig_path = cv.path.join("tsconfig.json");
                 let tsconfig_path = self.cache.value(&tsconfig_path);
-                if self.cache.is_file(&tsconfig_path, &mut ctx) {
-                    match self.resolve_tsconfig(tsconfig_path.path()) {
+                if self.cache.is_file(&tsconfig_path, ctx) {
+                    match self.resolve_tsconfig_with_ctx(tsconfig_path.path(), ctx) {
                         Ok(tsconfig) => Ok(Some(tsconfig)),
                         // Skip unreadable tsconfig files (e.g. permission denied)
                         // and continue walking parent directories
@@ -126,7 +174,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 } else {
                     Ok(None)
                 }
-            })? {
+            })?;
+            if let Some(tsconfig) = entry {
+                // Always re-emit deps for cache hits — see comment in
+                // `find_tsconfig_tracing`.
+                crate::Cache::<Fs>::record_tsconfig_dependencies(tsconfig, ctx);
                 if tsconfig.claims_ownership_of(cached_path.path()) {
                     return Ok(Some(Arc::clone(tsconfig)));
                 }
@@ -144,22 +196,29 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub(crate) fn find_tsconfig_manual(
         &self,
         tsconfig_options: &TsconfigOptions,
+        ctx: &mut Ctx,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         // Cache the loaded tsconfig in /
-        self.cache
+        let result = self
+            .cache
             .value(Path::new("/"))
             .tsconfig
             .get_or_try_init(|| {
-                let mut ctx = TsconfigResolveContext::default();
+                let mut tctx = TsconfigResolveContext::default();
                 self.load_tsconfig(
                     true,
                     &tsconfig_options.config_file,
                     tsconfig_options.references,
-                    &mut ctx,
+                    &mut tctx,
+                    ctx,
                 )
                 .map(Some)
             })
-            .cloned()
+            .cloned()?;
+        if let Some(tsconfig) = &result {
+            crate::Cache::<Fs>::record_tsconfig_dependencies(tsconfig, ctx);
+        }
+        Ok(result)
     }
 
     /// Resolve `tsconfig`.
@@ -174,13 +233,40 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ///
     /// * See [ResolveError]
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
-        let path = path.as_ref();
+        self.resolve_tsconfig_with_ctx(path.as_ref(), &mut Ctx::default())
+    }
+
+    /// Same as [`Self::resolve_tsconfig`], but also records every tsconfig
+    /// file that was read (or attempted) on `resolve_context`.
+    ///
+    /// Dependencies are populated even when this method returns an error.
+    ///
+    /// # Errors
+    ///
+    /// * See [ResolveError]
+    pub fn resolve_tsconfig_with_context<P: AsRef<Path>>(
+        &self,
+        path: P,
+        resolve_context: &mut ResolveContext,
+    ) -> Result<Arc<TsConfig>, ResolveError> {
+        let mut ctx = Ctx::default();
+        ctx.init_file_dependencies();
+        let result = self.resolve_tsconfig_with_ctx(path.as_ref(), &mut ctx);
+        merge_dependencies(&mut ctx, resolve_context);
+        result
+    }
+
+    fn resolve_tsconfig_with_ctx(
+        &self,
+        path: &Path,
+        ctx: &mut Ctx,
+    ) -> Result<Arc<TsConfig>, ResolveError> {
         let references = match &self.options.tsconfig {
             Some(TsconfigDiscovery::Manual(o)) => o.references,
             Some(TsconfigDiscovery::Auto) => TsconfigReferences::Auto,
             None => TsconfigReferences::Disabled,
         };
-        self.load_tsconfig(true, path, references, &mut TsconfigResolveContext::default())
+        self.load_tsconfig(true, path, references, &mut TsconfigResolveContext::default(), ctx)
     }
 
     fn load_tsconfig(
@@ -188,15 +274,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         root: bool,
         path: &Path,
         references: TsconfigReferences,
-        ctx: &mut TsconfigResolveContext,
+        tctx: &mut TsconfigResolveContext,
+        ctx: &mut Ctx,
     ) -> Result<Arc<TsConfig>, ResolveError> {
-        self.cache.get_tsconfig(root, path, |tsconfig| {
+        self.cache.get_tsconfig(root, path, ctx, |tsconfig, ctx| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
-            if ctx.is_already_extended(tsconfig.path()) {
+            if tctx.is_already_extended(tsconfig.path()) {
                 return Err(ResolveError::TsconfigCircularExtend(
-                    ctx.get_extended_configs_with(tsconfig.path().to_path_buf()).into(),
+                    tctx.get_extended_configs_with(tsconfig.path().to_path_buf()).into(),
                 ));
             }
 
@@ -211,15 +298,27 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 .extends()
                 .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
                 .collect::<Result<Vec<_>, _>>()?;
+            // Seed with the direct `extends` targets up front so paths that
+            // fail to load (e.g. NotFound, JSON parse error) are still
+            // surfaced as dependencies. Transitive bases are appended after
+            // each successful load below.
+            tsconfig.extended_paths.clone_from(&extended_tsconfig_paths);
             if !extended_tsconfig_paths.is_empty() {
-                ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
+                tctx.with_extended_file(tsconfig.path().to_owned(), |tctx| {
                     for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
                         let extended_tsconfig = self.load_tsconfig(
                             /* root */ false,
                             &extended_tsconfig_path,
                             TsconfigReferences::Disabled,
+                            tctx,
                             ctx,
                         )?;
+                        // Flatten the base's own transitive extends so a
+                        // cache-hit replay of this tsconfig emits the whole
+                        // chain (A→B→C must surface C too).
+                        tsconfig
+                            .extended_paths
+                            .extend(extended_tsconfig.extended_paths.iter().cloned());
                         tsconfig.extend_tsconfig(&extended_tsconfig);
                     }
                     Result::Ok::<(), ResolveError>(())
@@ -234,7 +333,8 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     let referenced_tsconfig = self.cache.get_tsconfig(
                         /* root */ true,
                         &reference_tsconfig_path,
-                        |reference_tsconfig| {
+                        ctx,
+                        |reference_tsconfig, ctx| {
                             if reference_tsconfig.path() == path {
                                 return Err(ResolveError::TsconfigSelfReference(
                                     reference_tsconfig.path().to_path_buf(),
@@ -243,6 +343,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                             self.extend_tsconfig(
                                 &self.cache.value(reference_tsconfig.directory()),
                                 reference_tsconfig,
+                                tctx,
                                 ctx,
                             )?;
                             Ok(())
@@ -259,12 +360,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         directory: &CachedPath,
         tsconfig: &mut TsConfig,
-        ctx: &mut TsconfigResolveContext,
+        tctx: &mut TsconfigResolveContext,
+        ctx: &mut Ctx,
     ) -> Result<(), ResolveError> {
         let extended_tsconfig_paths = tsconfig
             .extends()
             .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
             .collect::<Result<Vec<_>, _>>()?;
+        // See `load_tsconfig`: seed with direct extends, flatten transitive
+        // bases after each successful load.
+        tsconfig.extended_paths.clone_from(&extended_tsconfig_paths);
         // Iterate in reverse so that later `extends` entries take precedence —
         // see comment in `load_tsconfig`.
         for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
@@ -272,8 +377,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 /* root */ false,
                 &extended_tsconfig_path,
                 TsconfigReferences::Disabled,
+                tctx,
                 ctx,
             )?;
+            tsconfig.extended_paths.extend(extended_tsconfig.extended_paths.iter().cloned());
             tsconfig.extend_tsconfig(&extended_tsconfig);
         }
         Ok(())

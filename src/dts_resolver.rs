@@ -710,7 +710,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         // Reuse the existing tsconfig resolution
         let tsconfig = match &self.options.tsconfig {
-            Some(crate::TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o)?,
+            Some(crate::TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o, ctx)?,
             _ => None,
         };
 

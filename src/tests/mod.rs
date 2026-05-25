@@ -27,6 +27,7 @@ mod scoped_packages;
 mod simple;
 mod symlink;
 mod tsconfck;
+mod tsconfig_dependencies;
 mod tsconfig_discovery;
 mod tsconfig_extends;
 mod tsconfig_lookup;

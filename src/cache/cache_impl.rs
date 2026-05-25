@@ -192,16 +192,32 @@ impl<Fs: FileSystem> Cache<Fs> {
             .cloned()
     }
 
-    pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
+    /// Walk a cached tsconfig and record every file that contributed to it
+    /// (the tsconfig itself, any `extends` targets, and any project references)
+    /// as a file dependency on `ctx`. Used on cache hits so dependency tracking
+    /// stays correct without re-running the load.
+    pub(crate) fn record_tsconfig_dependencies(tsconfig: &TsConfig, ctx: &mut Ctx) {
+        ctx.add_file_dependency(tsconfig.path());
+        for extended_path in &tsconfig.extended_paths {
+            ctx.add_file_dependency(extended_path);
+        }
+        for referenced in &tsconfig.references_resolved {
+            Self::record_tsconfig_dependencies(referenced, ctx);
+        }
+    }
+
+    pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig, &mut Ctx) -> Result<(), ResolveError>>(
         &self,
         root: bool,
         path: &Path,
+        ctx: &mut Ctx,
         callback: F, // callback for modifying tsconfig with `extends`
     ) -> Result<Arc<TsConfig>, ResolveError> {
         // For root=true (caller tsconfig), check built cache first
         if root {
             let tsconfigs_built = self.tsconfigs_built.pin();
             if let Some(tsconfig) = tsconfigs_built.get(path) {
+                Self::record_tsconfig_dependencies(tsconfig, ctx);
                 return Ok(Arc::clone(tsconfig));
             }
         }
@@ -211,6 +227,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         if !root {
             let tsconfigs_raw = self.tsconfigs_raw.pin();
             if let Some(tsconfig) = tsconfigs_raw.get(path) {
+                Self::record_tsconfig_dependencies(tsconfig, ctx);
                 return Ok(Arc::clone(tsconfig));
             }
         }
@@ -228,11 +245,17 @@ impl<Fs: FileSystem> Cache<Fs> {
         };
         let tsconfig_string = self.fs.read_to_string(&tsconfig_path).map_err(|err| {
             if err.kind() == io::ErrorKind::NotFound {
+                ctx.add_missing_dependency(&tsconfig_path);
                 ResolveError::TsconfigNotFound(path.to_path_buf())
             } else {
+                ctx.add_file_dependency(&tsconfig_path);
                 ResolveError::from(err)
             }
         })?;
+        // The file was read successfully — record it as a dependency even if
+        // JSON parsing or downstream processing fails, so callers watching the
+        // file can re-run when it's edited.
+        ctx.add_file_dependency(&tsconfig_path);
         let canonical_path = self
             .canonicalize(&self.value(&tsconfig_path))
             .unwrap_or_else(|_| tsconfig_path.to_path_buf());
@@ -242,7 +265,7 @@ impl<Fs: FileSystem> Cache<Fs> {
             })?;
 
         // Run callback (extends/references processing)
-        callback(&mut tsconfig)?;
+        callback(&mut tsconfig, ctx)?;
 
         // Cache raw version (callback applied, not built)
         tsconfig.set_should_build(false);

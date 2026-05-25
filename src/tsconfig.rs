@@ -76,6 +76,13 @@ pub struct TsConfig {
     /// Corresponds to each item in [TsConfig::references].
     #[serde(skip)]
     pub references_resolved: Vec<Arc<Self>>,
+
+    /// Resolved file paths from the [`extends`](TsConfig::extends) field.
+    ///
+    /// Populated during loading so dependency-tracking callers can replay the
+    /// full set of files that contributed to a cached tsconfig.
+    #[serde(skip)]
+    pub(crate) extended_paths: Vec<PathBuf>,
 }
 
 impl TsConfig {
