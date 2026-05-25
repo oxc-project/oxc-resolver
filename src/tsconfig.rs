@@ -562,6 +562,33 @@ impl TsConfig {
         tsconfig
     }
 
+    /// Whether this tsconfig (directly or via a referenced sub-project) claims
+    /// ownership of `path`. Used by tsconfig auto-discovery to decide whether
+    /// to keep walking up to an ancestor `tsconfig.json` when the nearest one
+    /// doesn't actually cover the file via its `files` / `include` / `exclude`
+    /// or via a matching reference.
+    pub(crate) fn claims_ownership_of(&self, path: &Path) -> bool {
+        // Non-TS files aren't considered for project ownership; preserve the
+        // legacy behavior of using the nearest tsconfig for them.
+        if !self.is_file_extension_allowed_in_tsconfig(path) {
+            return true;
+        }
+        // Any matching reference claims ownership (consistent with
+        // resolve_tsconfig_solution).
+        if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {
+            return true;
+        }
+        // Solution-style configs (have `references` and no own `files` /
+        // `include`) never claim files themselves.
+        let is_solution_style = !self.references_resolved.is_empty()
+            && self.files.as_ref().is_none_or(Vec::is_empty)
+            && self.include.as_ref().is_none_or(Vec::is_empty);
+        if is_solution_style {
+            return false;
+        }
+        self.is_file_included_in_tsconfig(path)
+    }
+
     fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {
         // 1. Check files array (highest priority - overrides exclude)
         if self.files.as_ref().is_some_and(|files| files.iter().any(|file| Path::new(file) == path))

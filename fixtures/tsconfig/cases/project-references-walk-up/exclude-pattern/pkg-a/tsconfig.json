@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/excluded/**/*"]
+}

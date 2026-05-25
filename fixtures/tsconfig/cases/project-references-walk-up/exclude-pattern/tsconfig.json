@@ -1,0 +1,4 @@
+{
+  "include": ["pkg-a/**/*"],
+  "references": [{ "path": "./pkg-a" }]
+}

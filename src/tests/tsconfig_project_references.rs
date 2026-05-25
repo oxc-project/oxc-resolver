@@ -168,3 +168,39 @@ fn referenced_paths_win_over_root_with_no_paths() {
 
     assert_eq!(resolved_path, Ok(f.join("lib/foo.ts")));
 }
+
+#[test]
+fn walk_up_when_ref_files_does_not_cover_file() {
+    let f = super::fixture_root().join("tsconfig/cases/project-references-walk-up/files-misses");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let tsconfig = resolver.find_tsconfig(f.join("pkg-a/src/bar.ts")).unwrap().unwrap();
+    assert_eq!(tsconfig.path(), f.join("tsconfig.json"));
+
+    let resolved_path =
+        resolver.resolve_file(f.join("pkg-a/src/bar.ts"), "@/foo").map(|f| f.full_path());
+    assert_eq!(resolved_path, Err(ResolveError::NotFound("@/foo".into())));
+}
+
+#[test]
+fn walk_up_when_ref_excludes_file() {
+    let f = super::fixture_root().join("tsconfig/cases/project-references-walk-up/exclude-pattern");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let tsconfig = resolver.find_tsconfig(f.join("pkg-a/src/excluded/bar.ts")).unwrap().unwrap();
+    assert_eq!(tsconfig.path(), f.join("tsconfig.json"));
+
+    let resolved_path =
+        resolver.resolve_file(f.join("pkg-a/src/excluded/bar.ts"), "@/foo").map(|f| f.full_path());
+    assert_eq!(resolved_path, Err(ResolveError::NotFound("@/foo".into())));
+}
