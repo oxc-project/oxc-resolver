@@ -29,6 +29,7 @@ mod symlink;
 mod tsconfck;
 mod tsconfig_discovery;
 mod tsconfig_extends;
+mod tsconfig_lookup;
 mod tsconfig_paths;
 mod tsconfig_project_references;
 mod tsconfig_root_dirs;

@@ -1,0 +1,6 @@
+{
+  "extends": "./d.json",
+  "compilerOptions": {
+    "jsx": "react"
+  }
+}

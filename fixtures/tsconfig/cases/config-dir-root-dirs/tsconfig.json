@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "rootDirs": [
+      "${configDir}/src",
+      "${configDir}/generated"
+    ]
+  }
+}

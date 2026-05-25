@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "data.json": ["data-file.json"],
+      "image": ["image.svg"]
+    }
+  }
+}

@@ -1,0 +1,3 @@
+{
+  "extends": "some-pkg/configs/strict.json"
+}

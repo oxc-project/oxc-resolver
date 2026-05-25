@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "lib/*": ["short/*.ts"],
+      "lib/sub/*": ["long/*.ts"]
+    }
+  }
+}

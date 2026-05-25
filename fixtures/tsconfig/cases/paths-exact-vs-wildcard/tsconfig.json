@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "foo": ["exact-foo.ts"],
+      "foo/*": ["wildcard/*.ts"]
+    }
+  }
+}
