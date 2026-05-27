@@ -1,5 +1,5 @@
 {
-  "extends": ["../extends-extension", "../extends-paths"],
+  "extends": ["../extends-extension/tsconfig.json", "../extends-paths/tsconfig.json"],
   "compilerOptions": {
     "baseUrl": ".",
   },
