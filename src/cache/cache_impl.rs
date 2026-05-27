@@ -215,11 +215,17 @@ impl<Fs: FileSystem> Cache<Fs> {
             }
         }
 
-        // Not in any cache, parse from file
+        // Not in any cache, parse from file.
+        //
+        // `root` distinguishes the caller's tsconfig (top-level resolve_tsconfig
+        // or a project reference) from one loaded via `extends`. typescript-go
+        // and tsc do NOT support folder-form extends (`extends: "./base"` does
+        // not look for `./base/tsconfig.json` — only `./base.json` is tried),
+        // so we restrict the directory fallback to `root=true` callers.
         let meta = self.fs.metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
-        } else if meta.is_some_and(|m| m.is_dir) {
+        } else if root && meta.is_some_and(|m| m.is_dir) {
             Cow::Owned(path.join("tsconfig.json"))
         } else {
             let mut os_string = path.to_path_buf().into_os_string();

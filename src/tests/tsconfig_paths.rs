@@ -166,6 +166,10 @@ fn broken() {
 
 #[test]
 fn empty() {
+    // typescript-go errors with TS5083 on a 0-byte / whitespace-only tsconfig.
+    // oxc-resolver matches that behavior — opening the resolver against an
+    // empty config returns a JSON parse error rather than silently treating
+    // the file as `{}`.
     let f = super::fixture_root().join("tsconfig/cases/empty");
 
     let resolver = Resolver::new(ResolveOptions {
@@ -176,8 +180,8 @@ fn empty() {
         ..ResolveOptions::default()
     });
 
-    let resolved_path = resolver.resolve_file(f.join("index.js"), "./index").map(|f| f.full_path());
-    assert_eq!(resolved_path, Ok(f.join("index.js")));
+    let result = resolver.resolve_file(f.join("index.js"), "./index").map(|f| f.full_path());
+    assert!(matches!(result, Err(ResolveError::Json(_))), "expected JSON error, got {result:?}");
 }
 
 #[test]

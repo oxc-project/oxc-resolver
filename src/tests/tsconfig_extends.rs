@@ -348,9 +348,12 @@ fn test_references_unreadable_file() {
 
 #[test]
 fn test_extend_package() {
+    // typescript-go / tsc honor a node_modules package's `exports` map when
+    // resolving a tsconfig extends, but NOT the package's `main` field — the
+    // latter is for runtime imports, not for tsconfig discovery. Only the
+    // `exports`-using fixture should resolve; `extends-main` (which routes
+    // through `main: "src/tsconfig.json"`) must fail to match.
     let f = super::fixture_root().join("tsconfig/cases");
-
-    let data = ["extends-esm", "extends-main"];
 
     let resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
@@ -360,11 +363,16 @@ fn test_extend_package() {
         ..ResolveOptions::default()
     });
 
-    for dir in data {
-        let resolution = resolver.resolve_tsconfig(f.join(dir)).expect("resolved");
-        let compiler_options = &resolution.compiler_options;
-        assert_eq!(compiler_options.target, Some("ES2020".to_string()));
-    }
+    // extends-esm: package.json has `exports` → resolves.
+    let resolution = resolver.resolve_tsconfig(f.join("extends-esm")).expect("resolved");
+    assert_eq!(resolution.compiler_options.target, Some("ES2020".to_string()));
+
+    // extends-main: package.json has only `main` → must NOT resolve.
+    let result = resolver.resolve_tsconfig(f.join("extends-main"));
+    assert!(
+        matches!(result, Err(crate::ResolveError::TsconfigNotFound(_))),
+        "package `main` should not be used for tsconfig extends, got: {result:?}",
+    );
 }
 
 fn assert_extends_symlink_resolves_to_canonical(config_file: &Path) {

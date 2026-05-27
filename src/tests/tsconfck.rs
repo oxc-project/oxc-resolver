@@ -18,6 +18,12 @@ fn parse_valid() {
     let dir = super::fixture_root().join("tsconfck").join("parse").join("valid");
     let resolver = Resolver::default();
     for path in walk(&dir).into_iter().filter(|path| path.file_name().unwrap() == "tsconfig.json") {
+        // tsconfck (the upstream JS package) considers an empty file valid,
+        // but typescript-go and oxc-resolver treat it as a parse error. Skip
+        // the lone empty fixture so we stay aligned with tsgo.
+        if path.parent().and_then(|p| p.file_name()).is_some_and(|n| n == "empty") {
+            continue;
+        }
         let tsconfig = resolver.resolve_tsconfig(&path);
         assert_eq!(tsconfig.map(|t| t.path().to_path_buf()), Ok(path));
     }

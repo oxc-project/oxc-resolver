@@ -402,30 +402,49 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         tsconfig: &TsConfig,
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
-        match specifier.as_bytes().first() {
-            None => Err(ResolveError::Specifier(SpecifierError::Empty(specifier.to_string()))),
-            Some(b'/') => Ok(PathBuf::from(specifier)),
-            Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
-            _ => self
-                .clone_with_options(ResolveOptions {
-                    tsconfig: None,
-                    condition_names: vec!["node".into(), "import".into()],
-                    extensions: vec![".json".into()],
-                    main_files: vec!["tsconfig".into()],
-                    #[cfg(feature = "yarn_pnp")]
-                    yarn_pnp: self.options.yarn_pnp,
-                    #[cfg(feature = "yarn_pnp")]
-                    cwd: self.options.cwd.clone(),
-                    ..ResolveOptions::default()
-                })
-                .load_package_self_or_node_modules(directory, specifier, None, &mut Ctx::default())
-                .map(|p| p.to_path_buf())
-                .map_err(|err| match err {
-                    ResolveError::NotFound(_) => {
-                        ResolveError::TsconfigNotFound(PathBuf::from(specifier))
-                    }
-                    _ => err,
-                }),
+        // Match typescript-go's `getExtendsConfigPath`
+        // (internal/tsoptions/tsconfigparsing.go):
+        //   * `/abs` → use as-is.
+        //   * `./xxx` / `../xxx` → relative file (`.json` auto-appended when missing).
+        //                          Folder-form like `./base` → `./base/tsconfig.json`
+        //                          is NOT supported.
+        //   * Bare `.` / `..` → fall through to module resolution; tsgo's
+        //                       resolver treats them as "the tsconfig.json in
+        //                       this dir / parent dir".
+        //   * anything else → module resolution (node_modules package).
+        if specifier.is_empty() {
+            return Err(ResolveError::Specifier(SpecifierError::Empty(specifier.to_string())));
         }
+        if specifier.starts_with('/') {
+            return Ok(PathBuf::from(specifier));
+        }
+        if specifier.starts_with("./") || specifier.starts_with("../") {
+            return Ok(tsconfig.directory().normalize_with(specifier));
+        }
+        if specifier == "." || specifier == ".." {
+            return Ok(tsconfig.directory().normalize_with(specifier).join("tsconfig.json"));
+        }
+        self.clone_with_options(ResolveOptions {
+            tsconfig: None,
+            condition_names: vec!["node".into(), "import".into()],
+            extensions: vec![".json".into()],
+            main_files: vec!["tsconfig".into()],
+            // tsc / typescript-go honor `exports` and the package.json
+            // `tsconfig` field (NOT `main`) when resolving a tsconfig
+            // extends to a node_modules package. `main_fields` here
+            // overrides the default `main` lookup.
+            main_fields: vec!["tsconfig".into()],
+            #[cfg(feature = "yarn_pnp")]
+            yarn_pnp: self.options.yarn_pnp,
+            #[cfg(feature = "yarn_pnp")]
+            cwd: self.options.cwd.clone(),
+            ..ResolveOptions::default()
+        })
+        .load_package_self_or_node_modules(directory, specifier, None, &mut Ctx::default())
+        .map(|p| p.to_path_buf())
+        .map_err(|err| match err {
+            ResolveError::NotFound(_) => ResolveError::TsconfigNotFound(PathBuf::from(specifier)),
+            _ => err,
+        })
     }
 }

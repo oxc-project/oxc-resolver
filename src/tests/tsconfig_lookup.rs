@@ -171,7 +171,11 @@ fn extends_with_json_extension() {
 }
 
 #[test]
-fn extends_folder_resolves_to_tsconfig_json() {
+fn extends_folder_form_is_rejected() {
+    // Folder-form `extends` (e.g. `extends: "./base"` resolving to
+    // `./base/tsconfig.json`) is NOT part of the TypeScript spec. Both `tsc`
+    // and `typescript-go` only auto-append `.json` to the extends specifier.
+    // oxc-resolver matches that behavior.
     let f = super::fixture_root().join("tsconfig/cases/extends-folder-tsconfig");
 
     let resolver = Resolver::new(ResolveOptions {
@@ -182,10 +186,11 @@ fn extends_folder_resolves_to_tsconfig_json() {
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver
-        .resolve_tsconfig(&f)
-        .expect("relative folder extends should resolve tsconfig.json");
-    assert_eq!(resolution.compiler_options.target, Some("ES2019".to_string()));
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(result, Err(crate::ResolveError::TsconfigNotFound(_))),
+        "folder-form extends should not resolve, got: {result:?}",
+    );
 }
 
 // ---------------------------------------------------------------------------

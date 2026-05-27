@@ -100,11 +100,11 @@ impl TsConfig {
         let mut json = json.into_bytes();
         replace_bom_with_whitespace(&mut json);
         _ = json_strip_comments::strip_slice(&mut json);
-        let mut tsconfig: Self = if json.iter().all(u8::is_ascii_whitespace) {
-            Self::default()
-        } else {
-            serde_json::from_slice(&json)?
-        };
+        // typescript-go rejects empty/whitespace-only tsconfig files with
+        // TS5083 ("Cannot read file"). Forward serde_json's EOF error to keep
+        // behavior aligned. (Classic tsc, in contrast, treats empty as `{}`
+        // and only fails later on "no inputs found".)
+        let mut tsconfig: Self = serde_json::from_slice(&json)?;
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         let canonical_directory = canonical_path.parent().unwrap();
@@ -355,15 +355,20 @@ impl TsConfig {
             self.exclude = Some(excludes.into_iter().map(|p| self.adjust_path(p)).collect());
         }
 
-        if let Some(base_url) = &self.compiler_options.base_url {
-            self.compiler_options.base_url = Some(self.adjust_path(base_url.clone()));
-        }
-
         if let Some(stripped_path) =
             self.compiler_options.paths_base.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
         {
             self.compiler_options.paths_base =
                 config_dir.join(stripped_path.trim_start_matches('/'));
+        }
+
+        // `base_url`'s effective absolute value is `paths_base`, which was
+        // computed at parse time against the *originating* config's directory.
+        // The raw `base_url` PathBuf may still be the inherited authored value
+        // (e.g. "../src") and resolving it against `self.directory()` again
+        // produces the wrong path when extends crosses directory boundaries.
+        if self.compiler_options.base_url.is_some() {
+            self.compiler_options.base_url = Some(self.compiler_options.paths_base.clone());
         }
 
         if let Some(root_dirs) = &mut self.compiler_options.root_dirs {
@@ -469,6 +474,12 @@ impl TsConfig {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptions {
+    /// After [`Resolver::resolve_tsconfig`] this holds the absolute resolved
+    /// `baseUrl` (equal to [`CompilerOptions::paths_base`]), not the raw
+    /// authored string. The raw value is only visible on the per-config
+    /// result of [`TsConfig::parse`] before `extends` merging.
+    ///
+    /// [`Resolver::resolve_tsconfig`]: crate::Resolver::resolve_tsconfig
     pub base_url: Option<PathBuf>,
 
     /// Path aliases.
@@ -526,6 +537,28 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#rootDirs>
     pub root_dirs: Option<Vec<PathBuf>>,
+}
+
+impl CompilerOptions {
+    /// The anchor against which `compilerOptions.paths` targets resolve.
+    ///
+    /// After [`Resolver::resolve_tsconfig`] this is always an absolute path.
+    /// The exact value depends on how `paths` and `baseUrl` interact across
+    /// `extends`:
+    ///
+    /// * When this tsconfig sets `baseUrl`, `paths_base` is that resolved
+    ///   absolute `baseUrl`.
+    /// * When `paths` is inherited from a parent via `extends` and neither
+    ///   the parent nor this tsconfig sets `baseUrl`, `paths_base` is the
+    ///   directory of the tsconfig that authored `paths`.
+    /// * Otherwise (no `baseUrl`, no inherited `paths`) it is this
+    ///   tsconfig's own directory.
+    ///
+    /// [`Resolver::resolve_tsconfig`]: crate::Resolver::resolve_tsconfig
+    #[must_use]
+    pub fn paths_base(&self) -> &Path {
+        &self.paths_base
+    }
 }
 
 /// Value for the "extends" field.
