@@ -243,6 +243,18 @@ impl TsConfig {
             compiler_options.emit_decorator_metadata = Some(*emit_decorator_metadata);
         }
 
+        if compiler_options.strict.is_none()
+            && let Some(strict) = &tsconfig.compiler_options.strict
+        {
+            compiler_options.strict = Some(*strict);
+        }
+
+        if compiler_options.strict_null_checks.is_none()
+            && let Some(strict_null_checks) = &tsconfig.compiler_options.strict_null_checks
+        {
+            compiler_options.strict_null_checks = Some(*strict_null_checks);
+        }
+
         if compiler_options.use_define_for_class_fields.is_none()
             && let Some(use_define_for_class_fields) =
                 &tsconfig.compiler_options.use_define_for_class_fields
@@ -488,6 +500,12 @@ pub struct CompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata>
     pub emit_decorator_metadata: Option<bool>,
 
+    /// <https://www.typescriptlang.org/tsconfig/#strict>
+    pub strict: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#strictNullChecks>
+    pub strict_null_checks: Option<bool>,
+
     /// <https://www.typescriptlang.org/tsconfig/#useDefineForClassFields>
     pub use_define_for_class_fields: Option<bool>,
 
@@ -526,6 +544,18 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#rootDirs>
     pub root_dirs: Option<Vec<PathBuf>>,
+}
+
+impl CompilerOptions {
+    /// Returns the effective `strictNullChecks` value.
+    ///
+    /// An explicit `strictNullChecks` always takes precedence over the `strict`
+    /// umbrella flag, in either direction. Returns `None` when neither is set;
+    /// the consumer is responsible for applying the appropriate default.
+    #[must_use]
+    pub fn effective_strict_null_checks(&self) -> Option<bool> {
+        self.strict_null_checks.or(self.strict)
+    }
 }
 
 /// Value for the "extends" field.

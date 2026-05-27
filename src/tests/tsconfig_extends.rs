@@ -398,3 +398,100 @@ fn test_extend_tsconfig_via_symlink_relative() {
     let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
     assert_extends_symlink_resolves_to_canonical(&f.join("project/tsconfig.relative.json"));
 }
+
+#[test]
+fn test_effective_strict_null_checks_resolution() {
+    let path = Path::new("/p/tsconfig.json");
+
+    // strict: true alone implies strictNullChecks
+    let cfg = TsConfig::parse(
+        true,
+        path,
+        path,
+        serde_json::json!({ "compilerOptions": { "strict": true } }).to_string(),
+    )
+    .unwrap()
+    .build();
+    assert_eq!(cfg.compiler_options.strict, Some(true));
+    assert_eq!(cfg.compiler_options.strict_null_checks, None);
+    assert_eq!(cfg.compiler_options.effective_strict_null_checks(), Some(true));
+
+    // explicit strictNullChecks: false overrides strict: true
+    let cfg = TsConfig::parse(
+        true,
+        path,
+        path,
+        serde_json::json!({
+            "compilerOptions": { "strict": true, "strictNullChecks": false }
+        })
+        .to_string(),
+    )
+    .unwrap()
+    .build();
+    assert_eq!(cfg.compiler_options.effective_strict_null_checks(), Some(false));
+
+    // strict: false alone disables strictNullChecks (TypeScript's `strict` is the
+    // default for the flag, so an absent strictNullChecks resolves to `strict`).
+    let cfg = TsConfig::parse(
+        true,
+        path,
+        path,
+        serde_json::json!({ "compilerOptions": { "strict": false } }).to_string(),
+    )
+    .unwrap()
+    .build();
+    assert_eq!(cfg.compiler_options.strict, Some(false));
+    assert_eq!(cfg.compiler_options.strict_null_checks, None);
+    assert_eq!(cfg.compiler_options.effective_strict_null_checks(), Some(false));
+
+    // neither set -> None
+    let cfg =
+        TsConfig::parse(true, path, path, serde_json::json!({ "compilerOptions": {} }).to_string())
+            .unwrap()
+            .build();
+    assert_eq!(cfg.compiler_options.effective_strict_null_checks(), None);
+}
+
+#[test]
+fn test_extend_tsconfig_strict_null_checks() {
+    let parent_path = Path::new("/parent/tsconfig.json");
+    let child_path = Path::new("/child/tsconfig.json");
+
+    // Child's explicit strictNullChecks: false survives inheriting parent strict: true.
+    let parent = TsConfig::parse(
+        true,
+        parent_path,
+        parent_path,
+        serde_json::json!({ "compilerOptions": { "strict": true } }).to_string(),
+    )
+    .unwrap()
+    .build();
+    let mut child = TsConfig::parse(
+        true,
+        child_path,
+        child_path,
+        serde_json::json!({ "compilerOptions": { "strictNullChecks": false } }).to_string(),
+    )
+    .unwrap();
+    child.extend_tsconfig(&parent);
+    let child = child.build();
+
+    assert_eq!(child.compiler_options.strict, Some(true)); // inherited
+    assert_eq!(child.compiler_options.strict_null_checks, Some(false)); // own value kept
+    assert_eq!(child.compiler_options.effective_strict_null_checks(), Some(false));
+
+    // Child sets neither -> inherits parent's strict, accessor implies true.
+    let mut child2 = TsConfig::parse(
+        true,
+        child_path,
+        child_path,
+        serde_json::json!({ "compilerOptions": {} }).to_string(),
+    )
+    .unwrap();
+    child2.extend_tsconfig(&parent);
+    let child2 = child2.build();
+
+    assert_eq!(child2.compiler_options.strict, Some(true));
+    assert_eq!(child2.compiler_options.strict_null_checks, None);
+    assert_eq!(child2.compiler_options.effective_strict_null_checks(), Some(true));
+}
