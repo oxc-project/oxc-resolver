@@ -53,11 +53,6 @@ jobs:
           - os: windows-latest
             target: aarch64-pc-windows-msvc
             build: pnpm build
-          - os: windows-latest
-            target: i686-pc-windows-msvc
-            architecture: x86
-            cpu: ia32
-            build: pnpm build
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             build: pnpm build --use-napi-cross
