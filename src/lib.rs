@@ -69,7 +69,7 @@ mod tests;
 pub use crate::{
     cache::{Cache, CachedPath},
     error::{JSONError, ResolveError, SpecifierError},
-    file_system::{FileMetadata, FileSystem, FileSystemOs},
+    file_system::{DirEntry, FileMetadata, FileSystem, FileSystemOs},
     options::{
         Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
         TsconfigOptions, TsconfigReferences,

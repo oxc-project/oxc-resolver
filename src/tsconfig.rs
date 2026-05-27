@@ -9,10 +9,10 @@ use std::{
 
 use compact_str::CompactString;
 use indexmap::IndexMap;
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashSet, FxHasher};
 use serde::Deserialize;
 
-use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
+use crate::{FileSystem, TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
 
 /// Template variable `${configDir}` for substitution of config files
 /// directory path.
@@ -74,6 +74,15 @@ pub struct TsConfig {
     /// Corresponds to each item in [TsConfig::references].
     #[serde(skip)]
     pub references_resolved: Vec<Arc<Self>>,
+
+    /// Files claimed by this project's `files` / `include` / `exclude` specs,
+    /// computed by walking [`TsConfig::directory`] at load time. Mirrors
+    /// typescript-go's `getFileNamesFromConfigSpecs`: directory enumeration is
+    /// the source of truth for the default `**/*` include and for what a
+    /// project reference owns. Empty for non-root tsconfigs (those loaded
+    /// only as `extends` targets), which never receive ownership queries.
+    #[serde(skip)]
+    pub(crate) owned_files: FxHashSet<PathBuf>,
 }
 
 impl TsConfig {
@@ -538,10 +547,12 @@ pub enum ExtendsField {
     Multiple(Vec<String>),
 }
 
-#[derive(Clone, Copy)]
-enum GlobPattern<'a> {
-    Pattern(&'a [PathBuf]),
-    All,
+/// Directory names that TypeScript excludes from the default include walk.
+/// Matches the defaults in `getDefaultExcludeSpec` (typescript-go).
+fn is_default_excluded_dir(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|name| matches!(name, "node_modules" | "bower_components" | "jspm_packages"))
 }
 
 /// Tsconfig resolver
@@ -576,56 +587,107 @@ impl TsConfig {
         if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {
             return true;
         }
-        // Solution-style configs (have `references` and explicit empty
-        // `files` / `include`) never claim files themselves. Per the
-        // TypeScript spec, an *omitted* `include` defaults to `**/*`, so it
-        // must fall through to `is_file_included_in_tsconfig`; only an
-        // explicit empty array means "own no files".
-        let is_solution_style = !self.references_resolved.is_empty()
-            && matches!(self.files.as_deref(), Some([]))
-            && matches!(self.include.as_deref(), Some([]));
-        if is_solution_style {
-            return false;
-        }
         self.is_file_included_in_tsconfig(path)
     }
 
     fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {
-        // 1. Check files array (highest priority - overrides exclude)
-        if self.files.as_ref().is_some_and(|files| files.iter().any(|file| Path::new(file) == path))
-        {
-            return true;
-        }
-        // 2. Check include patterns
-        let is_included = self.include.as_ref().map_or_else(
-            || {
-                if self.files.is_some() {
-                    false
-                } else {
-                    self.is_glob_matches(path, GlobPattern::All)
-                }
-            },
-            |include_patterns| self.is_glob_matches(path, GlobPattern::Pattern(include_patterns)),
-        );
-        // 3. Check exclude patterns
-        if is_included {
-            return self.exclude.as_ref().is_none_or(|exclude_patterns| {
-                !self.is_glob_matches(path, GlobPattern::Pattern(exclude_patterns))
-            });
-        }
-        false
+        // Primary source of truth: the precomputed set from `populate_owned_files`,
+        // mirroring typescript-go's `FileNames` map. For paths that don't exist on
+        // disk (virtual modules, files queried before creation), fall back to the
+        // same per-file predicate the walk applies — so existence isn't a
+        // prerequisite for ownership when the patterns clearly cover the path.
+        self.owned_files.contains(path) || self.path_matches_specs(path)
     }
 
-    fn is_glob_matches(&self, path: &Path, pattern: GlobPattern) -> bool {
-        let path_str = path.to_string_lossy().replace('\\', "/");
-        match pattern {
-            // The default include `**/*` is scoped to the tsconfig directory.
-            GlobPattern::All => path.starts_with(self.directory()),
-            GlobPattern::Pattern(patterns) => patterns.iter().any(|pattern| {
-                let pattern = pattern.to_string_lossy().replace('\\', "/");
-                self.is_glob_match(pattern.as_ref(), path, &path_str)
-            }),
+    /// Per-file predicate used both by the walk (`populate_owned_files`) and by
+    /// the virtual-path fallback in `is_file_included_in_tsconfig`. Encodes
+    /// the same precedence as typescript-go's `getFileNamesFromConfigSpecs`:
+    /// explicit `files`, then include (default `**/*` only when both
+    /// `include` and `files` are omitted), gated by directory scope, allowed
+    /// extension, default excludes, and user `exclude`.
+    fn path_matches_specs(&self, path: &Path) -> bool {
+        if self.files.as_ref().is_some_and(|files| files.iter().any(|f| f == path)) {
+            return true;
         }
+        let directory = self.directory();
+        if !path.starts_with(directory) {
+            return false;
+        }
+        if !self.is_file_extension_allowed_in_tsconfig(path) {
+            return false;
+        }
+        // Any ancestor between `directory` (exclusive) and `path` (exclusive)
+        // hitting `node_modules` / `bower_components` / `jspm_packages` rules it out.
+        if path.ancestors().skip(1).take_while(|p| *p != directory).any(is_default_excluded_dir) {
+            return false;
+        }
+        let walk = !matches!(
+            (self.files.as_deref(), self.include.as_deref()),
+            (_, Some([])) | (Some(_), None)
+        );
+        if !walk {
+            return false;
+        }
+        if !self.matches_include(path) {
+            return false;
+        }
+        if self.matches_exclude(path) {
+            return false;
+        }
+        true
+    }
+
+    /// Populates [`Self::owned_files`] by walking the tsconfig directory.
+    /// Mirrors typescript-go's `getFileNamesFromConfigSpecs`:
+    /// `vfsmatch.ReadDirectory(basePath, ...)` is the source of truth, so the
+    /// default `**/*` and any include patterns are naturally scoped to the
+    /// directory the walk starts in.
+    pub(crate) fn populate_owned_files<Fs: FileSystem>(&mut self, fs: &Fs) {
+        let mut owned = FxHashSet::default();
+        if let Some(files) = &self.files {
+            owned.extend(files.iter().cloned());
+        }
+        let walk = !matches!(
+            (self.files.as_deref(), self.include.as_deref()),
+            (_, Some([])) | (Some(_), None)
+        );
+        if walk {
+            let mut stack = vec![self.directory().to_path_buf()];
+            while let Some(dir) = stack.pop() {
+                let Ok(entries) = fs.read_dir(&dir) else { continue };
+                for entry in entries {
+                    if entry.file_type.is_dir() {
+                        if !is_default_excluded_dir(&entry.path) {
+                            stack.push(entry.path);
+                        }
+                    } else if entry.file_type.is_file()
+                        && self.is_file_extension_allowed_in_tsconfig(&entry.path)
+                        && self.matches_include(&entry.path)
+                        && !self.matches_exclude(&entry.path)
+                    {
+                        owned.insert(entry.path);
+                    }
+                }
+            }
+        }
+        self.owned_files = owned;
+    }
+
+    fn matches_include(&self, path: &Path) -> bool {
+        // `**/*` default (None) — caller already restricted the walk to `directory()`.
+        self.include.as_deref().is_none_or(|patterns| self.any_pattern_matches(path, patterns))
+    }
+
+    fn matches_exclude(&self, path: &Path) -> bool {
+        self.exclude.as_deref().is_some_and(|patterns| self.any_pattern_matches(path, patterns))
+    }
+
+    fn any_pattern_matches(&self, path: &Path, patterns: &[PathBuf]) -> bool {
+        let path_str = path.to_string_lossy().replace('\\', "/");
+        patterns.iter().any(|pattern| {
+            let pattern = pattern.to_string_lossy().replace('\\', "/");
+            self.is_glob_match(pattern.as_ref(), path, &path_str)
+        })
     }
 
     fn is_glob_match(&self, pattern: &str, path: &Path, path_str: &str) -> bool {

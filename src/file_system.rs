@@ -71,6 +71,20 @@ pub trait FileSystem: Send + Sync {
     ///
     /// See [std::fs::canonicalize]
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
+
+    /// Returns the entries in the given directory.
+    ///
+    /// # Errors
+    ///
+    /// See [std::fs::read_dir]
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<DirEntry>>;
+}
+
+/// A directory entry returned by [`FileSystem::read_dir`].
+#[derive(Debug, Clone)]
+pub struct DirEntry {
+    pub path: PathBuf,
+    pub file_type: FileMetadata,
 }
 
 /// Metadata information about a file
@@ -239,6 +253,26 @@ impl FileSystemOs {
     pub fn canonicalize(path: &Path) -> io::Result<PathBuf> {
         fs::canonicalize(path)
     }
+
+    /// # Errors
+    ///
+    /// See [std::fs::read_dir]
+    #[inline]
+    pub fn read_dir(path: &Path) -> io::Result<Vec<DirEntry>> {
+        let mut entries = Vec::new();
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            let file_type = entry.file_type()?;
+            // `FileType::is_file` excludes symlinks; for our walk we want any
+            // non-directory entry that resolves to a file, including links.
+            let is_file = !file_type.is_dir() && !file_type.is_symlink();
+            entries.push(DirEntry {
+                path: entry.path(),
+                file_type: FileMetadata::new(is_file, file_type.is_dir(), file_type.is_symlink()),
+            });
+        }
+        Ok(entries)
+    }
 }
 
 impl FileSystem for FileSystemOs {
@@ -326,6 +360,10 @@ impl FileSystem for FileSystemOs {
             }
         }
         Self::canonicalize(path)
+    }
+
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<DirEntry>> {
+        Self::read_dir(path)
     }
 }
 

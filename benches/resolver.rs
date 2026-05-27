@@ -823,5 +823,26 @@ mod memory_fs {
                 ))
             }
         }
+
+        fn read_dir(&self, path: &Path) -> io::Result<Vec<oxc_resolver::DirEntry>> {
+            let mut entries = Vec::new();
+            for file in self.files.keys() {
+                if file.parent() == Some(path) {
+                    entries.push(oxc_resolver::DirEntry {
+                        path: file.clone(),
+                        file_type: FileMetadata::new(true, false, false),
+                    });
+                }
+            }
+            for dir in &self.directories {
+                if dir.parent() == Some(path) {
+                    entries.push(oxc_resolver::DirEntry {
+                        path: dir.clone(),
+                        file_type: FileMetadata::new(false, true, false),
+                    });
+                }
+            }
+            Ok(entries)
+        }
     }
 }

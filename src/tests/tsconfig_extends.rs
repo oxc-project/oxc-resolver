@@ -290,6 +290,10 @@ impl crate::FileSystem for UnreadableFs {
     fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
         crate::FileSystemOs::canonicalize(path)
     }
+
+    fn read_dir(&self, path: &Path) -> std::io::Result<Vec<crate::DirEntry>> {
+        crate::FileSystemOs::read_dir(path)
+    }
 }
 
 /// When a tsconfig's `extends` target exists but is not readable (e.g. permission denied),

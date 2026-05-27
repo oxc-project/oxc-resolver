@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{FileMetadata, FileSystem, ResolveError};
+use crate::{DirEntry, FileMetadata, FileSystem, ResolveError};
 
 #[derive(Default)]
 pub struct MemoryFS {
@@ -94,5 +94,20 @@ impl FileSystem for MemoryFS {
             .metadata(path.to_string_lossy().as_ref())
             .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
         Ok(path.to_path_buf())
+    }
+
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<DirEntry>> {
+        use vfs::FileSystem;
+        let names = self
+            .fs
+            .read_dir(path.to_string_lossy().as_ref())
+            .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
+        let mut entries = Vec::new();
+        for name in names {
+            let entry_path = path.join(&name);
+            let file_type = self.metadata(&entry_path)?;
+            entries.push(DirEntry { path: entry_path, file_type });
+        }
+        Ok(entries)
     }
 }

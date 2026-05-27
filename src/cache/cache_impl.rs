@@ -252,7 +252,12 @@ impl<Fs: FileSystem> Cache<Fs> {
         if root {
             // Build and cache built version
             tsconfig.set_should_build(true);
-            let tsconfig = Arc::new(tsconfig.build());
+            let mut tsconfig = tsconfig.build();
+            // Precompute the files this tsconfig owns by walking the directory
+            // (mirrors typescript-go's `getFileNamesFromConfigSpecs`). Ownership
+            // queries then become a set lookup against `owned_files`.
+            tsconfig.populate_owned_files(&self.fs);
+            let tsconfig = Arc::new(tsconfig);
             self.tsconfigs_built.pin().insert(path.to_path_buf(), Arc::clone(&tsconfig));
             Ok(tsconfig)
         } else {
