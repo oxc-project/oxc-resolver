@@ -219,3 +219,21 @@ fn root_paths_apply_to_default_include_files() {
         resolver.resolve_file(f.join("index.ts"), "@app/util").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/util.ts")));
 }
+
+#[test]
+fn transitive_reference_owns_file_and_paths_apply() {
+    let f = super::fixture_root().join("tsconfig/cases/project-references-transitive");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.clone(),
+            references: TsconfigReferences::Auto,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path =
+        resolver.resolve_file(f.join("child/src/bar.ts"), "@child/foo").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f.join("child/src/foo.ts")));
+}

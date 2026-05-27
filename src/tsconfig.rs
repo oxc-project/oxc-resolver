@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     cmp::Reverse,
+    collections::VecDeque,
     fmt::Debug,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
@@ -560,34 +561,76 @@ impl TsConfig {
     pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
         if !tsconfig.references_resolved.is_empty()
             && tsconfig.is_file_extension_allowed_in_tsconfig(path)
-            && let Some(solution_tsconfig) = tsconfig
-                .references_resolved
-                .iter()
-                .find(|referenced| referenced.is_file_included_in_tsconfig(path))
-                .map(Arc::clone)
+            && let Some(solution_tsconfig) = tsconfig.find_deepest_reference_owning(path)
         {
             return solution_tsconfig;
         }
         tsconfig
     }
 
-    /// Whether this tsconfig (directly or via a referenced sub-project) claims
-    /// ownership of `path`. Used by tsconfig auto-discovery to decide whether
-    /// to keep walking up to an ancestor `tsconfig.json` when the nearest one
-    /// doesn't actually cover the file via its `files` / `include` / `exclude`
-    /// or via a matching reference.
+    /// Walks the project-reference graph breadth-first and returns the deepest
+    /// referenced tsconfig that owns `path`. Mirrors typescript-go's
+    /// `initMapperWorker` (internal/compiler/projectreferenceparser.go), where
+    /// `maps.Copy` lets child entries overwrite parent entries — so when both
+    /// a parent and a nested reference claim the same file, the deeper one
+    /// wins (it has the smaller / more specific program).
+    fn find_deepest_reference_owning(&self, path: &Path) -> Option<Arc<Self>> {
+        let mut deepest: Option<(usize, Arc<Self>)> = None;
+        let mut visited: FxHashSet<PathBuf> = FxHashSet::default();
+        visited.insert(self.path.clone());
+        let mut queue: VecDeque<(usize, &Arc<Self>)> =
+            self.references_resolved.iter().map(|r| (1, r)).collect();
+        while let Some((depth, current)) = queue.pop_front() {
+            if !visited.insert(current.path.clone()) {
+                continue;
+            }
+            if current.is_file_included_in_tsconfig(path)
+                && deepest.as_ref().is_none_or(|(d, _)| *d < depth)
+            {
+                deepest = Some((depth, Arc::clone(current)));
+            }
+            for child in &current.references_resolved {
+                queue.push_back((depth + 1, child));
+            }
+        }
+        deepest.map(|(_, tsconfig)| tsconfig)
+    }
+
+    /// Whether this tsconfig (directly or via a referenced sub-project, at any
+    /// depth) claims ownership of `path`. Used by tsconfig auto-discovery to
+    /// decide whether to keep walking up to an ancestor `tsconfig.json` when
+    /// the nearest one doesn't actually cover the file via its `files` /
+    /// `include` / `exclude` or via a matching reference.
     pub(crate) fn claims_ownership_of(&self, path: &Path) -> bool {
         // Non-TS files aren't considered for project ownership; preserve the
         // legacy behavior of using the nearest tsconfig for them.
         if !self.is_file_extension_allowed_in_tsconfig(path) {
             return true;
         }
-        // Any matching reference claims ownership (consistent with
-        // resolve_tsconfig_solution).
-        if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {
+        // Any matching reference (direct or transitive) claims ownership —
+        // consistent with `resolve_tsconfig_solution`.
+        if self.any_transitive_reference_owns(path) {
             return true;
         }
         self.is_file_included_in_tsconfig(path)
+    }
+
+    fn any_transitive_reference_owns(&self, path: &Path) -> bool {
+        let mut visited: FxHashSet<PathBuf> = FxHashSet::default();
+        visited.insert(self.path.clone());
+        let mut queue: VecDeque<&Arc<Self>> = self.references_resolved.iter().collect();
+        while let Some(current) = queue.pop_front() {
+            if !visited.insert(current.path.clone()) {
+                continue;
+            }
+            if current.is_file_included_in_tsconfig(path) {
+                return true;
+            }
+            for child in &current.references_resolved {
+                queue.push_back(child);
+            }
+        }
+        false
     }
 
     fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {

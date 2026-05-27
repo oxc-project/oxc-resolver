@@ -12,6 +12,10 @@ use crate::{
 #[derive(Default)]
 pub struct TsconfigResolveContext {
     extended_configs: Vec<PathBuf>,
+    /// Project-reference targets currently mid-load. Used to break cycles in
+    /// the reference graph (`a → b → a`). Mirrors typescript-go's `seen` set
+    /// in `initMapperWorker`.
+    loading_references: Vec<PathBuf>,
 }
 
 impl TsconfigResolveContext {
@@ -31,6 +35,17 @@ impl TsconfigResolveContext {
         new_vec.extend_from_slice(&self.extended_configs);
         new_vec.push(path);
         new_vec
+    }
+
+    fn with_loading_reference<R, T: FnOnce(&mut Self) -> R>(&mut self, path: PathBuf, cb: T) -> R {
+        self.loading_references.push(path);
+        let result = cb(self);
+        self.loading_references.pop();
+        result
+    }
+
+    fn is_loading_reference(&self, path: &Path) -> bool {
+        self.loading_references.iter().any(|p| p == path)
     }
 }
 
@@ -229,54 +244,44 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             if tsconfig.load_references(references) {
                 let path = tsconfig.path().to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
-                for reference in &tsconfig.references {
-                    let reference_tsconfig_path = directory.normalize_with(&reference.path);
-                    let referenced_tsconfig = self.cache.get_tsconfig(
-                        /* root */ true,
-                        &reference_tsconfig_path,
-                        |reference_tsconfig| {
-                            if reference_tsconfig.path() == path {
-                                return Err(ResolveError::TsconfigSelfReference(
-                                    reference_tsconfig.path().to_path_buf(),
-                                ));
-                            }
-                            self.extend_tsconfig(
-                                &self.cache.value(reference_tsconfig.directory()),
-                                reference_tsconfig,
-                                ctx,
-                            )?;
-                            Ok(())
-                        },
-                    )?;
-                    tsconfig.references_resolved.push(referenced_tsconfig);
-                }
+                // Pre-resolve each reference input (which may be a directory,
+                // a file, or an extensionless spec) to the actual
+                // `tsconfig.json` file path, so direct self-references and
+                // graph cycles can be detected on the canonical key.
+                let reference_inputs = tsconfig
+                    .references
+                    .iter()
+                    .map(|reference| {
+                        let input = directory.normalize_with(&reference.path);
+                        let file = self.cache.resolve_tsconfig_path(&input).into_owned();
+                        (input, file)
+                    })
+                    .collect::<Vec<_>>();
+                ctx.with_loading_reference(path.clone(), |ctx| {
+                    for (reference_input, reference_file_path) in reference_inputs {
+                        if reference_file_path == path {
+                            return Err(ResolveError::TsconfigSelfReference(reference_file_path));
+                        }
+                        // Cycle in the reference graph (a → b → a, etc.).
+                        // typescript-go's `initMapperWorker` breaks the cycle
+                        // by skipping; the already-loading tsconfig is wired
+                        // up by its own (earlier) load frame.
+                        if ctx.is_loading_reference(&reference_file_path) {
+                            continue;
+                        }
+                        let referenced_tsconfig = self.load_tsconfig(
+                            /* root */ true,
+                            &reference_input,
+                            references,
+                            ctx,
+                        )?;
+                        tsconfig.references_resolved.push(referenced_tsconfig);
+                    }
+                    Result::Ok::<(), ResolveError>(())
+                })?;
             }
             Ok(())
         })
-    }
-
-    fn extend_tsconfig(
-        &self,
-        directory: &CachedPath,
-        tsconfig: &mut TsConfig,
-        ctx: &mut TsconfigResolveContext,
-    ) -> Result<(), ResolveError> {
-        let extended_tsconfig_paths = tsconfig
-            .extends()
-            .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
-            .collect::<Result<Vec<_>, _>>()?;
-        // Iterate in reverse so that later `extends` entries take precedence —
-        // see comment in `load_tsconfig`.
-        for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
-            let extended_tsconfig = self.load_tsconfig(
-                /* root */ false,
-                &extended_tsconfig_path,
-                TsconfigReferences::Disabled,
-                ctx,
-            )?;
-            tsconfig.extend_tsconfig(&extended_tsconfig);
-        }
-        Ok(())
     }
 
     /// Resolves

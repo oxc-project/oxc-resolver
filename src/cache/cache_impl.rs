@@ -192,6 +192,22 @@ impl<Fs: FileSystem> Cache<Fs> {
             .cloned()
     }
 
+    /// Resolves a tsconfig spec path (file, directory, or extensionless) to
+    /// the on-disk `tsconfig.json` path. Same logic the cache uses internally
+    /// before parsing.
+    pub(crate) fn resolve_tsconfig_path<'a>(&self, path: &'a Path) -> Cow<'a, Path> {
+        let meta = self.fs.metadata(path).ok();
+        if meta.is_some_and(|m| m.is_file) {
+            Cow::Borrowed(path)
+        } else if meta.is_some_and(|m| m.is_dir) {
+            Cow::Owned(path.join("tsconfig.json"))
+        } else {
+            let mut os_string = path.to_path_buf().into_os_string();
+            os_string.push(".json");
+            Cow::Owned(PathBuf::from(os_string))
+        }
+    }
+
     pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
         &self,
         root: bool,
@@ -216,16 +232,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
 
         // Not in any cache, parse from file
-        let meta = self.fs.metadata(path).ok();
-        let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
-            Cow::Borrowed(path)
-        } else if meta.is_some_and(|m| m.is_dir) {
-            Cow::Owned(path.join("tsconfig.json"))
-        } else {
-            let mut os_string = path.to_path_buf().into_os_string();
-            os_string.push(".json");
-            Cow::Owned(PathBuf::from(os_string))
-        };
+        let tsconfig_path = self.resolve_tsconfig_path(path);
         let tsconfig_string = self.fs.read_to_string(&tsconfig_path).map_err(|err| {
             if err.kind() == io::ErrorKind::NotFound {
                 ResolveError::TsconfigNotFound(path.to_path_buf())
