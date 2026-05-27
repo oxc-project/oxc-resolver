@@ -180,7 +180,8 @@ jobs:
             export COREPACK_INTEGRITY_KEYS=0
             sudo corepack enable
             pnpm install
-            pnpm build --target x86_64-unknown-freebsd
+            # Bypass `vp run`: vite-plus has no freebsd-x64 native binding.
+            pnpm run build:debug -- --features allocator --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf target
       - name: Upload artifact
