@@ -546,18 +546,6 @@ pub struct CompilerOptions {
     pub root_dirs: Option<Vec<PathBuf>>,
 }
 
-impl CompilerOptions {
-    /// Returns the effective `strictNullChecks` value.
-    ///
-    /// An explicit `strictNullChecks` always takes precedence over the `strict`
-    /// umbrella flag, in either direction. Returns `None` when neither is set;
-    /// the consumer is responsible for applying the appropriate default.
-    #[must_use]
-    pub fn effective_strict_null_checks(&self) -> Option<bool> {
-        self.strict_null_checks.or(self.strict)
-    }
-}
-
 /// Value for the "extends" field.
 ///
 /// <https://www.typescriptlang.org/tsconfig/#extends>
