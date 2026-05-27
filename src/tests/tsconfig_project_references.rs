@@ -204,3 +204,18 @@ fn walk_up_when_ref_excludes_file() {
         resolver.resolve_file(f.join("pkg-a/src/excluded/bar.ts"), "@/foo").map(|f| f.full_path());
     assert_eq!(resolved_path, Err(ResolveError::NotFound("@/foo".into())));
 }
+
+#[test]
+fn root_paths_apply_to_default_include_files() {
+    let f = super::fixture_root().join("tsconfig/cases/project-references-default-include");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path =
+        resolver.resolve_file(f.join("index.ts"), "@app/util").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/util.ts")));
+}

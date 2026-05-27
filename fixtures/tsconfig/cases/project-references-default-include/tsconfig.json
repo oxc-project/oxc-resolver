@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@app/*": ["./src/*"] }
+  },
+  "references": [{ "path": "./pkg" }]
+}

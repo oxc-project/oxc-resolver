@@ -24,8 +24,6 @@ use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
 /// Allow list: <https://github.com/microsoft/TypeScript/issues/57485#issuecomment-2027787456>
 const TEMPLATE_VARIABLE: &str = "${configDir}";
 
-const GLOB_ALL_PATTERN: &str = "**/*";
-
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<PathBuf>, BuildHasherDefault<FxHasher>>;
 
 /// Project Reference
@@ -578,11 +576,14 @@ impl TsConfig {
         if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {
             return true;
         }
-        // Solution-style configs (have `references` and no own `files` /
-        // `include`) never claim files themselves.
+        // Solution-style configs (have `references` and explicit empty
+        // `files` / `include`) never claim files themselves. Per the
+        // TypeScript spec, an *omitted* `include` defaults to `**/*`, so it
+        // must fall through to `is_file_included_in_tsconfig`; only an
+        // explicit empty array means "own no files".
         let is_solution_style = !self.references_resolved.is_empty()
-            && self.files.as_ref().is_none_or(Vec::is_empty)
-            && self.include.as_ref().is_none_or(Vec::is_empty);
+            && matches!(self.files.as_deref(), Some([]))
+            && matches!(self.include.as_deref(), Some([]));
         if is_solution_style {
             return false;
         }
@@ -618,7 +619,8 @@ impl TsConfig {
     fn is_glob_matches(&self, path: &Path, pattern: GlobPattern) -> bool {
         let path_str = path.to_string_lossy().replace('\\', "/");
         match pattern {
-            GlobPattern::All => self.is_glob_match(GLOB_ALL_PATTERN, path, &path_str),
+            // The default include `**/*` is scoped to the tsconfig directory.
+            GlobPattern::All => path.starts_with(self.directory()),
             GlobPattern::Pattern(patterns) => patterns.iter().any(|pattern| {
                 let pattern = pattern.to_string_lossy().replace('\\', "/");
                 self.is_glob_match(pattern.as_ref(), path, &path_str)
@@ -628,10 +630,6 @@ impl TsConfig {
 
     fn is_glob_match(&self, pattern: &str, path: &Path, path_str: &str) -> bool {
         if pattern == path_str {
-            return true;
-        }
-        // Special case: **/* matches everything
-        if pattern == GLOB_ALL_PATTERN {
             return true;
         }
         // Normalize pattern: add implicit /**/* for directory patterns
