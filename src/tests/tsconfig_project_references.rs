@@ -221,6 +221,23 @@ fn root_paths_apply_to_default_include_files() {
 }
 
 #[test]
+fn default_excludes_out_dir_from_owned_files() {
+    let f = super::fixture_root().join("tsconfig/cases/project-outdir-exclude");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let tsconfig = resolver.find_tsconfig(f.join("inner/src/foo.ts")).unwrap().unwrap();
+    assert_eq!(tsconfig.path(), f.join("inner/tsconfig.json"));
+
+    let tsconfig = resolver.find_tsconfig(f.join("inner/dist/foo.d.ts")).unwrap().unwrap();
+    assert_eq!(tsconfig.path(), f.join("tsconfig.json"));
+}
+
+#[test]
 fn transitive_reference_owns_file_and_paths_apply() {
     let f = super::fixture_root().join("tsconfig/cases/project-references-transitive");
 

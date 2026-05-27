@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": { "@inner/*": ["./src/*"] }
+  }
+}

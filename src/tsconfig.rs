@@ -136,6 +136,19 @@ impl TsConfig {
                 }
             }
         }
+        // Normalize `outDir` / `declarationDir` against the canonical config
+        // directory at parse time (same as `root_dirs`), so they survive
+        // `extends` into a different directory unchanged.
+        if let Some(out_dir) = &mut tsconfig.compiler_options.out_dir
+            && !out_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE)
+        {
+            *out_dir = canonical_directory.normalize_with(&out_dir);
+        }
+        if let Some(declaration_dir) = &mut tsconfig.compiler_options.declaration_dir
+            && !declaration_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE)
+        {
+            *declaration_dir = canonical_directory.normalize_with(&declaration_dir);
+        }
         Ok(tsconfig)
     }
 
@@ -329,6 +342,18 @@ impl TsConfig {
             compiler_options.allow_js = Some(*allow_js);
         }
 
+        if compiler_options.out_dir.is_none()
+            && let Some(out_dir) = &tsconfig.compiler_options.out_dir
+        {
+            compiler_options.out_dir = Some(out_dir.clone());
+        }
+
+        if compiler_options.declaration_dir.is_none()
+            && let Some(declaration_dir) = &tsconfig.compiler_options.declaration_dir
+        {
+            compiler_options.declaration_dir = Some(declaration_dir.clone());
+        }
+
         if compiler_options.root_dirs.is_none()
             && let Some(root_dirs) = &tsconfig.compiler_options.root_dirs
         {
@@ -367,6 +392,21 @@ impl TsConfig {
 
         if let Some(base_url) = &self.compiler_options.base_url {
             self.compiler_options.base_url = Some(self.adjust_path(base_url.clone()));
+        }
+
+        // outDir / declarationDir were normalized to absolute paths at parse
+        // time (so they survive `extends`); only ${configDir} substitution
+        // remains.
+        if let Some(out_dir) = &mut self.compiler_options.out_dir
+            && let Some(stripped) = out_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+        {
+            *out_dir = config_dir.join(stripped.trim_start_matches('/'));
+        }
+        if let Some(declaration_dir) = &mut self.compiler_options.declaration_dir
+            && let Some(stripped) =
+                declaration_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+        {
+            *declaration_dir = config_dir.join(stripped.trim_start_matches('/'));
         }
 
         if let Some(stripped_path) =
@@ -534,6 +574,12 @@ pub struct CompilerOptions {
     /// <https://www.typescriptlang.org/tsconfig/#allowJs>
     pub allow_js: Option<bool>,
 
+    /// <https://www.typescriptlang.org/tsconfig/#outDir>
+    pub out_dir: Option<PathBuf>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#declarationDir>
+    pub declaration_dir: Option<PathBuf>,
+
     /// <https://www.typescriptlang.org/tsconfig/#rootDirs>
     pub root_dirs: Option<Vec<PathBuf>>,
 }
@@ -661,7 +707,13 @@ impl TsConfig {
         }
         // Any ancestor between `directory` (exclusive) and `path` (exclusive)
         // hitting `node_modules` / `bower_components` / `jspm_packages` rules it out.
-        if path.ancestors().skip(1).take_while(|p| *p != directory).any(is_default_excluded_dir) {
+        // When the user didn't specify `exclude`, also rule out paths under
+        // the implicit `outDir` / `declarationDir` excludes (see
+        // `populate_owned_files`).
+        let implicit_output_excludes = self.implicit_output_excludes();
+        if path.ancestors().skip(1).take_while(|p| *p != directory).any(|ancestor| {
+            is_default_excluded_dir(ancestor) || implicit_output_excludes.contains(&ancestor)
+        }) {
             return false;
         }
         let walk = !matches!(
@@ -680,6 +732,23 @@ impl TsConfig {
         true
     }
 
+    /// `outDir` / `declarationDir` that TypeScript auto-excludes from the
+    /// include walk when the user didn't specify `exclude`. Empty (no
+    /// implicit excludes) when the user provided any `exclude`.
+    fn implicit_output_excludes(&self) -> Vec<&Path> {
+        if self.exclude.is_some() {
+            return Vec::new();
+        }
+        let mut excludes = Vec::with_capacity(2);
+        if let Some(out_dir) = self.compiler_options.out_dir.as_deref() {
+            excludes.push(out_dir);
+        }
+        if let Some(declaration_dir) = self.compiler_options.declaration_dir.as_deref() {
+            excludes.push(declaration_dir);
+        }
+        excludes
+    }
+
     /// Populates [`Self::owned_files`] by walking the tsconfig directory.
     /// Mirrors typescript-go's `getFileNamesFromConfigSpecs`:
     /// `vfsmatch.ReadDirectory(basePath, ...)` is the source of truth, so the
@@ -695,12 +764,18 @@ impl TsConfig {
             (_, Some([])) | (Some(_), None)
         );
         if walk {
+            // When the user didn't specify `exclude`, TypeScript auto-excludes
+            // `outDir` and `declarationDir` from the include walk. See
+            // `tsconfigparsing.go:1240-1252` in typescript-go.
+            let implicit_output_excludes = self.implicit_output_excludes();
             let mut stack = vec![self.directory().to_path_buf()];
             while let Some(dir) = stack.pop() {
                 let Ok(entries) = fs.read_dir(&dir) else { continue };
                 for entry in entries {
                     if entry.file_type.is_dir() {
-                        if !is_default_excluded_dir(&entry.path) {
+                        if !is_default_excluded_dir(&entry.path)
+                            && !implicit_output_excludes.iter().any(|d| entry.path == *d)
+                        {
                             stack.push(entry.path);
                         }
                     } else if entry.file_type.is_file()
