@@ -100,11 +100,11 @@ impl TsConfig {
         let mut json = json.into_bytes();
         replace_bom_with_whitespace(&mut json);
         _ = json_strip_comments::strip_slice(&mut json);
-        let mut tsconfig: Self = if json.iter().all(u8::is_ascii_whitespace) {
-            Self::default()
-        } else {
-            serde_json::from_slice(&json)?
-        };
+        // typescript-go rejects empty/whitespace-only tsconfig files with
+        // TS5083 ("Cannot read file"). Forward serde_json's EOF error to keep
+        // behavior aligned. (Classic tsc, in contrast, treats empty as `{}`
+        // and only fails later on "no inputs found".)
+        let mut tsconfig: Self = serde_json::from_slice(&json)?;
         tsconfig.root = root;
         tsconfig.path = path.to_path_buf();
         let canonical_directory = canonical_path.parent().unwrap();
