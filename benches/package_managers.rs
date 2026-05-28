@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use oxc_resolver::Resolver;
 use rayon::prelude::*;
 
@@ -13,8 +13,10 @@ fn run_combo(c: &mut Criterion, combo: Combo) {
         return;
     };
     let reqs = workload::requests(&root);
+    let opts = combo.resolve_options(&root);
 
-    let resolver = Resolver::new(combo.resolve_options(&root));
+    // Correctness gate: every request must resolve and land inside the expected package.
+    let resolver = Resolver::new(opts.clone());
     for req in &reqs {
         let resolution = resolver.resolve(&req.importer, req.specifier).unwrap_or_else(|err| {
             panic!(
@@ -38,30 +40,13 @@ fn run_combo(c: &mut Criterion, combo: Combo) {
         );
     }
 
-    let group_name = format!("pm/{}", combo.slug());
-    let mut group = c.benchmark_group(group_name);
-
-    group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &reqs, |b, reqs| {
-        let resolver = Resolver::new(combo.resolve_options(&root));
+    // One bench per combo, modelling a bundler-style build: one Resolver, the
+    // workload's 16 requests fanned out across worker threads. Resolver creation
+    // is inside the timed body so the .pnp.cjs parse, store discovery, and
+    // initial cache warmup all count.
+    c.bench_function(&format!("pm/{}", combo.slug()), |b| {
         b.iter(|| {
-            for req in reqs {
-                _ = resolver.resolve(&req.importer, req.specifier);
-            }
-        });
-    });
-
-    group.bench_with_input(BenchmarkId::from_parameter("cold"), &reqs, |b, reqs| {
-        b.iter(|| {
-            let resolver = Resolver::new(combo.resolve_options(&root));
-            for req in reqs {
-                _ = resolver.resolve(&req.importer, req.specifier);
-            }
-        });
-    });
-
-    group.bench_with_input(BenchmarkId::from_parameter("multi-thread"), &reqs, |b, reqs| {
-        let resolver = Resolver::new(combo.resolve_options(&root));
-        b.iter(|| {
+            let resolver = Resolver::new(opts.clone());
             reqs.par_iter().for_each(|req| {
                 _ = resolver.resolve(&req.importer, req.specifier);
             });
