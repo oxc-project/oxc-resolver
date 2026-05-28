@@ -82,16 +82,22 @@ codecov:
 benchmark:
   cargo bench --bench resolver
 
-# Install one nested-monorepo fixture per pm * mode under fixtures/bench-pm/. Heavy; not part of `just install`.
+# Materialize fixtures/bench-pm/installs/<combo>/ from template + per-combo configs, then install each. Heavy; not part of `just install`.
 install-bench-fixtures:
-  cd fixtures/bench-pm/npm-flat       && npm install --no-audit --no-fund
-  cd fixtures/bench-pm/pnpm-isolated  && pnpm install
-  cd fixtures/bench-pm/pnpm-hoisted   && pnpm install
-  cd fixtures/bench-pm/yarn-flat      && yarn install
-  cd fixtures/bench-pm/yarn-isolated  && yarn install
-  cd fixtures/bench-pm/yarn-pnp       && yarn install
-  command -v bun >/dev/null && (cd fixtures/bench-pm/bun-flat && bun install) || echo 'skip bun-flat: bun not installed'
-  command -v bun >/dev/null && (cd fixtures/bench-pm/bun-isolated && bun install) || echo 'skip bun-isolated: bun not installed'
+  rm -rf fixtures/bench-pm/installs
+  for combo in npm-flat pnpm-isolated pnpm-hoisted yarn-flat yarn-isolated yarn-pnp bun-flat bun-isolated; do \
+    mkdir -p fixtures/bench-pm/installs/$combo; \
+    cp -R fixtures/bench-pm/template/. fixtures/bench-pm/installs/$combo/; \
+    cp -R fixtures/bench-pm/configs/$combo/. fixtures/bench-pm/installs/$combo/; \
+  done
+  cd fixtures/bench-pm/installs/npm-flat       && npm install --no-audit --no-fund
+  cd fixtures/bench-pm/installs/pnpm-isolated  && pnpm install
+  cd fixtures/bench-pm/installs/pnpm-hoisted   && pnpm install
+  cd fixtures/bench-pm/installs/yarn-flat      && touch yarn.lock && yarn install
+  cd fixtures/bench-pm/installs/yarn-isolated  && touch yarn.lock && yarn install
+  cd fixtures/bench-pm/installs/yarn-pnp       && touch yarn.lock && yarn install
+  command -v bun >/dev/null && (cd fixtures/bench-pm/installs/bun-flat && bun install) || echo 'skip bun-flat: bun not installed'
+  command -v bun >/dev/null && (cd fixtures/bench-pm/installs/bun-isolated && bun install) || echo 'skip bun-isolated: bun not installed'
 
 # Run the package-manager benchmarks. Each combo skips itself if its fixture is not installed.
 benchmark-pm:

@@ -132,7 +132,7 @@ mod workload {
         }
 
         pub fn fixture_root(self) -> PathBuf {
-            env::current_dir().unwrap().join("fixtures/bench-pm").join(self.slug())
+            env::current_dir().unwrap().join("fixtures/bench-pm/installs").join(self.slug())
         }
 
         pub fn fixture_root_if_installed(self) -> Option<PathBuf> {
