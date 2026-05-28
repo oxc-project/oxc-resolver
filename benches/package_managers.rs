@@ -86,9 +86,10 @@ criterion_main!(package_managers);
 mod workload {
     //! Shared workload definitions for the package-manager benchmarks.
     //!
-    //! Every combo installs the same root `package.json` deps into its own
-    //! `fixtures/bench-pm/<slug>/` monorepo. The same list of [`Request`]s is
-    //! replayed against each combo so resolution costs are directly comparable.
+    //! Every combo installs the same template monorepo (with per-PM config
+    //! overlays) into `fixtures/bench-pm/installs/<slug>/`. The same list of
+    //! [`Request`]s is replayed against each combo so resolution costs are
+    //! directly comparable.
 
     use std::{env, path::PathBuf};
 
@@ -177,13 +178,14 @@ mod workload {
     /// (b) it ends with `req.internal_path`.
     ///
     /// Layout-specific segment forms (the slash before each variant matters — it anchors the match):
-    /// - `/<pkg>/` — flat layouts (npm, pnpm-hoisted, yarn-nm, bun-flat) plus the inner `node_modules/<pkg>/`
-    ///   directory of every isolated layout (pnpm-isolated, yarn-pnp cache, bun-isolated)
+    /// - `/<pkg>/` — flat layouts (npm-flat, pnpm-hoisted, yarn-flat, bun-flat) plus the inner
+    ///   `node_modules/<pkg>/` directory of every isolated layout (pnpm-isolated, yarn-pnp cache,
+    ///   bun-isolated)
     /// - `/<pkg>@` — pnpm/bun virtual store dir names like `react@18.3.1`
     /// - `/<pkg>-<kind>-` where kind ∈ {npm, patch, virtual, workspace} — yarn berry descriptor forms,
     ///   covering `.store/<pkg>-npm-<ver>-<hash>/`, `.store/<pkg>-patch-<hash>/`, and `.yarn/cache/<pkg>-npm-...zip/`
     /// - the same `+`/`-` variants with `/` replaced for scoped packages (pnpm uses `@scope+name@`,
-    ///   yarn-pnpm uses `@scope-name-npm-`)
+    ///   yarn-isolated uses `@scope-name-npm-`)
     pub fn matches(resolved_path: &str, req: &Request) -> bool {
         const KINDS: &[&str] = &["npm-", "patch-", "virtual-", "workspace-"];
 

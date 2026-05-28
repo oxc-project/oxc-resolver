@@ -93,11 +93,11 @@ install-bench-fixtures:
   cd fixtures/bench-pm/installs/npm-flat       && npm install --no-audit --no-fund
   cd fixtures/bench-pm/installs/pnpm-isolated  && pnpm install
   cd fixtures/bench-pm/installs/pnpm-hoisted   && pnpm install
-  cd fixtures/bench-pm/installs/yarn-flat      && touch yarn.lock && yarn install
-  cd fixtures/bench-pm/installs/yarn-isolated  && touch yarn.lock && yarn install
-  cd fixtures/bench-pm/installs/yarn-pnp       && touch yarn.lock && yarn install
-  command -v bun >/dev/null && (cd fixtures/bench-pm/installs/bun-flat && bun install) || echo 'skip bun-flat: bun not installed'
-  command -v bun >/dev/null && (cd fixtures/bench-pm/installs/bun-isolated && bun install) || echo 'skip bun-isolated: bun not installed'
+  cd fixtures/bench-pm/installs/yarn-flat      && yarn install
+  cd fixtures/bench-pm/installs/yarn-isolated  && yarn install
+  cd fixtures/bench-pm/installs/yarn-pnp       && yarn install
+  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-flat     && bun install; else echo 'skip bun-flat: bun not installed';     fi
+  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-isolated && bun install; else echo 'skip bun-isolated: bun not installed'; fi
 
 # Run the package-manager benchmarks. Each combo skips itself if its fixture is not installed.
 benchmark-pm:
