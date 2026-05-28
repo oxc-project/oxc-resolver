@@ -4,7 +4,7 @@ use std::{
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use cfg_if::cfg_if;
@@ -17,7 +17,7 @@ use super::borrowed_path::BorrowedCachedPath;
 use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
 use crate::{
-    FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
+    FileSystem, NodeModulesLayout, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
@@ -32,6 +32,10 @@ pub struct Cache<Fs> {
     pub(crate) tsconfigs_built: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
+    /// The detected `node_modules/` layout for this resolver. Populated lazily
+    /// on the first call to [`Cache::node_modules_layout`] and shared across
+    /// resolvers that clone this cache via `clone_with_options`.
+    pub(crate) node_modules_layout: OnceLock<NodeModulesLayout>,
 }
 
 impl<Fs: FileSystem> Cache<Fs> {
@@ -261,6 +265,37 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
     }
 
+    /// Return the layout of `node_modules/` for the project containing `start`.
+    ///
+    /// On first call, this walks up from `start` to detect the layout and
+    /// caches the result. Subsequent calls return the cached value regardless
+    /// of `start` — the layout is treated as a per-project property and is
+    /// not re-detected for nested workspaces.
+    pub(crate) fn node_modules_layout(&self, start: &Path) -> NodeModulesLayout {
+        *self.node_modules_layout.get_or_init(|| self.detect_node_modules_layout(start))
+    }
+
+    fn detect_node_modules_layout(&self, start: &Path) -> NodeModulesLayout {
+        for ancestor in start.ancestors() {
+            if self.fs.metadata(&ancestor.join(".pnp.cjs")).is_ok_and(|m| m.is_file) {
+                return NodeModulesLayout::Pnp;
+            }
+            let nm = ancestor.join("node_modules");
+            if self.fs.metadata(&nm).is_ok_and(|m| m.is_dir) {
+                // pnpm default linker, yarn berry `pnpm` linker, bun's isolated linker
+                // each install a virtual store under `node_modules/` with a known prefix.
+                let has_pnpm_store = self.fs.metadata(&nm.join(".pnpm")).is_ok_and(|m| m.is_dir);
+                let has_yarn_store = self.fs.metadata(&nm.join(".store")).is_ok_and(|m| m.is_dir);
+                let has_bun_store = self.fs.metadata(&nm.join(".bun")).is_ok_and(|m| m.is_dir);
+                if has_pnpm_store || has_yarn_store || has_bun_store {
+                    return NodeModulesLayout::Isolated;
+                }
+                return NodeModulesLayout::Flat;
+            }
+        }
+        NodeModulesLayout::Generic
+    }
+
     #[cfg(feature = "yarn_pnp")]
     pub(crate) fn get_yarn_pnp_manifest(
         &self,
@@ -306,6 +341,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .build(),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceCell::new(),
+            node_modules_layout: OnceLock::new(),
         }
     }
 

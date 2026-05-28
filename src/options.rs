@@ -209,6 +209,15 @@ pub struct ResolveOptions {
     /// Default: when env var `OXC_RESOLVER_YARN_PNP` is set.
     #[cfg(feature = "yarn_pnp")]
     pub yarn_pnp: bool,
+
+    /// The shape of `node_modules/` produced by the project's package manager.
+    ///
+    /// The resolver can take faster code paths when the layout is known. Set
+    /// explicitly to skip detection, or leave as [NodeModulesLayout::Auto]
+    /// (default) to let the resolver detect the layout on its first resolve.
+    ///
+    /// Default: [NodeModulesLayout::Auto].
+    pub node_modules_layout: NodeModulesLayout,
 }
 
 impl ResolveOptions {
@@ -452,6 +461,47 @@ pub enum EnforceExtension {
     Disabled,
 }
 
+/// Value for [ResolveOptions::node_modules_layout].
+///
+/// Different package managers produce different shapes of `node_modules/`.
+/// Knowing the shape lets the resolver skip work that the layout guarantees is
+/// unnecessary (e.g. ancestor walks past the workspace root in flat layouts,
+/// per-resolve symlink chases in isolated layouts).
+///
+/// The variants intentionally group package managers by structure rather than
+/// by name, because the structure is what the resolver can optimize against:
+///
+/// - [NodeModulesLayout::Flat] — npm, yarn berry with the `node-modules`
+///   linker, and bun's hoisted linker. Top-level `node_modules/<pkg>` is a
+///   real directory.
+/// - [NodeModulesLayout::Isolated] — pnpm (both default and
+///   `shamefullyHoist: true`), yarn berry with the `pnpm` linker, and bun's
+///   isolated linker. Top-level `node_modules/<pkg>` is a symlink into a
+///   virtual store (`.pnpm/`, `.store/`, or `.bun/`).
+/// - [NodeModulesLayout::Pnp] — Yarn Plug'n'Play. No `node_modules/`; deps
+///   are resolved via a `.pnp.cjs` manifest.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum NodeModulesLayout {
+    /// Detect the layout on the first resolve and cache the result.
+    Auto,
+    /// Generic Node.js resolution. Walk every ancestor `node_modules/`.
+    ///
+    /// Use this to opt out of layout-specific fast paths — for example when
+    /// the project mixes layouts in a way [NodeModulesLayout::Auto] would
+    /// misdetect.
+    Generic,
+    /// Flat hoisted layout. All dependencies live in one top-level
+    /// `node_modules/`.
+    Flat,
+    /// Symlinked virtual store layout. `node_modules/<pkg>` is a symlink into
+    /// a virtual store directory (`node_modules/.pnpm/`,
+    /// `node_modules/.store/`, or `node_modules/.bun/`).
+    Isolated,
+    /// Yarn Plug'n'Play layout. Resolution goes through a `.pnp.cjs` manifest
+    /// instead of walking `node_modules/`.
+    Pnp,
+}
+
 impl EnforceExtension {
     #[must_use]
     pub const fn is_auto(self) -> bool {
@@ -566,6 +616,7 @@ impl Default for ResolveOptions {
             allow_package_exports_in_directory_resolve: false,
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: std::env::var("OXC_RESOLVER_YARN_PNP").is_ok(),
+            node_modules_layout: NodeModulesLayout::Auto,
         }
     }
 }
@@ -646,6 +697,9 @@ impl fmt::Display for ResolveOptions {
                 self.allow_package_exports_in_directory_resolve
             )?;
         }
+        if !matches!(self.node_modules_layout, NodeModulesLayout::Auto) {
+            write!(f, "node_modules_layout:{:?},", self.node_modules_layout)?;
+        }
         Ok(())
     }
 }
@@ -655,8 +709,8 @@ mod test {
     use std::path::PathBuf;
 
     use super::{
-        AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
-        TsconfigOptions, TsconfigReferences,
+        AliasValue, EnforceExtension, NodeModulesLayout, ResolveOptions, Restriction,
+        TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
     };
 
     #[test]
@@ -731,6 +785,7 @@ mod test {
             tsconfig: None,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
+            node_modules_layout: NodeModulesLayout::Auto,
         };
 
         assert_eq!(format!("{options}"), "");

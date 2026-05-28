@@ -71,8 +71,8 @@ pub use crate::{
     error::{JSONError, ResolveError, SpecifierError},
     file_system::{FileMetadata, FileSystem, FileSystemOs},
     options::{
-        Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
-        TsconfigOptions, TsconfigReferences,
+        Alias, AliasValue, EnforceExtension, NodeModulesLayout, ResolveOptions, Restriction,
+        TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
     },
     package_json::{
         ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
@@ -192,6 +192,26 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// Warning: The caller must ensure that there're no ongoing resolution operations when calling this method. Otherwise, it may cause those operations to return an incorrect result.
     pub fn clear_cache(&self) {
         self.cache.clear();
+    }
+
+    /// Return the `node_modules/` layout for the project containing `start`.
+    ///
+    /// If [`ResolveOptions::node_modules_layout`] was set to anything other
+    /// than [`NodeModulesLayout::Auto`], that value is returned directly. With
+    /// [`NodeModulesLayout::Auto`] (the default) this triggers detection on
+    /// first call and caches the result for subsequent calls.
+    ///
+    /// Detection probes for layout markers walking up from `start`:
+    /// `.pnp.cjs` → [`NodeModulesLayout::Pnp`]; `node_modules/.pnpm/` /
+    /// `node_modules/.bun/` / `node_modules/.store/` →
+    /// [`NodeModulesLayout::Isolated`]; bare `node_modules/` →
+    /// [`NodeModulesLayout::Flat`]; nothing found →
+    /// [`NodeModulesLayout::Generic`].
+    pub fn node_modules_layout<P: AsRef<Path>>(&self, start: P) -> NodeModulesLayout {
+        match self.options.node_modules_layout {
+            NodeModulesLayout::Auto => self.cache.node_modules_layout(start.as_ref()),
+            explicit => explicit,
+        }
     }
 
     /// Check if two resolvers share the same cache (for testing).
