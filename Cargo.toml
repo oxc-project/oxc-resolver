@@ -37,6 +37,10 @@ description.workspace = true
 name = "resolver"
 harness = false
 
+[[bench]]
+name = "package_managers"
+harness = false
+
 [lints.clippy]
 all = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }

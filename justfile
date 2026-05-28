@@ -80,7 +80,28 @@ codecov:
 
 # Run the benchmarks.
 benchmark:
-  cargo bench
+  cargo bench --bench resolver
+
+# Materialize fixtures/bench-pm/installs/<combo>/ from template + per-combo configs, then install each. Heavy; not part of `just install`.
+install-bench-fixtures:
+  rm -rf fixtures/bench-pm/installs
+  for combo in npm-flat pnpm-isolated pnpm-hoisted yarn-flat yarn-isolated yarn-pnp bun-flat bun-isolated; do \
+    mkdir -p fixtures/bench-pm/installs/$combo; \
+    cp -R fixtures/bench-pm/template/. fixtures/bench-pm/installs/$combo/; \
+    cp -R fixtures/bench-pm/configs/$combo/. fixtures/bench-pm/installs/$combo/; \
+  done
+  cd fixtures/bench-pm/installs/npm-flat       && npm install --no-audit --no-fund
+  cd fixtures/bench-pm/installs/pnpm-isolated  && pnpm install
+  cd fixtures/bench-pm/installs/pnpm-hoisted   && pnpm install
+  cd fixtures/bench-pm/installs/yarn-flat      && yarn install
+  cd fixtures/bench-pm/installs/yarn-isolated  && yarn install
+  cd fixtures/bench-pm/installs/yarn-pnp       && yarn install
+  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-flat     && bun install; else echo 'skip bun-flat: bun not installed';     fi
+  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-isolated && bun install; else echo 'skip bun-isolated: bun not installed'; fi
+
+# Run the package-manager benchmarks. Each combo skips itself if its fixture is not installed.
+benchmark-pm:
+  cargo bench --bench package_managers --features yarn_pnp
 
 # Run cargo-fuzz
 fuzz:

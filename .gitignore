@@ -5,4 +5,5 @@ target/
 /fixtures/pnpm/node_modules
 /fixtures/yarn/node_modules
 /fixtures/tsconfck/node_modules
+/fixtures/bench-pm/installs/
 fuzz/Cargo.lock
