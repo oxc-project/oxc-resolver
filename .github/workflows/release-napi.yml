@@ -180,8 +180,10 @@ jobs:
             export COREPACK_INTEGRITY_KEYS=0
             sudo corepack enable
             pnpm install
-            # Bypass `vp run`: vite-plus has no freebsd-x64 native binding.
-            pnpm run build:debug -- --features allocator --release --target x86_64-unknown-freebsd
+            # Call napi directly: vite-plus has no freebsd-x64 native binding,
+            # so the `vp run`-based `pnpm build` script can't be loaded here.
+            pnpm exec napi build --platform --manifest-path napi/Cargo.toml --features allocator --release --target x86_64-unknown-freebsd
+            node napi/patch.mjs
             rm -rf node_modules
             rm -rf target
       - name: Upload artifact
