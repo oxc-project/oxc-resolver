@@ -223,15 +223,18 @@ jobs:
       - run: npm install -g npm@latest # For trusted publishing support
 
       - name: Prepare dirs and artifacts
+        # Invoke napi directly. Going through `pnpm napi ...` triggers pnpm 11's
+        # verify-deps-before-run check, which fails after `cp package.json
+        # napi/package.json` introduces deps the lockfile doesn't know about.
         run: |
           cp package.json napi/package.json
-          pnpm napi create-npm-dirs
-          pnpm napi artifacts --npm-dir npm --build-output-dir napi
+          ./node_modules/.bin/napi create-npm-dirs
+          ./node_modules/.bin/napi artifacts --npm-dir npm --build-output-dir napi
 
       - name: Publish npm packages as latest
         run: |
           # Using trusted publishing, no token is required.
-          pnpm napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
+          ./node_modules/.bin/napi pre-publish --no-gh-release --tagstyle npm --npm-dir npm
 
           # Publish root package
           cp package.json napi/package.json
