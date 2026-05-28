@@ -36,7 +36,35 @@ importers:
         specifier: 5.6.3
         version: 5.6.3
 
-  apps/web: {}
+  apps/web:
+    dependencies:
+      '@babel/runtime':
+        specifier: 7.25.0
+        version: 7.25.0
+      '@bench/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@bench/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
+      '@types/node':
+        specifier: 22.7.0
+        version: 22.7.0
+      axios:
+        specifier: 1.7.7
+        version: 1.7.7
+      chalk:
+        specifier: 5.3.0
+        version: 5.3.0
+      lodash-es:
+        specifier: 4.17.21
+        version: 4.17.21
+      react:
+        specifier: 18.3.1
+        version: 18.3.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
 
   packages/ui: {}
 

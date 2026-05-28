@@ -29,6 +29,16 @@ __metadata:
 "@bench/web@workspace:apps/web":
   version: 0.0.0-use.local
   resolution: "@bench/web@workspace:apps/web"
+  dependencies:
+    "@babel/runtime": "npm:7.25.0"
+    "@bench/ui": "workspace:*"
+    "@bench/utils": "workspace:*"
+    "@types/node": "npm:22.7.0"
+    axios: "npm:1.7.7"
+    chalk: "npm:5.3.0"
+    lodash-es: "npm:4.17.21"
+    react: "npm:18.3.1"
+    typescript: "npm:5.6.3"
   languageName: unknown
   linkType: soft
 
