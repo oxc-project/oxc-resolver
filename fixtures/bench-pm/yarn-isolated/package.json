@@ -1,5 +1,5 @@
 {
-  "name": "bench-pm-yarn-pnpm",
+  "name": "bench-pm-yarn-isolated",
   "private": true,
   "version": "1.0.0",
   "packageManager": "yarn@4.9.2",

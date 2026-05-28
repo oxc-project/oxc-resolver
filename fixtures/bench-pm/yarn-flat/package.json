@@ -1,5 +1,5 @@
 {
-  "name": "bench-pm-yarn-nm",
+  "name": "bench-pm-yarn-flat",
   "private": true,
   "version": "1.0.0",
   "packageManager": "yarn@4.9.2",

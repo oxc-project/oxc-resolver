@@ -83,9 +83,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bench-pm-yarn-pnpm@workspace:.":
+"bench-pm-yarn-isolated@workspace:.":
   version: 0.0.0-use.local
-  resolution: "bench-pm-yarn-pnpm@workspace:."
+  resolution: "bench-pm-yarn-isolated@workspace:."
   dependencies:
     "@babel/runtime": "npm:7.25.0"
     "@bench/ui": "workspace:*"

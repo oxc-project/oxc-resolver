@@ -87,8 +87,8 @@ install-bench-fixtures:
   cd fixtures/bench-pm/npm-flat       && npm install --no-audit --no-fund
   cd fixtures/bench-pm/pnpm-isolated  && pnpm install
   cd fixtures/bench-pm/pnpm-hoisted   && pnpm install
-  cd fixtures/bench-pm/yarn-nm        && yarn install
-  cd fixtures/bench-pm/yarn-pnpm      && yarn install
+  cd fixtures/bench-pm/yarn-flat      && yarn install
+  cd fixtures/bench-pm/yarn-isolated  && yarn install
   cd fixtures/bench-pm/yarn-pnp       && yarn install
   command -v bun >/dev/null && (cd fixtures/bench-pm/bun-flat && bun install) || echo 'skip bun-flat: bun not installed'
   command -v bun >/dev/null && (cd fixtures/bench-pm/bun-isolated && bun install) || echo 'skip bun-isolated: bun not installed'
