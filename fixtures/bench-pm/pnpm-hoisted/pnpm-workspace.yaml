@@ -1,0 +1,5 @@
+packages:
+  - apps/web
+  - packages/ui
+  - packages/utils
+shamefullyHoist: true
