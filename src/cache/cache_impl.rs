@@ -449,8 +449,7 @@ impl<Fs: FileSystem> Cache<Fs> {
             && let Some(anchor) = self.pkg_anchor(path)
             && !self.is_symlink_cached(&anchor)
         {
-            let _ =
-                path.canonicalized.set((Arc::downgrade(&path.0), path.0.path.clone()));
+            let _ = path.canonicalized.set((Arc::downgrade(&path.0), path.0.path.clone()));
             return Ok(path.clone());
         }
 
