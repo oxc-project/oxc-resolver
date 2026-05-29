@@ -353,6 +353,7 @@ impl ResolverFactory {
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: default.yarn_pnp,
+            node_modules_layout: default.node_modules_layout,
         })
     }
 }
