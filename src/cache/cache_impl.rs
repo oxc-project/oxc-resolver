@@ -170,7 +170,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                         self.find_package_json_impl(&parent, options, ctx)
                     });
                 };
-                let real_path = if options.symlinks {
+                let real_path = if options.symlinks && self.is_symlink_cached(path) {
                     self.canonicalize(path)?.join("package.json")
                 } else {
                     package_json_path.clone()
@@ -273,6 +273,16 @@ impl<Fs: FileSystem> Cache<Fs> {
     /// not re-detected for nested workspaces.
     pub(crate) fn node_modules_layout(&self, start: &Path) -> NodeModulesLayout {
         *self.node_modules_layout.get_or_init(|| self.detect_node_modules_layout(start))
+    }
+
+    /// Lazily probes and caches whether `path` is a symlink. Returns `false`
+    /// (and caches `false`) if the path doesn't exist or can't be stat'd.
+    pub(crate) fn is_symlink_cached(&self, path: &CachedPath) -> bool {
+        path.symlink.get().unwrap_or_else(|| {
+            let result = self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink);
+            path.symlink.set(result);
+            result
+        })
     }
 
     fn detect_node_modules_layout(&self, start: &Path) -> NodeModulesLayout {
