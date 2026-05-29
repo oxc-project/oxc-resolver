@@ -366,15 +366,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // or the first package.json if the path is not inside node_modules.
         let inside_node_modules = cached_path.inside_node_modules();
         if inside_node_modules {
-            // Fast path: when the path is inside `<...>/node_modules/<pkg>/`,
-            // the only package.json that matters is the one at the package
-            // anchor. Probe it directly and skip the per-component walk that
-            // would otherwise read (and miss on) every intermediate dir.
-            if let Some((anchor_path, _rest)) = path::node_modules_anchor(cached_path.path()) {
-                let anchor = self.cache.value(&anchor_path);
-                return self.cache.get_package_json(&anchor, &self.options, ctx);
-            }
-
             let mut last = None;
             // Go up directories when the querying path is not a directory
             let mut cp = cached_path.clone();
