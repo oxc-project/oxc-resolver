@@ -170,14 +170,10 @@ impl<Fs: FileSystem> Cache<Fs> {
                         self.find_package_json_impl(&parent, options, ctx)
                     });
                 };
-                // Skip the per-component canonicalize walk only when we're
-                // inside `node_modules/` AND the directory itself isn't a
-                // symlink. PMs install package contents as real files so
-                // `<pkg>/package.json` already has its canonical prefix.
-                // Paths outside node_modules stay on the original code path —
-                // some bench workloads (resolver_real with many symlinked
-                // files, tsconfig path aliases) live entirely outside
-                // node_modules and shouldn't pay any extra probe.
+                // Skip canonicalize when symlinks are disabled, or when the
+                // path is a non-symlink dir inside `node_modules/` (PM
+                // convention: package contents are real files, so the
+                // existing prefix is already canonical).
                 let real_path = if !options.symlinks
                     || (path.inside_node_modules() && !self.is_symlink_cached(path))
                 {
@@ -295,37 +291,29 @@ impl<Fs: FileSystem> Cache<Fs> {
         })
     }
 
-    /// Return the `<...>/node_modules/<pkg>` anchor that `path` lives under,
-    /// or `None` if the path is not inside `node_modules/`. Walks the
-    /// existing `parent` chain (each step is a `Weak::upgrade` —
-    /// allocation-free) rather than running `path::node_modules_anchor`,
-    /// which allocates a `Vec<Component>` and two `PathBuf`s on every call.
-    /// O(N) in path depth, but each step is cheap.
+    /// The `<...>/node_modules/<pkg>` anchor that `path` lives under, or
+    /// `None` if the path is not inside `node_modules/`. Walks the cached
+    /// parent chain — `Weak::upgrade` per step, no allocations.
     pub(crate) fn pkg_anchor(&self, path: &CachedPath) -> Option<CachedPath> {
         if !path.inside_node_modules() {
             return None;
         }
+        // Walk up, remembering the last two visited paths. When we hit a
+        // `node_modules` dir, the anchor is the child of nm (for `<pkg>`)
+        // or the grandchild (for `@scope/name`, since the child IS `@scope`).
+        let mut grandchild: Option<CachedPath> = None;
+        let mut child: Option<CachedPath> = None;
         let mut current = path.clone();
-        let mut child = None::<CachedPath>;
-        let mut grandchild = None::<CachedPath>;
-        loop {
-            if current.is_node_modules {
-                // `child` is the `<pkg>` for unscoped names. For `@scope/name`
-                // it's the `@scope` dir, so the real anchor is `grandchild`.
-                let candidate = child?;
-                if candidate
-                    .path
-                    .file_name()
-                    .is_some_and(|n| n.as_encoded_bytes().starts_with(b"@"))
-                {
-                    return grandchild;
-                }
-                return Some(candidate);
-            }
+        while !current.is_node_modules {
             let parent = current.parent(self)?;
-            grandchild = child;
-            child = Some(current);
+            grandchild = child.replace(current);
             current = parent;
+        }
+        let pkg = child?;
+        if pkg.path.file_name().is_some_and(|n| n.as_encoded_bytes().starts_with(b"@")) {
+            grandchild
+        } else {
+            Some(pkg)
         }
     }
 
@@ -437,14 +425,10 @@ impl<Fs: FileSystem> Cache<Fs> {
                 });
         }
 
-        // Anchor fast path: when the path lives below a non-symlink
-        // `<...>/node_modules/<pkg>` anchor, nothing below the anchor is a
-        // symlink either — the path is its own canonical. This is critical
-        // for isolated layouts: the symlink target lives at
-        // `<root>/node_modules/.{pnpm,store,bun}/<pkg>@<ver>/node_modules/<pkg>`,
-        // also under `node_modules/`, also non-symlink anchor — so the
-        // recursive canonicalize triggered by `read_link` short-circuits here
-        // instead of walking each component of the virtual-store path.
+        // Anchor fast path: nothing under a non-symlink `node_modules/<pkg>`
+        // anchor can be a symlink, so the path is its own canonical. Also
+        // catches the symlink-target case in isolated layouts — the
+        // virtual-store target is itself a `node_modules/<pkg>/` shape.
         if path.inside_node_modules
             && let Some(anchor) = self.pkg_anchor(path)
             && !self.is_symlink_cached(&anchor)
@@ -465,13 +449,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                     let normalized = parent_canonical
                         .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
 
-                    let is_symlink = path.symlink.get().unwrap_or_else(|| {
-                        let result =
-                            self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink);
-                        path.symlink.set(result);
-                        result
-                    });
-                    if is_symlink {
+                    if self.is_symlink_cached(path) {
                         let link = self.fs.read_link(normalized.path())?;
                         if link.is_absolute() {
                             return self.canonicalize_with_visited(

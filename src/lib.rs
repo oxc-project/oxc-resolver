@@ -835,64 +835,43 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
-        if self.options.symlinks {
-            // Only paths inside `node_modules/` can match the anchor fast path,
-            // and only when the result isn't already cached. Repeated resolves
-            // of the same path (criterion runs 81k iterations of the same
-            // workload, real bundlers re-resolve hot specifiers repeatedly)
-            // hit `canonicalized.get()` and have nothing to gain from the
-            // anchor lookup — running it would only add overhead.
-            if cached_path.inside_node_modules()
-                && cached_path.canonicalized.get().is_none()
-                && let Some(canonical) = self.canonicalize_via_node_modules_anchor(cached_path)?
-            {
-                return Ok(canonical);
-            }
-            self.cache.canonicalize(cached_path)
-        } else {
+        if !self.options.symlinks {
             // On Windows, collect from components to normalize forward slashes to backslashes.
             #[cfg(target_os = "windows")]
             if cached_path.path().as_os_str().as_encoded_bytes().contains(&b'/') {
                 return Ok(cached_path.path().components().collect());
             }
-            Ok(cached_path.to_path_buf())
+            return Ok(cached_path.to_path_buf());
         }
-    }
-
-    fn canonicalize_via_node_modules_anchor(
-        &self,
-        cached_path: &CachedPath,
-    ) -> Result<Option<PathBuf>, ResolveError> {
-        let Some(anchor) = self.cache.pkg_anchor(cached_path) else {
-            return Ok(None);
-        };
-
-        // Fast path: if the anchor itself is not a symlink, no component in
-        // the path is — PMs install package contents as real files even when
-        // `<pkg>` itself can be a workspace symlink. Skip canonicalize and
-        // return the input path. Populate `canonicalized` so subsequent
-        // resolves of the same path skip the anchor lookup via the warm-path
-        // guard in `load_realpath`.
-        if !self.cache.is_symlink_cached(&anchor) {
+        // Anchor fast path: canonicalize just the `<...>/node_modules/<pkg>`
+        // anchor and append the suffix unwalked. PM convention: nothing below
+        // `<pkg>/` is a symlink.
+        if cached_path.inside_node_modules()
+            && cached_path.canonicalized.get().is_none()
+            && let Some(anchor) = self.cache.pkg_anchor(cached_path)
+        {
+            if !self.cache.is_symlink_cached(&anchor) {
+                // Path is its own canonical — record that and return it.
+                let _ = cached_path
+                    .canonicalized
+                    .set((Arc::downgrade(&cached_path.0), cached_path.0.path.clone()));
+                return Ok(cached_path.to_path_buf());
+            }
+            let anchor_canonical = self.cache.canonicalize_impl(&anchor)?;
+            let rest =
+                cached_path.path().strip_prefix(anchor.path()).unwrap_or_else(|_| Path::new(""));
+            let canonical = if rest.as_os_str().is_empty() {
+                anchor_canonical.to_path_buf()
+            } else {
+                anchor_canonical.path().join(rest)
+            };
+            let canonical_cp = self.cache.value(&canonical);
             let _ = cached_path
                 .canonicalized
-                .set((Arc::downgrade(&cached_path.0), cached_path.0.path.clone()));
-            return Ok(Some(cached_path.to_path_buf()));
+                .set((Arc::downgrade(&canonical_cp.0), canonical_cp.0.path.clone()));
+            return Ok(canonical);
         }
-
-        let canonical_anchor_cp = self.cache.canonicalize_impl(&anchor)?;
-        let rest = cached_path.path().strip_prefix(anchor.path()).unwrap_or_else(|_| Path::new(""));
-        let canonical = if rest.as_os_str().is_empty() {
-            canonical_anchor_cp.to_path_buf()
-        } else {
-            canonical_anchor_cp.path().join(rest)
-        };
-        // Cache on the file path too so the warm-path guard short-circuits.
-        let canonical_cp = self.cache.value(&canonical);
-        let _ = cached_path
-            .canonicalized
-            .set((Arc::downgrade(&canonical_cp.0), canonical_cp.0.path.clone()));
-        Ok(Some(canonical))
+        self.cache.canonicalize(cached_path)
     }
 
     fn check_restrictions(&self, path: &Path) -> bool {
