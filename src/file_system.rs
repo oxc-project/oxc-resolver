@@ -295,6 +295,26 @@ impl FileSystem for FileSystemOs {
     }
 
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                if self.yarn_pnp {
+                    // Mirror `metadata`'s virtual-path translation. Without it, `lstat`-ing a
+                    // virtual or zip path directly stats a path that may not physically exist, so
+                    // canonicalization cannot detect symlinks correctly under Yarn PnP. Zip entries
+                    // are never symlinks, so reuse the same file-type lookup as `metadata`.
+                    return match VPath::from(path)? {
+                        VPath::Zip(info) => self
+                            .pnp_lru
+                            .file_type(info.physical_base_path(), info.zip_path)
+                            .map(FileMetadata::from),
+                        VPath::Virtual(info) => {
+                            Self::symlink_metadata(&info.physical_base_path())
+                        }
+                        VPath::Native(path) => Self::symlink_metadata(&path),
+                    }
+                }
+            }
+        }
         Self::symlink_metadata(path)
     }
 
