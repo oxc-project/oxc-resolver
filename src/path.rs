@@ -157,4 +157,3 @@ fn normalize_relative() {
     assert_eq!(Path::new("foo../../..").normalize_relative(), Path::new(".."));
     assert_eq!(Path::new("jest-runner-../../").normalize_relative(), Path::new(""));
 }
-
