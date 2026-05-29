@@ -366,6 +366,15 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // or the first package.json if the path is not inside node_modules.
         let inside_node_modules = cached_path.inside_node_modules();
         if inside_node_modules {
+            // Fast path: when the path is inside `<...>/node_modules/<pkg>/`,
+            // the only package.json that matters is the one at the package
+            // anchor. Probe it directly and skip the per-component walk that
+            // would otherwise read (and miss on) every intermediate dir.
+            if let Some((anchor_path, _rest)) = path::node_modules_anchor(cached_path.path()) {
+                let anchor = self.cache.value(&anchor_path);
+                return self.cache.get_package_json(&anchor, &self.options, ctx);
+            }
+
             let mut last = None;
             // Go up directories when the querying path is not a directory
             let mut cp = cached_path.clone();
@@ -826,7 +835,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
         if self.options.symlinks {
-            self.cache.canonicalize(cached_path)
+            self.canonicalize_layout_aware(cached_path)
         } else {
             // On Windows, collect from components to normalize forward slashes to backslashes.
             #[cfg(target_os = "windows")]
@@ -835,6 +844,41 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             Ok(cached_path.to_path_buf())
         }
+    }
+
+    /// Layout-aware canonicalize.
+    ///
+    /// Every major package manager guarantees that nothing inside
+    /// `<...>/node_modules/<pkg>/` is a symlink. So if the path lives under
+    /// such an anchor, we only need to canonicalize the anchor itself — the
+    /// suffix can be appended verbatim, skipping the per-component
+    /// `symlink_metadata` walk that the generic algorithm performs.
+    ///
+    /// Falls back to the generic per-component canonicalize for paths outside
+    /// any `node_modules/<pkg>/` anchor (e.g. workspace package internals or
+    /// resolves under user roots).
+    fn canonicalize_layout_aware(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
+        if let Some(canonical) = self.canonicalize_via_node_modules_anchor(cached_path)? {
+            return Ok(canonical);
+        }
+        self.cache.canonicalize(cached_path)
+    }
+
+    fn canonicalize_via_node_modules_anchor(
+        &self,
+        cached_path: &CachedPath,
+    ) -> Result<Option<PathBuf>, ResolveError> {
+        let Some((anchor_path, rest)) = path::node_modules_anchor(cached_path.path()) else {
+            return Ok(None);
+        };
+        let anchor = self.cache.value(&anchor_path);
+        let canonical_anchor = self.cache.canonicalize(&anchor)?;
+        let canonical = if rest.as_os_str().is_empty() {
+            canonical_anchor
+        } else {
+            canonical_anchor.join(rest)
+        };
+        Ok(Some(canonical))
     }
 
     fn check_restrictions(&self, path: &Path) -> bool {

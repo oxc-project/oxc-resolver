@@ -12,6 +12,7 @@ use once_cell::sync::OnceCell as OnceLock;
 
 use super::cache_impl::Cache;
 use super::cached_meta::CachedMeta;
+use super::cached_symlink::CachedSymlink;
 use super::thread_local::SCRATCH_PATH;
 use crate::{FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx};
 
@@ -27,6 +28,10 @@ pub struct CachedPathImpl {
     /// Cached `(is_file, is_dir)` filesystem metadata packed into one byte. See
     /// [`CachedMeta`] for the encoding and the rationale for skipping `OnceLock`.
     pub meta: CachedMeta,
+    /// Cached `is_symlink` result from `symlink_metadata`. Stored separately
+    /// from [`Self::meta`] because `metadata()` follows symlinks and cannot
+    /// answer this question. See [`CachedSymlink`].
+    pub symlink: CachedSymlink,
     /// Stored as `Box<Path>` (not `PathBuf`) to save 8 bytes per cached path entry —
     /// the canonical path is set once and never mutated.
     pub canonicalized: OnceLock<(Weak<Self>, Box<Path>)>,
@@ -53,6 +58,7 @@ impl CachedPathImpl {
             is_node_modules,
             inside_node_modules,
             meta: CachedMeta::new(),
+            symlink: CachedSymlink::new(),
             canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),

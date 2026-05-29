@@ -395,7 +395,13 @@ impl<Fs: FileSystem> Cache<Fs> {
                     let normalized = parent_canonical
                         .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
 
-                    if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
+                    let is_symlink = path.symlink.get().unwrap_or_else(|| {
+                        let result =
+                            self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink);
+                        path.symlink.set(result);
+                        result
+                    });
+                    if is_symlink {
                         let link = self.fs.read_link(normalized.path())?;
                         if link.is_absolute() {
                             return self.canonicalize_with_visited(
