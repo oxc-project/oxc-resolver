@@ -170,10 +170,20 @@ impl<Fs: FileSystem> Cache<Fs> {
                         self.find_package_json_impl(&parent, options, ctx)
                     });
                 };
-                let real_path = if options.symlinks && self.is_symlink_cached(path) {
-                    self.canonicalize(path)?.join("package.json")
-                } else {
+                // Skip the per-component canonicalize walk only when we're
+                // inside `node_modules/` AND the directory itself isn't a
+                // symlink. PMs install package contents as real files so
+                // `<pkg>/package.json` already has its canonical prefix.
+                // Paths outside node_modules stay on the original code path —
+                // some bench workloads (resolver_real with many symlinked
+                // files, tsconfig path aliases) live entirely outside
+                // node_modules and shouldn't pay any extra probe.
+                let real_path = if !options.symlinks
+                    || (path.inside_node_modules() && !self.is_symlink_cached(path))
+                {
                     package_json_path.clone()
+                } else {
+                    self.canonicalize(path)?.join("package.json")
                 };
                 PackageJson::parse(
                     &self.fs,

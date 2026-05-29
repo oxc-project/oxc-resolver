@@ -835,7 +835,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
         if self.options.symlinks {
-            self.canonicalize_layout_aware(cached_path)
+            // Only paths inside `node_modules/` can match the anchor fast path.
+            // Gating on the O(1) precomputed `inside_node_modules` flag keeps
+            // resolves under user roots / workspace internals on the original
+            // hot path — no extra function call, no `node_modules_anchor`
+            // byte scan, no `is_symlink_cached` probe.
+            if cached_path.inside_node_modules()
+                && let Some(canonical) = self.canonicalize_via_node_modules_anchor(cached_path)?
+            {
+                return Ok(canonical);
+            }
+            self.cache.canonicalize(cached_path)
         } else {
             // On Windows, collect from components to normalize forward slashes to backslashes.
             #[cfg(target_os = "windows")]
@@ -844,24 +854,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
             Ok(cached_path.to_path_buf())
         }
-    }
-
-    /// Layout-aware canonicalize.
-    ///
-    /// Every major package manager guarantees that nothing inside
-    /// `<...>/node_modules/<pkg>/` is a symlink. So if the path lives under
-    /// such an anchor, we only need to canonicalize the anchor itself — the
-    /// suffix can be appended verbatim, skipping the per-component
-    /// `symlink_metadata` walk that the generic algorithm performs.
-    ///
-    /// Falls back to the generic per-component canonicalize for paths outside
-    /// any `node_modules/<pkg>/` anchor (e.g. workspace package internals or
-    /// resolves under user roots).
-    fn canonicalize_layout_aware(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
-        if let Some(canonical) = self.canonicalize_via_node_modules_anchor(cached_path)? {
-            return Ok(canonical);
-        }
-        self.cache.canonicalize(cached_path)
     }
 
     fn canonicalize_via_node_modules_anchor(

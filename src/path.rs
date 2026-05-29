@@ -25,6 +25,15 @@ pub const SLASH_START: &[char; 2] = &['/', '\\'];
 ///
 /// `rest` may be empty when `path` is exactly the package directory.
 pub fn node_modules_anchor(path: &Path) -> Option<(PathBuf, PathBuf)> {
+    // Fast reject without allocation: the overwhelming majority of resolver
+    // calls (relative resolves, tsconfig path aliases, root-side workspace
+    // files, etc.) don't go through a `node_modules/<pkg>` anchor at all.
+    // A linear byte scan is dramatically cheaper than allocating a
+    // `Vec<Component>` only to discover there's no `node_modules` segment.
+    if !contains_node_modules_segment(path) {
+        return None;
+    }
+
     let components: Vec<Component> = path.components().collect();
 
     // Find the deepest `node_modules` segment.
@@ -58,6 +67,38 @@ pub fn node_modules_anchor(path: &Path) -> Option<(PathBuf, PathBuf)> {
     let anchor: PathBuf = components[..anchor_end].iter().map(|c| c.as_os_str()).collect();
     let rest: PathBuf = components[anchor_end..].iter().map(|c| c.as_os_str()).collect();
     Some((anchor, rest))
+}
+
+/// Cheap allocation-free check for whether `path` contains a `node_modules`
+/// path segment (i.e. one bracketed by separators or path ends). Used as a
+/// pre-filter before [`node_modules_anchor`]'s allocating slow path.
+#[inline]
+fn contains_node_modules_segment(path: &Path) -> bool {
+    const NEEDLE: &[u8] = b"node_modules";
+    let bytes = path.as_os_str().as_encoded_bytes();
+    if bytes.len() < NEEDLE.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i + NEEDLE.len() <= bytes.len() {
+        if &bytes[i..i + NEEDLE.len()] == NEEDLE {
+            // Boundary check on both sides: must be a path separator or the
+            // path's start/end to count as a full segment named `node_modules`.
+            let before_ok = i == 0 || is_path_separator(bytes[i - 1]);
+            let after_idx = i + NEEDLE.len();
+            let after_ok = after_idx == bytes.len() || is_path_separator(bytes[after_idx]);
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+#[inline]
+const fn is_path_separator(byte: u8) -> bool {
+    byte == b'/' || byte == b'\\'
 }
 
 /// Extension trait to add path normalization to std's [`Path`].
