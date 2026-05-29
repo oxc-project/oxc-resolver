@@ -1,102 +1,132 @@
-//! Single-byte cache slot for `Option<(is_file, is_dir)>` filesystem metadata.
+//! Two single-byte cache slots for a path's filesystem metadata.
 //!
-//! Replaces `OnceLock<Option<(bool, bool)>>` (16 bytes) with an `AtomicU8` (1 byte) — saving
-//! 15 bytes per cached path entry. The four possible `(is_file, is_dir)` combinations, the
-//! "not found" outcome, and the uninitialized state fit comfortably in a single byte.
+//! A path is looked at two ways during resolution:
 //!
-//! Filesystem metadata is idempotent, so the lack of `OnceLock`'s exactly-once semantics is
-//! harmless: if two threads race to populate the slot they both re-`stat` and store the same
-//! answer.
+//! * `link` — the `lstat` ([`FileSystem::symlink_metadata`]) view of the path *itself*: file,
+//!   directory, or symlink? Canonicalization needs this to decide whether to follow a link.
+//! * `followed` — the `stat` ([`FileSystem::metadata`]) view *after* following symlinks: does the
+//!   path ultimately resolve to a file or a directory? This is what `is_file`/`is_dir` need.
+//!
+//! For a non-symlink the two views are identical, so a single `lstat` answers both and the
+//! follow-up `stat` is skipped. Sharing the cached `link` view lets `is_file`/`is_dir` and
+//! canonicalization issue one `lstat` instead of a `stat` *and* an `lstat` for the same path.
+//!
+//! Each view is packed into one [`AtomicU8`] rather than a `OnceLock<Option<FileMetadata>>` (which
+//! would be 16 bytes), saving 30 bytes per cached path entry. Metadata is idempotent, so the lack
+//! of `OnceLock`'s exactly-once guarantee is harmless: racing threads recompute the same answer.
+//!
+//! [`FileSystem::metadata`]: crate::FileSystem::metadata
+//! [`FileSystem::symlink_metadata`]: crate::FileSystem::symlink_metadata
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
-const UNINIT: u8 = 0;
-const NONE: u8 = 1;
-const FALSE_FALSE: u8 = 2;
-const TRUE_FALSE: u8 = 3;
-const FALSE_TRUE: u8 = 4;
-const TRUE_TRUE: u8 = 5;
+use crate::FileMetadata;
 
-/// Lazily-populated `Option<(is_file, is_dir)>` packed into one byte.
-pub struct CachedMeta(AtomicU8);
+// Bit layout of a slot. An all-zero byte (`INITIALIZED` unset) means "not probed yet"; `EXISTS`
+// distinguishes a cached `Some` from a cached `None`.
+const INITIALIZED: u8 = 1 << 0;
+const EXISTS: u8 = 1 << 1;
+const IS_FILE: u8 = 1 << 2;
+const IS_DIR: u8 = 1 << 3;
+const IS_SYMLINK: u8 = 1 << 4;
+
+/// Lazily-populated `lstat` (`link`) and `stat` (`followed`) metadata, one byte each.
+#[derive(Default)]
+pub struct CachedMeta {
+    link: AtomicU8,
+    followed: AtomicU8,
+}
 
 impl CachedMeta {
     pub const fn new() -> Self {
-        Self(AtomicU8::new(UNINIT))
+        Self { link: AtomicU8::new(0), followed: AtomicU8::new(0) }
     }
 
-    /// Return the cached value if the slot has been populated, otherwise call `f`, store its
-    /// result, and return it. Multiple threads may race to populate; the last writer wins.
-    pub fn get_or_init<F>(&self, f: F) -> Option<(bool, bool)>
-    where
-        F: FnOnce() -> Option<(bool, bool)>,
-    {
-        let state = self.0.load(Ordering::Relaxed);
-        if state != UNINIT {
-            return decode(state);
-        }
-        let computed = f();
-        self.0.store(encode(computed), Ordering::Relaxed);
-        computed
+    /// Return the cached `lstat` view, or populate it from `f` (an `lstat`) and return that.
+    pub fn link_or_init<F: FnOnce() -> Option<FileMetadata>>(&self, f: F) -> Option<FileMetadata> {
+        get_or_init(&self.link, f)
+    }
+
+    /// Return the cached `stat` (symlink-followed) view, or populate it from `f` and return that.
+    pub fn followed_or_init<F: FnOnce() -> Option<FileMetadata>>(
+        &self,
+        f: F,
+    ) -> Option<FileMetadata> {
+        get_or_init(&self.followed, f)
     }
 }
 
-impl Default for CachedMeta {
-    fn default() -> Self {
-        Self::new()
+fn get_or_init<F: FnOnce() -> Option<FileMetadata>>(slot: &AtomicU8, f: F) -> Option<FileMetadata> {
+    let bits = slot.load(Ordering::Relaxed);
+    if (bits & INITIALIZED) != 0 {
+        return decode(bits);
     }
+    let meta = f();
+    slot.store(encode(meta), Ordering::Relaxed);
+    meta
 }
 
-#[inline]
-fn encode(value: Option<(bool, bool)>) -> u8 {
-    match value {
-        None => NONE,
-        Some((false, false)) => FALSE_FALSE,
-        Some((true, false)) => TRUE_FALSE,
-        Some((false, true)) => FALSE_TRUE,
-        Some((true, true)) => TRUE_TRUE,
+fn encode(meta: Option<FileMetadata>) -> u8 {
+    let Some(meta) = meta else { return INITIALIZED };
+    let mut bits = INITIALIZED | EXISTS;
+    if meta.is_file() {
+        bits |= IS_FILE;
     }
+    if meta.is_dir() {
+        bits |= IS_DIR;
+    }
+    if meta.is_symlink() {
+        bits |= IS_SYMLINK;
+    }
+    bits
 }
 
-#[inline]
-fn decode(state: u8) -> Option<(bool, bool)> {
-    match state {
-        NONE => None,
-        FALSE_FALSE => Some((false, false)),
-        TRUE_FALSE => Some((true, false)),
-        FALSE_TRUE => Some((false, true)),
-        TRUE_TRUE => Some((true, true)),
-        // UNINIT is filtered out by the caller; any other byte indicates corruption.
-        _ => unreachable!("invalid CachedMeta state"),
-    }
+/// Decode a slot known to be [`INITIALIZED`].
+fn decode(bits: u8) -> Option<FileMetadata> {
+    ((bits & EXISTS) != 0).then(|| {
+        FileMetadata::new((bits & IS_FILE) != 0, (bits & IS_DIR) != 0, (bits & IS_SYMLINK) != 0)
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem::size_of;
 
-    #[test]
-    fn cached_meta_is_one_byte() {
-        assert_eq!(size_of::<CachedMeta>(), 1);
+    fn parts(meta: FileMetadata) -> (bool, bool, bool) {
+        (meta.is_file(), meta.is_dir(), meta.is_symlink())
     }
 
     #[test]
-    fn returns_none_when_initializer_returns_none() {
-        let meta = CachedMeta::new();
-        assert!(meta.get_or_init(|| None).is_none());
-        // And on subsequent calls the initializer is not invoked.
-        assert!(meta.get_or_init(|| panic!("must not be called")).is_none());
+    fn is_two_bytes() {
+        assert_eq!(std::mem::size_of::<CachedMeta>(), 2);
     }
 
     #[test]
-    fn roundtrips_all_some_combinations() {
-        for (is_file, is_dir) in [(false, false), (true, false), (false, true), (true, true)] {
+    fn roundtrips_and_caches() {
+        let cases = [
+            None,
+            Some(FileMetadata::new(false, false, false)),
+            Some(FileMetadata::new(true, false, false)),
+            Some(FileMetadata::new(false, true, false)),
+            Some(FileMetadata::new(false, false, true)),
+        ];
+        for expected in cases {
             let meta = CachedMeta::new();
-            let got = meta.get_or_init(|| Some((is_file, is_dir)));
-            assert_eq!(got, Some((is_file, is_dir)));
-            let cached = meta.get_or_init(|| panic!("must not be called"));
-            assert_eq!(cached, Some((is_file, is_dir)));
+            assert_eq!(meta.link_or_init(|| expected).map(parts), expected.map(parts));
+            // Once populated, the initializer is never called again.
+            assert_eq!(
+                meta.link_or_init(|| panic!("must not be called")).map(parts),
+                expected.map(parts)
+            );
         }
+    }
+
+    #[test]
+    fn link_and_followed_are_separate_slots() {
+        let meta = CachedMeta::new();
+        meta.link_or_init(|| Some(FileMetadata::new(false, false, true)));
+        meta.followed_or_init(|| Some(FileMetadata::new(false, true, false)));
+        assert_eq!(meta.link_or_init(|| panic!()).map(parts), Some((false, false, true)));
+        assert_eq!(meta.followed_or_init(|| panic!()).map(parts), Some((false, true, false)));
     }
 }

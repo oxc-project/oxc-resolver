@@ -13,7 +13,7 @@ use once_cell::sync::OnceCell as OnceLock;
 use super::cache_impl::Cache;
 use super::cached_meta::CachedMeta;
 use super::thread_local::SCRATCH_PATH;
-use crate::{FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx};
+use crate::{FileMetadata, FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx};
 
 #[derive(Clone)]
 pub struct CachedPath(pub Arc<CachedPathImpl>);
@@ -239,16 +239,32 @@ impl CachedPath {
 }
 
 impl CachedPath {
-    fn metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<(bool, bool)> {
-        self.meta.get_or_init(|| fs.metadata(&self.path).ok().map(|r| (r.is_file, r.is_dir)))
+    /// `lstat` view of this path (the link itself), cached.
+    ///
+    /// Used both to answer `is_file`/`is_dir` for non-symlinks and by canonicalization to decide
+    /// whether to follow a symlink — so the two share a single `lstat` syscall per path.
+    pub(crate) fn link_metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
+        self.meta.link_or_init(|| fs.symlink_metadata(&self.path).ok())
+    }
+
+    /// `stat` view of this path (symlinks followed), cached.
+    ///
+    /// For a non-symlink this reuses the cached `lstat` result and issues no extra syscall; only
+    /// an actual symlink needs a follow-up `stat` to learn what it points at.
+    fn followed_metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
+        self.meta.followed_or_init(|| match self.link_metadata(fs) {
+            Some(meta) if meta.is_symlink() => fs.metadata(&self.path).ok(),
+            // A non-symlink's `lstat` already is its `stat`; `None` stays `None`.
+            other => other,
+        })
     }
 
     pub(crate) fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
-        self.metadata(fs).map(|r| r.0)
+        self.followed_metadata(fs).map(FileMetadata::is_file)
     }
 
     pub(crate) fn is_dir<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
-        self.metadata(fs).map(|r| r.1)
+        self.followed_metadata(fs).map(FileMetadata::is_dir)
     }
 }
 
