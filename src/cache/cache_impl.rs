@@ -437,6 +437,23 @@ impl<Fs: FileSystem> Cache<Fs> {
                 });
         }
 
+        // Anchor fast path: when the path lives below a non-symlink
+        // `<...>/node_modules/<pkg>` anchor, nothing below the anchor is a
+        // symlink either — the path is its own canonical. This is critical
+        // for isolated layouts: the symlink target lives at
+        // `<root>/node_modules/.{pnpm,store,bun}/<pkg>@<ver>/node_modules/<pkg>`,
+        // also under `node_modules/`, also non-symlink anchor — so the
+        // recursive canonicalize triggered by `read_link` short-circuits here
+        // instead of walking each component of the virtual-store path.
+        if path.inside_node_modules
+            && let Some(anchor) = self.pkg_anchor(path)
+            && !self.is_symlink_cached(&anchor)
+        {
+            let _ =
+                path.canonicalized.set((Arc::downgrade(&path.0), path.0.path.clone()));
+            return Ok(path.clone());
+        }
+
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
         if !visited.insert(path.hash) {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
