@@ -835,12 +835,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn load_realpath(&self, cached_path: &CachedPath) -> Result<PathBuf, ResolveError> {
         if self.options.symlinks {
-            // Only paths inside `node_modules/` can match the anchor fast path.
-            // Gating on the O(1) precomputed `inside_node_modules` flag keeps
-            // resolves under user roots / workspace internals on the original
-            // hot path — no extra function call, no `node_modules_anchor`
-            // byte scan, no `is_symlink_cached` probe.
+            // Only paths inside `node_modules/` can match the anchor fast path,
+            // and only when the result isn't already cached. Repeated resolves
+            // of the same path (criterion runs 81k iterations of the same
+            // workload, real bundlers re-resolve hot specifiers repeatedly)
+            // hit `canonicalized.get()` and have nothing to gain from the
+            // anchor lookup — running it would only add overhead.
             if cached_path.inside_node_modules()
+                && cached_path.canonicalized.get().is_none()
                 && let Some(canonical) = self.canonicalize_via_node_modules_anchor(cached_path)?
             {
                 return Ok(canonical);
