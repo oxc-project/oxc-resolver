@@ -295,6 +295,40 @@ impl<Fs: FileSystem> Cache<Fs> {
         })
     }
 
+    /// Return the `<...>/node_modules/<pkg>` anchor that `path` lives under,
+    /// or `None` if the path is not inside `node_modules/`. Walks the
+    /// existing `parent` chain (each step is a `Weak::upgrade` —
+    /// allocation-free) rather than running `path::node_modules_anchor`,
+    /// which allocates a `Vec<Component>` and two `PathBuf`s on every call.
+    /// O(N) in path depth, but each step is cheap.
+    pub(crate) fn pkg_anchor(&self, path: &CachedPath) -> Option<CachedPath> {
+        if !path.inside_node_modules() {
+            return None;
+        }
+        let mut current = path.clone();
+        let mut child = None::<CachedPath>;
+        let mut grandchild = None::<CachedPath>;
+        loop {
+            if current.is_node_modules {
+                // `child` is the `<pkg>` for unscoped names. For `@scope/name`
+                // it's the `@scope` dir, so the real anchor is `grandchild`.
+                let candidate = child?;
+                if candidate
+                    .path
+                    .file_name()
+                    .is_some_and(|n| n.as_encoded_bytes().starts_with(b"@"))
+                {
+                    return grandchild;
+                }
+                return Some(candidate);
+            }
+            let parent = current.parent(self)?;
+            grandchild = child;
+            child = Some(current);
+            current = parent;
+        }
+    }
+
     fn detect_node_modules_layout(&self, start: &Path) -> NodeModulesLayout {
         for ancestor in start.ancestors() {
             if self.fs.metadata(&ancestor.join(".pnp.cjs")).is_ok_and(|m| m.is_file) {

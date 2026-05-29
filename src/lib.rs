@@ -366,6 +366,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // or the first package.json if the path is not inside node_modules.
         let inside_node_modules = cached_path.inside_node_modules();
         if inside_node_modules {
+            // Fast path: probe the package.json at the `node_modules/<pkg>`
+            // anchor directly instead of walking every intermediate dir.
+            // `cache.pkg_anchor` is O(1) on warm cache (Weak cached on the
+            // CachedPath), so this saves ~9 redundant `fs.read` ENOENT calls
+            // per workload without paying the previous anchor-lookup
+            // allocation on every iteration.
+            if let Some(anchor) = self.cache.pkg_anchor(cached_path) {
+                return self.cache.get_package_json(&anchor, &self.options, ctx);
+            }
+
             let mut last = None;
             // Go up directories when the querying path is not a directory
             let mut cp = cached_path.clone();
@@ -853,10 +863,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         &self,
         cached_path: &CachedPath,
     ) -> Result<Option<PathBuf>, ResolveError> {
-        let Some((anchor_path, rest)) = path::node_modules_anchor(cached_path.path()) else {
+        let Some(anchor) = self.cache.pkg_anchor(cached_path) else {
             return Ok(None);
         };
-        let anchor = self.cache.value(&anchor_path);
 
         // Fast path: if the anchor itself is not a symlink, no component in
         // the path is — PMs install package contents as real files even when
@@ -872,6 +881,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         }
 
         let canonical_anchor_cp = self.cache.canonicalize_impl(&anchor)?;
+        let rest = cached_path.path().strip_prefix(anchor.path()).unwrap_or_else(|_| Path::new(""));
         let canonical = if rest.as_os_str().is_empty() {
             canonical_anchor_cp.to_path_buf()
         } else {
