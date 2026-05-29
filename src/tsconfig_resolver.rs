@@ -115,7 +115,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
                 let tsconfig_path = cv.path.join("tsconfig.json");
                 let tsconfig_path = self.cache.value(&tsconfig_path);
-                if self.cache.is_file(&tsconfig_path, &mut ctx) {
+                if self.is_file(&tsconfig_path, &mut ctx) {
                     match self.resolve_tsconfig(tsconfig_path.path()) {
                         Ok(tsconfig) => Ok(Some(tsconfig)),
                         // Skip unreadable tsconfig files (e.g. permission denied)
@@ -354,7 +354,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let Some(root_dirs) = &tsconfig.compiler_options.root_dirs else { return Ok(None) };
 
         // Use the containing directory, not the file itself
-        let containing_directory = if self.cache.is_dir(cached_path, ctx) {
+        let containing_directory = if self.is_dir(cached_path, ctx) {
             cached_path.clone()
         } else {
             cached_path.parent(&self.cache).unwrap_or_else(|| cached_path.clone())

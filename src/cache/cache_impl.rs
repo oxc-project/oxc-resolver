@@ -17,7 +17,7 @@ use super::borrowed_path::BorrowedCachedPath;
 use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
 use crate::{
-    FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
+    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx, path::PathUtil,
 };
 
@@ -82,8 +82,8 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
     }
 
-    pub(crate) fn is_file(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        if path.is_file(&self.fs).is_some_and(|b| b) {
+    pub(crate) fn is_file(&self, path: &CachedPath, symlinks: bool, ctx: &mut Ctx) -> bool {
+        if self.followed_metadata(path, symlinks).is_some_and(FileMetadata::is_file) {
             ctx.add_file_dependency(path.path());
             true
         } else {
@@ -92,10 +92,39 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
     }
 
-    pub(crate) fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
-        path.is_dir(&self.fs).unwrap_or_else(|| {
-            ctx.add_missing_dependency(path.path());
-            false
+    pub(crate) fn is_dir(&self, path: &CachedPath, symlinks: bool, ctx: &mut Ctx) -> bool {
+        self.followed_metadata(path, symlinks).map_or_else(
+            || {
+                ctx.add_missing_dependency(path.path());
+                false
+            },
+            FileMetadata::is_dir,
+        )
+    }
+
+    /// `stat`-equivalent metadata (symlinks followed) for `path`, cached in the `followed` slot.
+    ///
+    /// For a non-symlink the cached `lstat` already answers this, so no extra syscall is issued.
+    /// For a symlink with `symlinks` enabled, reuse canonicalization — which the resolver performs
+    /// anyway for the final resolved path — and read the canonical target's already-cached `lstat`,
+    /// avoiding a standalone `stat` of the symlink.
+    ///
+    /// Falls back to a direct `stat` when symlinks are disabled, when canonicalization fails, or
+    /// when the canonical target has no metadata. The last case keeps the optimization purely
+    /// additive: a custom [`FileSystem`] whose `canonicalize` and `metadata` disagree still gets
+    /// the same answer `stat` gave before.
+    fn followed_metadata(&self, path: &CachedPath, symlinks: bool) -> Option<FileMetadata> {
+        path.meta.followed_or_init(|| match path.link_metadata(&self.fs) {
+            Some(meta) if meta.is_symlink() => {
+                let followed = if symlinks {
+                    self.canonicalize_impl(path).ok().and_then(|c| c.link_metadata(&self.fs))
+                } else {
+                    None
+                };
+                followed.or_else(|| self.fs.metadata(path.path()).ok())
+            }
+            // A non-symlink's `lstat` already is its `stat`; `None` stays `None`.
+            other => other,
         })
     }
 
@@ -133,7 +162,7 @@ impl<Fs: FileSystem> Cache<Fs> {
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         let mut path = path.clone();
         // Go up directories when the querying path is not a directory
-        while !self.is_dir(&path, ctx) {
+        while !self.is_dir(&path, options.symlinks, ctx) {
             if let Some(cv) = path.parent(self) {
                 path = cv;
             } else {

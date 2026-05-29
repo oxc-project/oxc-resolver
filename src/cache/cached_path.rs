@@ -100,21 +100,24 @@ impl CachedPath {
     pub(crate) fn module_directory<Fs: FileSystem>(
         &self,
         module_name: &str,
+        symlinks: bool,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Option<Self> {
         let cached_path = self.push(module_name, cache);
-        cache.is_dir(&cached_path, ctx).then_some(cached_path)
+        cache.is_dir(&cached_path, symlinks, ctx).then_some(cached_path)
     }
 
     pub(crate) fn cached_node_modules<Fs: FileSystem>(
         &self,
+        symlinks: bool,
         cache: &Cache<Fs>,
         ctx: &mut Ctx,
     ) -> Option<Self> {
         self.node_modules
             .get_or_init(|| {
-                self.module_directory("node_modules", cache, ctx).map(|cp| Arc::downgrade(&cp.0))
+                self.module_directory("node_modules", symlinks, cache, ctx)
+                    .map(|cp| Arc::downgrade(&cp.0))
             })
             .as_ref()
             .and_then(|weak| {
@@ -245,26 +248,6 @@ impl CachedPath {
     /// whether to follow a symlink — so the two share a single `lstat` syscall per path.
     pub(crate) fn link_metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
         self.meta.link_or_init(|| fs.symlink_metadata(&self.path).ok())
-    }
-
-    /// `stat` view of this path (symlinks followed), cached.
-    ///
-    /// For a non-symlink this reuses the cached `lstat` result and issues no extra syscall; only
-    /// an actual symlink needs a follow-up `stat` to learn what it points at.
-    fn followed_metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
-        self.meta.followed_or_init(|| match self.link_metadata(fs) {
-            Some(meta) if meta.is_symlink() => fs.metadata(&self.path).ok(),
-            // A non-symlink's `lstat` already is its `stat`; `None` stays `None`.
-            other => other,
-        })
-    }
-
-    pub(crate) fn is_file<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
-        self.followed_metadata(fs).map(FileMetadata::is_file)
-    }
-
-    pub(crate) fn is_dir<Fs: FileSystem>(&self, fs: &Fs) -> Option<bool> {
-        self.followed_metadata(fs).map(FileMetadata::is_dir)
     }
 }
 

@@ -349,7 +349,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             let mut last = None;
             // Go up directories when the querying path is not a directory
             let mut cp = cached_path.clone();
-            if !self.cache.is_dir(&cp, ctx)
+            if !self.is_dir(&cp, ctx)
                 && let Some(cv) = cp.parent(&self.cache)
             {
                 cp = cv;
@@ -376,6 +376,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         } else {
             self.cache.find_package_json(cached_path, &self.options, ctx)
         }
+    }
+
+    /// [`Cache::is_file`] using this resolver's [`ResolveOptions::symlinks`] policy.
+    fn is_file(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
+        self.cache.is_file(path, self.options.symlinks, ctx)
+    }
+
+    /// [`Cache::is_dir`] using this resolver's [`ResolveOptions::symlinks`] policy.
+    fn is_dir(&self, path: &CachedPath, ctx: &mut Ctx) -> bool {
+        self.cache.is_dir(path, self.options.symlinks, ctx)
     }
 
     /// require(X) from module at path Y
@@ -789,14 +799,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         if self.options.resolve_to_context {
-            return Ok(self.cache.is_dir(cached_path, ctx).then(|| cached_path.clone()));
+            return Ok(self.is_dir(cached_path, ctx).then(|| cached_path.clone()));
         }
         if !specifier.ends_with('/')
             && let Some(path) = self.load_as_file(cached_path, tsconfig, ctx)?
         {
             return Ok(Some(path));
         }
-        if self.cache.is_dir(cached_path, ctx)
+        if self.is_dir(cached_path, ctx)
             && let Some(path) = self.load_as_directory(cached_path, tsconfig, ctx)?
         {
             return Ok(Some(path));
@@ -903,7 +913,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         if let Some(path) = self.load_browser_field_or_alias(cached_path, tsconfig, ctx)? {
             return Ok(Some(path));
         }
-        if self.cache.is_file(cached_path, ctx) && self.check_restrictions(cached_path.path()) {
+        if self.is_file(cached_path, ctx) && self.check_restrictions(cached_path.path()) {
             return Ok(Some(cached_path.clone()));
         }
         Ok(None)
@@ -932,7 +942,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 std::iter::successors(Some(cached_path.clone()), |cp| cp.parent(&self.cache))
             {
                 // Skip if /path/to/node_modules does not exist
-                if !self.cache.is_dir(&cached_path, ctx) {
+                if !self.is_dir(&cached_path, ctx) {
                     continue;
                 }
 
@@ -947,7 +957,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if !package_name.is_empty() {
                     let cached_path = cached_path.normalize_with(package_name, &self.cache);
                     // Try foo/node_modules/package_name
-                    if self.cache.is_dir(&cached_path, ctx) {
+                    if self.is_dir(&cached_path, ctx) {
                         // a. LOAD_PACKAGE_EXPORTS(X, DIR)
                         if let Some(path) = self.load_package_exports(
                             specifier,
@@ -967,7 +977,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         // i.e. `foo/node_modules/@scope` is not a directory for `foo/node_modules/@scope/package`
                         if package_name.starts_with('@')
                             && let Some(path) = cached_path.parent(&self.cache).as_ref()
-                            && !self.cache.is_dir(path, ctx)
+                            && !self.is_dir(path, ctx)
                         {
                             continue;
                         }
@@ -981,7 +991,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let cached_path = cached_path.normalize_with(specifier, &self.cache);
 
                 if self.options.resolve_to_context {
-                    return Ok(self.cache.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
+                    return Ok(self.is_dir(&cached_path, ctx).then(|| cached_path.clone()));
                 }
 
                 // Only load the file if it is targeting a `X/sub/dir`.
@@ -993,7 +1003,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 }
                 // Otherwise just load the directory.
                 // No modern package manager creates `node_modules/X.js`.
-                if self.cache.is_dir(&cached_path, ctx) {
+                if self.is_dir(&cached_path, ctx) {
                     if let Some(path) =
                         self.load_browser_field_or_alias(&cached_path, tsconfig, ctx)?
                     {
@@ -1106,13 +1116,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Option<CachedPath> {
         if module_name == "node_modules" {
-            cached_path.cached_node_modules(&self.cache, ctx)
+            cached_path.cached_node_modules(self.options.symlinks, &self.cache, ctx)
         } else if cached_path.path().components().next_back()
             == Some(Component::Normal(OsStr::new(module_name)))
         {
             Some(cached_path.clone())
         } else {
-            cached_path.module_directory(module_name, &self.cache, ctx)
+            cached_path.module_directory(module_name, self.options.symlinks, &self.cache, ctx)
         }
     }
 
@@ -1241,7 +1251,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 .as_ref()
                 .is_some_and(|s| path.ends_with(Path::new(s)))
             {
-                return if self.cache.is_file(cached_path, ctx) {
+                return if self.is_file(cached_path, ctx) {
                     if self.check_restrictions(cached_path.path()) {
                         Ok(Some(cached_path.clone()))
                     } else {
@@ -1298,7 +1308,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         }
         // Bail if path is module directory such as `ipaddr.js`
-        if !self.cache.is_file(cached_path, ctx) {
+        if !self.is_file(cached_path, ctx) {
             ctx.with_fully_specified(false);
             return Ok(None);
         } else if !self.check_restrictions(cached_path.path()) {
@@ -1381,7 +1391,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let cached_path = cached_path.normalize_with(package_name, &self.cache);
                 // 3. If the folder at packageURL does not exist, then
                 //   1. Continue the next loop iteration.
-                if self.cache.is_dir(&cached_path, ctx) {
+                if self.is_dir(&cached_path, ctx) {
                     // 4. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
                     if let Some(package_json) =
                         self.cache.get_package_json(&cached_path, &self.options, ctx)?
@@ -1406,7 +1416,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                                 // 1. Return the URL resolution of main in packageURL.
                                 let cached_path =
                                     cached_path.normalize_with(main_field, &self.cache);
-                                if self.cache.is_file(&cached_path, ctx)
+                                if self.is_file(&cached_path, ctx)
                                     && self.check_restrictions(cached_path.path())
                                 {
                                     return Ok(Some(cached_path));

@@ -366,7 +366,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
 
     fn dts_try_file(&self, base: &CachedPath, ext: &str, ctx: &mut Ctx) -> Option<CachedPath> {
         let candidate = base.add_extension(ext, &self.cache);
-        if self.cache.is_file(&candidate, ctx) { Some(candidate) } else { None }
+        if self.is_file(&candidate, ctx) { Some(candidate) } else { None }
     }
 
     /// TS: `loadNodeModuleFromDirectoryWorker`
@@ -376,7 +376,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         candidate: &CachedPath,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        if !self.cache.is_dir(candidate, ctx) {
+        if !self.is_dir(candidate, ctx) {
             return Ok(None);
         }
 
@@ -444,7 +444,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if let Some(path) = self.dts_resolve_as_file(expanded, &entry_path, ctx) {
                     return Ok(Some(path));
                 }
-                if self.cache.is_dir(&entry_path, ctx) {
+                if self.is_dir(&entry_path, ctx) {
                     let index = entry_path.push("index", &self.cache);
                     if let Some(path) = self.dts_resolve_as_file(expanded, &index, ctx) {
                         return Ok(Some(path));
@@ -479,7 +479,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 std::iter::successors(Some(directory.clone()), |cp| cp.parent(&self.cache))
             {
                 let nm = ancestor.push("node_modules", &self.cache);
-                if !self.cache.is_dir(&nm, ctx) {
+                if !self.is_dir(&nm, ctx) {
                     continue;
                 }
 
@@ -494,7 +494,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if priority_exts.contains(Extensions::DECLARATION) {
                     let mangled = Self::dts_mangle_scoped_name(package_name);
                     let at_types_dir = nm.push("@types", &self.cache);
-                    if self.cache.is_dir(&at_types_dir, ctx) {
+                    if self.is_dir(&at_types_dir, ctx) {
                         let at_types_specifier = if rest.is_empty() {
                             mangled.clone()
                         } else {
@@ -519,7 +519,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 std::iter::successors(Some(directory.clone()), |cp| cp.parent(&self.cache))
             {
                 let nm = ancestor.push("node_modules", &self.cache);
-                if !self.cache.is_dir(&nm, ctx) {
+                if !self.is_dir(&nm, ctx) {
                     continue;
                 }
                 if let Some(path) =
@@ -543,7 +543,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let (package_name, rest) = Self::parse_package_specifier(specifier);
         let pkg_dir = nm_dir.normalize_with(package_name, &self.cache);
 
-        if !self.cache.is_dir(&pkg_dir, ctx) {
+        if !self.is_dir(&pkg_dir, ctx) {
             return Ok(None);
         }
 
@@ -593,7 +593,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             if let Some(path) = self.dts_resolve_as_file(extensions, &candidate, ctx) {
                 return Ok(Some(path));
             }
-            if self.cache.is_dir(&candidate, ctx) {
+            if self.is_dir(&candidate, ctx) {
                 return self.dts_resolve_as_directory(extensions, &candidate, ctx);
             }
         }
@@ -608,7 +608,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             return Some(path);
         }
         // Fall back to original file if it exists
-        if self.cache.is_file(cached_path, ctx) {
+        if self.is_file(cached_path, ctx) {
             return Some(cached_path.clone());
         }
         None
@@ -669,7 +669,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     if let Some(path) = self.dts_resolve_as_file(extensions, &candidate, ctx) {
                         return Ok(Some(path));
                     }
-                    if self.cache.is_dir(&candidate, ctx)
+                    if self.is_dir(&candidate, ctx)
                         && let Some(path) =
                             self.dts_resolve_as_directory(extensions, &candidate, ctx)?
                     {

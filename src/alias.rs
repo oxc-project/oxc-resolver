@@ -178,7 +178,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                         let alias_path = Path::new(alias_value).normalize();
                         // Must not append anything to alias_value if it is a file.
                         let cached_alias_path = self.cache.value(&alias_path);
-                        if self.cache.is_file(&cached_alias_path, ctx) {
+                        if self.is_file(&cached_alias_path, ctx) {
                             return Ok(None);
                         }
                         // Remove the leading slash so the final path is concatenated.
