@@ -870,19 +870,27 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         // Fast path: if the anchor itself is not a symlink, no component in
         // the path is — PMs install package contents as real files even when
         // `<pkg>` itself can be a workspace symlink. Skip canonicalize and
-        // return the input path. Matches the trust assumption used by
-        // `find_package_json_impl`'s `is_symlink_cached` skip — the importer
-        // path's prefix is treated as already canonical.
+        // return the input path. Populate `canonicalized` so subsequent
+        // resolves of the same path skip the anchor lookup via the warm-path
+        // guard in `load_realpath`.
         if !self.cache.is_symlink_cached(&anchor) {
+            let _ = cached_path
+                .canonicalized
+                .set((Arc::downgrade(&cached_path.0), cached_path.0.path.clone()));
             return Ok(Some(cached_path.to_path_buf()));
         }
 
-        let canonical_anchor = self.cache.canonicalize(&anchor)?;
+        let canonical_anchor_cp = self.cache.canonicalize_impl(&anchor)?;
         let canonical = if rest.as_os_str().is_empty() {
-            canonical_anchor
+            canonical_anchor_cp.to_path_buf()
         } else {
-            canonical_anchor.join(rest)
+            canonical_anchor_cp.path().join(rest)
         };
+        // Cache on the file path too so the warm-path guard short-circuits.
+        let canonical_cp = self.cache.value(&canonical);
+        let _ = cached_path
+            .canonicalized
+            .set((Arc::downgrade(&canonical_cp.0), canonical_cp.0.path.clone()));
         Ok(Some(canonical))
     }
 
