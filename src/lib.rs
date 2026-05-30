@@ -751,10 +751,20 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // b. If "main" is a falsy value, GOTO 2.
             for main_field in package_json.main_fields(&self.options.main_fields) {
                 // ref https://github.com/webpack/enhanced-resolve/blob/main/lib/MainFieldPlugin.js#L66-L67
-                let main_field = if main_field.starts_with("./") || main_field.starts_with("../") {
-                    Cow::Borrowed(main_field)
-                } else {
+                // `normalize_with` treats a leading `./` (`Component::CurDir`) as a no-op, so a
+                // non-empty relative main field can be borrowed directly, skipping the `format!`
+                // allocation for the common `"main": "index.js"` / `"dist/index.js"` shapes. Only
+                // an empty field (which must become "./" to resolve the directory itself) or an
+                // absolute path (whose `RootDir`/`Prefix` head must stay behind a "./" so it is
+                // joined rather than replacing the package directory) needs the owned form.
+                let main_field = if main_field.is_empty()
+                    || matches!(
+                        Path::new(main_field).components().next(),
+                        Some(Component::RootDir | Component::Prefix(_))
+                    ) {
                     Cow::Owned(format!("./{main_field}"))
+                } else {
+                    Cow::Borrowed(main_field)
                 };
 
                 // c. let M = X + (json main field)
