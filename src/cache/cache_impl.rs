@@ -200,23 +200,24 @@ impl<Fs: FileSystem> Cache<Fs> {
                 } else {
                     package_json_path.clone()
                 };
-                PackageJson::parse(
-                    &self.fs,
-                    package_json_path.clone(),
-                    real_path,
-                    package_json_bytes,
-                )
-                .map(|package_json| Some(Arc::new(package_json)))
-                .map_err(ResolveError::Json)
+                // Move `package_json_path` into `parse` instead of cloning it: the parsed
+                // `PackageJson` stores the path verbatim (`package_json.path()`), and on error
+                // `JSONError.path` carries the same path, so the file-dependency record reads it
+                // back without a second allocation.
                 // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
-                .inspect(|_| {
-                    ctx.add_file_dependency(&package_json_path);
-                })
-                .inspect_err(|_| {
-                    if let Some(deps) = &mut ctx.file_dependencies {
-                        deps.push(package_json_path.clone());
+                match PackageJson::parse(&self.fs, package_json_path, real_path, package_json_bytes)
+                {
+                    Ok(package_json) => {
+                        ctx.add_file_dependency(package_json.path());
+                        Ok(Some(Arc::new(package_json)))
                     }
-                })
+                    Err(error) => {
+                        if let Some(deps) = &mut ctx.file_dependencies {
+                            deps.push(error.path.clone());
+                        }
+                        Err(ResolveError::Json(error))
+                    }
+                }
             })
             .cloned()
     }
