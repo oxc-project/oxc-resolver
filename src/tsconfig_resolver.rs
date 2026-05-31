@@ -406,6 +406,22 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             None => Err(ResolveError::Specifier(SpecifierError::Empty(specifier.to_string()))),
             Some(b'/') => Ok(PathBuf::from(specifier)),
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
+            Some(b'#') => {
+                let mut ctx = Ctx::default();
+                if let Some(package_json) =
+                    self.find_package_json_for_a_package(directory, &mut ctx)?
+                {
+                    if let Some(cached_path) = self.package_imports_resolve(
+                        specifier,
+                        &package_json,
+                        Some(tsconfig),
+                        &mut ctx,
+                    )? {
+                        return Ok(cached_path.path().to_path_buf());
+                    }
+                }
+                Err(ResolveError::TsconfigNotFound(PathBuf::from(specifier)))
+            }
             _ => self
                 .clone_with_options(ResolveOptions {
                     tsconfig: None,
