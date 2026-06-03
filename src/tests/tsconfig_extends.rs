@@ -367,6 +367,31 @@ fn test_extend_package() {
     }
 }
 
+#[test]
+fn test_extend_imports() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-imports");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(f.join("tsconfig-string.json")).expect("resolved");
+    assert_eq!(resolution.compiler_options.target, Some("ES2020".to_string()));
+
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    assert_eq!(resolution.compiler_options.target, Some("ES2015".to_string()));
+
+    let result = resolver.resolve_tsconfig(f.join("tsconfig-missing.json"));
+    assert!(
+        matches!(&result, Err(crate::ResolveError::TsconfigNotFound(_))),
+        "expected TsconfigNotFound for an undefined `#` import, got {result:?}",
+    );
+}
+
 fn assert_extends_symlink_resolves_to_canonical(config_file: &Path) {
     let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
     let resolver = Resolver::new(ResolveOptions {

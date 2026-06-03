@@ -396,6 +396,25 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Ok(None)
     }
 
+    /// Lookup configuration shared by tsconfig `extends` targets that resolve
+    /// through `node_modules`: bare package specifiers (via the package
+    /// `exports` field) and `#`-prefixed subpath imports (via the package
+    /// `imports` field). Both use the same conditions so that, for example,
+    /// `extends: "pkg"` and `extends: "#pkg"` agree on which condition wins.
+    fn tsconfig_extends_resolver(&self) -> Self {
+        self.clone_with_options(ResolveOptions {
+            tsconfig: None,
+            condition_names: vec!["node".into(), "import".into()],
+            extensions: vec![".json".into()],
+            main_files: vec!["tsconfig".into()],
+            #[cfg(feature = "yarn_pnp")]
+            yarn_pnp: self.options.yarn_pnp,
+            #[cfg(feature = "yarn_pnp")]
+            cwd: self.options.cwd.clone(),
+            ..ResolveOptions::default()
+        })
+    }
+
     fn get_extended_tsconfig_path(
         &self,
         directory: &CachedPath,
@@ -406,18 +425,25 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             None => Err(ResolveError::Specifier(SpecifierError::Empty(specifier.to_string()))),
             Some(b'/') => Ok(PathBuf::from(specifier)),
             Some(b'.') => Ok(tsconfig.directory().normalize_with(specifier)),
-            _ => self
-                .clone_with_options(ResolveOptions {
-                    tsconfig: None,
-                    condition_names: vec!["node".into(), "import".into()],
-                    extensions: vec![".json".into()],
-                    main_files: vec!["tsconfig".into()],
-                    #[cfg(feature = "yarn_pnp")]
-                    yarn_pnp: self.options.yarn_pnp,
-                    #[cfg(feature = "yarn_pnp")]
-                    cwd: self.options.cwd.clone(),
-                    ..ResolveOptions::default()
+            // Node.js subpath imports, e.g. `extends: "#config"`, resolved
+            // through the nearest `package.json` `imports` field — the same
+            // path the resolver takes for `require("#config")`.
+            Some(b'#') => self
+                .tsconfig_extends_resolver()
+                .load_package_imports(directory, specifier, Some(tsconfig), &mut Ctx::default())
+                .map_err(|err| match err {
+                    ResolveError::PackageImportNotDefined(..) | ResolveError::NotFound(..) => {
+                        ResolveError::TsconfigNotFound(PathBuf::from(specifier))
+                    }
+                    _ => err,
                 })
+                .and_then(|resolved| {
+                    resolved
+                        .map(|p| p.path().to_path_buf())
+                        .ok_or_else(|| ResolveError::TsconfigNotFound(PathBuf::from(specifier)))
+                }),
+            _ => self
+                .tsconfig_extends_resolver()
                 .load_package_self_or_node_modules(directory, specifier, None, &mut Ctx::default())
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {

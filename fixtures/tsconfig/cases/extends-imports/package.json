@@ -1,0 +1,10 @@
+{
+  "name": "extends-imports",
+  "imports": {
+    "#string": "./string.tsconfig.json",
+    "#conditional": {
+      "node": "./node.tsconfig.json",
+      "default": "./default.tsconfig.json"
+    }
+  }
+}
