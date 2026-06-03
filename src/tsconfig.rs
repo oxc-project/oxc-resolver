@@ -566,7 +566,6 @@ enum GlobPattern<'a> {
 impl TsConfig {
     pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
         if !tsconfig.references_resolved.is_empty()
-            && tsconfig.is_file_extension_allowed_in_tsconfig(path)
             && let Some(solution_tsconfig) = tsconfig
                 .references_resolved
                 .iter()
@@ -609,6 +608,10 @@ impl TsConfig {
     }
 
     fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {
+        // 0. Check extension first - each tsconfig uses its own allowJs setting
+        if !self.is_file_extension_allowed_in_tsconfig(path) {
+            return false;
+        }
         // 1. Check files array (highest priority - overrides exclude)
         if self.files.as_ref().is_some_and(|files| files.iter().any(|file| Path::new(file) == path))
         {

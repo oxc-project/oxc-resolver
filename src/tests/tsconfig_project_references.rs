@@ -206,6 +206,27 @@ fn walk_up_when_ref_excludes_file() {
 }
 
 #[test]
+fn referenced_config_allow_js_uses_own_setting() {
+    // A Vite-style solution `tsconfig.json` (empty `include`, only `references`)
+    // does not set `allowJs`, but the referenced `tsconfig.app.json` does. When
+    // resolving from a `.js` file, the solution must defer to the referenced
+    // project — whose own `allowJs` lets it claim the file — so its `paths`
+    // alias applies. Previously the solution checked the *parent's* `allowJs`,
+    // which dropped the `.js` file before any reference was consulted.
+    let f = super::fixture_root().join("tsconfig/cases/project-references-ref-allow-js");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".js".into(), ".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path =
+        resolver.resolve_file(f.join("src/index.js"), "@alias/foo.js").map(|f| f.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/foo.js")));
+}
+
+#[test]
 fn root_paths_apply_to_default_include_files() {
     let f = super::fixture_root().join("tsconfig/cases/project-references-default-include");
 

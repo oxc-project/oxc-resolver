@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true,
+    "paths": {
+      "@alias/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ]
+}
