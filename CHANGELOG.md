@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.21.0](https://github.com/oxc-project/oxc-resolver/compare/v11.20.0...v11.21.0) - 2026-06-03
+
+### <!-- 0 -->🚀 Features
+
+- *(tsconfig)* support package.json imports field in extends ([#1199](https://github.com/oxc-project/oxc-resolver/pull/1199)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- *(tsconfig)* apply each referenced project's own `allowJs` ([#1198](https://github.com/oxc-project/oxc-resolver/pull/1198)) (by @shulaoda)
+- make symlink_metadata VPath-aware for Yarn PnP ([#1183](https://github.com/oxc-project/oxc-resolver/pull/1183)) (by @Boshen)
+
+### <!-- 4 -->⚡ Performance
+
+- borrow relative main field instead of allocating a "./" prefix ([#1187](https://github.com/oxc-project/oxc-resolver/pull/1187)) (by @Boshen)
+- *(cache)* move package.json path into parse instead of cloning ([#1186](https://github.com/oxc-project/oxc-resolver/pull/1186)) (by @Boshen)
+- eliminate symlink stat syscalls by reusing canonicalization ([#1184](https://github.com/oxc-project/oxc-resolver/pull/1184)) (by @Boshen)
+- reduce resolution syscalls by unifying stat and lstat ([#1182](https://github.com/oxc-project/oxc-resolver/pull/1182)) (by @Boshen)
+
+### <!-- 9 -->💼 Other
+
+- add baselines for each package manager x node_modules layout ([#1176](https://github.com/oxc-project/oxc-resolver/pull/1176)) (by @Boshen)
+
+### Contributors
+
+* @shulaoda
+* @Boshen
+* @renovate[bot]
+
 ## [11.20.0](https://github.com/oxc-project/oxc-resolver/compare/v11.19.2...v11.20.0) - 2026-05-27
 
 ### <!-- 0 -->🚀 Features
