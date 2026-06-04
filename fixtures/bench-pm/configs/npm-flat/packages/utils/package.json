@@ -8,6 +8,6 @@
     "./hash": "./src/hash.js"
   },
   "dependencies": {
-    "@bench/ui": "workspace:*"
+    "@bench/ui": "*"
   }
 }

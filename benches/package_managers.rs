@@ -191,10 +191,16 @@ mod workload {
         candidates.iter().any(|c| resolved_path.contains(c.as_str()))
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn requests(root: &std::path::Path) -> Vec<Request> {
         // The resolver takes the containing directory of the importer, not the file path itself.
         let deep = root.join("apps/web/nested/deep/src");
         let shallow = root.join("apps/web/src");
+        // Monorepo workspace packages: `packages/ui` depends on a conflicting `react@17` (the app
+        // uses `react@18`), so resolving from inside it exercises a nested `node_modules`;
+        // `packages/utils` links `@bench/ui`, exercising a workspace-to-workspace resolution.
+        let ui = root.join("packages/ui/src");
+        let utils = root.join("packages/utils/src");
         vec![
             // Bare unscoped, exports field with conditions
             Request {
@@ -306,6 +312,21 @@ mod workload {
                 importer: shallow,
                 specifier: "../../../packages/utils",
                 pkg_dir: "packages/utils",
+                internal_path: "/src/index.js",
+            },
+            // Nested node_modules: `react` from `packages/ui` resolves to its own conflicting
+            // `react@17`, not the app's hoisted `react@18`.
+            Request {
+                importer: ui,
+                specifier: "react",
+                pkg_dir: "react",
+                internal_path: "/index.js",
+            },
+            // Workspace-to-workspace: `@bench/ui` from `packages/utils`.
+            Request {
+                importer: utils,
+                specifier: "@bench/ui",
+                pkg_dir: "packages/ui",
                 internal_path: "/src/index.js",
             },
         ]

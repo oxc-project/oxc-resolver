@@ -17,12 +17,16 @@ __metadata:
 "@bench/ui@workspace:*, @bench/ui@workspace:packages/ui":
   version: 0.0.0-use.local
   resolution: "@bench/ui@workspace:packages/ui"
+  dependencies:
+    react: "npm:17.0.2"
   languageName: unknown
   linkType: soft
 
 "@bench/utils@workspace:*, @bench/utils@workspace:packages/utils":
   version: 0.0.0-use.local
   resolution: "@bench/utils@workspace:packages/utils"
+  dependencies:
+    "@bench/ui": "workspace:*"
   languageName: unknown
   linkType: soft
 
@@ -324,10 +328,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"object-assign@npm:^4.1.1":
+  version: 4.1.1
+  resolution: "object-assign@npm:4.1.1"
+  checksum: 10c0/1f4df9945120325d041ccf7b86f31e8bcc14e73d29171e37a7903050e96b81323784ec59f93f102ec635bcf6fa8034ba3ea0a8c7e69fa202b87ae3b6cec5a414
+  languageName: node
+  linkType: hard
+
 "proxy-from-env@npm:^1.1.0":
   version: 1.1.0
   resolution: "proxy-from-env@npm:1.1.0"
   checksum: 10c0/fe7dd8b1bdbbbea18d1459107729c3e4a2243ca870d26d34c2c1bcd3e4425b7bcc5112362df2d93cc7fb9746f6142b5e272fd1cc5c86ddf8580175186f6ad42b
+  languageName: node
+  linkType: hard
+
+"react@npm:17.0.2":
+  version: 17.0.2
+  resolution: "react@npm:17.0.2"
+  dependencies:
+    loose-envify: "npm:^1.1.0"
+    object-assign: "npm:^4.1.1"
+  checksum: 10c0/07ae8959acf1596f0550685102fd6097d461a54a4fd46a50f88a0cd7daaa97fdd6415de1dcb4bfe0da6aa43221a6746ce380410fa848acc60f8ac41f6649c148
   languageName: node
   linkType: hard
 
