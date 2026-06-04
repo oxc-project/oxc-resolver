@@ -3,7 +3,7 @@ use std::{
     collections::HashSet as StdHashSet,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
@@ -339,6 +339,23 @@ impl<Fs: FileSystem> Cache<Fs> {
         }
     }
 
+    /// Whether every component strictly below `anchor` on the way to `path` is a real, non-symlink
+    /// entry — the precondition for appending the suffix verbatim in the anchor fast path. Walks the
+    /// cached parent chain and reuses the cached `lstat`, so components already stat'd while
+    /// resolving the file add no syscalls. Returns `false` if any component is a symlink, is missing,
+    /// or the chain does not reach `anchor`.
+    fn suffix_below_anchor_is_symlink_free(&self, path: &CachedPath, anchor: &CachedPath) -> bool {
+        let mut current = path.clone();
+        while current.path() != anchor.path() {
+            if current.link_metadata(&self.fs).is_none_or(|m| m.is_symlink) {
+                return false;
+            }
+            let Some(parent) = current.parent(self) else { return false };
+            current = parent;
+        }
+        true
+    }
+
     /// Returns the canonical path, resolving all symbolic links.
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
@@ -375,6 +392,30 @@ impl<Fs: FileSystem> Cache<Fs> {
                 .ok_or_else(|| {
                     io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
                 });
+        }
+
+        // Anchor fast path: canonicalize the real `<...>/node_modules/<pkg>` directory (the
+        // "anchor") and append the suffix below it without a per-component `read_link` walk. A
+        // symlinked anchor (a linked workspace package, or the top-level link of an isolated layout)
+        // keeps the normal walk. The suffix is appended verbatim only after confirming every
+        // component strictly below the anchor is a real, non-symlink entry — a package may still
+        // ship an internal symlink (e.g. `lib -> dist`), and appending across it would skip the
+        // link. That check is what makes this correct for any layout, so no `node_modules` trust
+        // gate is needed here. The `lstat` reuses the cache, so components already stat'd while
+        // resolving the file cost nothing.
+        if path.inside_node_modules
+            && let Some(anchor) = self.pkg_anchor(path)
+            && anchor.path() != path.path()
+            && anchor.link_metadata(&self.fs).is_some_and(|m| !m.is_symlink)
+            && let Ok(rest) = path.path().strip_prefix(anchor.path())
+            && !rest.components().any(|c| matches!(c, Component::ParentDir))
+            && self.suffix_below_anchor_is_symlink_free(path, &anchor)
+        {
+            let anchor_canonical = self.canonicalize_with_visited(&anchor, visited)?;
+            let canonical = anchor_canonical.normalize_with(rest, self);
+            let _ =
+                path.canonicalized.set((Arc::downgrade(&canonical.0), canonical.0.path.clone()));
+            return Ok(canonical);
         }
 
         // Check for circular symlink by tracking visited paths in the current canonicalization chain
@@ -423,5 +464,47 @@ impl<Fs: FileSystem> Cache<Fs> {
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
         Ok(res)
+    }
+
+    /// The deepest `<...>/node_modules/<pkg>` (or `<...>/node_modules/@scope/<pkg>`) ancestor of
+    /// `path`, inclusive of `path` itself.
+    ///
+    /// Returns `None` when `path` is not inside any `node_modules`, for degenerate shapes that have
+    /// no package segment (`<...>/node_modules` itself, or a bare `<...>/node_modules/@scope`), or
+    /// when the segment under `node_modules` is a dot-directory (`.bin`, `.pnpm`, `.store`, `.bun`,
+    /// …). A real package name never starts with `.`, and those special directories hold symlinks
+    /// (e.g. the `.bin` shims) — so they are not anchors and must take the normal canonicalize walk.
+    ///
+    /// Allocation-free and performs no filesystem access: each step is a `Weak::upgrade` via
+    /// [`CachedPath::parent`], and the `node_modules`/scope checks read precomputed bits and path
+    /// bytes. Walking up and stopping at the *first* `node_modules` makes the deepest anchor win, so
+    /// a package's own nested `node_modules/<dep>` (e.g. pnpm dependency links) becomes its own
+    /// anchor rather than being hidden behind an outer one.
+    pub(crate) fn pkg_anchor(&self, path: &CachedPath) -> Option<CachedPath> {
+        if !path.inside_node_modules {
+            return None;
+        }
+        // `child` is the node one level below `cur`; `grandchild` two levels below. When `cur` is
+        // `node_modules`, `child` is the `<pkg>` segment (or the `@scope` dir, in which case the
+        // anchor is the `grandchild` `<pkg>`).
+        let mut grandchild: Option<CachedPath> = None;
+        let mut child: Option<CachedPath> = None;
+        let mut cur = path.clone();
+        loop {
+            if cur.is_node_modules() {
+                let pkg = child?;
+                // First byte of the segment directly under `node_modules`.
+                return match pkg.path().file_name().and_then(|name| name.as_encoded_bytes().first())
+                {
+                    Some(b'@') => grandchild, // scoped package: anchor is `<pkg>` under `@scope`
+                    Some(b'.') => None,       // `.bin`/`.pnpm`/`.store`/`.bun`/… — not a package
+                    _ => Some(pkg),
+                };
+            }
+            let parent = cur.parent(self)?;
+            grandchild = child;
+            child = Some(cur);
+            cur = parent;
+        }
     }
 }

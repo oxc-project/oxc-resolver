@@ -342,40 +342,63 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
         // Algorithm:
-        // Find `node_modules/package/package.json`
-        // or the first package.json if the path is not inside node_modules.
-        let inside_node_modules = cached_path.inside_node_modules();
-        if inside_node_modules {
-            let mut last = None;
-            // Go up directories when the querying path is not a directory
-            let mut cp = cached_path.clone();
-            if !self.is_dir(&cp, ctx)
-                && let Some(cv) = cp.parent(&self.cache)
-            {
-                cp = cv;
-            }
-            let mut cp = Some(cp);
-            while let Some(p) = cp {
-                if p.is_node_modules() {
-                    break;
-                }
-                // Skip /node_modules/@scope/package.json
-                if let Some(parent) = p.parent(&self.cache)
-                    && parent.is_node_modules()
-                    && let Some(filename) = p.path().file_name()
-                    && filename.as_encoded_bytes().starts_with(b"@")
-                {
-                    break;
-                }
-                if let Some(package_json) = self.cache.get_package_json(&p, &self.options, ctx)? {
-                    last = Some(package_json);
-                }
-                cp = p.parent(&self.cache);
-            }
-            Ok(last)
-        } else {
-            self.cache.find_package_json(cached_path, &self.options, ctx)
+        // Find `node_modules/package/package.json` (the package "anchor"), or the first
+        // package.json if the path is not inside node_modules.
+        if !cached_path.inside_node_modules() {
+            return self.cache.find_package_json(cached_path, &self.options, ctx);
         }
+        // Fast path: jump straight to the `<...>/node_modules/<pkg>` anchor's package.json instead
+        // of probing `package.json` at every intermediate directory. Skipped when dependency
+        // tracking is enabled (`resolve_with_context`) so the directory walk's `missing_dependencies`
+        // stays byte-identical for watch-based consumers; the jump targets the common resolution
+        // path where dependencies are not collected. Falls back to the slow walk when the anchor has
+        // no `package.json` of its own, so a manifest in a nested directory below the anchor is still
+        // found — keeping `resolve()` consistent with the `resolve_with_context()` slow path.
+        if ctx.missing_dependencies.is_none()
+            && let Some(anchor) = self.cache.pkg_anchor(cached_path)
+            && let Some(package_json) = self.cache.get_package_json(&anchor, &self.options, ctx)?
+        {
+            return Ok(Some(package_json));
+        }
+        self.find_package_json_for_a_package_slow(cached_path, ctx)
+    }
+
+    /// Directory-walk fallback for [`Self::find_package_json_for_a_package`]: probe `package.json`
+    /// at each directory from `cached_path` up to the `node_modules` boundary. Used when dependency
+    /// tracking is enabled (to preserve exact `missing_dependencies`) or for degenerate paths with
+    /// no package anchor.
+    fn find_package_json_for_a_package_slow(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+        let mut last = None;
+        // Go up directories when the querying path is not a directory
+        let mut cp = cached_path.clone();
+        if !self.is_dir(&cp, ctx)
+            && let Some(cv) = cp.parent(&self.cache)
+        {
+            cp = cv;
+        }
+        let mut cp = Some(cp);
+        while let Some(p) = cp {
+            if p.is_node_modules() {
+                break;
+            }
+            // Skip /node_modules/@scope/package.json
+            if let Some(parent) = p.parent(&self.cache)
+                && parent.is_node_modules()
+                && let Some(filename) = p.path().file_name()
+                && filename.as_encoded_bytes().starts_with(b"@")
+            {
+                break;
+            }
+            if let Some(package_json) = self.cache.get_package_json(&p, &self.options, ctx)? {
+                last = Some(package_json);
+            }
+            cp = p.parent(&self.cache);
+        }
+        Ok(last)
     }
 
     /// [`Cache::is_file`] using this resolver's [`ResolveOptions::symlinks`] policy.
