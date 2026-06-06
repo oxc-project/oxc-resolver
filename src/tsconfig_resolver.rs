@@ -207,20 +207,33 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             // `extend_tsconfig` only fills `None` fields, we iterate in reverse
             // so that the last base sets fields first and earlier bases can no
             // longer override them — net effect: later wins.
-            let extended_tsconfig_paths = tsconfig
-                .extends()
-                .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
-                .collect::<Result<Vec<_>, _>>()?;
+            // A missing `extends` target is non-fatal: `tsc` reports TS6053 and
+            // keeps the options that did parse, so skip the missing base rather
+            // than failing every resolution under this config.
+            let mut extended_tsconfig_paths = Vec::new();
+            for specifier in tsconfig.extends() {
+                match self.get_extended_tsconfig_path(&directory, tsconfig, specifier) {
+                    Ok(path) => extended_tsconfig_paths.push(path),
+                    Err(ResolveError::TsconfigNotFound(_)) => {}
+                    Err(err) => return Err(err),
+                }
+            }
             if !extended_tsconfig_paths.is_empty() {
                 ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
                     for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
-                        let extended_tsconfig = self.load_tsconfig(
+                        match self.load_tsconfig(
                             /* root */ false,
                             &extended_tsconfig_path,
                             TsconfigReferences::Disabled,
                             ctx,
-                        )?;
-                        tsconfig.extend_tsconfig(&extended_tsconfig);
+                        ) {
+                            Ok(extended_tsconfig) => tsconfig.extend_tsconfig(&extended_tsconfig),
+                            // A relative `extends` target that doesn't exist is
+                            // non-fatal too (TS6053); an existing-but-unreadable or
+                            // malformed base still errors (`IOError` / `Json`).
+                            Err(ResolveError::TsconfigNotFound(_)) => {}
+                            Err(err) => return Err(err),
+                        }
                     }
                     Result::Ok::<(), ResolveError>(())
                 })?;
