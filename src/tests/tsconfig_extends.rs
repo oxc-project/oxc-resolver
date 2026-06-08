@@ -198,12 +198,11 @@ fn test_extend_tsconfig_no_override_existing() {
     assert!(compiler_options.base_url.is_some());
 }
 
-/// When a tsconfig's `extends` target does not exist,
-/// `resolve_tsconfig` should return `TsconfigNotFound`.
+/// A missing `extends` target is non-fatal: `tsc` reports TS6053 and keeps the
+/// options that parsed, so `resolve_tsconfig` succeeds rather than failing every
+/// resolution under the config.
 #[test]
 fn test_extend_tsconfig_not_found() {
-    use crate::ResolveError;
-
     let f = super::fixture_root().join("tsconfig/cases/extends-not-found");
 
     let resolver = Resolver::new(ResolveOptions {
@@ -215,10 +214,7 @@ fn test_extend_tsconfig_not_found() {
     });
 
     let result = resolver.resolve_tsconfig(&f);
-    assert!(
-        matches!(&result, Err(ResolveError::TsconfigNotFound(_))),
-        "expected TsconfigNotFound for missing extends target, got {result:?}",
-    );
+    assert!(result.is_ok(), "a missing `extends` target must be non-fatal, got {result:?}");
 }
 
 /// When a tsconfig's `references` target does not exist,
@@ -385,10 +381,11 @@ fn test_extend_imports() {
     let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
     assert_eq!(resolution.compiler_options.target, Some("ES2015".to_string()));
 
+    // An undefined `#` import in `extends` is non-fatal — the config still loads.
     let result = resolver.resolve_tsconfig(f.join("tsconfig-missing.json"));
     assert!(
-        matches!(&result, Err(crate::ResolveError::TsconfigNotFound(_))),
-        "expected TsconfigNotFound for an undefined `#` import, got {result:?}",
+        result.is_ok(),
+        "an undefined `#` import in `extends` must be non-fatal, got {result:?}"
     );
 }
 
@@ -422,4 +419,38 @@ fn test_extend_tsconfig_via_symlink_package() {
 fn test_extend_tsconfig_via_symlink_relative() {
     let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
     assert_extends_symlink_resolves_to_canonical(&f.join("project/tsconfig.relative.json"));
+}
+
+/// A plain relative import must still resolve when the discovered tsconfig
+/// `extends` a **package** that isn't installed (common in monorepos / before
+/// dependencies are installed). `tsc`/`tsgo` report TS6053 and keep resolving;
+/// previously oxc returned no result for every specifier under the config.
+#[test]
+fn test_extend_package_not_found_still_resolves() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-package-not-found");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let resolved = resolver.resolve_file(f.join("a.ts"), "./b").map(|r| r.full_path());
+    assert_eq!(resolved, Ok(f.join("b.ts")));
+}
+
+/// Same for a missing **relative** `extends` target (e.g. a generated
+/// `./.nuxt/tsconfig.json` before `nuxt prepare`).
+#[test]
+fn test_extend_relative_not_found_still_resolves() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-not-found");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let resolved = resolver.resolve_file(f.join("a.ts"), "./b").map(|r| r.full_path());
+    assert_eq!(resolved, Ok(f.join("b.ts")));
 }
