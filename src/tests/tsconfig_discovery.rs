@@ -81,3 +81,24 @@ fn tsconfig_discovery_query_params() {
     let tsconfig = resolver.find_tsconfig(&path_with_both).unwrap().unwrap();
     assert_eq!(tsconfig.path, expected_tsconfig,);
 }
+
+/// Regression: a nested package whose `include`/`rootDirs` are inherited via
+/// `extends` must still resolve when an ancestor `tsconfig.json` exists. The
+/// inherited `include` must be resolved relative to the config that declared it
+/// (the `extends` target), otherwise the nearest config fails to claim the file
+/// and auto-discovery falls through to the ancestor, dropping the inherited
+/// `rootDirs`. Mirrors SvelteKit-in-a-monorepo (`extends ./.svelte-kit/tsconfig.json`).
+#[test]
+fn extends_root_dirs_with_ancestor_tsconfig() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-root-dirs-with-ancestor");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let path = f.join("pkg/src/consumer.ts");
+    let resolved = resolver.resolve_file(&path, "./data").map(|r| r.full_path());
+    assert_eq!(resolved, Ok(f.join("pkg/gen/types/src/data.ts")));
+}
