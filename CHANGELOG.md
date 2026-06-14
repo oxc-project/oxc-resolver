@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.21.1](https://github.com/oxc-project/oxc-resolver/compare/v11.21.0...v11.21.1) - 2026-06-14
+
+### <!-- 6 -->🧪 Testing
+
+- verify node_modules canonicalization across layouts ([#1200](https://github.com/oxc-project/oxc-resolver/pull/1200)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.21.0](https://github.com/oxc-project/oxc-resolver/compare/v11.20.0...v11.21.0) - 2026-06-03
 
 ### <!-- 0 -->🚀 Features
