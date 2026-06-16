@@ -240,3 +240,56 @@ fn root_paths_apply_to_default_include_files() {
         resolver.resolve_file(f.join("index.ts"), "@app/util").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/util.ts")));
 }
+
+/// Regression test for <https://github.com/vitejs/vite/issues/22047>.
+///
+/// A solution-style root `tsconfig.json` (`"files": []` + `references`) whose
+/// referenced project declares `paths` and explicitly includes non-TS
+/// extensions (`src/**/*.vue`, `src/**/*.svelte`), as scaffolded by Vite. An
+/// import originating from such a non-TS file must resolve through the
+/// referenced project's `paths`, exactly like an import from a `.ts` file.
+///
+/// Previously the importer's extension was rejected before the `include` globs
+/// were consulted, so a `.vue` / `.svelte` importer never matched the
+/// referenced project and the empty solution root (which owns no `paths`) was
+/// selected, leaving the `@/*` alias unresolved.
+#[test]
+fn solution_style_non_ts_extensions() {
+    let f = super::fixture_root().join("tsconfig/cases/solution-style-non-ts");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into(), ".tsx".into(), ".vue".into(), ".svelte".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let hello = f.join("src/components/HelloWorld.vue");
+
+    #[rustfmt::skip]
+    let pass = [
+        // `.vue` importer (the original bug) resolves the alias.
+        (f.join("src/App.vue"),       "@/components/HelloWorld.vue", hello.clone()),
+        // Any explicitly-included extension works, not just `.vue`.
+        (f.join("src/Widget.svelte"), "@/components/HelloWorld.vue", hello.clone()),
+        // `.ts` importers keep working (no regression).
+        (f.join("src/main.ts"),       "@/components/HelloWorld.vue", hello.clone()),
+        (f.join("src/main.ts"),       "@/util.ts",                   f.join("src/util.ts")),
+    ];
+
+    for (path, request, expected) in pass {
+        let resolved = resolver.resolve_file(&path, request).map(|f| f.full_path());
+        assert_eq!(resolved, Ok(expected), "{request} from {path:?}");
+    }
+
+    // The referenced project owns the `.vue` / `.svelte` / `.ts` files through
+    // its `include` globs, so auto-discovery selects it for those importers...
+    for importer in ["src/App.vue", "src/Widget.svelte", "src/main.ts"] {
+        let tsconfig = resolver.find_tsconfig(f.join(importer)).unwrap().unwrap();
+        assert_eq!(tsconfig.path, f.join("tsconfig.app.json"), "find_tsconfig for {importer}");
+    }
+
+    // ...while a file whose extension is not matched by any `include` glob
+    // (here `.css`) is left to the solution root, which owns no `paths`.
+    let tsconfig = resolver.find_tsconfig(f.join("src/styles.css")).unwrap().unwrap();
+    assert_eq!(tsconfig.path, f.join("tsconfig.json"));
+}
