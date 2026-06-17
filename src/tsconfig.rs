@@ -608,10 +608,6 @@ impl TsConfig {
     }
 
     fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {
-        // 0. Check extension first - each tsconfig uses its own allowJs setting
-        if !self.is_file_extension_allowed_in_tsconfig(path) {
-            return false;
-        }
         // 1. Check files array (highest priority - overrides exclude)
         if self.files.as_ref().is_some_and(|files| files.iter().any(|file| Path::new(file) == path))
         {
@@ -640,8 +636,13 @@ impl TsConfig {
     fn is_glob_matches(&self, path: &Path, pattern: GlobPattern) -> bool {
         let path_str = path.to_string_lossy().replace('\\', "/");
         match pattern {
-            // The default include `**/*` is scoped to the tsconfig directory.
-            GlobPattern::All => path.starts_with(self.directory()),
+            // The default `**/*` is scoped to the tsconfig directory; as a
+            // wildcard pattern it is restricted to the configured TS/JS
+            // extensions, same as the gate in `is_glob_match`.
+            GlobPattern::All => {
+                path.starts_with(self.directory())
+                    && self.is_file_extension_allowed_in_tsconfig(path)
+            }
             GlobPattern::Pattern(patterns) => patterns.iter().any(|pattern| {
                 let pattern = pattern.to_string_lossy().replace('\\', "/");
                 self.is_glob_match(pattern.as_ref(), path, &path_str)
@@ -665,7 +666,14 @@ impl TsConfig {
         } else {
             Cow::Borrowed(pattern)
         };
-        // Fast check: if pattern ends with *, filename must have valid extension
+        // Extension gate, applied only to wildcard-terminated patterns: a pattern
+        // ending in `*` (e.g. the default `**/*`, or a bare directory like `src`
+        // that expands to `src/**/*`) matches "any file", so — mirroring
+        // TypeScript — it is restricted to the configured TS/JS extensions.
+        // A pattern naming an explicit extension (e.g. `src/**/*.vue`) does not
+        // end in `*` and is matched verbatim below; this is what lets
+        // solution-style tsconfigs claim explicitly-included non-TS files such
+        // as `.vue` / `.svelte` (e.g. the Vite Vue scaffold).
         if pattern.ends_with('*') && !self.is_file_extension_allowed_in_tsconfig(path) {
             return false;
         }
