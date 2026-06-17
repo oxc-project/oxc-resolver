@@ -583,9 +583,12 @@ impl TsConfig {
     /// doesn't actually cover the file via its `files` / `include` / `exclude`
     /// or via a matching reference.
     pub(crate) fn claims_ownership_of(&self, path: &Path) -> bool {
-        // Non-TS files aren't considered for project ownership; preserve the
-        // legacy behavior of using the nearest tsconfig for them.
-        if !self.is_file_extension_allowed_in_tsconfig(path) {
+        // A directory (extensionless importer) isn't a file, so `files` /
+        // `include` ownership doesn't apply — the nearest enclosing tsconfig
+        // governs it (its `paths` / `baseUrl` / `extends`). A genuine file is
+        // claimed only when owned (below), so an `allowJs`-off `.js` this
+        // config won't compile instead walks up.
+        if path.extension().is_none() {
             return true;
         }
         // Any matching reference claims ownership (consistent with
@@ -613,7 +616,12 @@ impl TsConfig {
         {
             return true;
         }
-        // 2. Check include patterns
+        // 2. Reject non-program inputs: a `.js`-family file with `allowJs` off
+        //    (even if a glob names `.js`), or an extensionless path
+        if self.is_extensionless_or_uncompiled_js(path) {
+            return false;
+        }
+        // 3. Check include patterns
         let is_included = self.include.as_ref().map_or_else(
             || {
                 if self.files.is_some() {
@@ -624,7 +632,7 @@ impl TsConfig {
             },
             |include_patterns| self.is_glob_matches(path, GlobPattern::Pattern(include_patterns)),
         );
-        // 3. Check exclude patterns
+        // 4. Check exclude patterns
         if is_included {
             return self.exclude.as_ref().is_none_or(|exclude_patterns| {
                 !self.is_glob_matches(path, GlobPattern::Pattern(exclude_patterns))
@@ -688,6 +696,17 @@ impl TsConfig {
             TS_EXTENSIONS.contains(&ext)
                 || if allow_js { JS_EXTENSIONS.contains(&ext) } else { false }
         })
+    }
+
+    /// Whether `path` has no extension (typically a directory) or a `.js`-family
+    /// extension this tsconfig does not compile (`allowJs` off). Unlike
+    /// `is_file_extension_allowed_in_tsconfig`, it excludes genuine non-TS files
+    /// (e.g. `.vue`), which must instead be claimed through `include`.
+    fn is_extensionless_or_uncompiled_js(&self, path: &Path) -> bool {
+        let allow_js = self.compiler_options.allow_js.is_some_and(|b| b);
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .is_none_or(|ext| !allow_js && matches!(ext, "js" | "jsx" | "mjs" | "cjs"))
     }
 }
 
