@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.21.2](https://github.com/oxc-project/oxc-resolver/compare/v11.21.1...v11.21.2) - 2026-06-17
+
+### <!-- 2 -->🚜 Refactor
+
+- replace fancy-regex with regress ([#1219](https://github.com/oxc-project/oxc-resolver/pull/1219)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.21.1](https://github.com/oxc-project/oxc-resolver/compare/v11.21.0...v11.21.1) - 2026-06-17
 
 ### <!-- 1 -->🐛 Bug Fixes
