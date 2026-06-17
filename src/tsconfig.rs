@@ -583,14 +583,6 @@ impl TsConfig {
     /// doesn't actually cover the file via its `files` / `include` / `exclude`
     /// or via a matching reference.
     pub(crate) fn claims_ownership_of(&self, path: &Path) -> bool {
-        // A directory (extensionless importer) isn't a file, so `files` /
-        // `include` ownership doesn't apply — the nearest enclosing tsconfig
-        // governs it (its `paths` / `baseUrl` / `extends`). A genuine file is
-        // claimed only when owned (below), so an `allowJs`-off `.js` this
-        // config won't compile instead walks up.
-        if path.extension().is_none() {
-            return true;
-        }
         // Any matching reference claims ownership (consistent with
         // resolve_tsconfig_solution).
         if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {

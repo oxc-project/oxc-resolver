@@ -77,7 +77,6 @@ fn part_of_solution() {
         ("referenced-with-implicit-globs", "tests/foo.test.ts", "tsconfig.test.json"),
         // not part of tsconfck
         ("referenced-files", "src/foo.ts", "tsconfig.foo.json"),
-        ("referenced-files", "src/bar.ts", "tsconfig.json"),
         ("referenced-include", "src/foo.ts", "tsconfig.foo.json"),
         ("referenced-include", "src/bar.ts", "tsconfig.bar.json"),
         ("referenced-exclude", "src/foo.ts", "tsconfig.foo.json"),
@@ -93,6 +92,13 @@ fn part_of_solution() {
         let tsconfig = resolver.find_tsconfig(dir.join(specifier)).unwrap().unwrap();
         assert_eq!(tsconfig.path.clone(), dir.join(expected), "{dir:?} {specifier}");
     }
+
+    // `src/bar.ts` is excluded from the only referenced project
+    // (`tsconfig.foo.json` lists `files: ["src/foo.ts"]`) and owned by no other,
+    // so discovery finds no config for it — matching `tsserver` / `typescript-go`,
+    // which leave such a file in an inferred project rather than the solution root.
+    let unowned = root.join("referenced-files").join("src/bar.ts");
+    assert!(resolver.find_tsconfig(unowned).unwrap().is_none());
 }
 
 // https://github.com/dominikg/tsconfck/blob/main/packages/tsconfck/tests/find.js

@@ -317,12 +317,10 @@ fn solution_style_non_ts_extensions() {
     }
 
     // ...while a file whose extension is not matched by any `include` glob
-    // (here `.css`) is owned by no project. It is never routed to the
-    // referenced project, so the `@/*` alias does not leak into it: auto-
-    // discovery walks past the solution root (which lists no `files`) up to the
-    // outermost ancestor tsconfig.
-    let tsconfig = resolver.find_tsconfig(f.join("src/styles.css")).unwrap().unwrap();
-    assert_eq!(tsconfig.path, super::fixture_root().join("tsconfig/tsconfig.json"));
+    // (here `.css`) is owned by no project. Discovery finds no config for it (it
+    // would land in an inferred project), so the `@/*` alias — declared only by
+    // the referenced project — does not leak into it.
+    assert!(resolver.find_tsconfig(f.join("src/styles.css")).unwrap().is_none());
 
     // And so the `@/*` alias (declared only by the referenced project) does not
     // apply to the `.css` file.
@@ -374,8 +372,7 @@ fn solution_style_nested_non_ts_walks_up() {
 
     // A `.js` file with `allowJs` off is not part of the child's program, so
     // the child does not own it and — like the `.vue` above — the walk
-    // continues up. No ancestor compiles a bare `.js` here, so it ends on the
-    // outermost tsconfig (auto-discovery's fallback).
-    let legacy = resolver.find_tsconfig(f.join("src/feature/legacy.js")).unwrap().unwrap();
-    assert_eq!(legacy.path, super::fixture_root().join("tsconfig/tsconfig.json"));
+    // continues up. No ancestor owns a bare `.js` either, so discovery finds no
+    // config for it (it would land in an inferred project).
+    assert!(resolver.find_tsconfig(f.join("src/feature/legacy.js")).unwrap().is_none());
 }
