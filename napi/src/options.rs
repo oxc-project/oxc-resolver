@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use regress::Regex;
 use napi::Either;
 use napi_derive::napi;
+use regress::Regex;
 
 /// Module Resolution Options
 ///
