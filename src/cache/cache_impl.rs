@@ -8,12 +8,11 @@ use std::{
 };
 
 use cfg_if::cfg_if;
+use dashmap::{DashMap, mapref::entry::Entry};
 #[cfg(feature = "yarn_pnp")]
 use once_cell::sync::OnceCell;
-use papaya::{HashMap, HashSet};
 use rustc_hash::FxHasher;
 
-use super::borrowed_path::BorrowedCachedPath;
 use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
 use crate::{
@@ -25,20 +24,20 @@ use crate::{
 #[derive(Default)]
 pub struct Cache<Fs> {
     pub(crate) fs: Fs,
-    pub(crate) paths: HashSet<CachedPath, BuildHasherDefault<IdentityHasher>>,
+    pub(crate) paths: DashMap<CachedPath, (), BuildHasherDefault<IdentityHasher>>,
     /// Cache for raw/unbuilt tsconfigs (used when extending).
-    pub(crate) tsconfigs_raw: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    pub(crate) tsconfigs_raw: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     /// Cache for built/resolved tsconfigs (used for resolution).
-    pub(crate) tsconfigs_built: HashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
 }
 
 impl<Fs: FileSystem> Cache<Fs> {
     pub fn clear(&self) {
-        self.paths.pin().clear();
-        self.tsconfigs_raw.pin().clear();
-        self.tsconfigs_built.pin().clear();
+        self.paths.clear();
+        self.tsconfigs_raw.clear();
+        self.tsconfigs_built.clear();
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -50,9 +49,17 @@ impl<Fs: FileSystem> Cache<Fs> {
             path.as_os_str().hash(&mut hasher);
             hasher.finish()
         };
-        let paths = self.paths.pin();
-        if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
-            return entry.clone();
+        // Look up by the memoized `hash`. `IdentityHasher` only accepts a single `write_u64`, so the
+        // set can't be probed by a borrowed `&Path` through dashmap's `Borrow`-based `get`; instead
+        // read the shard directly (raw-api) with the precomputed hash and an `OsStr` equality. This
+        // mirrors the `Equivalent` lookup the original `papaya` set used, and keeps it zero-alloc.
+        {
+            let shard = self.paths.shards()[self.paths.determine_shard(hash as usize)].read();
+            if let Some((cached, _)) =
+                shard.get(hash, |(k, _)| k.path().as_os_str() == path.as_os_str())
+            {
+                return cached.clone();
+            }
         }
         let parent = path.parent().map(|p| self.value(p));
         let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
@@ -66,8 +73,17 @@ impl<Fs: FileSystem> Cache<Fs> {
             inside_node_modules,
             parent_weak,
         )));
-        paths.insert(cached_path.clone());
-        cached_path
+        // The shard guard above is dropped before the parent recursion, so a concurrent call may
+        // have inserted this same path in the meantime. Dedup via the entry API so every path keeps
+        // a single shared `Arc`, which the `canonicalized` / `node_modules` weak-pointer caches rely
+        // on for identity.
+        match self.paths.entry(cached_path.clone()) {
+            Entry::Occupied(occupied) => occupied.key().clone(),
+            Entry::Vacant(vacant) => {
+                vacant.insert(());
+                cached_path
+            }
+        }
     }
 
     pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
@@ -229,20 +245,14 @@ impl<Fs: FileSystem> Cache<Fs> {
         callback: F, // callback for modifying tsconfig with `extends`
     ) -> Result<Arc<TsConfig>, ResolveError> {
         // For root=true (caller tsconfig), check built cache first
-        if root {
-            let tsconfigs_built = self.tsconfigs_built.pin();
-            if let Some(tsconfig) = tsconfigs_built.get(path) {
-                return Ok(Arc::clone(tsconfig));
-            }
+        if root && let Some(tsconfig) = self.tsconfigs_built.get(path) {
+            return Ok(Arc::clone(tsconfig.value()));
         }
 
         // Check raw cache (callback applied, not built) - only for root=false
         // For root=true, we need to run the callback to ensure extends are processed
-        if !root {
-            let tsconfigs_raw = self.tsconfigs_raw.pin();
-            if let Some(tsconfig) = tsconfigs_raw.get(path) {
-                return Ok(Arc::clone(tsconfig));
-            }
+        if !root && let Some(tsconfig) = self.tsconfigs_raw.get(path) {
+            return Ok(Arc::clone(tsconfig.value()));
         }
 
         // Not in any cache, parse from file
@@ -277,13 +287,13 @@ impl<Fs: FileSystem> Cache<Fs> {
         // Cache raw version (callback applied, not built)
         tsconfig.set_should_build(false);
         let raw_tsconfig = Arc::new(tsconfig.clone());
-        self.tsconfigs_raw.pin().insert(path.to_path_buf(), Arc::clone(&raw_tsconfig));
+        self.tsconfigs_raw.insert(path.to_path_buf(), Arc::clone(&raw_tsconfig));
 
         if root {
             // Build and cache built version
             tsconfig.set_should_build(true);
             let tsconfig = Arc::new(tsconfig.build());
-            self.tsconfigs_built.pin().insert(path.to_path_buf(), Arc::clone(&tsconfig));
+            self.tsconfigs_built.insert(path.to_path_buf(), Arc::clone(&tsconfig));
             Ok(tsconfig)
         } else {
             // Return unbuilt version
@@ -322,18 +332,9 @@ impl<Fs: FileSystem> Cache<Fs> {
     pub fn new(fs: Fs) -> Self {
         Self {
             fs,
-            paths: HashSet::builder()
-                .hasher(BuildHasherDefault::default())
-                .resize_mode(papaya::ResizeMode::Blocking)
-                .build(),
-            tsconfigs_raw: HashMap::builder()
-                .hasher(BuildHasherDefault::default())
-                .resize_mode(papaya::ResizeMode::Blocking)
-                .build(),
-            tsconfigs_built: HashMap::builder()
-                .hasher(BuildHasherDefault::default())
-                .resize_mode(papaya::ResizeMode::Blocking)
-                .build(),
+            paths: DashMap::with_hasher(BuildHasherDefault::default()),
+            tsconfigs_raw: DashMap::with_hasher(BuildHasherDefault::default()),
+            tsconfigs_built: DashMap::with_hasher(BuildHasherDefault::default()),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceCell::new(),
         }
