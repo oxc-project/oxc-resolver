@@ -272,13 +272,13 @@ fn solution_style_non_ts_extensions() {
         // Any explicitly-included extension works, not just `.vue`.
         (f.join("src/Widget.svelte"), "@/components/HelloWorld.vue", hello.clone()),
         // `.ts` importers keep working (no regression).
-        (f.join("src/main.ts"),       "@/components/HelloWorld.vue", hello.clone()),
+        (f.join("src/main.ts"),       "@/components/HelloWorld.vue", hello),
         (f.join("src/main.ts"),       "@/util.ts",                   f.join("src/util.ts")),
     ];
 
     for (path, request, expected) in pass {
-        let resolved = resolver.resolve_file(&path, request).map(|f| f.full_path());
-        assert_eq!(resolved, Ok(expected), "{request} from {path:?}");
+        let resolved_path = resolver.resolve_file(&path, request).map(|f| f.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{request} from {path:?}");
     }
 
     // The referenced project owns the `.vue` / `.svelte` / `.ts` files through
