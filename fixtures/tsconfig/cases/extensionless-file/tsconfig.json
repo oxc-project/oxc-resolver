@@ -1,0 +1,8 @@
+{
+  "files": ["sub/ccc"],
+  "compilerOptions": {
+    "paths": {
+      "@x/*": ["./x/*"]
+    }
+  }
+}

@@ -110,7 +110,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         let mut ctx = Ctx::default();
         let mut cache_value = Some(cached_path.clone());
-        let mut fallback: Option<Arc<TsConfig>> = None;
         while let Some(cv) = cache_value {
             if let Some(tsconfig) = cv.tsconfig.get_or_try_init(|| {
                 let tsconfig_path = cv.path.join("tsconfig.json");
@@ -127,18 +126,19 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                     Ok(None)
                 }
             })? {
+                // Return the nearest tsconfig that owns the file (directly via
+                // `files`/`include`/`exclude`, or via a matching reference);
+                // otherwise keep walking up to an ancestor that does.
                 if tsconfig.claims_ownership_of(cached_path.path()) {
                     return Ok(Some(Arc::clone(tsconfig)));
                 }
-                // Remember the OUTERMOST non-claiming tsconfig as the fallback.
-                // typescript-go would return null here (no project owns), but
-                // TypeScript 6.0's tsserver returns the solution root, which we
-                // approximate by always preferring the topmost ancestor.
-                fallback = Some(Arc::clone(tsconfig));
             }
             cache_value = cv.parent(&self.cache);
         }
-        Ok(fallback)
+        // No tsconfig owns the file. Both `tsserver` and `typescript-go` leave
+        // such a file in an inferred project (no `paths`/`baseUrl`), rather than
+        // applying an unrelated ancestor's `compilerOptions`, so return `None`.
+        Ok(None)
     }
 
     pub(crate) fn find_tsconfig_manual(

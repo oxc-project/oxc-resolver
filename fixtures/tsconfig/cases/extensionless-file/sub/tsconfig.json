@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@y/*": ["./y/*"]
+    }
+  },
+  "include": ["*.ts"]
+}

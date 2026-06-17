@@ -11,26 +11,30 @@ use crate::{
 pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
     let f = super::fixture_root().join("tsconfig");
 
+    // The second tuple element is the importer file, relative to the case
+    // directory. Auto-discovery only attaches a tsconfig to a file the config
+    // actually owns, so each importer is a real owned source file rather than
+    // the bare directory (which `resolve_file` is not meant to take).
     #[rustfmt::skip]
     let pass = [
-        (f.clone(), None, "ts-path", f.join("src/foo.js")),
-        (f.join("nested"), None, "ts-path", f.join("nested/test.js")),
-        (f.join("cases/extends-paths-outside"), Some("src/index.js"), "ts-path", f.join("src/foo.js")),
-        (f.join("cases/index"), None, "foo", f.join("node_modules/tsconfig-index/foo.js")),
+        (f.clone(), "main.ts", "ts-path", f.join("src/foo.js")),
+        (f.join("nested"), "main.ts", "ts-path", f.join("nested/test.js")),
+        (f.join("cases/extends-paths-outside"), "src/index.js", "ts-path", f.join("src/foo.js")),
+        (f.join("cases/index"), "main.ts", "foo", f.join("node_modules/tsconfig-index/foo.js")),
         // This requires reading package.json.tsconfig field
         // (f.join("cases/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
-        (f.join("cases/exports"), None, "foo", f.join("node_modules/tsconfig-exports/foo.js")),
-        (f.join("cases/extends-extension"), None, "foo", f.join("cases/extends-extension/foo.js")),
-        (f.join("cases/extends-extensionless"), None, "foo", f.join("node_modules/tsconfig-field/foo.js")),
-        (f.join("cases/extends-paths"), Some("src"), "@/index", f.join("cases/extends-paths/src/index.js")),
-        (f.join("cases/extends-multiple"), None, "foo", f.join("cases/extends-multiple/foo.js")),
-        (f.join("cases/absolute-alias"), None, "/images/foo.js", f.join("cases/absolute-alias/public/images/foo.ts")),
-        (f.join("cases/references-extend"), Some("src/index.ts"), "ts-path", f.join("src/foo.js")),
+        (f.join("cases/exports"), "main.ts", "foo", f.join("node_modules/tsconfig-exports/foo.js")),
+        (f.join("cases/extends-extension"), "main.ts", "foo", f.join("cases/extends-extension/foo.js")),
+        (f.join("cases/extends-extensionless"), "main.ts", "foo", f.join("node_modules/tsconfig-field/foo.js")),
+        (f.join("cases/extends-paths"), "src/main.ts", "@/index", f.join("cases/extends-paths/src/index.js")),
+        (f.join("cases/extends-multiple"), "main.ts", "foo", f.join("cases/extends-multiple/foo.js")),
+        (f.join("cases/absolute-alias"), "test.ts", "/images/foo.js", f.join("cases/absolute-alias/public/images/foo.ts")),
+        (f.join("cases/references-extend"), "src/index.ts", "ts-path", f.join("src/foo.js")),
         // Support `base_url` 3rd case <https://github.com/microsoft/TypeScript/issues/62207>
-        (f.join("cases/base-url"), Some("src/index.ts"), "foo.js", f.join("cases/base-url/src/foo.js")),
+        (f.join("cases/base-url"), "src/index.ts", "foo.js", f.join("cases/base-url/src/foo.js")),
     ];
 
-    for (dir, subdir, request, expected) in pass {
+    for (dir, importer, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
             tsconfig: Some(if tsconfig_discovery {
                 TsconfigDiscovery::Auto
@@ -43,7 +47,7 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
             extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
             ..ResolveOptions::default()
         });
-        let path = subdir.map_or_else(|| dir.clone(), |subdir| dir.join(subdir));
+        let path = dir.join(importer);
         let resolved_path = resolver.resolve_file(&path, request).map(|f| f.full_path());
         assert_eq!(resolved_path, Ok(expected), "{request} {path:?} {tsconfig_discovery}");
     }
