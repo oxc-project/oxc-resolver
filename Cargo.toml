@@ -99,7 +99,7 @@ thiserror = "2"
 tracing = "0.1"
 
 percent-encoding = "2"
-pnp = { version = "0.12.8", optional = true }
+pnp = { version = "0.12.10", optional = true }
 
 document-features = { version = "0.2.12", optional = true }
 
