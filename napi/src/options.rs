@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use fancy_regex::Regex;
 use napi::Either;
 use napi_derive::napi;
+use regress::Regex;
 
 /// Module Resolution Options
 ///
@@ -232,7 +232,7 @@ impl TryFrom<Restriction> for oxc_resolver::Restriction {
                 let re = Regex::new(&regex)
                     .map_err(|e| napi::Error::from_reason(format!("Invalid regex: {e}")))?;
                 Ok(oxc_resolver::Restriction::Fn(Arc::new(move |path| {
-                    re.is_match(path.to_str().unwrap_or_default()).unwrap_or(false)
+                    re.find(path.to_str().unwrap_or_default()).is_some()
                 })))
             }
             (Some(path), None) => Ok(oxc_resolver::Restriction::Path(PathBuf::from(path))),

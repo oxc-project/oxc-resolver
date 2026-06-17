@@ -22,9 +22,9 @@ doctest = false
 [dependencies]
 oxc_resolver = { workspace = true }
 
-fancy-regex = { version = "^0.18.0", default-features = false, features = ["std"] }
 napi = { version = "3.8", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3" }
+regress = { version = "0.11" } # ECMAScript regex engine for `Restriction` regex
 tracing-subscriber = { version = "0.3.23", optional = true, default-features = false, features = [
   "std",
   "fmt",
