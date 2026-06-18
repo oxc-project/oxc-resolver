@@ -1233,7 +1233,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
-    /// enhanced-resolve: AliasFieldPlugin for [ResolveOptions::alias_fields]
+    /// enhanced-resolve: AliasFieldPlugin for [crate::ResolveOptions::alias_fields]
     fn load_browser_field(
         &self,
         cached_path: &CachedPath,
