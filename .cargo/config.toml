@@ -1,3 +1,7 @@
+[alias]
+# Regenerate the allocation-count snapshot (see tasks/track_allocations).
+allocs = "run -p track_allocations"
+
 # Addresses a potential segmentation fault issue that occurs when
 # running napi-rs within a Node.js worker thread on GNU/Linux systems.
 # See https://x.com/Brooooook_lyn/status/1895848334692401270

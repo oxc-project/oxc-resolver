@@ -78,6 +78,10 @@ doc:
 codecov:
   cargo codecov --html
 
+# Update the allocation-count snapshot (tasks/track_allocations/allocs.snap).
+allocs:
+  cargo allocs
+
 # Run the benchmarks.
 benchmark:
   cargo bench --bench resolver

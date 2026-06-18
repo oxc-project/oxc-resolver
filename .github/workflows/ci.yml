@@ -47,6 +47,12 @@ jobs:
       - run: cargo check --all-features --locked
       - run: just test
         timeout-minutes: 3
+      - name: Check allocation snapshot
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cargo allocs
+          git diff --exit-code -- tasks/track_allocations/allocs.snap || \
+            (echo 'Allocations have changed. Run `just allocs` to update the snapshot, otherwise please fix the regression.' && exit 1)
 
   test-big-endian:
     name: Test big-endian # s390x-unknown-linux-gnu is a big-endian

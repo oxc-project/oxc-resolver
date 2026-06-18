@@ -1252,6 +1252,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "track_allocations"
+version = "0.0.0"
+dependencies = [
+ "mimalloc-safe",
+ "oxc_resolver",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"

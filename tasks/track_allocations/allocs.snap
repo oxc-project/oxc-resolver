@@ -1,0 +1,12 @@
+# oxc-resolver allocation-count snapshot (cache-free parse sub-ops)
+# allocation COUNTS (not bytes); regenerate with `just allocs`.
+
+sub-op                                       allocs   reallocs
+package_json (small)                             10          1
+package_json (large)                             22          3
+package_json (exports x40, >32 keys)             12          4
+package_json (imports x15)                       12          4
+package_json (browser x15)                       12          4
+tsconfig (small)                                 13          0
+tsconfig (options-heavy)                          6          0
+tsconfig (paths x80)                            250          5

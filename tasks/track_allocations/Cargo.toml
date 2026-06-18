@@ -1,0 +1,13 @@
+[package]
+name = "track_allocations"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# Always enable `yarn_pnp` so the feature-gated `FileSystem::new` constructor is the
+# `new(yarn_pnp: bool)` arm in every build. The rest of the workspace (napi, whose `default`
+# includes `yarn_pnp`) unifies `oxc_resolver` to that arm anyway; enabling it here keeps a
+# standalone `cargo run -p track_allocations` consistent and avoids a cfg-gated mismatch.
+oxc_resolver = { workspace = true, features = ["yarn_pnp"] }
+mimalloc-safe = { version = "0.1.56" }
