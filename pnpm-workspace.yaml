@@ -12,6 +12,10 @@ catalog:
 
 ignoreScripts: true
 
+minimumReleaseAgeExclude:
+  - vite-plus
+  - "@voidzero-dev/*"
+
 ignoredBuiltDependencies:
   - esbuild
 
