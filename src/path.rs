@@ -79,34 +79,11 @@ impl PathUtil for Path {
     }
 
     // https://github.com/parcel-bundler/parcel/blob/e0b99c2a42e9109a9ecbd6f537844a1b33e7faf5/packages/utils/node-resolver-rs/src/path.rs#L37
+    #[inline]
     fn normalize_with<B: AsRef<Self>>(&self, subpath: B) -> PathBuf {
-        let subpath = subpath.as_ref();
-
-        let mut components = subpath.components();
-
-        let Some(head) = components.next() else { return subpath.to_path_buf() };
-
-        if matches!(head, Component::Prefix(..) | Component::RootDir) {
-            return subpath.to_path_buf();
-        }
-
-        let mut ret = self.to_path_buf();
-        for component in std::iter::once(head).chain(components) {
-            match component {
-                Component::CurDir => {}
-                Component::ParentDir => {
-                    ret.pop();
-                }
-                Component::Normal(c) => {
-                    ret.push(c);
-                }
-                Component::Prefix(..) | Component::RootDir => {
-                    unreachable!("Path {:?} Subpath {:?}", self, subpath)
-                }
-            }
-        }
-
-        ret
+        // Forward to a single non-generic instantiation so the many `AsRef<Path>`
+        // call sites don't each monomorphize the full body (binary-size win).
+        normalize_with_impl(self, subpath.as_ref())
     }
 
     fn is_invalid_exports_target(&self) -> bool {
@@ -117,6 +94,36 @@ impl PathUtil for Path {
             _ => false,
         })
     }
+}
+
+// Non-generic body of [`PathUtil::normalize_with`]. Kept out of the generic method so it is
+// compiled once instead of once per `AsRef<Path>` argument type at the call sites.
+fn normalize_with_impl(base: &Path, subpath: &Path) -> PathBuf {
+    let mut components = subpath.components();
+
+    let Some(head) = components.next() else { return subpath.to_path_buf() };
+
+    if matches!(head, Component::Prefix(..) | Component::RootDir) {
+        return subpath.to_path_buf();
+    }
+
+    let mut ret = base.to_path_buf();
+    for component in std::iter::once(head).chain(components) {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                ret.pop();
+            }
+            Component::Normal(c) => {
+                ret.push(c);
+            }
+            Component::Prefix(..) | Component::RootDir => {
+                unreachable!("Path {:?} Subpath {:?}", base, subpath)
+            }
+        }
+    }
+
+    ret
 }
 
 // https://github.com/webpack/enhanced-resolve/blob/main/test/path.test.js

@@ -181,12 +181,18 @@ impl CachedPath {
     }
 
     /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
+    #[inline]
     pub(crate) fn normalize_with<Fs: FileSystem, P: AsRef<Path>>(
         &self,
         subpath: P,
         cache: &Cache<Fs>,
     ) -> Self {
-        let subpath = subpath.as_ref();
+        // Forward to a single instantiation (per `Fs`) so the many `AsRef<Path>` call
+        // sites don't each monomorphize the full body (binary-size win).
+        self.normalize_with_impl(subpath.as_ref(), cache)
+    }
+
+    fn normalize_with_impl<Fs: FileSystem>(&self, subpath: &Path, cache: &Cache<Fs>) -> Self {
         let mut components = subpath.components();
         let Some(head) = components.next() else { return cache.value(subpath) };
         if matches!(head, Component::Prefix(..) | Component::RootDir) {
