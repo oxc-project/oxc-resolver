@@ -219,18 +219,18 @@ test("resolve pnpm package", () => {
     styledComponents.path,
     join(
       pnpmDir,
-      "styled-components@6.1.17_react-dom@19.2.0_react@19.2.0__react@19.2.0/node_modules/styled-components/dist/styled-components.browser.cjs.js",
+      "styled-components@6.1.17_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/styled-components/dist/styled-components.browser.cjs.js",
     ),
   );
 
   const react = resolver.sync(
     join(
       pnpmDir,
-      "styled-components@6.1.17_react-dom@19.2.0_react@19.2.0__react@19.2.0/node_modules/styled-components",
+      "styled-components@6.1.17_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/styled-components",
     ),
     "react",
   );
-  assert.deepEqual(react.path, join(pnpmDir, "react@19.2.0/node_modules/react/index.js"));
+  assert.deepEqual(react.path, join(pnpmDir, "react@19.2.7/node_modules/react/index.js"));
 });
 
 test("resolve recursive symbol link", () => {
@@ -242,5 +242,5 @@ test("resolve recursive symbol link", () => {
     "./node_modules/@monorepo/lib/node_modules/react/package.json",
   );
 
-  assert.deepEqual(react.path, join(pnpmDir, "react@19.2.0/node_modules/react/package.json"));
+  assert.deepEqual(react.path, join(pnpmDir, "react@19.2.7/node_modules/react/package.json"));
 });

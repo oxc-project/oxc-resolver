@@ -7,17 +7,19 @@ packages:
 
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
-  vite-plus: ^0.1.11
-  vitest: npm:@voidzero-dev/vite-plus-test@latest
+  vite-plus: ^0.2.0
 
 ignoreScripts: true
+
+minimumReleaseAgeExclude:
+  - vite-plus
+  - "@voidzero-dev/*"
 
 ignoredBuiltDependencies:
   - esbuild
 
 overrides:
   vite: "catalog:"
-  vitest: "catalog:"
 
 peerDependencyRules:
   allowAny:
