@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.21.3](https://github.com/oxc-project/oxc-resolver/compare/v11.21.2...v11.21.3) - 2026-06-18
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- *(tsconfig)* only attach an auto-discovered tsconfig to a file it owns ([#1220](https://github.com/oxc-project/oxc-resolver/pull/1220)) (by @shulaoda)
+
+### <!-- 2 -->🚜 Refactor
+
+- outline normalize_with to reduce binary size ([#1222](https://github.com/oxc-project/oxc-resolver/pull/1222)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @shulaoda
+
 ## [11.21.2](https://github.com/oxc-project/oxc-resolver/compare/v11.21.1...v11.21.2) - 2026-06-17
 
 ### <!-- 2 -->🚜 Refactor
