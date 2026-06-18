@@ -1,0 +1,16 @@
+[package]
+name = "track_fs_calls"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# Always enable `yarn_pnp` so the feature-gated `FileSystem::new` constructor is the
+# `new(yarn_pnp: bool)` arm in every build (the workspace unifies oxc_resolver to that arm anyway,
+# since napi's `default` enables `yarn_pnp`). Keeps a standalone `cargo run -p track_fs_calls`
+# consistent and avoids a cfg-gated constructor mismatch.
+oxc_resolver = { workspace = true, features = ["yarn_pnp"] }
+vfs = "0.13.0"
+# Only used by the startup safety check that asserts every fixture object stays <= 32 keys
+# (the halfbrown insertion-order bound that makes the fs-call counts deterministic).
+serde_json = "1"

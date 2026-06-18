@@ -47,6 +47,12 @@ jobs:
       - run: cargo check --all-features --locked
       - run: just test
         timeout-minutes: 3
+      - name: Check fs-call snapshot
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cargo fs-calls
+          git diff --exit-code -- tasks/track_fs_calls/fs.snap || \
+            (echo 'Filesystem call counts have changed. Run `just fs-calls` to update the snapshot, otherwise please fix the regression.' && exit 1)
 
   test-big-endian:
     name: Test big-endian # s390x-unknown-linux-gnu is a big-endian

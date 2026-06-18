@@ -1,0 +1,28 @@
+# oxc-resolver fs-call-count snapshot (logical FileSystem-trait calls)
+# fresh resolver per scenario (cache-cold unless noted); regenerate with `just fs-calls`.
+
+feature               ok  read r2str  stat lstat rlink canon file_deps miss_deps
+relative               y     1     0     0     4     0     0         2         2
+relative-nested        y     2     0     0     5     0     0         2         3
+relative-parent        y     1     0     0     4     0     0         2         2
+absolute               y     1     0     0     3     0     0         2         1
+alias                  y     2     0     0     6     0     0         2         5
+extension-alias        y     2     0     0     3     0     0         2         1
+tsconfig-paths         y     2     1     1     4     0     0         0         0
+extensions-fallback    y     1     0     0     5     0     0         2         3
+directory-index        y     2     0     0     7     0     0         2         6
+exports-dot            y     2     0     0     5     0     0         3         1
+exports-subpath        y     2     0     0     5     0     0         3         1
+exports-conditions     y     2     0     0     4     0     0         3         0
+exports-wildcard       y     3     0     0     6     0     0         3         2
+scoped-main            y     2     0     0     6     0     0         3         1
+imports-field          y     1     0     0     5     0     0         2         1
+imports-conditions     y     1     0     0     5     0     0         2         1
+browser-field          y     2     0     0     7     0     0         3         2
+deep-nm-walk           y    11     0     0    23     0     0         3        19
+query-fragment         y     1     0     0     4     0     0         2         2
+builtin                n     0     0     0     0     0     0         0         0
+file-url               y     1     0     0     3     0     0         2         1
+not-found              n     2     0     0     8     0     0         1         6
+fully-specified        y     1     0     0     3     0     0         2         1
+cache-warm-delta       y     0     0     0     0     0     0         1         1

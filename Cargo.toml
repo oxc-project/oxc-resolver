@@ -1,5 +1,5 @@
 [workspace]
-members = ["napi"]
+members = ["napi", "tasks/track_fs_calls"]
 resolver = "2"
 
 [workspace.package]

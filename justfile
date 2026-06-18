@@ -78,6 +78,10 @@ doc:
 codecov:
   cargo codecov --html
 
+# Update the fs-call-count snapshot (tasks/track_fs_calls/fs.snap).
+fs-calls:
+  cargo fs-calls
+
 # Run the benchmarks.
 benchmark:
   cargo bench --bench resolver
