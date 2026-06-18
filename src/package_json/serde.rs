@@ -219,8 +219,17 @@ impl PackageJson {
             .map(ImportsExportsMap)
     }
 
-    /// Resolves the request string for this `package.json` by looking at the
-    /// "browser" field.
+    /// Apply this `package.json`'s `"browser"` field (and any other [`crate::ResolveOptions`]
+    /// `alias_fields`) to a request or a resolved path.
+    ///
+    /// * **Forward** (`request` is `Some`): look the request up as a key, remapping it before
+    ///   it is resolved on disk (e.g. `module-a` -> `./browser/module-a.js`).
+    /// * **Reverse** (`request` is `None`): find the key whose package-relative path equals
+    ///   the already-resolved `path`, remapping a file after it is found.
+    ///
+    /// # Errors
+    ///
+    /// * [`ResolveError::Ignored`] when the matched value is `false` (request excluded).
     ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     pub(crate) fn resolve_browser_field<'a>(
@@ -237,7 +246,16 @@ impl PackageJson {
                 }
             } else {
                 let dir = self.path.parent().unwrap();
+                let path_file_name = path.file_name();
                 for (key, value) in object {
+                    // Fast path: `normalize_with` keeps `key`'s last component, so a key whose
+                    // file name differs from the candidate's can't match — skip without
+                    // allocating. `.`/`..` keys have no `file_name` and fall through.
+                    if let Some(key_file_name) = Path::new(key.as_str()).file_name()
+                        && Some(key_file_name) != path_file_name
+                    {
+                        continue;
+                    }
                     let joined = dir.normalize_with(key.as_str());
                     if joined == path {
                         return Self::alias_value(path, value);
@@ -289,7 +307,7 @@ impl PackageJson {
     }
 
     /// The "browser" field is provided by a module author as a hint to javascript bundlers or component tools when packaging modules for client side use.
-    /// Multiple values are configured by [ResolveOptions::alias_fields].
+    /// Multiple values are configured by [crate::ResolveOptions::alias_fields].
     ///
     /// <https://github.com/defunctzombie/package-browser-field-spec>
     pub(crate) fn browser_fields<'a>(
