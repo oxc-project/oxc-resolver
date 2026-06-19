@@ -201,26 +201,13 @@ impl CachedPath {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             path.push(&self.path);
-            for component in std::iter::once(head).chain(components) {
-                match component {
-                    Component::CurDir => {}
-                    Component::ParentDir => {
-                        path.pop();
-                    }
-                    Component::Normal(c) => {
-                        cfg_if! {
-                            if #[cfg(target_family = "wasm")] {
-                                // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
-                                path.push(c.to_string_lossy().trim_end_matches('\0'));
-                            } else {
-                                path.push(c);
-                            }
-                        }
-                    }
-                    Component::Prefix(..) | Component::RootDir => {
-                        unreachable!("Path {:?} Subpath {:?}", self.path, subpath)
-                    }
-                }
+            // Process `head` before the rest rather than `std::iter::once(head).chain(components)`:
+            // the `Chain<Once<_>, Components>` adapter is a large value that LLVM copies around a
+            // big stack frame on every call. Folding `head` in by hand keeps the loop over a bare
+            // `Components` iterator.
+            push_normalized_component(path, head);
+            for component in components {
+                push_normalized_component(path, component);
             }
 
             cache.value(path)
@@ -244,6 +231,31 @@ impl CachedPath {
     #[cfg(not(windows))]
     pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &Cache<Fs>) -> Self {
         self.clone()
+    }
+}
+
+/// Apply a single path component to `path` for normalization (drop `.`, pop on `..`, push names).
+///
+/// `Prefix`/`RootDir` only ever appear as the first component of a `Components` iterator, and the
+/// caller handles that head component before reaching here, so those arms are unreachable.
+#[inline]
+fn push_normalized_component(path: &mut PathBuf, component: Component<'_>) {
+    match component {
+        Component::CurDir => {}
+        Component::ParentDir => {
+            path.pop();
+        }
+        Component::Normal(c) => {
+            cfg_if! {
+                if #[cfg(target_family = "wasm")] {
+                    // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                    path.push(c.to_string_lossy().trim_end_matches('\0'));
+                } else {
+                    path.push(c);
+                }
+            }
+        }
+        Component::Prefix(..) | Component::RootDir => unreachable!(),
     }
 }
 

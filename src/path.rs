@@ -108,22 +108,34 @@ fn normalize_with_impl(base: &Path, subpath: &Path) -> PathBuf {
     }
 
     let mut ret = base.to_path_buf();
-    for component in std::iter::once(head).chain(components) {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                ret.pop();
-            }
-            Component::Normal(c) => {
-                ret.push(c);
-            }
-            Component::Prefix(..) | Component::RootDir => {
-                unreachable!("Path {:?} Subpath {:?}", base, subpath)
-            }
-        }
+    // `head` is processed before the rest instead of `std::iter::once(head).chain(components)`:
+    // the `Chain<Once<_>, Components>` adapter is a large value that LLVM copies around a big
+    // stack frame on every call. Folding `head` in by hand keeps the loop over a bare
+    // `Components` iterator.
+    push_normalized_component(&mut ret, head);
+    for component in components {
+        push_normalized_component(&mut ret, component);
     }
 
     ret
+}
+
+/// Apply a single path component to `ret` for normalization (drop `.`, pop on `..`, push names).
+///
+/// `Prefix`/`RootDir` only ever appear as the first component of a `Components` iterator, and the
+/// callers handle that head component before reaching here, so those arms are unreachable.
+#[inline]
+fn push_normalized_component(ret: &mut PathBuf, component: Component<'_>) {
+    match component {
+        Component::CurDir => {}
+        Component::ParentDir => {
+            ret.pop();
+        }
+        Component::Normal(c) => {
+            ret.push(c);
+        }
+        Component::Prefix(..) | Component::RootDir => unreachable!(),
+    }
 }
 
 // https://github.com/webpack/enhanced-resolve/blob/main/test/path.test.js
