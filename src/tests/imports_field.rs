@@ -6,7 +6,10 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::{Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver};
+use crate::{
+    Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver,
+    package_json::ImportsExportsMapGeneric,
+};
 
 #[test]
 fn test_simple() {
@@ -116,7 +119,7 @@ fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
         panic!("Expected an object");
     };
     let map = Box::leak::<'static>(Box::new(map));
-    ImportsExportsMap(map)
+    ImportsExportsMapGeneric(map)
 }
 
 #[cfg(target_endian = "big")]
@@ -126,7 +129,7 @@ fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
     let serde_json::Value::Object(map) = value else {
         panic!("Expected an object");
     };
-    ImportsExportsMap(map)
+    ImportsExportsMapGeneric(map)
 }
 
 #[allow(clippy::too_many_lines)]
