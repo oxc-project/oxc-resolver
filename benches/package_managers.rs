@@ -55,6 +55,10 @@ fn run_combo(c: &mut Criterion, combo: Combo) {
 }
 
 fn bench_package_managers(c: &mut Criterion) {
+    // Pin rayon's pool to a fixed thread count so the parallel fan-out is deterministic across
+    // machines / CI runners; otherwise the pool sizes to the host core count, which varies and
+    // makes CodSpeed's instrumented instruction count flaky.
+    let _ = rayon::ThreadPoolBuilder::new().num_threads(4).build_global();
     for &combo in Combo::ALL {
         #[cfg(not(feature = "yarn_pnp"))]
         if matches!(combo, Combo::YarnPnp) {
