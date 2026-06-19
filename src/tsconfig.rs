@@ -562,6 +562,11 @@ enum GlobPattern<'a> {
     All,
 }
 
+/// Normalize Windows `\` to `/` for glob matching, without allocating when there's nothing to replace.
+fn to_forward_slashes(s: Cow<'_, str>) -> Cow<'_, str> {
+    if s.contains('\\') { Cow::Owned(s.replace('\\', "/")) } else { s }
+}
+
 /// Tsconfig resolver
 impl TsConfig {
     pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
@@ -634,7 +639,6 @@ impl TsConfig {
     }
 
     fn is_glob_matches(&self, path: &Path, pattern: GlobPattern) -> bool {
-        let path_str = path.to_string_lossy().replace('\\', "/");
         match pattern {
             // The default `**/*` is scoped to the tsconfig directory; as a
             // wildcard pattern it is restricted to the configured TS/JS
@@ -643,10 +647,13 @@ impl TsConfig {
                 path.starts_with(self.directory())
                     && self.is_file_extension_allowed_in_tsconfig(path)
             }
-            GlobPattern::Pattern(patterns) => patterns.iter().any(|pattern| {
-                let pattern = pattern.to_string_lossy().replace('\\', "/");
-                self.is_glob_match(pattern.as_ref(), path, &path_str)
-            }),
+            GlobPattern::Pattern(patterns) => {
+                let path_str = to_forward_slashes(path.to_string_lossy());
+                patterns.iter().any(|pattern| {
+                    let pattern = to_forward_slashes(pattern.to_string_lossy());
+                    self.is_glob_match(pattern.as_ref(), path, path_str.as_ref())
+                })
+            }
         }
     }
 
