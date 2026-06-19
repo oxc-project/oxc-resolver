@@ -276,7 +276,9 @@ impl<S: PackageJsonBackend> PackageJsonGeneric<S> {
     /// TypeScript version ranges to path redirect maps.
     ///
     /// <https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html#version-selection-with-typesversions>
-    pub(crate) fn types_versions(&self) -> Option<ImportsExportsMapGeneric<'_, <S::Value<'_> as JsonValue>::Object>> {
+    pub(crate) fn types_versions(
+        &self,
+    ) -> Option<ImportsExportsMapGeneric<'_, <S::Value<'_> as JsonValue>::Object>> {
         Some(ImportsExportsMapGeneric(self.field("typesVersions")?.as_object()?))
     }
 
@@ -324,7 +326,8 @@ impl<S: PackageJsonBackend> PackageJsonGeneric<S> {
     pub(crate) fn imports_fields<'a>(
         &'a self,
         imports_fields: &'a [Vec<String>],
-    ) -> impl Iterator<Item = ImportsExportsMapGeneric<'a, <S::Value<'a> as JsonValue>::Object>> + 'a {
+    ) -> impl Iterator<Item = ImportsExportsMapGeneric<'a, <S::Value<'a> as JsonValue>::Object>> + 'a
+    {
         let object = self.store.root().as_object();
         imports_fields
             .iter()
@@ -454,7 +457,9 @@ impl<'a, O: JsonObject> ImportsExportsMapGeneric<'a, O> {
         self.0.iter().map(|(key, _)| key)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&'a str, ImportsExportsEntryGeneric<'a, O::Value>)> {
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = (&'a str, ImportsExportsEntryGeneric<'a, O::Value>)> {
         self.0.iter().map(|(key, value)| (key, ImportsExportsEntryGeneric(value)))
     }
 }
