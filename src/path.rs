@@ -108,10 +108,8 @@ fn normalize_with_impl(base: &Path, subpath: &Path) -> PathBuf {
     }
 
     let mut ret = base.to_path_buf();
-    // `head` is processed before the rest instead of `std::iter::once(head).chain(components)`:
-    // the `Chain<Once<_>, Components>` adapter is a large value that LLVM copies around a big
-    // stack frame on every call. Folding `head` in by hand keeps the loop over a bare
-    // `Components` iterator.
+    // Fold `head` in by hand rather than `std::iter::once(head).chain(components)`, whose
+    // `Chain<Once<_>, Components>` adapter bloats the stack frame.
     push_normalized_component(&mut ret, head);
     for component in components {
         push_normalized_component(&mut ret, component);
@@ -120,10 +118,8 @@ fn normalize_with_impl(base: &Path, subpath: &Path) -> PathBuf {
     ret
 }
 
-/// Apply a single path component to `ret` for normalization (drop `.`, pop on `..`, push names).
-///
-/// `Prefix`/`RootDir` only ever appear as the first component of a `Components` iterator, and the
-/// callers handle that head component before reaching here, so those arms are unreachable.
+/// `Prefix`/`RootDir` can only be a `Components` iterator's first item, which callers consume
+/// before reaching here, so those arms are unreachable.
 #[inline]
 fn push_normalized_component(ret: &mut PathBuf, component: Component<'_>) {
     match component {

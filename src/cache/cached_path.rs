@@ -201,10 +201,8 @@ impl CachedPath {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             path.push(&self.path);
-            // Process `head` before the rest rather than `std::iter::once(head).chain(components)`:
-            // the `Chain<Once<_>, Components>` adapter is a large value that LLVM copies around a
-            // big stack frame on every call. Folding `head` in by hand keeps the loop over a bare
-            // `Components` iterator.
+            // Fold `head` in by hand rather than `std::iter::once(head).chain(components)`, whose
+            // `Chain<Once<_>, Components>` adapter bloats the stack frame.
             push_normalized_component(path, head);
             for component in components {
                 push_normalized_component(path, component);
@@ -234,10 +232,8 @@ impl CachedPath {
     }
 }
 
-/// Apply a single path component to `path` for normalization (drop `.`, pop on `..`, push names).
-///
-/// `Prefix`/`RootDir` only ever appear as the first component of a `Components` iterator, and the
-/// caller handles that head component before reaching here, so those arms are unreachable.
+/// `Prefix`/`RootDir` can only be a `Components` iterator's first item, which the caller consumes
+/// before reaching here, so those arms are unreachable.
 #[inline]
 fn push_normalized_component(path: &mut PathBuf, component: Component<'_>) {
     match component {
