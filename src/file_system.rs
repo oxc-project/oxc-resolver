@@ -6,6 +6,8 @@ use std::{
 use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
+#[cfg(feature = "yarn_pnp")]
+use std::sync::Arc;
 
 use crate::ResolveError;
 
@@ -124,12 +126,21 @@ impl From<fs::Metadata> for FileMetadata {
 }
 
 #[cfg(not(feature = "yarn_pnp"))]
+#[derive(Clone)]
 pub struct FileSystemOs;
 
 #[cfg(feature = "yarn_pnp")]
+#[derive(Clone)]
 pub struct FileSystemOs {
-    pnp_lru: LruZipCache<Vec<u8>>,
+    // `Arc` so `FileSystemOs` is cheaply `Clone`: clones share the same pnp zip cache.
+    pnp_lru: Arc<LruZipCache<Vec<u8>>>,
     yarn_pnp: bool,
+}
+
+impl std::fmt::Debug for FileSystemOs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileSystemOs").finish()
+    }
 }
 
 impl FileSystemOs {
@@ -244,7 +255,7 @@ impl FileSystemOs {
 impl FileSystem for FileSystemOs {
     #[cfg(feature = "yarn_pnp")]
     fn new(yarn_pnp: bool) -> Self {
-        Self { pnp_lru: LruZipCache::new(50, pnp::fs::open_zip_via_read_p), yarn_pnp }
+        Self { pnp_lru: Arc::new(LruZipCache::new(50, pnp::fs::open_zip_via_read_p)), yarn_pnp }
     }
 
     #[cfg(not(feature = "yarn_pnp"))]
