@@ -193,6 +193,16 @@ impl CachedPath {
     }
 
     fn normalize_with_impl<Fs: FileSystem>(&self, subpath: &Path, cache: &Cache<Fs>) -> Self {
+        // Fast path: the overwhelmingly common subpath is a simple relative path with no `.`/`..`
+        // segments (e.g. an `exports` target like `./dist/index.js`), so the join is a plain byte
+        // append — no `std::path::Components` parsing or per-component `PathBuf::push`, which a Time
+        // Profiler shows is the single biggest chunk of resolve CPU. Gated off Windows (needs `/` ->
+        // `\` separator normalization) and wasm (strips interior NULs); both keep the slow path.
+        #[cfg(not(any(target_os = "windows", target_family = "wasm")))]
+        if let Some(result) = self.normalize_with_fast(subpath, cache) {
+            return result;
+        }
+
         let mut components = subpath.components();
         let Some(head) = components.next() else { return cache.value(subpath) };
         if matches!(head, Component::Prefix(..) | Component::RootDir) {
@@ -210,6 +220,48 @@ impl CachedPath {
 
             cache.value(path)
         })
+    }
+
+    /// Byte-level join for the common case where `subpath` is a simple relative path: returns
+    /// `None` (caller falls back to the `Components` path) for anything that needs real
+    /// normalization — absolute subpaths, or any `.`/`..`/empty (`//`) segment.
+    #[cfg(not(any(target_os = "windows", target_family = "wasm")))]
+    fn normalize_with_fast<Fs: FileSystem>(
+        &self,
+        subpath: &Path,
+        cache: &Cache<Fs>,
+    ) -> Option<Self> {
+        let mut sub = subpath.as_os_str().as_encoded_bytes();
+        // Drop a single leading `./`; anything else starting with `.` is a real segment name.
+        if let Some(rest) = sub.strip_prefix(b"./") {
+            sub = rest;
+        }
+        // Bail on absolute or empty subpaths, and on any segment that needs normalization.
+        if sub.is_empty() || sub[0] == b'/' {
+            return None;
+        }
+        for segment in sub.split(|&b| b == b'/') {
+            if segment.is_empty() || segment == b"." || segment == b".." {
+                return None;
+            }
+        }
+        let base = self.path.as_os_str().as_encoded_bytes();
+        if base.is_empty() {
+            return None;
+        }
+        Some(SCRATCH_PATH.with_borrow_mut(|path| {
+            path.clear();
+            let buf = path.as_mut_os_string();
+            // SAFETY: `base` is a whole `OsStr` encoding, so it ends on a valid `OsStr` boundary.
+            buf.push(unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(base) });
+            if base.last() != Some(&b'/') {
+                buf.push(std::path::MAIN_SEPARATOR_STR);
+            }
+            // SAFETY: `sub` is the `subpath` `OsStr` encoding with a leading ASCII `./` stripped,
+            // so it also ends on a valid `OsStr` boundary.
+            buf.push(unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(sub) });
+            cache.value(path)
+        }))
     }
 
     #[inline]
