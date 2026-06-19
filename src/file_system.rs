@@ -5,9 +5,9 @@ use std::{
 
 use cfg_if::cfg_if;
 #[cfg(feature = "yarn_pnp")]
-use std::sync::Arc;
-#[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
+#[cfg(feature = "yarn_pnp")]
+use std::sync::Arc;
 
 use crate::ResolveError;
 
