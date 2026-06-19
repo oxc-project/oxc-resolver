@@ -359,8 +359,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if p.is_node_modules() {
                     break;
                 }
+                let parent = p.parent(&self.cache);
                 // Skip /node_modules/@scope/package.json
-                if let Some(parent) = p.parent(&self.cache)
+                if let Some(parent) = &parent
                     && parent.is_node_modules()
                     && let Some(filename) = p.path().file_name()
                     && filename.as_encoded_bytes().starts_with(b"@")
@@ -370,7 +371,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 if let Some(package_json) = self.cache.get_package_json(&p, &self.options, ctx)? {
                     last = Some(package_json);
                 }
-                cp = p.parent(&self.cache);
+                cp = parent;
             }
             Ok(last)
         } else {
