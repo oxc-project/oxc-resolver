@@ -41,10 +41,17 @@ impl<'a> Specifier<'a> {
         specifier: &'a str,
         skip: usize,
     ) -> (Cow<'a, str>, Option<&'a str>, Option<&'a str>) {
+        // Fast path: most specifiers carry no `?`/`#`, so a single state-free scan lets us return
+        // without the stateful loop below (which a `#` is also a prerequisite for).
+        let bytes = specifier.as_bytes();
+        if memchr::memchr2(b'?', b'#', &bytes[skip..]).is_none() {
+            return (Cow::Borrowed(specifier), None, None);
+        }
+
         let mut query_start: Option<usize> = None;
         let mut fragment_start: Option<usize> = None;
 
-        let mut prev = specifier.as_bytes()[0];
+        let mut prev = bytes[0];
         // Optimize for the common case: most specifiers don't have escaped characters
         let mut escaped_indexes: Option<Vec<usize>> = None;
         for (i, &b) in specifier.as_bytes().iter().enumerate().skip(skip) {
