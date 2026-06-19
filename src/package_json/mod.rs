@@ -1,8 +1,9 @@
 //! package.json definitions
 //!
-//! This module provides platform-specific implementations for parsing package.json files.
-//! On little-endian systems, it uses simd-json for high performance.
-//! On big-endian systems, it falls back to serde_json.
+//! The bulk of the `package.json` accessor logic lives here, written once against the
+//! [`JsonValue`]/[`JsonObject`] backend traits. Each platform provides a thin backend:
+//! on little-endian systems [`simd`] parses with simd-json (zero-copy `BorrowedValue`),
+//! on big-endian systems [`serde`] falls back to `serde_json::Value`.
 
 #[cfg(target_endian = "big")]
 mod serde;
@@ -14,9 +15,12 @@ pub use serde::*;
 #[cfg(target_endian = "little")]
 pub use simd::*;
 
-use std::{fmt, path::Path};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
-use crate::JSONError;
+use crate::{JSONError, ResolveError, path::PathUtil};
 
 /// Check if JSON content is empty or contains only whitespace
 fn check_if_empty(json_bytes: &[u8], path: &Path) -> Result<(), JSONError> {
@@ -70,4 +74,392 @@ pub enum SideEffects<'a> {
     Bool(bool),
     String(&'a str),
     Array(Vec<&'a str>),
+}
+
+// ---------------------------------------------------------------------------
+// JSON backend abstraction
+// ---------------------------------------------------------------------------
+
+/// A JSON value, abstracting over `simd_json::BorrowedValue` and `serde_json::Value`.
+///
+/// Only the operations the resolver needs are exposed; the variant differences between the
+/// two backends (e.g. `BorrowedValue::Static(Bool)` vs `Value::Bool`) are hidden behind
+/// [`Self::as_bool`]/[`Self::entry_kind`] so the accessor logic can be written once.
+pub trait JsonValue: Sized {
+    type Object: JsonObject<Value = Self>;
+
+    fn as_str(&self) -> Option<&str>;
+    fn as_bool(&self) -> Option<bool>;
+    fn as_slice(&self) -> Option<&[Self]>;
+    fn as_object(&self) -> Option<&Self::Object>;
+    fn entry_kind(&self) -> ImportsExportsKind;
+}
+
+/// A JSON object (string-keyed map), abstracting over the two backends' object types.
+pub trait JsonObject {
+    type Value: JsonValue<Object = Self>;
+
+    fn get(&self, key: &str) -> Option<&Self::Value>;
+    fn iter(&self) -> impl Iterator<Item = (&str, &Self::Value)>;
+}
+
+/// Storage holding the parsed root value. The simd backend stores a self-referential cell
+/// (the `BorrowedValue` borrows the file bytes); the serde backend stores an owned `Value`.
+pub trait PackageJsonBackend {
+    type Value<'a>: JsonValue
+    where
+        Self: 'a;
+
+    fn root(&self) -> &Self::Value<'_>;
+}
+
+/// Navigate `fields` along `path` (e.g. `["exports"]` or `["a", "b"]`), returning the value.
+fn get_value_by_path<'a, O: JsonObject>(fields: &'a O, path: &[String]) -> Option<&'a O::Value> {
+    let mut value = fields.get(path.first()?.as_str())?;
+    for key in &path[1..] {
+        value = value.as_object()?.get(key.as_str())?;
+    }
+    Some(value)
+}
+
+/// Interpret a `"browser"`/alias-field value: a string is the replacement, `false` means the
+/// request is ignored, anything else is "no mapping".
+fn alias_value<'a, V: JsonValue>(
+    key: &Path,
+    value: &'a V,
+) -> Result<Option<&'a str>, ResolveError> {
+    if let Some(s) = value.as_str() {
+        return Ok(Some(s));
+    }
+    if value.as_bool() == Some(false) {
+        return Err(ResolveError::Ignored(key.to_path_buf()));
+    }
+    Ok(None)
+}
+
+// ---------------------------------------------------------------------------
+// PackageJson (generic over the backend)
+// ---------------------------------------------------------------------------
+
+/// Generic `package.json`. The public, per-target `PackageJson` is a type alias over this
+/// (see the backend modules), so the rest of the crate is unaware of the generic parameter.
+pub struct PackageJsonGeneric<S> {
+    /// Path to `package.json`. Contains the `package.json` filename.
+    pub path: PathBuf,
+
+    /// Realpath to `package.json`. Contains the `package.json` filename.
+    pub realpath: PathBuf,
+
+    pub(crate) store: S,
+}
+
+impl<S: PackageJsonBackend> fmt::Debug for PackageJsonGeneric<S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PackageJson")
+            .field("path", &self.path)
+            .field("realpath", &self.realpath)
+            .field("name", &self.name())
+            .field("type", &self.r#type())
+            .finish_non_exhaustive()
+    }
+}
+
+impl<S: PackageJsonBackend> PackageJsonGeneric<S> {
+    /// Returns the path where the `package.json` was found.
+    ///
+    /// Contains the `package.json` filename.
+    ///
+    /// This does not need to be the path where the file is stored on disk.
+    /// See [Self::realpath()].
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Returns the path where the `package.json` file was stored on disk.
+    ///
+    /// Contains the `package.json` filename.
+    ///
+    /// This is the canonicalized version of [Self::path()], where all symbolic
+    /// links are resolved.
+    #[must_use]
+    pub fn realpath(&self) -> &Path {
+        &self.realpath
+    }
+
+    /// Directory to `package.json`.
+    ///
+    /// # Panics
+    ///
+    /// * When the `package.json` path is misconfigured.
+    #[must_use]
+    pub fn directory(&self) -> &Path {
+        debug_assert!(self.realpath.file_name().is_some_and(|x| x == "package.json"));
+        self.realpath.parent().unwrap()
+    }
+
+    fn field(&self, key: &str) -> Option<&S::Value<'_>> {
+        self.store.root().as_object()?.get(key)
+    }
+
+    /// Name of the package.
+    ///
+    /// The "name" field can be used together with the "exports" field to
+    /// self-reference a package using its name.
+    ///
+    /// <https://nodejs.org/api/packages.html#name>
+    #[must_use]
+    pub fn name(&self) -> Option<&str> {
+        self.field("name")?.as_str()
+    }
+
+    /// Version of the package.
+    ///
+    /// <https://nodejs.org/api/packages.html#name>
+    #[must_use]
+    pub fn version(&self) -> Option<&str> {
+        self.field("version")?.as_str()
+    }
+
+    /// Returns the package type, if one is configured in the `package.json`.
+    ///
+    /// <https://nodejs.org/api/packages.html#type>
+    #[must_use]
+    pub fn r#type(&self) -> Option<PackageType> {
+        PackageType::from_str(self.field("type")?.as_str()?)
+    }
+
+    /// The "sideEffects" field.
+    ///
+    /// <https://webpack.js.org/guides/tree-shaking>
+    #[must_use]
+    pub fn side_effects(&self) -> Option<SideEffects<'_>> {
+        let value = self.field("sideEffects")?;
+        if let Some(b) = value.as_bool() {
+            return Some(SideEffects::Bool(b));
+        }
+        if let Some(s) = value.as_str() {
+            return Some(SideEffects::String(s));
+        }
+        value
+            .as_slice()
+            .map(|arr| SideEffects::Array(arr.iter().filter_map(JsonValue::as_str).collect()))
+    }
+
+    /// The "exports" field allows defining the entry points of a package.
+    ///
+    /// <https://nodejs.org/api/packages.html#exports>
+    #[must_use]
+    pub fn exports(&self) -> Option<ImportsExportsEntryGeneric<'_, S::Value<'_>>> {
+        Some(ImportsExportsEntryGeneric(self.field("exports")?))
+    }
+
+    /// The "types" field in package.json.
+    ///
+    /// Used by TypeScript to find type declarations for a package.
+    #[must_use]
+    pub fn types(&self) -> Option<&str> {
+        self.field("types")?.as_str()
+    }
+
+    /// The "typings" field in package.json (legacy equivalent of "types").
+    ///
+    /// Used by TypeScript to find type declarations for a package.
+    #[must_use]
+    pub fn typings(&self) -> Option<&str> {
+        self.field("typings")?.as_str()
+    }
+
+    /// The "typesVersions" field in package.json.
+    ///
+    /// Returns the raw JSON value for the "typesVersions" field, which maps
+    /// TypeScript version ranges to path redirect maps.
+    ///
+    /// <https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html#version-selection-with-typesversions>
+    pub(crate) fn types_versions(
+        &self,
+    ) -> Option<ImportsExportsMapGeneric<'_, <S::Value<'_> as JsonValue>::Object>> {
+        Some(ImportsExportsMapGeneric(self.field("typesVersions")?.as_object()?))
+    }
+
+    /// The "main" field defines the entry point of a package when imported by
+    /// name via a node_modules lookup. Its value should be a path.
+    ///
+    /// When a package has an "exports" field, this will take precedence over
+    /// the "main" field when importing the package by name.
+    ///
+    /// Values are dynamically retrieved from [crate::ResolveOptions::main_fields].
+    ///
+    /// <https://nodejs.org/api/packages.html#main>
+    pub(crate) fn main_fields<'a>(
+        &'a self,
+        main_fields: &'a [String],
+    ) -> impl Iterator<Item = &'a str> + 'a {
+        let object = self.store.root().as_object();
+        main_fields
+            .iter()
+            .filter_map(move |main_field| object?.get(main_field.as_str()))
+            .filter_map(JsonValue::as_str)
+    }
+
+    /// The "exports" field allows defining the entry points of a package when
+    /// imported by name loaded either via a node_modules lookup or a
+    /// self-reference to its own name.
+    ///
+    /// <https://nodejs.org/api/packages.html#exports>
+    pub(crate) fn exports_fields<'a>(
+        &'a self,
+        exports_fields: &'a [Vec<String>],
+    ) -> impl Iterator<Item = ImportsExportsEntryGeneric<'a, S::Value<'a>>> + 'a {
+        let object = self.store.root().as_object();
+        exports_fields
+            .iter()
+            .filter_map(move |object_path| get_value_by_path(object?, object_path))
+            .map(ImportsExportsEntryGeneric)
+    }
+
+    /// In addition to the "exports" field, there is a package "imports" field
+    /// to create private mappings that only apply to import specifiers from
+    /// within the package itself.
+    ///
+    /// <https://nodejs.org/api/packages.html#subpath-imports>
+    pub(crate) fn imports_fields<'a>(
+        &'a self,
+        imports_fields: &'a [Vec<String>],
+    ) -> impl Iterator<Item = ImportsExportsMapGeneric<'a, <S::Value<'a> as JsonValue>::Object>> + 'a
+    {
+        let object = self.store.root().as_object();
+        imports_fields
+            .iter()
+            .filter_map(move |object_path| get_value_by_path(object?, object_path))
+            .filter_map(JsonValue::as_object)
+            .map(ImportsExportsMapGeneric)
+    }
+
+    fn browser_fields<'a>(
+        &'a self,
+        alias_fields: &'a [Vec<String>],
+    ) -> impl Iterator<Item = &'a <S::Value<'a> as JsonValue>::Object> + 'a {
+        let object = self.store.root().as_object();
+        alias_fields
+            .iter()
+            .filter_map(move |object_path| get_value_by_path(object?, object_path))
+            // Only object is valid, all other types are invalid
+            // https://github.com/webpack/enhanced-resolve/blob/3a28f47788de794d9da4d1702a3a583d8422cd48/lib/AliasFieldPlugin.js#L44-L52
+            .filter_map(JsonValue::as_object)
+    }
+
+    /// Apply this `package.json`'s `"browser"` field (and any other [`crate::ResolveOptions`]
+    /// `alias_fields`) to a request or a resolved path.
+    ///
+    /// * **Forward** (`request` is `Some`): look the request up as a key, remapping it before
+    ///   it is resolved on disk (e.g. `module-a` -> `./browser/module-a.js`).
+    /// * **Reverse** (`request` is `None`): find the key whose package-relative path equals
+    ///   the already-resolved `path`, remapping a file after it is found.
+    ///
+    /// # Errors
+    ///
+    /// * [`ResolveError::Ignored`] when the matched value is `false` (request excluded).
+    ///
+    /// <https://github.com/defunctzombie/package-browser-field-spec>
+    pub(crate) fn resolve_browser_field<'a>(
+        &'a self,
+        path: &Path,
+        request: Option<&str>,
+        alias_fields: &'a [Vec<String>],
+    ) -> Result<Option<&'a str>, ResolveError> {
+        for object in self.browser_fields(alias_fields) {
+            if let Some(request) = request {
+                // Find matching key in object
+                if let Some(value) = object.get(request) {
+                    return alias_value(path, value);
+                }
+            } else {
+                let dir = self.path.parent().unwrap();
+                let path_file_name = path.file_name();
+                for (key, value) in object.iter() {
+                    // Fast path: `normalize_with` keeps `key`'s last component, so a key whose
+                    // file name differs from the candidate's can't match — skip without
+                    // allocating. `.`/`..` keys have no `file_name` and fall through.
+                    if let Some(key_file_name) = Path::new(key).file_name()
+                        && Some(key_file_name) != path_file_name
+                    {
+                        continue;
+                    }
+                    let joined = dir.normalize_with(key);
+                    if joined == path {
+                        return alias_value(path, value);
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// imports/exports field views (generic over the backend)
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct ImportsExportsEntryGeneric<'a, V>(pub(crate) &'a V);
+
+impl<'a, V: JsonValue> ImportsExportsEntryGeneric<'a, V> {
+    #[must_use]
+    pub fn kind(&self) -> ImportsExportsKind {
+        self.0.entry_kind()
+    }
+
+    #[must_use]
+    pub fn as_string(&self) -> Option<&'a str> {
+        self.0.as_str()
+    }
+
+    #[must_use]
+    pub fn as_array(&self) -> Option<ImportsExportsArrayGeneric<'a, V>> {
+        self.0.as_slice().map(ImportsExportsArrayGeneric)
+    }
+
+    #[must_use]
+    pub fn as_map(&self) -> Option<ImportsExportsMapGeneric<'a, V::Object>> {
+        self.0.as_object().map(ImportsExportsMapGeneric)
+    }
+}
+
+#[derive(Clone)]
+pub struct ImportsExportsArrayGeneric<'a, V>(&'a [V]);
+
+impl<'a, V: JsonValue> ImportsExportsArrayGeneric<'a, V> {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = ImportsExportsEntryGeneric<'a, V>> {
+        self.0.iter().map(ImportsExportsEntryGeneric)
+    }
+}
+
+#[derive(Clone)]
+pub struct ImportsExportsMapGeneric<'a, O>(pub(crate) &'a O);
+
+impl<'a, O: JsonObject> ImportsExportsMapGeneric<'a, O> {
+    pub fn get(&self, key: &str) -> Option<ImportsExportsEntryGeneric<'a, O::Value>> {
+        self.0.get(key).map(ImportsExportsEntryGeneric)
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &'a str> {
+        self.0.iter().map(|(key, _)| key)
+    }
+
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = (&'a str, ImportsExportsEntryGeneric<'a, O::Value>)> {
+        self.0.iter().map(|(key, value)| (key, ImportsExportsEntryGeneric(value)))
+    }
 }
