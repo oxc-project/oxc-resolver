@@ -368,7 +368,11 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 {
                     break;
                 }
-                if let Some(package_json) = self.cache.get_package_json(&p, &self.options, ctx)? {
+                // `p` is always a directory here (it starts at a directory and only walks
+                // parents), so skip `get_package_json`'s redundant leading `is_dir`.
+                if let Some(package_json) =
+                    self.cache.get_package_json_of_dir(&p, &self.options, ctx)?
+                {
                     last = Some(package_json);
                 }
                 cp = parent;
@@ -1147,7 +1151,9 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     ) -> ResolveResult {
         // 2. If X does not match this pattern or DIR/NAME/package.json is not a file,
         //    return.
-        let Some(package_json) = self.cache.get_package_json(cached_path, &self.options, ctx)?
+        // The sole caller gates this behind `is_dir(cached_path)`, so skip the redundant `is_dir`.
+        let Some(package_json) =
+            self.cache.get_package_json_of_dir(cached_path, &self.options, ctx)?
         else {
             return Ok(None);
         };
@@ -1404,8 +1410,10 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 //   1. Continue the next loop iteration.
                 if self.is_dir(&cached_path, ctx) {
                     // 4. Let pjson be the result of READ_PACKAGE_JSON(packageURL).
+                    // `cached_path` was just confirmed to be a directory above, so skip
+                    // `get_package_json`'s redundant leading `is_dir`.
                     if let Some(package_json) =
-                        self.cache.get_package_json(&cached_path, &self.options, ctx)?
+                        self.cache.get_package_json_of_dir(&cached_path, &self.options, ctx)?
                     {
                         // 5. If pjson is not null and pjson.exports is not null or undefined, then
                         // 1. Return the result of PACKAGE_EXPORTS_RESOLVE(packageURL, packageSubpath, pjson.exports, defaultConditions).

@@ -155,13 +155,39 @@ impl<Fs: FileSystem> Cache<Fs> {
         options: &ResolveOptions,
         ctx: &mut Ctx,
     ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
-        self.find_package_json(path, options, ctx).map(|option_package_json| {
-            option_package_json.filter(|package_json| {
-                package_json
-                    .path()
-                    .parent()
-                    .is_some_and(|p| p.as_os_str() == path.path().as_os_str())
-            })
+        Ok(Self::filter_own_package_json(path, self.find_package_json(path, options, ctx)?))
+    }
+
+    /// [`Cache::get_package_json`] for a `path` the caller already knows is a directory.
+    ///
+    /// Skips [`Cache::find_package_json`]'s leading `while !is_dir(path)` walk, which is a
+    /// dependency-neutral no-op once `path` is a directory (a single `is_dir` returning `true`),
+    /// and calls [`Cache::find_package_json_impl`] directly.
+    ///
+    /// # Errors
+    ///
+    /// * [ResolveError::Json]
+    pub(crate) fn get_package_json_of_dir(
+        &self,
+        path: &CachedPath,
+        options: &ResolveOptions,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<PackageJson>>, ResolveError> {
+        debug_assert!(
+            self.followed_metadata(path, options.symlinks).is_some_and(FileMetadata::is_dir),
+            "get_package_json_of_dir requires a directory: {}",
+            path.path().display()
+        );
+        Ok(Self::filter_own_package_json(path, self.find_package_json_impl(path, options, ctx)?))
+    }
+
+    /// Keep `package_json` only when it lives directly in `path` (i.e. `path` is its own scope).
+    fn filter_own_package_json(
+        path: &CachedPath,
+        package_json: Option<Arc<PackageJson>>,
+    ) -> Option<Arc<PackageJson>> {
+        package_json.filter(|package_json| {
+            package_json.path().parent().is_some_and(|p| p.as_os_str() == path.path().as_os_str())
         })
     }
 
