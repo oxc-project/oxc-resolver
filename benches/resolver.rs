@@ -157,7 +157,16 @@ fn oxc_resolver_real() -> oxc_resolver::Resolver {
     Resolver::new(resolve_options())
 }
 
+/// Pin rayon's global pool to a fixed thread count so the `multi-thread` benches are deterministic.
+/// Rayon otherwise sizes the pool to the host core count, which varies across CI runners and makes
+/// CodSpeed's instrumented instruction count flaky. Idempotent: the first call wins, the rest are
+/// no-ops, so it's safe to call from every parallel bench regardless of run order or filtering.
+fn pin_rayon_threads() {
+    let _ = rayon::ThreadPoolBuilder::new().num_threads(4).build_global();
+}
+
 fn bench_resolver_memory(c: &mut Criterion) {
+    pin_rayon_threads();
     let data = data();
     let cwd = env::current_dir().unwrap();
     let symlink_test_dir = cwd.join("fixtures/enhanced-resolve/test/temp_symlinks");
@@ -240,6 +249,7 @@ fn bench_resolver_memory(c: &mut Criterion) {
 }
 
 fn bench_resolver_real(c: &mut Criterion) {
+    pin_rayon_threads();
     let data = data();
     let symlink_test_dir = create_symlinks().expect("Create symlink fixtures failed");
 
