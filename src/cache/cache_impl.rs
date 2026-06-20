@@ -255,8 +255,16 @@ impl<Fs: FileSystem> Cache<Fs> {
             return Ok(Arc::clone(tsconfig.value()));
         }
 
-        // Not in any cache, parse from file
-        let meta = self.fs.metadata(path).ok();
+        // Not in any cache, parse from file.
+        // Classify file/dir via the cached `lstat` (which the canonicalization below reuses)
+        // instead of a standalone `stat`. For a regular file/dir the two agree; only follow the
+        // link with a `stat` when `path` is actually a symlink, preserving the symlink-following
+        // classification while saving one metadata syscall per tsconfig in the common case.
+        let cached_path = self.value(path);
+        let meta = match cached_path.link_metadata(&self.fs) {
+            Some(m) if m.is_symlink() => self.fs.metadata(path).ok(),
+            other => other,
+        };
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_dir) {
