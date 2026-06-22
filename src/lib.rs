@@ -902,20 +902,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         {
             return Ok(Some(path));
         }
-        // enhanced-resolve: try the resolved file path itself as an alias key.
-        // `to_string_lossy()` validates UTF-8 over the whole path, which is wasteful on this hot
-        // path when no alias can match (the common case: alias keys are bare specifiers, the path
-        // is absolute). Gate on the raw `OsStr` bytes first — `key_matches` is the same per-entry
-        // test `load_alias` applies — and only materialize the string when some key matches.
+        // enhanced-resolve: try file as alias.
+        // Gate on the raw `OsStr` bytes first so `to_str`'s UTF-8 validation is skipped on this
+        // hot path when no alias key matches; a non-UTF-8 path can't match a string alias anyway.
         if !self.options.alias.is_empty() {
             let path_bytes = cached_path.path().as_os_str().as_encoded_bytes();
-            if self.alias.iter().any(|alias| alias.key_matches(path_bytes)) {
-                let alias_specifier = cached_path.path().to_string_lossy();
-                if let Some(path) =
-                    self.load_alias(cached_path, &alias_specifier, &self.alias, tsconfig, ctx)?
-                {
-                    return Ok(Some(path));
-                }
+            if self.alias.iter().any(|alias| alias.key_matches(path_bytes))
+                && let Some(alias_specifier) = cached_path.path().to_str()
+                && let Some(path) =
+                    self.load_alias(cached_path, alias_specifier, &self.alias, tsconfig, ctx)?
+            {
+                return Ok(Some(path));
             }
         }
         Ok(None)
