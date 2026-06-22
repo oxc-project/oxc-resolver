@@ -58,6 +58,30 @@ pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
         .collect()
 }
 
+impl CompiledAliasEntry {
+    /// Whether this entry's key matches `specifier` (raw bytes) — exactly the condition under
+    /// which [`ResolverGeneric::load_alias`] proceeds to try this entry's values. Matching on
+    /// bytes lets a caller gate on a path's `OsStr` without paying UTF-8 validation up front
+    /// (the validated `&str` and its bytes are identical, so the result is the same).
+    pub(crate) fn key_matches(&self, specifier: &[u8]) -> bool {
+        // Fast-reject entries whose required first byte differs (see `match_first_byte`). `None`
+        // matches any specifier (e.g. an empty wildcard prefix), so such entries always proceed.
+        if let Some(required) = self.match_first_byte
+            && Some(required) != specifier.first().copied()
+        {
+            return false;
+        }
+        match &self.match_kind {
+            AliasMatchKind::Exact => self.key.as_bytes() == specifier,
+            // The actual prefix/suffix is validated later in `load_alias_value`.
+            AliasMatchKind::Wildcard { .. } => true,
+            AliasMatchKind::Prefix => specifier
+                .strip_prefix(self.key.as_bytes())
+                .is_some_and(|tail| tail.is_empty() || matches!(tail.first(), Some(b'/' | b'\\'))),
+        }
+    }
+}
+
 impl<Fs: FileSystem> ResolverGeneric<Fs> {
     pub(super) fn load_alias_by_options(
         &self,
@@ -81,30 +105,13 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<Option<CachedPath>, ResolveError> {
         for alias in aliases {
-            // Fast-reject entries whose required first byte doesn't match the specifier.
-            // `match_first_byte == None` means the entry can match any specifier (e.g. an
-            // empty wildcard prefix), so it always proceeds. The first-byte load is inlined
-            // so it is skipped entirely when `aliases` is empty (the default config) or when
-            // every iteration short-circuits on a `None` `match_first_byte`.
-            if let Some(required) = alias.match_first_byte
-                && Some(required) != specifier.as_bytes().first().copied()
-            {
+            // Skip entries whose key doesn't match the specifier. `key_matches` is the single
+            // source of truth for this test (also used to gate the file-path-as-alias lookup in
+            // `load_browser_field_or_alias` before paying for UTF-8 validation).
+            if !alias.key_matches(specifier.as_bytes()) {
                 continue;
             }
             let alias_key = alias.key.as_str();
-            match &alias.match_kind {
-                AliasMatchKind::Exact => {
-                    if alias_key != specifier {
-                        continue;
-                    }
-                }
-                AliasMatchKind::Wildcard { .. } => {}
-                AliasMatchKind::Prefix => {
-                    if Self::strip_package_name(specifier, alias_key).is_none() {
-                        continue;
-                    }
-                }
-            }
             // It should stop resolving when all of the tried alias values
             // failed to resolve.
             // <https://github.com/webpack/enhanced-resolve/blob/570337b969eee46120a18b62b72809a3246147da/lib/AliasPlugin.js#L65>
