@@ -182,12 +182,14 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     }
 
     fn dts_module_type(cached_path: &CachedPath) -> Option<ModuleType> {
-        let path_str = cached_path.path().to_string_lossy();
-        if path_str.ends_with(".d.mts") || path_str.ends_with(".mts") {
+        // Suffixes are ASCII, so matching on the raw `OsStr` bytes is equivalent to matching the
+        // UTF-8 string and avoids the validation scan.
+        let bytes = cached_path.path().as_os_str().as_encoded_bytes();
+        if bytes.ends_with(b".d.mts") || bytes.ends_with(b".mts") {
             Some(ModuleType::Module)
-        } else if path_str.ends_with(".d.cts") || path_str.ends_with(".cts") {
+        } else if bytes.ends_with(b".d.cts") || bytes.ends_with(b".cts") {
             Some(ModuleType::CommonJs)
-        } else if path_str.ends_with(".json") {
+        } else if bytes.ends_with(b".json") {
             Some(ModuleType::Json)
         } else {
             None

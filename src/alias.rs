@@ -59,13 +59,10 @@ pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
 }
 
 impl CompiledAliasEntry {
-    /// Whether this entry's key matches `specifier` (raw bytes) — exactly the condition under
-    /// which [`ResolverGeneric::load_alias`] proceeds to try this entry's values. Matching on
-    /// bytes lets a caller gate on a path's `OsStr` without paying UTF-8 validation up front
-    /// (the validated `&str` and its bytes are identical, so the result is the same).
+    /// Whether this entry's key matches `specifier` (raw bytes). Matching on bytes lets a caller
+    /// gate on a path's `OsStr` without paying for UTF-8 validation up front.
     pub(crate) fn key_matches(&self, specifier: &[u8]) -> bool {
-        // Fast-reject entries whose required first byte differs (see `match_first_byte`). `None`
-        // matches any specifier (e.g. an empty wildcard prefix), so such entries always proceed.
+        // Fast-reject on the required first byte; `None` matches any specifier.
         if let Some(required) = self.match_first_byte
             && Some(required) != specifier.first().copied()
         {
@@ -73,7 +70,7 @@ impl CompiledAliasEntry {
         }
         match &self.match_kind {
             AliasMatchKind::Exact => self.key.as_bytes() == specifier,
-            // The actual prefix/suffix is validated later in `load_alias_value`.
+            // Prefix/suffix is validated later in `load_alias_value`.
             AliasMatchKind::Wildcard { .. } => true,
             AliasMatchKind::Prefix => specifier
                 .strip_prefix(self.key.as_bytes())
@@ -105,9 +102,6 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> Result<Option<CachedPath>, ResolveError> {
         for alias in aliases {
-            // Skip entries whose key doesn't match the specifier. `key_matches` is the single
-            // source of truth for this test (also used to gate the file-path-as-alias lookup in
-            // `load_browser_field_or_alias` before paying for UTF-8 validation).
             if !alias.key_matches(specifier.as_bytes()) {
                 continue;
             }
