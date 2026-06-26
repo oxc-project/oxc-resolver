@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    cmp::Reverse,
     fmt::Debug,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
@@ -731,35 +730,40 @@ enum CompiledTsconfigPathTarget {
 
 impl CompiledTsconfigPaths {
     fn new(paths_map: &CompilerOptionsPathsMap) -> Self {
-        let mut wildcard_patterns = paths_map
-            .iter()
-            .filter_map(|(key, paths)| {
-                let (prefix, suffix) = key.split_once('*')?;
-                let targets = paths
-                    .iter()
-                    .map(|path| {
-                        let path_str = path.to_string_lossy();
-                        path_str.split_once('*').map_or_else(
-                            || CompiledTsconfigPathTarget::Static(path.clone()),
-                            |(target_prefix, target_suffix)| CompiledTsconfigPathTarget::Wildcard {
-                                prefix: CompactString::new(target_prefix),
-                                suffix: CompactString::new(target_suffix),
-                            },
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                Some(CompiledTsconfigPathPattern {
-                    prefix: CompactString::new(prefix),
-                    suffix: CompactString::new(suffix),
-                    prefix_len: prefix.len(),
-                    suffix_len: suffix.len(),
-                    targets,
+        let mut wildcard_patterns =
+            Vec::<CompiledTsconfigPathPattern>::with_capacity(paths_map.len());
+        for (key, paths) in paths_map {
+            let Some((prefix, suffix)) = key.split_once('*') else {
+                continue;
+            };
+            let targets = paths
+                .iter()
+                .map(|path| {
+                    let path_str = path.to_string_lossy();
+                    path_str.split_once('*').map_or_else(
+                        || CompiledTsconfigPathTarget::Static(path.clone()),
+                        |(target_prefix, target_suffix)| CompiledTsconfigPathTarget::Wildcard {
+                            prefix: CompactString::new(target_prefix),
+                            suffix: CompactString::new(target_suffix),
+                        },
+                    )
                 })
-            })
-            .collect::<Vec<_>>();
+                .collect::<Vec<_>>();
+            let pattern = CompiledTsconfigPathPattern {
+                prefix: CompactString::new(prefix),
+                suffix: CompactString::new(suffix),
+                prefix_len: prefix.len(),
+                suffix_len: suffix.len(),
+                targets,
+            };
 
-        // Match longer prefixes first. Equal-length prefixes keep insertion order.
-        wildcard_patterns.sort_by_key(|pattern| Reverse(pattern.prefix_len));
+            // Match longer prefixes first. Equal-length prefixes keep insertion order.
+            let index = wildcard_patterns
+                .iter()
+                .position(|existing| existing.prefix_len < pattern.prefix_len)
+                .unwrap_or(wildcard_patterns.len());
+            wildcard_patterns.insert(index, pattern);
+        }
 
         Self { wildcard_patterns }
     }
