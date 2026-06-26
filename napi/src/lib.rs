@@ -251,6 +251,8 @@ impl ResolverFactory {
         // merging options
         Ok(ResolveOptions {
             cwd: None,
+            // Package maps are not exposed through the Node.js binding.
+            package_map: None,
             tsconfig: op
                 .tsconfig
                 .map(|value| -> napi::Result<_> {

@@ -1,0 +1,22 @@
+{
+  "packages": {
+    "app": {
+      "url": "./mv/app",
+      "dependencies": {
+        "component": "component-v2"
+      }
+    },
+    "legacy": {
+      "url": "./mv/legacy",
+      "dependencies": {
+        "component": "component-v1"
+      }
+    },
+    "component-v1": {
+      "url": "./mv/vendor/component-1.0.0"
+    },
+    "component-v2": {
+      "url": "./mv/vendor/component-2.0.0"
+    }
+  }
+}

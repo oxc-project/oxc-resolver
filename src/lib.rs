@@ -55,6 +55,7 @@ mod file_url;
 mod node_path;
 mod options;
 mod package_json;
+mod package_map;
 mod path;
 mod resolution;
 mod specifier;
@@ -91,7 +92,7 @@ use std::{
     ffi::OsStr,
     fmt,
     path::{Component, Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use rustc_hash::FxHashSet;
@@ -99,6 +100,7 @@ use rustc_hash::FxHashSet;
 use crate::{
     alias::{CompiledAlias, compile_alias},
     context::ResolveContext as Ctx,
+    package_map::PackageMap,
     path::SLASH_START,
     specifier::Specifier,
 };
@@ -123,6 +125,9 @@ pub struct ResolverGeneric<Fs> {
     options: ResolveOptions,
     cache: Arc<Cache<Fs>>,
     alias: CompiledAlias,
+    /// Lazily-loaded package map (`.package-map.json`), parsed on first use.
+    /// `None` variant inside means [`ResolveOptions::package_map`] is unset.
+    package_map: OnceLock<Result<Arc<PackageMap>, ResolveError>>,
 }
 
 impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
@@ -150,13 +155,18 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             }
         }
         let cache = Arc::new(Cache::new(fs));
-        Self { options, cache, alias }
+        Self { options, cache, alias, package_map: OnceLock::new() }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
-        Self { cache: Arc::new(Cache::new(file_system)), options, alias }
+        Self {
+            cache: Arc::new(Cache::new(file_system)),
+            options,
+            alias,
+            package_map: OnceLock::new(),
+        }
     }
 
     /// Clone the resolver using the same underlying cache.
@@ -178,7 +188,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let cache = Arc::clone(&self.cache);
             }
         }
-        Self { options, cache, alias }
+        Self { options, cache, alias, package_map: OnceLock::new() }
     }
 
     /// Returns the options.
@@ -595,7 +605,115 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         {
             return Ok(path);
         }
+        // When a package map is configured, bare specifiers are resolved exclusively through it.
+        if self.options.package_map.is_some() {
+            return self.load_package_map(cached_path, specifier, tsconfig, ctx);
+        }
         self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
+    }
+
+    /// Lazily load and parse the configured package map (`.package-map.json`).
+    ///
+    /// The result is memoized: the file is read and parsed once per resolver.
+    fn package_map(&self) -> Result<Arc<PackageMap>, ResolveError> {
+        self.package_map
+            .get_or_init(|| {
+                // `require_bare` only calls this when `package_map` is `Some`.
+                let config_path = self.options.package_map.as_ref().unwrap();
+                let config_path = if config_path.is_absolute() {
+                    Cow::Borrowed(config_path.as_path())
+                } else if let Some(cwd) = &self.options.cwd {
+                    Cow::Owned(cwd.join(config_path))
+                } else {
+                    Cow::Borrowed(config_path.as_path())
+                };
+                let source = self.cache.fs.read_to_string(&config_path)?;
+                PackageMap::parse(&config_path, &source).map(Arc::new)
+            })
+            .clone()
+    }
+
+    /// Resolve a bare specifier through the configured package map.
+    ///
+    /// <https://nodejs.org/docs/latest/api/packages.html#package-maps>
+    fn load_package_map(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
+        let package_map = self.package_map()?;
+
+        // 1. Determine which package performs the resolution request from the importer's path.
+        let Some(importer_id) = package_map.importer_package(cached_path.path()) else {
+            return Err(ResolveError::PackageMapExternalFile(cached_path.to_path_buf()));
+        };
+
+        // 2. Look up the specifier's package name in the importing package's `dependencies`.
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
+        let Some(target) = package_map.resolve_dependency(importer_id, package_name) else {
+            // Not declared as a dependency (or points to an unknown package id): MODULE_NOT_FOUND.
+            return Err(ResolveError::NotFound(specifier.to_string()));
+        };
+
+        // 3. Forward to the regular resolution algorithm, treating the target `url` as the package
+        //    directory (exports field, main, index, ...).
+        let package_dir = self.cache.value(target.path());
+        self.resolve_in_package_dir(&package_dir, specifier, subpath, tsconfig, ctx)
+    }
+
+    /// Finish resolution inside a package directory located via the package map.
+    ///
+    /// Mirrors the per-package-directory branch of [`Self::load_node_modules`].
+    fn resolve_in_package_dir(
+        &self,
+        package_dir: &CachedPath,
+        specifier: &str,
+        subpath: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
+        if subpath.is_empty() {
+            ctx.with_fully_specified(false);
+        }
+
+        // LOAD_PACKAGE_EXPORTS(specifier, package_dir)
+        if self.is_dir(package_dir, ctx)
+            && let Some(path) =
+                self.load_package_exports(specifier, subpath, package_dir, tsconfig, ctx)?
+        {
+            return Ok(path);
+        }
+
+        // LOAD_AS_FILE(package_dir/subpath) / LOAD_AS_DIRECTORY(package_dir/subpath)
+        let target = package_dir.normalize_with(Self::dot_subpath(subpath).as_ref(), &self.cache);
+
+        if self.options.resolve_to_context {
+            return self
+                .is_dir(&target, ctx)
+                .then(|| target.clone())
+                .ok_or_else(|| ResolveError::NotFound(specifier.to_string()));
+        }
+
+        if !subpath.is_empty()
+            && !specifier.ends_with('/')
+            && let Some(path) = self.load_as_file(&target, tsconfig, ctx)?
+        {
+            return Ok(path);
+        }
+        if self.is_dir(&target, ctx) {
+            if let Some(path) = self.load_browser_field_or_alias(&target, tsconfig, ctx)? {
+                return Ok(path);
+            }
+            if let Some(path) = self.load_as_directory(&target, tsconfig, ctx)? {
+                return Ok(path);
+            }
+        } else if let Some(path) = self.load_as_file(&target, tsconfig, ctx)? {
+            return Ok(path);
+        }
+
+        Err(ResolveError::NotFound(specifier.to_string()))
     }
 
     /// enhanced-resolve: ParsePlugin.
