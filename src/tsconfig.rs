@@ -125,6 +125,17 @@ impl TsConfig {
                 }
             }
         }
+        // Resolve relative `files` / `include` / `exclude` against this config's
+        // own directory so that, when inherited via `extends`, they stay anchored
+        // to the config that declared them (matching `tsc`). `{configDir}` paths
+        // are resolved later in `build()` relative to the root config.
+        for paths in [&mut tsconfig.files, &mut tsconfig.include, &mut tsconfig.exclude].into_iter().flatten() {
+            for path in paths.iter_mut() {
+                if !path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                    *path = canonical_directory.normalize_with(&path);
+                }
+            }
+        }
         Ok(tsconfig)
     }
 
@@ -351,19 +362,15 @@ impl TsConfig {
 
         let config_dir = self.directory().to_path_buf();
 
-        // Substitute template variable in `tsconfig.files`.
-        if let Some(files) = self.files.take() {
-            self.files = Some(files.into_iter().map(|p| self.adjust_path(p)).collect());
-        }
-
-        // Substitute template variable in `tsconfig.include`.
-        if let Some(includes) = self.include.take() {
-            self.include = Some(includes.into_iter().map(|p| self.adjust_path(p)).collect());
-        }
-
-        // Substitute template variable in `tsconfig.exclude`.
-        if let Some(excludes) = self.exclude.take() {
-            self.exclude = Some(excludes.into_iter().map(|p| self.adjust_path(p)).collect());
+        // Resolve the `{configDir}` template variable in `files` / `include` /
+        // `exclude` relative to the root config's directory. Plain relative paths
+        // were already resolved at parse time relative to their declaring config.
+        for paths in [&mut self.files, &mut self.include, &mut self.exclude].into_iter().flatten() {
+            for path in paths.iter_mut() {
+                if let Some(stripped) = path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE) {
+                    *path = config_dir.join(stripped.trim_start_matches('/'));
+                }
+            }
         }
 
         if let Some(base_url) = &self.compiler_options.base_url {
