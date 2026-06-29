@@ -1,0 +1,20 @@
+{
+  "packages": {
+    "app": {
+      "url": "./packages/app",
+      "dependencies": {
+        "@myorg/utils": "utils",
+        "@myorg/ui-lib": "ui-lib"
+      }
+    },
+    "utils": {
+      "url": "./packages/utils"
+    },
+    "ui-lib": {
+      "url": "./packages/ui-lib",
+      "dependencies": {
+        "@myorg/utils": "utils"
+      }
+    }
+  }
+}

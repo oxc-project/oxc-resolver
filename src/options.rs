@@ -22,6 +22,18 @@ pub struct ResolveOptions {
     /// Default `None`
     pub tsconfig: Option<TsconfigDiscovery>,
 
+    /// Enable Node.js [package maps](https://nodejs.org/docs/latest/api/packages.html#package-maps)
+    /// resolution using the given `.package-map.json` file.
+    ///
+    /// When set, bare specifiers (that are not Node.js builtin modules) are resolved exclusively
+    /// through the package map instead of walking `node_modules`. Relative, absolute and builtin
+    /// specifiers are unaffected.
+    ///
+    /// The path may be absolute or relative to [`ResolveOptions::cwd`].
+    ///
+    /// Default `None`
+    pub package_map: Option<PathBuf>,
+
     /// Create aliases to import or require certain modules more easily.
     ///
     /// An alias is used to replace a whole path or part of a path.
@@ -220,6 +232,23 @@ impl ResolveOptions {
     /// let options = ResolveOptions::default().with_condition_names(&["bar"]);
     /// assert_eq!(options.condition_names, vec!["bar".to_string()])
     /// ```
+    /// Sets the value for [ResolveOptions::package_map]
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use oxc_resolver::ResolveOptions;
+    /// use std::path::PathBuf;
+    ///
+    /// let options = ResolveOptions::default().with_package_map("/path/to/.package-map.json");
+    /// assert_eq!(options.package_map, Some(PathBuf::from("/path/to/.package-map.json")));
+    /// ```
+    #[must_use]
+    pub fn with_package_map<P: Into<PathBuf>>(mut self, path: P) -> Self {
+        self.package_map = Some(path.into());
+        self
+    }
+
     #[must_use]
     pub fn with_condition_names(mut self, names: &[&str]) -> Self {
         self.condition_names = names.iter().map(ToString::to_string).collect::<Vec<String>>();
@@ -541,6 +570,7 @@ impl Default for ResolveOptions {
         Self {
             cwd: None,
             tsconfig: None,
+            package_map: None,
             alias: vec![],
             alias_fields: vec![],
             condition_names: vec![],
@@ -575,6 +605,9 @@ impl fmt::Display for ResolveOptions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(tsconfig) = &self.tsconfig {
             write!(f, "tsconfig:{tsconfig:?},")?;
+        }
+        if let Some(package_map) = &self.package_map {
+            write!(f, "package_map:{},", package_map.display())?;
         }
         if !self.alias.is_empty() {
             write!(f, "alias:{:?},", self.alias)?;
@@ -729,6 +762,7 @@ mod test {
             roots: vec![],
             symlinks: false,
             tsconfig: None,
+            package_map: None,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
         };

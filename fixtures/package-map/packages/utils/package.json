@@ -1,0 +1,8 @@
+{
+  "name": "@myorg/utils",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./helper": "./helper.js"
+  }
+}

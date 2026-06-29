@@ -108,6 +108,12 @@ pub enum ResolveError {
     #[error(r#"Package import specifier "{0}" is not defined in package {1}"#)]
     PackageImportNotDefined(String, PathBuf),
 
+    /// The importing file is not located within any package defined in the package map.
+    ///
+    /// Corresponds to Node.js `ERR_PACKAGE_MAP_EXTERNAL_FILE`.
+    #[error("The importing file {0} is not within any package defined in the package map")]
+    PackageMapExternalFile(/* importer directory */ PathBuf),
+
     #[error("{0} is unimplemented")]
     Unimplemented(&'static str),
 
