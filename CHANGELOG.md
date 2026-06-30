@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.22.0](https://github.com/oxc-project/oxc-resolver/compare/v11.21.3...v11.22.0) - 2026-06-30
+
+### <!-- 0 -->🚀 Features
+
+- *(file_system)* make FileSystemOs cheaply cloneable and Debug ([#1230](https://github.com/oxc-project/oxc-resolver/pull/1230)) (by @Boshen)
+
+### <!-- 2 -->🚜 Refactor
+
+- *(package-json)* dedupe simd/serde backends behind JSON traits ([#1229](https://github.com/oxc-project/oxc-resolver/pull/1229)) (by @Boshen)
+
+### <!-- 3 -->📚 Documentation
+
+- *(path)* trim verbose comments in normalize_with ([#1233](https://github.com/oxc-project/oxc-resolver/pull/1233)) (by @Boshen)
+
+### <!-- 4 -->⚡ Performance
+
+- type-erase the filesystem into a non-generic ResolverImpl core ([#1255](https://github.com/oxc-project/oxc-resolver/pull/1255)) (by @Boshen)
+- reduce tsconfig paths binary size ([#1250](https://github.com/oxc-project/oxc-resolver/pull/1250)) (by @Boshen)
+- avoid UTF-8 validation on alias and .d.ts resolve hot paths ([#1244](https://github.com/oxc-project/oxc-resolver/pull/1244)) (by @Boshen)
+- *(alias)* skip UTF-8 validation of resolved path when no alias key matches ([#1240](https://github.com/oxc-project/oxc-resolver/pull/1240)) (by @Boshen)
+- *(tsconfig)* reuse cached lstat to avoid redundant stat in get_tsconfig ([#1238](https://github.com/oxc-project/oxc-resolver/pull/1238)) (by @Boshen)
+- *(resolve)* compute parent once in package.json scope walk ([#1235](https://github.com/oxc-project/oxc-resolver/pull/1235)) (by @Boshen)
+- *(specifier)* SIMD fast-reject of specifiers without query/fragment ([#1234](https://github.com/oxc-project/oxc-resolver/pull/1234)) (by @Boshen)
+- *(tsconfig)* cut allocations in glob ownership matching ([#1232](https://github.com/oxc-project/oxc-resolver/pull/1232)) (by @Boshen)
+- *(path)* drop Chain<Once, Components> in normalize_with ([#1231](https://github.com/oxc-project/oxc-resolver/pull/1231)) (by @Boshen)
+- *(browser-field)* fast-reject non-matching keys before normalize ([#1227](https://github.com/oxc-project/oxc-resolver/pull/1227)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+* @renovate[bot]
+
 ## [11.21.3](https://github.com/oxc-project/oxc-resolver/compare/v11.21.2...v11.21.3) - 2026-06-18
 
 ### <!-- 1 -->🐛 Bug Fixes
