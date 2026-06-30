@@ -14,7 +14,7 @@
 use std::{borrow::Cow, path::Path};
 
 use crate::{
-    CachedPath, FileSystem, PackageJson, ResolveError, ResolverGeneric,
+    CachedPath, PackageJson, ResolveError, ResolverImpl,
     context::ResolveContext as Ctx,
     resolution::{ModuleType, Resolution},
     specifier::Specifier,
@@ -69,7 +69,7 @@ impl std::ops::BitAnd for Extensions {
     }
 }
 
-impl<Fs: FileSystem> ResolverGeneric<Fs> {
+impl ResolverImpl {
     /// Resolve a module specifier for TypeScript declaration files.
     ///
     /// Matches `ts.resolveModuleName` with `moduleResolution: "bundler"`.
@@ -762,5 +762,16 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         self.load_package_self(cached_path, specifier, None, ctx)
+    }
+}
+
+#[cfg(test)]
+impl<Fs> crate::ResolverGeneric<Fs> {
+    /// Thin forwarder kept on the generic shell so existing
+    /// `ResolverGeneric::<Fs>::dts_mangle_scoped_name(..)` associated-function call sites keep
+    /// resolving (inherent associated functions are not reachable through `Deref`). The actual
+    /// (non-generic) implementation lives in `impl ResolverImpl`.
+    pub(crate) fn dts_mangle_scoped_name(name: &str) -> String {
+        ResolverImpl::dts_mangle_scoped_name(name)
     }
 }

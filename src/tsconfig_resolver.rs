@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    CachedPath, Ctx, FileSystem, ResolveError, ResolveOptions, ResolveResult, ResolverGeneric,
-    Specifier, SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    CachedPath, Ctx, ResolveError, ResolveOptions, ResolveResult, ResolverImpl, Specifier,
+    SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
     path::PathUtil,
 };
 
@@ -34,7 +34,7 @@ impl TsconfigResolveContext {
     }
 }
 
-impl<Fs: FileSystem> ResolverGeneric<Fs> {
+impl ResolverImpl {
     /// Finds the `tsconfig` to which this `path` belongs.
     ///
     /// If the `path` is inside `node_modules`, this function always returns `None`.
@@ -402,7 +402,7 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
     /// `imports` field). Both use the same conditions so that, for example,
     /// `extends: "pkg"` and `extends: "#pkg"` agree on which condition wins.
     fn tsconfig_extends_resolver(&self) -> Self {
-        self.clone_with_options(ResolveOptions {
+        let options = ResolveOptions {
             tsconfig: None,
             condition_names: vec!["node".into(), "import".into()],
             extensions: vec![".json".into()],
@@ -412,7 +412,12 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
             #[cfg(feature = "yarn_pnp")]
             cwd: self.options.cwd.clone(),
             ..ResolveOptions::default()
-        })
+        }
+        .sanitize();
+        let alias = crate::alias::compile_alias(&options.alias);
+        // Extends-resolution never toggles `yarn_pnp`, so reuse the same cache (and thus the
+        // same underlying filesystem) rather than rebuilding it.
+        Self { options, cache: Arc::clone(&self.cache), alias }
     }
 
     fn get_extended_tsconfig_path(

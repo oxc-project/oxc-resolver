@@ -12,13 +12,14 @@ mod tests {
     use super::cache_impl::Cache;
     use crate::FileSystem;
     use std::path::Path;
+    use std::sync::Arc;
 
     #[test]
     fn test_cached_path_debug() {
         #[cfg(feature = "yarn_pnp")]
-        let cache = Cache::new(crate::FileSystemOs::new(false));
+        let cache = Cache::new(Arc::new(crate::FileSystemOs::new(false)));
         #[cfg(not(feature = "yarn_pnp"))]
-        let cache = Cache::new(crate::FileSystemOs::new());
+        let cache = Cache::new(Arc::new(crate::FileSystemOs::new()));
 
         let path = Path::new("/foo/bar");
         let cached_path = cache.value(path);
