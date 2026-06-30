@@ -105,7 +105,7 @@ use crate::{
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
-/// Context returned from the [Resolver::resolve_with_context] API
+/// Context returned from the [ResolverImpl::resolve_with_context] API
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
     /// Files that was found on file system
@@ -234,7 +234,7 @@ impl ResolverImpl {
     /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
     /// For ECMAScript modules, it is the value of `import.meta.url`.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] does not work for this API, use [ResolverGeneric::resolve_file] instead.
+    /// NOTE: [TsconfigDiscovery::Auto] does not work for this API, use [ResolverImpl::resolve_file] instead.
     ///
     /// # Errors
     ///

@@ -39,6 +39,12 @@ impl Cache {
         self.tsconfigs_built.clear();
     }
 
+    /// The underlying filesystem as a trait object.
+    #[inline]
+    fn fs(&self) -> &dyn FileSystem {
+        &*self.fs
+    }
+
     #[allow(clippy::cast_possible_truncation)]
     pub(crate) fn value(&self, path: &Path) -> CachedPath {
         // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
@@ -129,12 +135,12 @@ impl Cache {
     /// additive: a custom [`FileSystem`] whose `canonicalize` and `metadata` disagree still gets
     /// the same answer `stat` gave before.
     fn followed_metadata(&self, path: &CachedPath, symlinks: bool) -> Option<FileMetadata> {
-        path.meta.followed_or_init(|| match path.link_metadata(self.fs.as_ref()) {
+        path.meta.followed_or_init(|| match path.link_metadata(self.fs()) {
             Some(meta) if meta.is_symlink() => {
                 let followed = if symlinks {
                     self.canonicalize_impl(path)
                         .ok()
-                        .and_then(|c| c.link_metadata(self.fs.as_ref()))
+                        .and_then(|c| c.link_metadata(self.fs()))
                 } else {
                     None
                 };
@@ -223,7 +229,7 @@ impl Cache {
                 // back without a second allocation.
                 // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
                 match PackageJson::parse(
-                    self.fs.as_ref(),
+                    self.fs(),
                     package_json_path,
                     real_path,
                     package_json_bytes,
@@ -266,7 +272,7 @@ impl Cache {
         // link with a `stat` when `path` is actually a symlink, preserving the symlink-following
         // classification while saving one metadata syscall per tsconfig in the common case.
         let cached_path = self.value(path);
-        let meta = match cached_path.link_metadata(self.fs.as_ref()) {
+        let meta = match cached_path.link_metadata(self.fs()) {
             Some(m) if m.is_symlink() => self.fs.metadata(path).ok(),
             other => other,
         };
@@ -403,7 +409,7 @@ impl Cache {
                     let normalized = parent_canonical
                         .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
 
-                    if path.link_metadata(self.fs.as_ref()).is_some_and(|m| m.is_symlink) {
+                    if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
                         let link = self.fs.read_link(normalized.path())?;
                         if link.is_absolute() {
                             return self.canonicalize_with_visited(
