@@ -3,7 +3,7 @@ use std::{borrow::Cow, path::Path};
 use compact_str::CompactString;
 
 use crate::{
-    Alias, AliasValue, CachedPath, FileSystem, ResolveError, ResolverGeneric, TsConfig,
+    Alias, AliasValue, CachedPath, ResolveError, ResolverImpl, TsConfig,
     context::ResolveContext as Ctx,
     path::{PathUtil, SLASH_START},
 };
@@ -79,7 +79,7 @@ impl CompiledAliasEntry {
     }
 }
 
-impl<Fs: FileSystem> ResolverGeneric<Fs> {
+impl ResolverImpl {
     pub(super) fn load_alias_by_options(
         &self,
         cached_path: &CachedPath,

@@ -14,10 +14,14 @@ use crate::ResolveError;
 /// File System abstraction used for `ResolverGeneric`
 pub trait FileSystem: Send + Sync {
     #[cfg(feature = "yarn_pnp")]
-    fn new(yarn_pnp: bool) -> Self;
+    fn new(yarn_pnp: bool) -> Self
+    where
+        Self: Sized;
 
     #[cfg(not(feature = "yarn_pnp"))]
-    fn new() -> Self;
+    fn new() -> Self
+    where
+        Self: Sized;
 
     /// See [std::fs::read]
     ///

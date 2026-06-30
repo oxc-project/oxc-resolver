@@ -21,9 +21,8 @@ use crate::{
 };
 
 /// Cache implementation used for caching filesystem access.
-#[derive(Default)]
-pub struct Cache<Fs> {
-    pub(crate) fs: Fs,
+pub struct Cache {
+    pub(crate) fs: Arc<dyn FileSystem>,
     pub(crate) paths: DashMap<CachedPath, (), BuildHasherDefault<IdentityHasher>>,
     /// Cache for raw/unbuilt tsconfigs (used when extending).
     pub(crate) tsconfigs_raw: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
@@ -33,7 +32,7 @@ pub struct Cache<Fs> {
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
 }
 
-impl<Fs: FileSystem> Cache<Fs> {
+impl Cache {
     pub fn clear(&self) {
         self.paths.clear();
         self.tsconfigs_raw.clear();
@@ -130,10 +129,10 @@ impl<Fs: FileSystem> Cache<Fs> {
     /// additive: a custom [`FileSystem`] whose `canonicalize` and `metadata` disagree still gets
     /// the same answer `stat` gave before.
     fn followed_metadata(&self, path: &CachedPath, symlinks: bool) -> Option<FileMetadata> {
-        path.meta.followed_or_init(|| match path.link_metadata(&self.fs) {
+        path.meta.followed_or_init(|| match path.link_metadata(self.fs.as_ref()) {
             Some(meta) if meta.is_symlink() => {
                 let followed = if symlinks {
-                    self.canonicalize_impl(path).ok().and_then(|c| c.link_metadata(&self.fs))
+                    self.canonicalize_impl(path).ok().and_then(|c| c.link_metadata(self.fs.as_ref()))
                 } else {
                     None
                 };
@@ -221,7 +220,12 @@ impl<Fs: FileSystem> Cache<Fs> {
                 // `JSONError.path` carries the same path, so the file-dependency record reads it
                 // back without a second allocation.
                 // https://github.com/webpack/enhanced-resolve/blob/58464fc7cb56673c9aa849e68e6300239601e615/lib/DescriptionFileUtils.js#L68-L82
-                match PackageJson::parse(&self.fs, package_json_path, real_path, package_json_bytes)
+                match PackageJson::parse(
+                    self.fs.as_ref(),
+                    package_json_path,
+                    real_path,
+                    package_json_bytes,
+                )
                 {
                     Ok(package_json) => {
                         ctx.add_file_dependency(package_json.path());
@@ -261,7 +265,7 @@ impl<Fs: FileSystem> Cache<Fs> {
         // link with a `stat` when `path` is actually a symlink, preserving the symlink-following
         // classification while saving one metadata syscall per tsconfig in the common case.
         let cached_path = self.value(path);
-        let meta = match cached_path.link_metadata(&self.fs) {
+        let meta = match cached_path.link_metadata(self.fs.as_ref()) {
             Some(m) if m.is_symlink() => self.fs.metadata(path).ok(),
             other => other,
         };
@@ -336,8 +340,8 @@ impl<Fs: FileSystem> Cache<Fs> {
     }
 }
 
-impl<Fs: FileSystem> Cache<Fs> {
-    pub fn new(fs: Fs) -> Self {
+impl Cache {
+    pub fn new(fs: Arc<dyn FileSystem>) -> Self {
         Self {
             fs,
             paths: DashMap::with_hasher(BuildHasherDefault::default()),
@@ -398,7 +402,7 @@ impl<Fs: FileSystem> Cache<Fs> {
                     let normalized = parent_canonical
                         .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
 
-                    if path.link_metadata(&self.fs).is_some_and(|m| m.is_symlink) {
+                    if path.link_metadata(self.fs.as_ref()).is_some_and(|m| m.is_symlink) {
                         let link = self.fs.read_link(normalized.path())?;
                         if link.is_absolute() {
                             return self.canonicalize_with_visited(

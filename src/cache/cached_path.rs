@@ -79,7 +79,7 @@ impl CachedPath {
         self.path.to_path_buf()
     }
 
-    pub(crate) fn parent<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Option<Self> {
+    pub(crate) fn parent(&self, cache: &Cache) -> Option<Self> {
         self.0.parent.as_ref().and_then(|weak| {
             weak.upgrade().map(CachedPath).or_else(|| {
                 // Weak pointer upgrade failed - parent was cleared from cache
@@ -97,21 +97,21 @@ impl CachedPath {
         self.inside_node_modules
     }
 
-    pub(crate) fn module_directory<Fs: FileSystem>(
+    pub(crate) fn module_directory(
         &self,
         module_name: &str,
         symlinks: bool,
-        cache: &Cache<Fs>,
+        cache: &Cache,
         ctx: &mut Ctx,
     ) -> Option<Self> {
         let cached_path = self.push(module_name, cache);
         cache.is_dir(&cached_path, symlinks, ctx).then_some(cached_path)
     }
 
-    pub(crate) fn cached_node_modules<Fs: FileSystem>(
+    pub(crate) fn cached_node_modules(
         &self,
         symlinks: bool,
-        cache: &Cache<Fs>,
+        cache: &Cache,
         ctx: &mut Ctx,
     ) -> Option<Self> {
         self.node_modules
@@ -128,7 +128,7 @@ impl CachedPath {
             })
     }
 
-    pub(crate) fn push<Fs: FileSystem>(&self, target: &str, cache: &Cache<Fs>) -> Self {
+    pub(crate) fn push(&self, target: &str, cache: &Cache) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             path.push(&self.path);
@@ -137,7 +137,7 @@ impl CachedPath {
         })
     }
 
-    pub(crate) fn add_extension<Fs: FileSystem>(&self, target: &str, cache: &Cache<Fs>) -> Self {
+    pub(crate) fn add_extension(&self, target: &str, cache: &Cache) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
@@ -147,12 +147,7 @@ impl CachedPath {
         })
     }
 
-    pub(crate) fn add_name_and_extension<Fs: FileSystem>(
-        &self,
-        name: &str,
-        ext: &str,
-        cache: &Cache<Fs>,
-    ) -> Self {
+    pub(crate) fn add_name_and_extension(&self, name: &str, ext: &str, cache: &Cache) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
@@ -164,7 +159,7 @@ impl CachedPath {
         })
     }
 
-    pub(crate) fn replace_extension<Fs: FileSystem>(&self, ext: &str, cache: &Cache<Fs>) -> Self {
+    pub(crate) fn replace_extension(&self, ext: &str, cache: &Cache) -> Self {
         SCRATCH_PATH.with_borrow_mut(|path| {
             path.clear();
             let s = path.as_mut_os_string();
@@ -182,17 +177,13 @@ impl CachedPath {
 
     /// Returns a new path by resolving the given subpath (including "." and ".." components) with this path.
     #[inline]
-    pub(crate) fn normalize_with<Fs: FileSystem, P: AsRef<Path>>(
-        &self,
-        subpath: P,
-        cache: &Cache<Fs>,
-    ) -> Self {
-        // Forward to a single instantiation (per `Fs`) so the many `AsRef<Path>` call
+    pub(crate) fn normalize_with<P: AsRef<Path>>(&self, subpath: P, cache: &Cache) -> Self {
+        // Forward to a single instantiation so the many `AsRef<Path>` call
         // sites don't each monomorphize the full body (binary-size win).
         self.normalize_with_impl(subpath.as_ref(), cache)
     }
 
-    fn normalize_with_impl<Fs: FileSystem>(&self, subpath: &Path, cache: &Cache<Fs>) -> Self {
+    fn normalize_with_impl(&self, subpath: &Path, cache: &Cache) -> Self {
         let mut components = subpath.components();
         let Some(head) = components.next() else { return cache.value(subpath) };
         if matches!(head, Component::Prefix(..) | Component::RootDir) {
@@ -214,7 +205,7 @@ impl CachedPath {
 
     #[inline]
     #[cfg(windows)]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, cache: &Cache<Fs>) -> Self {
+    pub(crate) fn normalize_root(&self, cache: &Cache) -> Self {
         if self.path().as_os_str().as_encoded_bytes().last() == Some(&b'/') {
             let mut path_string = self.path.to_string_lossy().into_owned();
             path_string.pop();
@@ -227,7 +218,7 @@ impl CachedPath {
 
     #[inline]
     #[cfg(not(windows))]
-    pub(crate) fn normalize_root<Fs: FileSystem>(&self, _cache: &Cache<Fs>) -> Self {
+    pub(crate) fn normalize_root(&self, _cache: &Cache) -> Self {
         self.clone()
     }
 }
@@ -260,7 +251,7 @@ impl CachedPath {
     ///
     /// Used both to answer `is_file`/`is_dir` for non-symlinks and by canonicalization to decide
     /// whether to follow a symlink — so the two share a single `lstat` syscall per path.
-    pub(crate) fn link_metadata<Fs: FileSystem>(&self, fs: &Fs) -> Option<FileMetadata> {
+    pub(crate) fn link_metadata(&self, fs: &dyn FileSystem) -> Option<FileMetadata> {
         self.meta.link_or_init(|| fs.symlink_metadata(&self.path).ok())
     }
 }

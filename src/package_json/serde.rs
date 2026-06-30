@@ -88,8 +88,8 @@ impl PackageJson {
     /// Parse a package.json file from JSON bytes
     ///
     /// # Errors
-    pub fn parse<Fs: FileSystem>(
-        _fs: &Fs,
+    pub fn parse(
+        _fs: &dyn FileSystem,
         path: PathBuf,
         realpath: PathBuf,
         json: Vec<u8>,

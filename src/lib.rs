@@ -118,26 +118,45 @@ pub struct ResolveContext {
 /// Resolver with the current operating system as the file system
 pub type Resolver = ResolverGeneric<FileSystemOs>;
 
+/// Non-generic core of the resolver holding the heavy resolution algorithm.
+///
+/// The filesystem is type-erased to `Arc<dyn FileSystem>` here so that the resolver
+/// algorithm compiles exactly once, regardless of the concrete `Fs` type used by
+/// [`ResolverGeneric`]. All public resolution methods live on this struct and are reachable
+/// through [`ResolverGeneric`]'s [`Deref`](std::ops::Deref) implementation.
+pub struct ResolverImpl {
+    options: ResolveOptions,
+    cache: Arc<Cache>,
+    alias: CompiledAlias,
+}
+
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
 pub struct ResolverGeneric<Fs> {
-    options: ResolveOptions,
-    cache: Arc<Cache<Fs>>,
-    alias: CompiledAlias,
+    inner: ResolverImpl,
+    _marker: std::marker::PhantomData<Fs>,
+}
+
+impl<Fs> std::ops::Deref for ResolverGeneric<Fs> {
+    type Target = ResolverImpl;
+
+    fn deref(&self) -> &ResolverImpl {
+        &self.inner
+    }
 }
 
 impl<Fs> fmt::Debug for ResolverGeneric<Fs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.options.fmt(f)
+        self.inner.options.fmt(f)
     }
 }
 
-impl<Fs: FileSystem> Default for ResolverGeneric<Fs> {
+impl<Fs: FileSystem + 'static> Default for ResolverGeneric<Fs> {
     fn default() -> Self {
         Self::new(ResolveOptions::default())
     }
 }
 
-impl<Fs: FileSystem> ResolverGeneric<Fs> {
+impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
         let options = options.sanitize();
@@ -149,14 +168,17 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
                 let fs = Fs::new();
             }
         }
-        let cache = Arc::new(Cache::new(fs));
-        Self { options, cache, alias }
+        let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
+        let inner = ResolverImpl { options, cache, alias };
+        Self { inner, _marker: std::marker::PhantomData }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
-        Self { cache: Arc::new(Cache::new(file_system)), options, alias }
+        let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
+        let inner = ResolverImpl { options, cache, alias };
+        Self { inner, _marker: std::marker::PhantomData }
     }
 
     /// Clone the resolver using the same underlying cache.
@@ -167,20 +189,23 @@ impl<Fs: FileSystem> ResolverGeneric<Fs> {
         let alias = compile_alias(&options.alias);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                let cache = if (options.yarn_pnp && !self.options.yarn_pnp)
-                    || (!options.yarn_pnp && self.options.yarn_pnp)
+                let cache = if (options.yarn_pnp && !self.inner.options.yarn_pnp)
+                    || (!options.yarn_pnp && self.inner.options.yarn_pnp)
                 {
-                    Arc::new(Cache::new(Fs::new(options.yarn_pnp)))
+                    Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
                 } else {
-                    Arc::clone(&self.cache)
+                    Arc::clone(&self.inner.cache)
                 };
             } else {
-                let cache = Arc::clone(&self.cache);
+                let cache = Arc::clone(&self.inner.cache);
             }
         }
-        Self { options, cache, alias }
+        let inner = ResolverImpl { options, cache, alias };
+        Self { inner, _marker: std::marker::PhantomData }
     }
+}
 
+impl ResolverImpl {
     /// Returns the options.
     #[must_use]
     pub const fn options(&self) -> &ResolveOptions {
