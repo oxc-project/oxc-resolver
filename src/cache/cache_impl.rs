@@ -132,7 +132,9 @@ impl Cache {
         path.meta.followed_or_init(|| match path.link_metadata(self.fs.as_ref()) {
             Some(meta) if meta.is_symlink() => {
                 let followed = if symlinks {
-                    self.canonicalize_impl(path).ok().and_then(|c| c.link_metadata(self.fs.as_ref()))
+                    self.canonicalize_impl(path)
+                        .ok()
+                        .and_then(|c| c.link_metadata(self.fs.as_ref()))
                 } else {
                     None
                 };
@@ -225,8 +227,7 @@ impl Cache {
                     package_json_path,
                     real_path,
                     package_json_bytes,
-                )
-                {
+                ) {
                     Ok(package_json) => {
                         ctx.add_file_dependency(package_json.path());
                         Ok(Some(Arc::new(package_json)))
