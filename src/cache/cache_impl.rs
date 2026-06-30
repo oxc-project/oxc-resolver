@@ -138,9 +138,7 @@ impl Cache {
         path.meta.followed_or_init(|| match path.link_metadata(self.fs()) {
             Some(meta) if meta.is_symlink() => {
                 let followed = if symlinks {
-                    self.canonicalize_impl(path)
-                        .ok()
-                        .and_then(|c| c.link_metadata(self.fs()))
+                    self.canonicalize_impl(path).ok().and_then(|c| c.link_metadata(self.fs()))
                 } else {
                     None
                 };
