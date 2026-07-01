@@ -1,8 +1,0 @@
-{
-  "compilerOptions": {
-    "outDir": "./dist",
-    "declarationDir": "./types",
-    "resolveJsonModule": true,
-    "checkJs": true
-  }
-}

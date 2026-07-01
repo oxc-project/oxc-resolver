@@ -125,15 +125,15 @@ impl TsConfig {
                 }
             }
         }
-        if let Some(out_dir) = &mut tsconfig.compiler_options.out_dir {
-            if !out_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
-                *out_dir = canonical_directory.normalize_with(&out_dir);
-            }
+        if let Some(out_dir) = &mut tsconfig.compiler_options.out_dir
+            && !out_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE)
+        {
+            *out_dir = canonical_directory.normalize_with(&out_dir);
         }
-        if let Some(declaration_dir) = &mut tsconfig.compiler_options.declaration_dir {
-            if !declaration_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
-                *declaration_dir = canonical_directory.normalize_with(&declaration_dir);
-            }
+        if let Some(declaration_dir) = &mut tsconfig.compiler_options.declaration_dir
+            && !declaration_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE)
+        {
+            *declaration_dir = canonical_directory.normalize_with(&declaration_dir);
         }
         Ok(tsconfig)
     }
@@ -421,17 +421,16 @@ impl TsConfig {
             }
         }
 
-        if let Some(out_dir) = &mut self.compiler_options.out_dir {
-            if let Some(stripped_path) = out_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE) {
-                *out_dir = config_dir.join(stripped_path.trim_start_matches('/'));
-            }
+        if let Some(out_dir) = &mut self.compiler_options.out_dir
+            && let Some(stripped_path) = out_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+        {
+            *out_dir = config_dir.join(stripped_path.trim_start_matches('/'));
         }
-        if let Some(declaration_dir) = &mut self.compiler_options.declaration_dir {
-            if let Some(stripped_path) =
+        if let Some(declaration_dir) = &mut self.compiler_options.declaration_dir
+            && let Some(stripped_path) =
                 declaration_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
-            {
-                *declaration_dir = config_dir.join(stripped_path.trim_start_matches('/'));
-            }
+        {
+            *declaration_dir = config_dir.join(stripped_path.trim_start_matches('/'));
         }
 
         if let Some(paths_map) = &mut self.compiler_options.paths {
