@@ -125,6 +125,16 @@ impl TsConfig {
                 }
             }
         }
+        if let Some(out_dir) = &mut tsconfig.compiler_options.out_dir {
+            if !out_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                *out_dir = canonical_directory.normalize_with(&out_dir);
+            }
+        }
+        if let Some(declaration_dir) = &mut tsconfig.compiler_options.declaration_dir {
+            if !declaration_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                *declaration_dir = canonical_directory.normalize_with(&declaration_dir);
+            }
+        }
         Ok(tsconfig)
     }
 
@@ -335,6 +345,30 @@ impl TsConfig {
         {
             compiler_options.root_dirs = Some(root_dirs.clone());
         }
+
+        if compiler_options.out_dir.is_none()
+            && let Some(out_dir) = &tsconfig.compiler_options.out_dir
+        {
+            compiler_options.out_dir = Some(out_dir.clone());
+        }
+
+        if compiler_options.declaration_dir.is_none()
+            && let Some(declaration_dir) = &tsconfig.compiler_options.declaration_dir
+        {
+            compiler_options.declaration_dir = Some(declaration_dir.clone());
+        }
+
+        if compiler_options.resolve_json_module.is_none()
+            && let Some(resolve_json_module) = &tsconfig.compiler_options.resolve_json_module
+        {
+            compiler_options.resolve_json_module = Some(*resolve_json_module);
+        }
+
+        if compiler_options.check_js.is_none()
+            && let Some(check_js) = &tsconfig.compiler_options.check_js
+        {
+            compiler_options.check_js = Some(*check_js);
+        }
     }
     /// "Build" the root tsconfig, resolve:
     ///
@@ -384,6 +418,19 @@ impl TsConfig {
                 {
                     *root_dir = config_dir.join(stripped_path.trim_start_matches('/'));
                 }
+            }
+        }
+
+        if let Some(out_dir) = &mut self.compiler_options.out_dir {
+            if let Some(stripped_path) = out_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE) {
+                *out_dir = config_dir.join(stripped_path.trim_start_matches('/'));
+            }
+        }
+        if let Some(declaration_dir) = &mut self.compiler_options.declaration_dir {
+            if let Some(stripped_path) =
+                declaration_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+            {
+                *declaration_dir = config_dir.join(stripped_path.trim_start_matches('/'));
             }
         }
 
@@ -543,6 +590,18 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#rootDirs>
     pub root_dirs: Option<Vec<PathBuf>>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#outDir>
+    pub out_dir: Option<PathBuf>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#declarationDir>
+    pub declaration_dir: Option<PathBuf>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#resolveJsonModule>
+    pub resolve_json_module: Option<bool>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#checkJs>
+    pub check_js: Option<bool>,
 }
 
 /// Value for the "extends" field.

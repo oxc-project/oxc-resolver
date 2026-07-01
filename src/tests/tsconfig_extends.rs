@@ -423,3 +423,54 @@ fn test_extend_tsconfig_via_symlink_relative() {
     let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
     assert_extends_symlink_resolves_to_canonical(&f.join("project/tsconfig.relative.json"));
 }
+
+#[test]
+fn compiler_options_output_fields_parsed_and_normalized() {
+    let path = Path::new("/project/tsconfig.json");
+    let config = serde_json::json!({
+        "compilerOptions": {
+            "outDir": "./dist",
+            "declarationDir": "./types",
+            "resolveJsonModule": true,
+            "checkJs": false
+        }
+    })
+    .to_string();
+    let tsconfig = TsConfig::parse(true, path, path, config).unwrap();
+    let co = &tsconfig.compiler_options;
+    assert!(co.out_dir.as_ref().unwrap().is_absolute());
+    assert!(co.out_dir.as_ref().unwrap().ends_with(std::path::Path::new("project/dist")));
+    assert!(co.declaration_dir.as_ref().unwrap().ends_with(std::path::Path::new("project/types")));
+    assert_eq!(co.resolve_json_module, Some(true));
+    assert_eq!(co.check_js, Some(false));
+}
+
+#[test]
+fn compiler_options_output() {
+    let resolver = Resolver::default();
+    let dir = super::fixture_root().join("tsconfig/cases/compiler-options-output");
+    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+    assert_eq!(compiler_options.out_dir, Some(dir.join("dist")));
+    assert_eq!(compiler_options.declaration_dir, Some(dir.join("types")));
+    assert_eq!(compiler_options.resolve_json_module, Some(true));
+    assert_eq!(compiler_options.check_js, Some(false));
+}
+
+#[test]
+fn extend_compiler_options_output() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-output-options");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        })),
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+    assert_eq!(compiler_options.out_dir, Some(f.join("dist")));
+    assert_eq!(compiler_options.declaration_dir, Some(f.join("types")));
+    assert_eq!(compiler_options.resolve_json_module, Some(true));
+    assert_eq!(compiler_options.check_js, Some(true));
+}
