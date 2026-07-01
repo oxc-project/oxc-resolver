@@ -39,6 +39,11 @@ fn test_extend_tsconfig() {
     assert_eq!(compiler_options.jsx_factory, Some("React.createElement".to_string()));
     assert_eq!(compiler_options.jsx_fragment_factory, Some("React.Fragment".to_string()));
     assert_eq!(compiler_options.jsx_import_source, Some("react".to_string()));
+
+    assert_eq!(compiler_options.out_dir, Some(f.join("dist")));
+    assert_eq!(compiler_options.declaration_dir, Some(f.join("types")));
+    assert_eq!(compiler_options.resolve_json_module, Some(true));
+    assert_eq!(compiler_options.check_js, Some(false));
 }
 
 #[test]

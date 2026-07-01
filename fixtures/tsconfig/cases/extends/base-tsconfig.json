@@ -8,7 +8,11 @@
     "jsx": "react-jsx",
     "jsxFactory": "React.createElement",
     "jsxFragmentFactory": "React.Fragment",
-    "jsxImportSource": "react"
+    "jsxImportSource": "react",
+    "outDir": "./dist",
+    "declarationDir": "./types",
+    "resolveJsonModule": true,
+    "checkJs": false
   },
   "files": ["files"],
   "include": ["include"],
