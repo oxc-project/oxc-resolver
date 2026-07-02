@@ -55,13 +55,6 @@ impl Extensions {
     }
 }
 
-impl std::ops::BitOr for Extensions {
-    type Output = Self;
-    fn bitor(self, rhs: Self) -> Self {
-        self.union(rhs)
-    }
-}
-
 impl std::ops::BitAnd for Extensions {
     type Output = Self;
     fn bitand(self, rhs: Self) -> Self {
@@ -123,7 +116,7 @@ impl ResolverImpl {
         // 1. tsconfig paths (non-relative only)
         if !specifier.starts_with('.')
             && !specifier.starts_with('/')
-            && let Some(path) = self.dts_resolve_tsconfig_paths(&cached_dir, specifier, &mut ctx)?
+            && let Some(path) = self.dts_resolve_tsconfig_paths(specifier, &mut ctx)?
         {
             return self.dts_finalize(&path, &mut ctx);
         }
@@ -371,6 +364,27 @@ impl ResolverImpl {
         if self.is_file(&candidate, ctx) { Some(candidate) } else { None }
     }
 
+    /// Package entry for directory resolution: `typings`/`types`, falling back to `main`.
+    fn dts_package_entry<'a>(
+        pkg: &'a PackageJson,
+        extensions: Extensions,
+        main_fields: &'a [String],
+    ) -> Option<&'a str> {
+        let mut entry = if extensions.contains(Extensions::DECLARATION) {
+            pkg.typings().or_else(|| pkg.types())
+        } else {
+            None
+        };
+        if entry.is_none()
+            && extensions.intersects(
+                Extensions::TYPESCRIPT.union(Extensions::JAVASCRIPT).union(Extensions::DECLARATION),
+            )
+        {
+            entry = pkg.main_fields(main_fields).next();
+        }
+        entry
+    }
+
     /// TS: `loadNodeModuleFromDirectoryWorker`
     fn dts_resolve_as_directory(
         &self,
@@ -389,20 +403,7 @@ impl ResolverImpl {
         if let Some(ref pkg) = pkg
             && let Some(version_paths) = Self::dts_get_matching_version_paths(pkg)
         {
-            let mut entry = if extensions.contains(Extensions::DECLARATION) {
-                pkg.typings().or_else(|| pkg.types())
-            } else {
-                None
-            };
-            if entry.is_none()
-                && extensions.intersects(
-                    Extensions::TYPESCRIPT
-                        .union(Extensions::JAVASCRIPT)
-                        .union(Extensions::DECLARATION),
-                )
-            {
-                entry = pkg.main_fields(&main_fields).next();
-            }
+            let entry = Self::dts_package_entry(pkg, extensions, &main_fields);
 
             // TS uses getRelativePathFromDirectory to compute the specifier,
             // which strips the "./" prefix from package.json entry values.
@@ -419,38 +420,24 @@ impl ResolverImpl {
         }
 
         // Determine entry file (types/typings/main)
-        if let Some(ref pkg) = pkg {
-            let mut entry = if extensions.contains(Extensions::DECLARATION) {
-                pkg.typings().or_else(|| pkg.types())
+        if let Some(ref pkg) = pkg
+            && let Some(entry_str) = Self::dts_package_entry(pkg, extensions, &main_fields)
+        {
+            // TS: "Even if extensions is DtsOnly, we can still look up a .ts file
+            // as a result of package.json 'types'"
+            let expanded = if extensions == Extensions::DECLARATION {
+                Extensions::TYPESCRIPT.union(Extensions::DECLARATION)
             } else {
-                None
+                extensions
             };
-            if entry.is_none()
-                && extensions.intersects(
-                    Extensions::TYPESCRIPT
-                        .union(Extensions::JAVASCRIPT)
-                        .union(Extensions::DECLARATION),
-                )
-            {
-                entry = pkg.main_fields(&main_fields).next();
+            let entry_path = candidate.normalize_with(entry_str, &self.cache);
+            if let Some(path) = self.dts_resolve_as_file(expanded, &entry_path, ctx) {
+                return Ok(Some(path));
             }
-            if let Some(entry_str) = entry {
-                // TS: "Even if extensions is DtsOnly, we can still look up a .ts file
-                // as a result of package.json 'types'"
-                let expanded = if extensions == Extensions::DECLARATION {
-                    Extensions::TYPESCRIPT.union(Extensions::DECLARATION)
-                } else {
-                    extensions
-                };
-                let entry_path = candidate.normalize_with(entry_str, &self.cache);
-                if let Some(path) = self.dts_resolve_as_file(expanded, &entry_path, ctx) {
+            if self.is_dir(&entry_path, ctx) {
+                let index = entry_path.push("index", &self.cache);
+                if let Some(path) = self.dts_resolve_as_file(expanded, &index, ctx) {
                     return Ok(Some(path));
-                }
-                if self.is_dir(&entry_path, ctx) {
-                    let index = entry_path.push("index", &self.cache);
-                    if let Some(path) = self.dts_resolve_as_file(expanded, &index, ctx) {
-                        return Ok(Some(path));
-                    }
                 }
             }
         }
@@ -704,12 +691,7 @@ impl ResolverImpl {
 
     // -------- tsconfig paths --------
 
-    fn dts_resolve_tsconfig_paths(
-        &self,
-        _cached_path: &CachedPath,
-        specifier: &str,
-        ctx: &mut Ctx,
-    ) -> ResolveResult {
+    fn dts_resolve_tsconfig_paths(&self, specifier: &str, ctx: &mut Ctx) -> ResolveResult {
         // Reuse the existing tsconfig resolution
         let tsconfig = match &self.options.tsconfig {
             Some(crate::TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o)?,
