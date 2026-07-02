@@ -180,13 +180,13 @@ fn bench_resolver_memory(c: &mut Criterion) {
         );
     }
 
-    let symlinks_range = 0u32..10000;
+    let symlink_specifiers = (0u32..10000).map(|i| format!("./file{i}")).collect::<Vec<_>>();
 
-    for i in symlinks_range.clone() {
-        assert!(
-            oxc_resolver_memory().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
-            "file{i}.js"
-        );
+    {
+        let oxc_resolver = oxc_resolver_memory();
+        for specifier in &symlink_specifiers {
+            assert!(oxc_resolver.resolve(&symlink_test_dir, specifier).is_ok(), "{specifier}");
+        }
     }
 
     let mut group = c.benchmark_group("resolver_memory");
@@ -220,15 +220,12 @@ fn bench_resolver_memory(c: &mut Criterion) {
 
     group.bench_with_input(
         BenchmarkId::from_parameter("resolve from symlinks"),
-        &symlinks_range,
-        |b, data| {
+        &symlink_specifiers,
+        |b, specifiers| {
             let oxc_resolver = oxc_resolver_memory();
             b.iter(|| {
-                for i in data.clone() {
-                    assert!(
-                        oxc_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
-                        "file{i}.js"
-                    );
+                for specifier in specifiers {
+                    _ = oxc_resolver.resolve(&symlink_test_dir, specifier);
                 }
             });
         },
@@ -258,13 +255,13 @@ fn bench_resolver_real(c: &mut Criterion) {
         assert!(oxc_resolver_real().resolve(path, request).is_ok(), "{} {request}", path.display());
     }
 
-    let symlinks_range = 0u32..10000;
+    let symlink_specifiers = (0u32..10000).map(|i| format!("./file{i}")).collect::<Vec<_>>();
 
-    for i in symlinks_range.clone() {
-        assert!(
-            oxc_resolver_real().resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
-            "file{i}.js"
-        );
+    {
+        let oxc_resolver = oxc_resolver_real();
+        for specifier in &symlink_specifiers {
+            assert!(oxc_resolver.resolve(&symlink_test_dir, specifier).is_ok(), "{specifier}");
+        }
     }
 
     let mut group = c.benchmark_group("resolver_real");
@@ -289,15 +286,12 @@ fn bench_resolver_real(c: &mut Criterion) {
 
     group.bench_with_input(
         BenchmarkId::from_parameter("resolve from symlinks"),
-        &symlinks_range,
-        |b, data| {
+        &symlink_specifiers,
+        |b, specifiers| {
             let oxc_resolver = oxc_resolver_real();
             b.iter(|| {
-                for i in data.clone() {
-                    assert!(
-                        oxc_resolver.resolve(&symlink_test_dir, &format!("./file{i}")).is_ok(),
-                        "file{i}.js"
-                    );
+                for specifier in specifiers {
+                    _ = oxc_resolver.resolve(&symlink_test_dir, specifier);
                 }
             });
         },
