@@ -6,7 +6,6 @@ use crate::{
     AliasValue, PathUtil, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
 };
 
-#[allow(clippy::too_many_lines)]
 #[test]
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 fn alias() {

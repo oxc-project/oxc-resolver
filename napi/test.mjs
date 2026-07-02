@@ -25,5 +25,4 @@ const resolver2 = new ResolverFactory({
   extensions: [".mjs"],
 });
 
-// After add `.ts` extension, resolver can resolve `ts` as `ts.ts` now
 assert.deepStrictEqual(resolver2.sync(dir, "./test.mjs").path, path.join(dir, "test.mjs"));

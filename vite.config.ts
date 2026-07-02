@@ -10,7 +10,6 @@ export default defineConfig({
       "CHANGELOG.md",
       "fixtures",
       "napi/browser.js",
-      "napi/browser.js",
       "napi/index.d.ts",
       "napi/index.js",
       "napi/resolver.wasi-browser.js",
