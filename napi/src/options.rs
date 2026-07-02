@@ -180,20 +180,6 @@ pub enum EnforceExtension {
     Disabled,
 }
 
-impl EnforceExtension {
-    pub fn is_auto(&self) -> bool {
-        *self == Self::Auto
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        *self == Self::Enabled
-    }
-
-    pub fn is_disabled(&self) -> bool {
-        *self == Self::Disabled
-    }
-}
-
 /// Alias Value for [ResolveOptions::alias] and [ResolveOptions::fallback].
 /// Use struct because napi don't support structured union now
 #[napi(object)]

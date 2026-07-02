@@ -128,6 +128,7 @@ pub struct ResolverImpl {
     options: ResolveOptions,
     cache: Arc<Cache>,
     alias: CompiledAlias,
+    fallback: CompiledAlias,
 }
 
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
@@ -161,6 +162,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     pub fn new(options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
+        let fallback = compile_alias(&options.fallback);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 let fs = Fs::new(options.yarn_pnp);
@@ -169,38 +171,37 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             }
         }
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
+        let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
     /// Clone the resolver using the same underlying cache.
-    #[allow(clippy::unused_self)]
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
+        let fallback = compile_alias(&options.fallback);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                let cache = if (options.yarn_pnp && !self.inner.options.yarn_pnp)
-                    || (!options.yarn_pnp && self.inner.options.yarn_pnp)
-                {
-                    Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
-                } else {
+                let cache = if options.yarn_pnp == self.inner.options.yarn_pnp {
                     Arc::clone(&self.inner.cache)
+                } else {
+                    Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
                 };
             } else {
                 let cache = Arc::clone(&self.inner.cache);
             }
         }
-        let inner = ResolverImpl { options, cache, alias };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 }
@@ -496,14 +497,8 @@ impl ResolverImpl {
                 return Err(err);
             }
             // enhanced-resolve: try fallback
-            self.load_alias_by_options(
-                cached_path,
-                specifier,
-                &self.options.fallback,
-                tsconfig,
-                ctx,
-            )
-            .and_then(|value| value.ok_or(err))
+            self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)
+                .and_then(|value| value.ok_or(err))
         })
     }
 
@@ -598,7 +593,7 @@ impl ResolverImpl {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
         self.load_package_imports(cached_path, specifier, tsconfig, ctx)?
-            .map_or_else(|| Err(ResolveError::NotFound(specifier.to_string())), Ok)
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))
     }
 
     fn require_bare(
@@ -683,21 +678,18 @@ impl ResolverImpl {
         // it's kind of bug feature
         if specifier.contains("/../..") || specifier.contains("../../") {
             let path = Path::new(specifier).normalize_relative();
-            let mut owned = path.to_string_lossy().into_owned();
+            let mut normalized_specifier = path.to_string_lossy().into_owned();
 
             if specifier.ends_with('/') {
-                owned += "/";
+                normalized_specifier += "/";
             }
 
-            let specifier_owned = Some(owned);
-            let normalized_specifier = specifier_owned.as_deref().unwrap();
-
-            let (package_name, subpath) = Self::parse_package_specifier(normalized_specifier);
+            let (package_name, subpath) = Self::parse_package_specifier(&normalized_specifier);
 
             if package_name == ".."
                 && let Some(path) = self.load_node_modules(
                     cached_path,
-                    normalized_specifier,
+                    &normalized_specifier,
                     package_name,
                     subpath,
                     tsconfig,
@@ -1836,7 +1828,7 @@ impl ResolverImpl {
                 });
             }
             // 2. For each item targetValue in target, do
-            for (i, target_value) in targets.iter().enumerate() {
+            for target_value in targets.iter() {
                 // 1. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions), continuing the loop on any Invalid Package Target error.
                 let resolved = self.package_target_resolve(
                     package_url,
@@ -1849,18 +1841,14 @@ impl ResolverImpl {
                     ctx,
                 );
 
-                if resolved.is_err() && i == targets.len() {
-                    return resolved;
-                }
-
                 // 2. If resolved is undefined, continue the loop.
+                // Note: errors are treated the same as undefined - fall through to the next
+                // array entry, and return null if the array is exhausted.
                 if let Ok(Some(path)) = resolved {
                     // 3. Return resolved.
                     return Ok(Some(path));
                 }
             }
-            // 3. Return or throw the last fallback resolution null return or error.
-            // Note: see `resolved.is_err() && i == targets.len()`
         }
         // 4. Otherwise, if target is null, return null.
         Ok(None)

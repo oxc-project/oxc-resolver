@@ -67,7 +67,7 @@ impl Cache {
             }
         }
         let parent = path.parent().map(|p| self.value(p));
-        let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
+        let is_node_modules = path.file_name().is_some_and(|name| name == "node_modules");
         let inside_node_modules =
             is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
         let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
@@ -303,10 +303,8 @@ impl Cache {
 
         // Cache raw version (callback applied, not built)
         tsconfig.set_should_build(false);
-        let raw_tsconfig = Arc::new(tsconfig.clone());
-        self.tsconfigs_raw.insert(path.to_path_buf(), Arc::clone(&raw_tsconfig));
-
         if root {
+            self.tsconfigs_raw.insert(path.to_path_buf(), Arc::new(tsconfig.clone()));
             // Build and cache built version
             tsconfig.set_should_build(true);
             let tsconfig = Arc::new(tsconfig.build());
@@ -314,7 +312,9 @@ impl Cache {
             Ok(tsconfig)
         } else {
             // Return unbuilt version
-            Ok(raw_tsconfig)
+            let tsconfig = Arc::new(tsconfig);
+            self.tsconfigs_raw.insert(path.to_path_buf(), Arc::clone(&tsconfig));
+            Ok(tsconfig)
         }
     }
 

@@ -37,7 +37,7 @@ pub struct ProjectReference {
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
     /// Whether this is the caller tsconfig.
-    /// Used for final template variable substitution when all configs are extended and merged.
+    /// `false` for configs loaded through `extends`.
     #[serde(skip)]
     pub root: bool,
 
@@ -139,7 +139,7 @@ impl TsConfig {
     }
 
     /// Whether this is the caller tsconfig.
-    /// Used for final template variable substitution when all configs are extended and merged.
+    /// `false` for configs loaded through `extends`.
     #[must_use]
     pub fn root(&self) -> bool {
         self.root
