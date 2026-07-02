@@ -247,10 +247,7 @@ impl ResolverImpl {
     ) -> Result<Resolution, ResolveError> {
         let mut ctx = Ctx::default();
         let path = directory.as_ref();
-        let tsconfig = match &self.options.tsconfig {
-            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o)?,
-            _ => None,
-        };
+        let tsconfig = self.manual_tsconfig()?;
         self.resolve_tracing(path, specifier, tsconfig.as_deref(), &mut ctx)
     }
 

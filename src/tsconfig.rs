@@ -203,7 +203,7 @@ impl TsConfig {
     }
 
     /// Inherits settings from the given tsconfig into `self`.
-    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
         if self.files.is_none()
             && let Some(files) = &tsconfig.files

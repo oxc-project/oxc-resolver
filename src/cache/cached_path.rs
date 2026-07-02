@@ -7,13 +7,15 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use cfg_if::cfg_if;
 use once_cell::sync::OnceCell as OnceLock;
 
 use super::cache_impl::Cache;
 use super::cached_meta::CachedMeta;
 use super::thread_local::SCRATCH_PATH;
-use crate::{FileMetadata, FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx};
+use crate::{
+    FileMetadata, FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx,
+    path::push_normalized_component,
+};
 
 #[derive(Clone)]
 pub struct CachedPath(pub Arc<CachedPathImpl>);
@@ -220,29 +222,6 @@ impl CachedPath {
     #[cfg(not(windows))]
     pub(crate) fn normalize_root(&self, _cache: &Cache) -> Self {
         self.clone()
-    }
-}
-
-/// `Prefix`/`RootDir` can only be a `Components` iterator's first item, which the caller consumes
-/// before reaching here, so those arms are unreachable.
-#[inline]
-fn push_normalized_component(path: &mut PathBuf, component: Component<'_>) {
-    match component {
-        Component::CurDir => {}
-        Component::ParentDir => {
-            path.pop();
-        }
-        Component::Normal(c) => {
-            cfg_if! {
-                if #[cfg(target_family = "wasm")] {
-                    // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
-                    path.push(c.to_string_lossy().trim_end_matches('\0'));
-                } else {
-                    path.push(c);
-                }
-            }
-        }
-        Component::Prefix(..) | Component::RootDir => unreachable!(),
     }
 }
 
