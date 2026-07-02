@@ -54,6 +54,58 @@ fn run_combo(c: &mut Criterion, combo: Combo) {
     });
 }
 
+/// Dense workload: every `lodash-es` module as a bare `lodash-es/<file>` deep import, resolved
+/// serially with a cold resolver per iteration. This is the access shape of a bundler graph
+/// traversal — hundreds of distinct probes into the same package directory — and is the regime
+/// where the per-directory listing cache replaces per-candidate `lstat`s with one `read_dir`.
+fn run_dense_combo(c: &mut Criterion, combo: Combo) {
+    let Some(root) = combo.fixture_root_if_installed() else {
+        eprintln!(
+            "skip pm-dense/{}: fixture not installed (run `just install-bench-fixtures`)",
+            combo.slug()
+        );
+        return;
+    };
+    let lodash_dir = root.join("node_modules/lodash-es");
+    let mut specifiers: Vec<String> = std::fs::read_dir(&lodash_dir)
+        .expect("lodash-es fixture directory")
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().into_string().ok()?;
+            std::path::Path::new(&name)
+                .extension()
+                .is_some_and(|extension| extension == "js")
+                .then(|| format!("lodash-es/{name}"))
+        })
+        .collect();
+    specifiers.sort_unstable();
+    let importer = root.join("apps/web/nested/deep/src");
+    let opts = combo.resolve_options(&root);
+
+    // Correctness gate: every deep import must resolve into lodash-es.
+    let resolver = Resolver::new(opts.clone());
+    for specifier in &specifiers {
+        let resolution = resolver.resolve(&importer, specifier).unwrap_or_else(|err| {
+            panic!("pm-dense/{}: resolve({specifier:?}) failed: {err}", combo.slug())
+        });
+        let normalized = resolution.path().to_string_lossy().replace('\\', "/");
+        assert!(
+            normalized.contains("/lodash-es/") || normalized.contains("/lodash-es@"),
+            "pm-dense/{}: resolve({specifier:?}) -> {normalized}",
+            combo.slug()
+        );
+    }
+
+    c.bench_function(&format!("pm-dense/{}", combo.slug()), |b| {
+        b.iter(|| {
+            let resolver = Resolver::new(opts.clone());
+            for specifier in &specifiers {
+                _ = resolver.resolve(&importer, specifier);
+            }
+        });
+    });
+}
+
 fn bench_package_managers(c: &mut Criterion) {
     // Pin rayon's pool to a fixed thread count so the parallel fan-out is deterministic across
     // machines / CI runners; otherwise the pool sizes to the host core count, which varies and
@@ -66,6 +118,9 @@ fn bench_package_managers(c: &mut Criterion) {
             continue;
         }
         run_combo(c, combo);
+    }
+    for combo in [Combo::NpmFlat, Combo::PnpmIsolated] {
+        run_dense_combo(c, combo);
     }
 }
 
