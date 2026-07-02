@@ -5,6 +5,8 @@
 //! * [normalize_path](https://docs.rs/normalize-path)
 use std::path::{Component, Path, PathBuf};
 
+use cfg_if::cfg_if;
+
 pub const SLASH_START: &[char; 2] = &['/', '\\'];
 
 /// Extension trait to add path normalization to std's [`Path`].
@@ -121,14 +123,21 @@ fn normalize_with_impl(base: &Path, subpath: &Path) -> PathBuf {
 /// `Prefix`/`RootDir` can only be a `Components` iterator's first item, which callers consume
 /// before reaching here, so those arms are unreachable.
 #[inline]
-fn push_normalized_component(ret: &mut PathBuf, component: Component<'_>) {
+pub fn push_normalized_component(ret: &mut PathBuf, component: Component<'_>) {
     match component {
         Component::CurDir => {}
         Component::ParentDir => {
             ret.pop();
         }
         Component::Normal(c) => {
-            ret.push(c);
+            cfg_if! {
+                if #[cfg(target_family = "wasm")] {
+                    // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
+                    ret.push(c.to_string_lossy().trim_end_matches('\0'));
+                } else {
+                    ret.push(c);
+                }
+            }
         }
         Component::Prefix(..) | Component::RootDir => unreachable!(),
     }
