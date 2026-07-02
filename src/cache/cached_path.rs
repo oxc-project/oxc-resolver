@@ -76,8 +76,7 @@ pub enum ChildVerdict {
 impl DirListing {
     fn load(fs: &dyn FileSystem, path: &Path) -> Option<Box<Self>> {
         let raw = fs.read_dir(path).ok()?;
-        let mut entries =
-            FxHashMap::with_capacity_and_hasher(raw.len(), rustc_hash::FxBuildHasher);
+        let mut entries = FxHashMap::with_capacity_and_hasher(raw.len(), rustc_hash::FxBuildHasher);
         let mut lowered = FxHashSet::default();
         for (name, kind) in raw {
             let bytes = name.into_encoded_bytes().into_boxed_slice();
