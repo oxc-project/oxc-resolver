@@ -250,7 +250,6 @@ impl ResolverImpl {
     }
 
     /// TS: `tryAddingExtensions`
-    #[allow(clippy::too_many_lines)]
     fn dts_try_extensions(
         &self,
         base: &CachedPath,
@@ -693,10 +692,7 @@ impl ResolverImpl {
 
     fn dts_resolve_tsconfig_paths(&self, specifier: &str, ctx: &mut Ctx) -> ResolveResult {
         // Reuse the existing tsconfig resolution
-        let tsconfig = match &self.options.tsconfig {
-            Some(crate::TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o)?,
-            _ => None,
-        };
+        let tsconfig = self.manual_tsconfig()?;
 
         let Some(tsconfig) = tsconfig.as_deref() else {
             return Ok(None);

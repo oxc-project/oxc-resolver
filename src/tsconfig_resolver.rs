@@ -141,7 +141,16 @@ impl ResolverImpl {
         Ok(None)
     }
 
-    pub(crate) fn find_tsconfig_manual(
+    /// The manually configured tsconfig ([`TsconfigDiscovery::Manual`]); `Auto` discovery is
+    /// deliberately skipped.
+    pub(crate) fn manual_tsconfig(&self) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        match &self.options.tsconfig {
+            Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o),
+            _ => Ok(None),
+        }
+    }
+
+    fn find_tsconfig_manual(
         &self,
         tsconfig_options: &TsconfigOptions,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
