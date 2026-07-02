@@ -16,6 +16,7 @@ pub enum ModuleType {
 }
 
 /// The final path resolution with optional `?query` and `#fragment`
+#[derive(Clone)]
 pub struct Resolution {
     pub(crate) path: PathBuf,
 
@@ -36,18 +37,6 @@ pub struct Resolution {
     ///
     ///  The algorithm uses the file extension or finds the closest `package.json` with the `type` field.
     pub(crate) module_type: Option<ModuleType>,
-}
-
-impl Clone for Resolution {
-    fn clone(&self) -> Self {
-        Self {
-            path: self.path.clone(),
-            query: self.query.clone(),
-            fragment: self.fragment.clone(),
-            package_json: self.package_json.clone(),
-            module_type: self.module_type,
-        }
-    }
 }
 
 impl fmt::Debug for Resolution {

@@ -593,7 +593,7 @@ impl ResolverImpl {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
         self.load_package_imports(cached_path, specifier, tsconfig, ctx)?
-            .map_or_else(|| Err(ResolveError::NotFound(specifier.to_string())), Ok)
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))
     }
 
     fn require_bare(
@@ -678,21 +678,18 @@ impl ResolverImpl {
         // it's kind of bug feature
         if specifier.contains("/../..") || specifier.contains("../../") {
             let path = Path::new(specifier).normalize_relative();
-            let mut owned = path.to_string_lossy().into_owned();
+            let mut normalized_specifier = path.to_string_lossy().into_owned();
 
             if specifier.ends_with('/') {
-                owned += "/";
+                normalized_specifier += "/";
             }
 
-            let specifier_owned = Some(owned);
-            let normalized_specifier = specifier_owned.as_deref().unwrap();
-
-            let (package_name, subpath) = Self::parse_package_specifier(normalized_specifier);
+            let (package_name, subpath) = Self::parse_package_specifier(&normalized_specifier);
 
             if package_name == ".."
                 && let Some(path) = self.load_node_modules(
                     cached_path,
-                    normalized_specifier,
+                    &normalized_specifier,
                     package_name,
                     subpath,
                     tsconfig,
