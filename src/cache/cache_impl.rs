@@ -303,10 +303,8 @@ impl Cache {
 
         // Cache raw version (callback applied, not built)
         tsconfig.set_should_build(false);
-        let raw_tsconfig = Arc::new(tsconfig.clone());
-        self.tsconfigs_raw.insert(path.to_path_buf(), Arc::clone(&raw_tsconfig));
-
         if root {
+            self.tsconfigs_raw.insert(path.to_path_buf(), Arc::new(tsconfig.clone()));
             // Build and cache built version
             tsconfig.set_should_build(true);
             let tsconfig = Arc::new(tsconfig.build());
@@ -314,7 +312,9 @@ impl Cache {
             Ok(tsconfig)
         } else {
             // Return unbuilt version
-            Ok(raw_tsconfig)
+            let tsconfig = Arc::new(tsconfig);
+            self.tsconfigs_raw.insert(path.to_path_buf(), Arc::clone(&tsconfig));
+            Ok(tsconfig)
         }
     }
 
