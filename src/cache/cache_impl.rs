@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     collections::HashSet as StdHashSet,
+    ffi::OsStr,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
     path::{Path, PathBuf},
@@ -208,7 +209,15 @@ impl Cache {
         path.package_json
             .get_or_try_init(|| {
                 let package_json_path = path.path.join("package.json");
-                let Ok(package_json_bytes) = self.fs.read(&package_json_path) else {
+                // The directory listing can prove `package.json` absent and skip the failed
+                // `open` the blind read below would otherwise issue.
+                let absent = matches!(
+                    path.child_from_listing(OsStr::new("package.json"), self.fs()),
+                    super::cached_path::ChildVerdict::Absent
+                );
+                let package_json_bytes =
+                    if absent { Err(()) } else { self.fs.read(&package_json_path).map_err(|_| ()) };
+                let Ok(package_json_bytes) = package_json_bytes else {
                     if let Some(deps) = &mut ctx.missing_dependencies {
                         deps.push(package_json_path);
                     }
