@@ -128,6 +128,7 @@ pub struct ResolverImpl {
     options: ResolveOptions,
     cache: Arc<Cache>,
     alias: CompiledAlias,
+    fallback: CompiledAlias,
 }
 
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
@@ -161,6 +162,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     pub fn new(options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
+        let fallback = compile_alias(&options.fallback);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
                 let fs = Fs::new(options.yarn_pnp);
@@ -169,38 +171,37 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             }
         }
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
+        let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
     /// Clone the resolver using the same underlying cache.
-    #[allow(clippy::unused_self)]
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
+        let fallback = compile_alias(&options.fallback);
         cfg_if::cfg_if! {
             if #[cfg(feature = "yarn_pnp")] {
-                let cache = if (options.yarn_pnp && !self.inner.options.yarn_pnp)
-                    || (!options.yarn_pnp && self.inner.options.yarn_pnp)
-                {
-                    Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
-                } else {
+                let cache = if options.yarn_pnp == self.inner.options.yarn_pnp {
                     Arc::clone(&self.inner.cache)
+                } else {
+                    Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
                 };
             } else {
                 let cache = Arc::clone(&self.inner.cache);
             }
         }
-        let inner = ResolverImpl { options, cache, alias };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 }
@@ -496,14 +497,8 @@ impl ResolverImpl {
                 return Err(err);
             }
             // enhanced-resolve: try fallback
-            self.load_alias_by_options(
-                cached_path,
-                specifier,
-                &self.options.fallback,
-                tsconfig,
-                ctx,
-            )
-            .and_then(|value| value.ok_or(err))
+            self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)
+                .and_then(|value| value.ok_or(err))
         })
     }
 
