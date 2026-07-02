@@ -748,6 +748,24 @@ fn test_cases() {
             condition_names: vec!["import", "require"],
         },
         TestCase {
+            name: "invalid target in last array entry",
+            expect: None,
+            imports_field: imports_field(&json!({
+              "#a": ["../invalid.js"]
+            })),
+            request: "#a",
+            condition_names: vec![],
+        },
+        TestCase {
+            name: "invalid target in non-last array entry",
+            expect: Some(vec!["./ok.js"]),
+            imports_field: imports_field(&json!({
+              "#a": ["../invalid.js", "./ok.js"]
+            })),
+            request: "#a",
+            condition_names: vec![],
+        },
+        TestCase {
             name: "mapping to a folder root #1",
             expect: Some(vec![]),
             imports_field: imports_field(&json!({
