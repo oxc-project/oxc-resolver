@@ -1706,6 +1706,7 @@ impl ResolverImpl {
     }
 
     /// PACKAGE_TARGET_RESOLVE(packageURL, target, patternMatch, isImports, conditions)
+    #[allow(clippy::too_many_lines)]
     fn package_target_resolve(
         &self,
         package_url: &CachedPath,
@@ -1841,7 +1842,13 @@ impl ResolverImpl {
                     ctx,
                 );
 
-                if resolved.is_err() && i == targets.len() {
+                // `NotFound` is exempt: it comes from re-resolving a bare `imports` target
+                // through the module system, which enhanced-resolve lets fall through to the
+                // next array entry / a soft failure rather than a hard error.
+                if i + 1 == targets.len()
+                    && let Err(err) = &resolved
+                    && !matches!(err, ResolveError::NotFound(_))
+                {
                     return resolved;
                 }
 
@@ -1852,7 +1859,7 @@ impl ResolverImpl {
                 }
             }
             // 3. Return or throw the last fallback resolution null return or error.
-            // Note: see `resolved.is_err() && i == targets.len()`
+            // Note: see `i + 1 == targets.len()`
         }
         // 4. Otherwise, if target is null, return null.
         Ok(None)
