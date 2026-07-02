@@ -16,11 +16,57 @@ pub use serde::*;
 pub use simd::*;
 
 use std::{
+    ffi::OsStr,
     fmt,
+    hash::{Hash, Hasher},
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
+use compact_str::CompactString;
+use rustc_hash::{FxHashMap, FxHasher};
+
 use crate::{JSONError, ResolveError, path::PathUtil};
+
+/// Hash of a [`crate::ResolveOptions::alias_fields`] configuration, used to validate that a
+/// lazily built [`BrowserIndex`] belongs to the querying resolver's configuration (resolvers
+/// created via `clone_with_options` share cached `package.json`s across differing options).
+pub fn hash_alias_fields(alias_fields: &[Vec<String>]) -> u64 {
+    let mut hasher = FxHasher::default();
+    alias_fields.len().hash(&mut hasher);
+    for field_path in alias_fields {
+        field_path.len().hash(&mut hasher);
+        for segment in field_path {
+            segment.hash(&mut hasher);
+        }
+    }
+    hasher.finish()
+}
+
+/// Lazily built reverse index over the `"browser"` field(s), see
+/// [`PackageJsonGeneric::resolve_browser_field`]. `None` when the configuration has no
+/// browser field objects in this `package.json`.
+pub struct BrowserIndexSlot {
+    alias_fields_hash: u64,
+    index: Option<Box<BrowserIndex>>,
+}
+
+struct BrowserIndex {
+    /// Key file name → entries whose key ends in that file name, in declaration order.
+    /// `normalize_with` keeps a key's last `Normal` component, so only these keys can map to
+    /// a candidate path with the same file name.
+    by_file_name: FxHashMap<Box<OsStr>, Vec<BrowserEntry>>,
+    /// Keys without a file name (`.`, `..`, `./`) can map to any path and are always confirmed.
+    unindexable: Vec<BrowserEntry>,
+}
+
+struct BrowserEntry {
+    /// Index into the `browser_fields(alias_fields)` sequence the key came from.
+    field: usize,
+    /// Position within that field's object, for declaration-order matching.
+    pos: usize,
+    key: CompactString,
+}
 
 /// Check if JSON content is empty or contains only whitespace
 fn check_if_empty(json_bytes: &[u8], path: &Path) -> Result<(), JSONError> {
@@ -151,6 +197,9 @@ pub struct PackageJsonGeneric<S> {
     pub realpath: PathBuf,
 
     pub(crate) store: S,
+
+    /// Reverse index for the `"browser"` field, built on first reverse lookup.
+    pub(crate) browser_index: OnceLock<BrowserIndexSlot>,
 }
 
 impl<S: PackageJsonBackend> fmt::Debug for PackageJsonGeneric<S> {
@@ -367,30 +416,125 @@ impl<S: PackageJsonBackend> PackageJsonGeneric<S> {
         path: &Path,
         request: Option<&str>,
         alias_fields: &'a [Vec<String>],
+        alias_fields_hash: u64,
     ) -> Result<Option<&'a str>, ResolveError> {
-        for object in self.browser_fields(alias_fields) {
-            if let Some(request) = request {
+        if let Some(request) = request {
+            for object in self.browser_fields(alias_fields) {
                 // Find matching key in object
                 if let Some(value) = object.get(request) {
                     return alias_value(path, value);
                 }
-            } else {
-                let dir = self.path.parent().unwrap();
-                let path_file_name = path.file_name();
-                for (key, value) in object.iter() {
-                    // Fast path: `normalize_with` keeps `key`'s last component, so a key whose
-                    // file name differs from the candidate's can't match — skip without
-                    // allocating. `.`/`..` keys have no `file_name` and fall through.
-                    if let Some(key_file_name) = Path::new(key).file_name()
-                        && Some(key_file_name) != path_file_name
-                    {
-                        continue;
-                    }
-                    let joined = dir.normalize_with(key);
-                    if joined == path {
-                        return alias_value(path, value);
+            }
+            return Ok(None);
+        }
+        // The reverse lookup runs for every file candidate when `alias_fields` is set, so it
+        // goes through a lazily built `file name -> keys` index instead of scanning every key
+        // with a `Path::new(key).file_name()` parse each.
+        let slot = self.browser_index.get_or_init(|| BrowserIndexSlot {
+            alias_fields_hash,
+            index: self.build_browser_index(alias_fields),
+        });
+        if slot.alias_fields_hash == alias_fields_hash {
+            let Some(index) = &slot.index else { return Ok(None) };
+            return self.browser_reverse_lookup(index, path, alias_fields);
+        }
+        // The index was built for a resolver with different `alias_fields` sharing this cached
+        // `package.json` (`clone_with_options`): fall back to the linear scan.
+        let dir = self.path.parent().unwrap();
+        let path_file_name = path.file_name();
+        for object in self.browser_fields(alias_fields) {
+            for (key, value) in object.iter() {
+                // Fast path: `normalize_with` keeps `key`'s last component, so a key whose
+                // file name differs from the candidate's can't match — skip without
+                // allocating. `.`/`..` keys have no `file_name` and fall through.
+                if let Some(key_file_name) = Path::new(key).file_name()
+                    && Some(key_file_name) != path_file_name
+                {
+                    continue;
+                }
+                let joined = dir.normalize_with(key);
+                if joined == path {
+                    return alias_value(path, value);
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn build_browser_index(&self, alias_fields: &[Vec<String>]) -> Option<Box<BrowserIndex>> {
+        let mut by_file_name: FxHashMap<Box<OsStr>, Vec<BrowserEntry>> = FxHashMap::default();
+        let mut unindexable = Vec::new();
+        let mut has_fields = false;
+        for (field, object) in self.browser_fields(alias_fields).enumerate() {
+            has_fields = true;
+            for (pos, (key, _)) in object.iter().enumerate() {
+                let entry = BrowserEntry { field, pos, key: CompactString::new(key) };
+                match Path::new(key).file_name() {
+                    Some(name) => by_file_name.entry(Box::from(name)).or_default().push(entry),
+                    None => unindexable.push(entry),
+                }
+            }
+        }
+        has_fields.then(|| Box::new(BrowserIndex { by_file_name, unindexable }))
+    }
+
+    /// Reverse lookup through the index: only keys sharing the candidate's file name (plus the
+    /// rare file-name-less keys) are confirmed with `normalize_with` + equality, in the same
+    /// declaration order (field order, then object order) as the linear scan — first confirmed
+    /// key wins.
+    fn browser_reverse_lookup<'a>(
+        &'a self,
+        index: &BrowserIndex,
+        path: &Path,
+        alias_fields: &'a [Vec<String>],
+    ) -> Result<Option<&'a str>, ResolveError> {
+        let indexed = path
+            .file_name()
+            .and_then(|name| index.by_file_name.get(name))
+            .map_or(&[][..], Vec::as_slice);
+        if indexed.is_empty() && index.unindexable.is_empty() {
+            return Ok(None);
+        }
+        let dir = self.path.parent().unwrap();
+        let mut fields = self.browser_fields(alias_fields).enumerate();
+        let mut field = fields.next();
+        // Merge the two position-sorted entry lists in ascending (field, pos) order.
+        let (mut i, mut j) = (0, 0);
+        loop {
+            let entry = match (indexed.get(i), index.unindexable.get(j)) {
+                (Some(a), Some(b)) => {
+                    if (a.field, a.pos) < (b.field, b.pos) {
+                        i += 1;
+                        a
+                    } else {
+                        j += 1;
+                        b
                     }
                 }
+                (Some(a), None) => {
+                    i += 1;
+                    a
+                }
+                (None, Some(b)) => {
+                    j += 1;
+                    b
+                }
+                (None, None) => break,
+            };
+            // `browser_fields` enumerates densely and the index was built from the same
+            // sequence, so advancing to `entry.field` always lands on it.
+            while field.is_some_and(|(f, _)| f < entry.field) {
+                field = fields.next();
+            }
+            let Some((f, object)) = field else { break };
+            if f != entry.field {
+                continue;
+            }
+            let joined = dir.normalize_with(entry.key.as_str());
+            if joined == path
+                && let Some(value) = object.get(entry.key.as_str())
+            {
+                return alias_value(path, value);
             }
         }
         Ok(None)

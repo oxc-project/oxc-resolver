@@ -103,6 +103,6 @@ impl PackageJson {
             line: error.line(),
             column: error.column(),
         })?;
-        Ok(Self { path, realpath, store: value })
+        Ok(Self { path, realpath, store: value, browser_index: std::sync::OnceLock::new() })
     }
 }

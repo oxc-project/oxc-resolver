@@ -163,6 +163,6 @@ impl PackageJson {
             }
         })?;
 
-        Ok(Self { path, realpath, store: cell })
+        Ok(Self { path, realpath, store: cell, browser_index: std::sync::OnceLock::new() })
     }
 }

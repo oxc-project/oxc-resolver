@@ -415,9 +415,10 @@ impl ResolverImpl {
         }
         .sanitize();
         let alias = crate::alias::compile_alias(&options.alias);
+        let alias_fields_hash = crate::package_json::hash_alias_fields(&options.alias_fields);
         // Extends-resolution never toggles `yarn_pnp`, so reuse the same cache (and thus the
         // same underlying filesystem) rather than rebuilding it.
-        Self { options, cache: Arc::clone(&self.cache), alias }
+        Self { options, cache: Arc::clone(&self.cache), alias, alias_fields_hash }
     }
 
     fn get_extended_tsconfig_path(

@@ -128,6 +128,9 @@ pub struct ResolverImpl {
     options: ResolveOptions,
     cache: Arc<Cache>,
     alias: CompiledAlias,
+    /// Hash of `options.alias_fields`, validating lazily built per-`PackageJson` browser-field
+    /// indexes (the package.json cache is shared across `clone_with_options` resolvers).
+    alias_fields_hash: u64,
 }
 
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
@@ -169,7 +172,8 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             }
         }
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias };
+        let alias_fields_hash = package_json::hash_alias_fields(&options.alias_fields);
+        let inner = ResolverImpl { options, cache, alias, alias_fields_hash };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
@@ -177,7 +181,8 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias };
+        let alias_fields_hash = package_json::hash_alias_fields(&options.alias_fields);
+        let inner = ResolverImpl { options, cache, alias, alias_fields_hash };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
@@ -200,7 +205,8 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
                 let cache = Arc::clone(&self.inner.cache);
             }
         }
-        let inner = ResolverImpl { options, cache, alias };
+        let alias_fields_hash = package_json::hash_alias_fields(&options.alias_fields);
+        let inner = ResolverImpl { options, cache, alias, alias_fields_hash };
         Self { inner, _marker: std::marker::PhantomData }
     }
 }
@@ -1275,6 +1281,7 @@ impl ResolverImpl {
             path,
             module_specifier,
             &self.options.alias_fields,
+            self.alias_fields_hash,
         )?
         else {
             return Ok(None);
