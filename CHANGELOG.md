@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.23.0](https://github.com/oxc-project/oxc-resolver/compare/v11.22.0...v11.23.0) - 2026-07-02
+
+### <!-- 0 -->🚀 Features
+
+- *(tsconfig)* expose outDir, declarationDir, resolveJsonModule, checkJs ([#1257](https://github.com/oxc-project/oxc-resolver/pull/1257)) (by @Boshen)
+
+### <!-- 4 -->⚡ Performance
+
+- *(alias)* scan a packed first-byte array instead of striding over alias entries ([#1260](https://github.com/oxc-project/oxc-resolver/pull/1260)) (by @Boshen)
+
+### Contributors
+
+* @Boshen
+
 ## [11.22.0](https://github.com/oxc-project/oxc-resolver/compare/v11.21.3...v11.22.0) - 2026-06-30
 
 ### <!-- 0 -->🚀 Features
