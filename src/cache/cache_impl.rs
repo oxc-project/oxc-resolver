@@ -67,7 +67,7 @@ impl Cache {
             }
         }
         let parent = path.parent().map(|p| self.value(p));
-        let is_node_modules = path.file_name().as_ref().is_some_and(|&name| name == "node_modules");
+        let is_node_modules = path.file_name().is_some_and(|name| name == "node_modules");
         let inside_node_modules =
             is_node_modules || parent.as_ref().is_some_and(|parent| parent.inside_node_modules);
         let parent_weak = parent.as_ref().map(|p| Arc::downgrade(&p.0));
