@@ -1,14 +1,19 @@
 use std::{
     convert::AsRef,
+    ffi::OsStr,
     fmt,
     hash::{Hash, Hasher},
     ops::Deref,
     path::{Component, Path, PathBuf},
-    sync::{Arc, Weak},
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicU8, Ordering},
+    },
 };
 
 use cfg_if::cfg_if;
 use once_cell::sync::OnceCell as OnceLock;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::cache_impl::Cache;
 use super::cached_meta::CachedMeta;
@@ -36,6 +41,76 @@ pub struct CachedPathImpl {
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
     /// `tsconfig.json` after resolving `references`, `files`, `include` and `extend`.
     pub resolved_tsconfig: OnceLock<Option<Arc<TsConfig>>>,
+    /// One `read_dir` snapshot of this path as a directory, replacing per-child `lstat`
+    /// probes. `None` = listing unavailable (unsupported file system, not a directory, or
+    /// read error); children then fall back to per-path metadata calls.
+    pub dir_entries: OnceLock<Option<Box<DirListing>>>,
+    /// Cold child probes seen before `dir_entries` is built; see
+    /// [`CachedPathImpl::child_from_listing`].
+    pub child_probes: AtomicU8,
+}
+
+/// A directory's entries with their `lstat`-equivalent kinds, from one [`FileSystem::read_dir`].
+///
+/// Names are keyed by their OS byte encoding. A lookup only reports "definitely absent" when
+/// no ASCII case-variant of the queried name exists either, so resolution behaves identically
+/// on case-sensitive and case-insensitive file systems; non-ASCII names always fall back to a
+/// real metadata call (Unicode case folding and normalization stay the OS's business).
+pub struct DirListing {
+    /// Entry name bytes -> kind (`None` = kind unknown, caller must `lstat`).
+    entries: FxHashMap<Box<[u8]>, Option<FileMetadata>>,
+    /// ASCII-lowercased forms of entry names that contain an uppercase ASCII byte.
+    lowered: FxHashSet<Box<[u8]>>,
+}
+
+/// Verdict of a directory-listing lookup for one child name.
+pub enum ChildVerdict {
+    /// Child exists with this `lstat`-equivalent kind; no syscall needed.
+    Kind(FileMetadata),
+    /// Child is definitely absent; no syscall needed.
+    Absent,
+    /// No verdict — the caller must issue the real metadata call.
+    Unknown,
+}
+
+impl DirListing {
+    fn load(fs: &dyn FileSystem, path: &Path) -> Option<Box<Self>> {
+        let raw = fs.read_dir(path).ok()?;
+        let mut entries =
+            FxHashMap::with_capacity_and_hasher(raw.len(), rustc_hash::FxBuildHasher);
+        let mut lowered = FxHashSet::default();
+        for (name, kind) in raw {
+            let bytes = name.into_encoded_bytes().into_boxed_slice();
+            if bytes.is_ascii() && bytes.iter().any(u8::is_ascii_uppercase) {
+                lowered.insert(bytes.to_ascii_lowercase().into_boxed_slice());
+            }
+            entries.insert(bytes, kind);
+        }
+        Some(Box::new(Self { entries, lowered }))
+    }
+
+    fn lookup(&self, name: &OsStr) -> ChildVerdict {
+        let bytes = name.as_encoded_bytes();
+        if !bytes.is_ascii() {
+            return ChildVerdict::Unknown;
+        }
+        if let Some(kind) = self.entries.get(bytes) {
+            return kind.map_or(ChildVerdict::Unknown, ChildVerdict::Kind);
+        }
+        // Absent by exact bytes. A case-variant entry could still satisfy this name on a
+        // case-insensitive file system (macOS, Windows) — only report absent when none exists.
+        let has_upper = bytes.iter().any(u8::is_ascii_uppercase);
+        if self.lowered.is_empty() && !has_upper {
+            return ChildVerdict::Absent;
+        }
+        let lower = bytes.to_ascii_lowercase();
+        if self.lowered.contains(lower.as_slice())
+            || (has_upper && self.entries.contains_key(lower.as_slice()))
+        {
+            return ChildVerdict::Unknown;
+        }
+        ChildVerdict::Absent
+    }
 }
 
 impl CachedPathImpl {
@@ -58,7 +133,32 @@ impl CachedPathImpl {
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),
             resolved_tsconfig: OnceLock::new(),
+            dir_entries: OnceLock::new(),
+            child_probes: AtomicU8::new(0),
         }
+    }
+
+    /// Answer a child's `lstat`-equivalent metadata from this directory's listing.
+    ///
+    /// The listing is built lazily on the sixteenth cold child probe. Cold probe counts per
+    /// directory are bimodal: path ancestors and one-off package directories see a handful,
+    /// while directories a build actually shares — `node_modules` under many bare specifiers,
+    /// package/source dirs under many subpath or extension candidates — see dozens to
+    /// hundreds. One `read_dir` costs several syscalls (open + fstat + getdirentries + close)
+    /// plus the entry-map build, so the threshold sits above the first mode: sparse
+    /// resolutions keep exactly their per-path `lstat` behavior, and densely probed
+    /// directories collapse every probe past the sixteenth into zero syscalls.
+    pub(crate) fn child_from_listing(&self, name: &OsStr, fs: &dyn FileSystem) -> ChildVerdict {
+        const LISTING_THRESHOLD: u8 = 16;
+        let listing = if let Some(listing) = self.dir_entries.get() {
+            listing
+        } else {
+            if self.child_probes.fetch_add(1, Ordering::Relaxed) < LISTING_THRESHOLD - 1 {
+                return ChildVerdict::Unknown;
+            }
+            self.dir_entries.get_or_init(|| DirListing::load(fs, &self.path))
+        };
+        listing.as_deref().map_or(ChildVerdict::Unknown, |listing| listing.lookup(name))
     }
 }
 
@@ -251,8 +351,23 @@ impl CachedPath {
     ///
     /// Used both to answer `is_file`/`is_dir` for non-symlinks and by canonicalization to decide
     /// whether to follow a symlink — so the two share a single `lstat` syscall per path.
+    ///
+    /// The parent directory's listing is consulted first (see
+    /// [`CachedPathImpl::child_from_listing`]); when it has a verdict, no syscall is issued
+    /// for this path at all.
     pub(crate) fn link_metadata(&self, fs: &dyn FileSystem) -> Option<FileMetadata> {
-        self.meta.link_or_init(|| fs.symlink_metadata(&self.path).ok())
+        self.meta.link_or_init(|| {
+            if let Some(parent) = self.parent.as_ref().and_then(Weak::upgrade)
+                && let Some(name) = self.path.file_name()
+            {
+                match parent.child_from_listing(name, fs) {
+                    ChildVerdict::Kind(meta) => return Some(meta),
+                    ChildVerdict::Absent => return None,
+                    ChildVerdict::Unknown => {}
+                }
+            }
+            fs.symlink_metadata(&self.path).ok()
+        })
     }
 }
 

@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsString,
     fs, io,
     path::{Path, PathBuf},
 };
@@ -77,6 +78,23 @@ pub trait FileSystem: Send + Sync {
     ///
     /// See [std::fs::canonicalize]
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
+
+    /// List a directory's entries with each entry's `lstat`-equivalent kind (`None` when the
+    /// kind is not known from the directory stream and must be queried individually).
+    ///
+    /// This powers the resolver's per-directory listing cache: one `read_dir` answers
+    /// existence and symlink-ness for every child, replacing per-candidate metadata calls.
+    /// The default implementation returns [`io::ErrorKind::Unsupported`], which disables the
+    /// listing cache and keeps per-path metadata behavior for custom file systems.
+    ///
+    /// # Errors
+    ///
+    /// * Any error from reading the directory. Callers treat an error as "listing
+    ///   unavailable", never as "directory empty".
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<(OsString, Option<FileMetadata>)>> {
+        let _ = path;
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
 }
 
 /// Metadata information about a file
@@ -106,6 +124,16 @@ impl FileMetadata {
     #[must_use]
     pub const fn is_symlink(self) -> bool {
         self.is_symlink
+    }
+}
+
+impl From<fs::FileType> for FileMetadata {
+    // `FileType::is_file` is exactly `Metadata::is_file`, and this conversion must classify
+    // paths identically to the `lstat`-based `From<fs::Metadata>` above (a socket/fifo is
+    // neither file nor dir in both). `!is_dir()` would diverge for those.
+    #[allow(clippy::filetype_is_file)]
+    fn from(file_type: fs::FileType) -> Self {
+        Self::new(file_type.is_file(), file_type.is_dir(), file_type.is_symlink())
     }
 }
 
@@ -361,6 +389,26 @@ impl FileSystem for FileSystemOs {
             }
         }
         Self::canonicalize(path)
+    }
+
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<(OsString, Option<FileMetadata>)>> {
+        cfg_if! {
+            if #[cfg(feature = "yarn_pnp")] {
+                if self.yarn_pnp {
+                    // Zip and virtual paths have no directory stream; keep per-path metadata
+                    // behavior under Yarn PnP.
+                    return Err(io::Error::from(io::ErrorKind::Unsupported));
+                }
+            }
+        }
+        // `DirEntry::file_type` comes from the directory stream (`d_type` on unix, find data
+        // on windows); the standard library falls back to a metadata call only when the
+        // filesystem reports an unknown type, matching what a per-entry probe would cost.
+        fs::read_dir(path)?
+            .map(|entry| {
+                entry.map(|entry| (entry.file_name(), entry.file_type().ok().map(Into::into)))
+            })
+            .collect()
     }
 }
 
