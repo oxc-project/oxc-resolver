@@ -932,7 +932,7 @@ impl ResolverImpl {
         // hot path when no alias key matches; a non-UTF-8 path can't match a string alias anyway.
         if !self.options.alias.is_empty() {
             let path_bytes = cached_path.path().as_os_str().as_encoded_bytes();
-            if self.alias.iter().any(|alias| alias.key_matches(path_bytes))
+            if self.alias.any_key_matches(path_bytes)
                 && let Some(alias_specifier) = cached_path.path().to_str()
                 && let Some(path) =
                     self.load_alias(cached_path, alias_specifier, &self.alias, tsconfig, ctx)?

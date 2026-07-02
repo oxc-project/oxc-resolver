@@ -8,7 +8,60 @@ use crate::{
     path::{PathUtil, SLASH_START},
 };
 
-pub type CompiledAlias = Vec<CompiledAliasEntry>;
+#[derive(Clone, Default)]
+pub struct CompiledAlias {
+    entries: Vec<CompiledAliasEntry>,
+    /// First byte of each entry's key (or wildcard prefix), parallel to `entries`. Packed
+    /// contiguously so the per-specifier scan touches one or two cache lines instead of striding
+    /// over the ~100-byte entries. `0` marks an entry that must always be evaluated (an empty
+    /// key/prefix can match any specifier); a key genuinely starting with NUL also maps to `0`,
+    /// which just skips its fast-reject.
+    first_bytes: Box<[u8]>,
+    /// 256-bit set of `first_bytes` values for an O(1) "no entry can match" exit.
+    byte_mask: [u64; 4],
+}
+
+impl CompiledAlias {
+    fn mask_contains(&self, byte: u8) -> bool {
+        self.byte_mask[usize::from(byte >> 6)] & (1u64 << (byte & 63)) != 0
+    }
+
+    /// Whether any entry's first byte is compatible with `specifier`, without touching the
+    /// entries. `0` in the mask means an always-evaluated entry exists.
+    fn may_match(&self, specifier: &[u8]) -> bool {
+        self.mask_contains(0) || specifier.first().is_some_and(|&byte| self.mask_contains(byte))
+    }
+
+    /// Entries whose first byte is compatible with `specifier`, in declaration order. This is
+    /// only the fast-reject; callers still confirm with [`CompiledAliasEntry::key_matches`].
+    fn matching<'a>(&'a self, specifier: &'a [u8]) -> impl Iterator<Item = &'a CompiledAliasEntry> {
+        let first = specifier.first().copied();
+        self.first_bytes
+            .iter()
+            .zip(&self.entries)
+            .filter(move |&(&byte, _)| byte == 0 || Some(byte) == first)
+            .map(|(_, entry)| entry)
+    }
+
+    /// Whether any entry's key matches `specifier` (raw bytes), gated by the first-byte mask.
+    /// This runs for every file candidate when `alias` is configured, so on the common path
+    /// (no always-evaluated entry) it jumps straight to candidate entries with `memchr` instead
+    /// of scanning `first_bytes` with a branch per entry.
+    pub(crate) fn any_key_matches(&self, specifier: &[u8]) -> bool {
+        if !self.may_match(specifier) {
+            return false;
+        }
+        if self.mask_contains(0) {
+            return self.matching(specifier).any(|entry| entry.key_matches(specifier));
+        }
+        // `may_match` returned true without a `0` entry, so the specifier is non-empty.
+        let Some(&first) = specifier.first() else {
+            return false;
+        };
+        memchr::memchr_iter(first, &self.first_bytes)
+            .any(|index| self.entries[index].key_matches(specifier))
+    }
+}
 
 #[derive(Clone)]
 pub struct CompiledAliasEntry {
@@ -30,7 +83,7 @@ pub enum AliasMatchKind {
 }
 
 pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
-    aliases
+    let entries: Vec<CompiledAliasEntry> = aliases
         .iter()
         .map(|(key, specifiers)| {
             let (key, match_kind) = key.strip_suffix('$').map_or_else(
@@ -55,7 +108,14 @@ pub fn compile_alias(aliases: &Alias) -> CompiledAlias {
             };
             CompiledAliasEntry { key, match_kind, specifiers: specifiers.clone(), match_first_byte }
         })
-        .collect()
+        .collect();
+    let first_bytes: Box<[u8]> =
+        entries.iter().map(|entry| entry.match_first_byte.unwrap_or(0)).collect();
+    let mut byte_mask = [0u64; 4];
+    for &byte in &first_bytes {
+        byte_mask[usize::from(byte >> 6)] |= 1u64 << (byte & 63);
+    }
+    CompiledAlias { entries, first_bytes, byte_mask }
 }
 
 impl CompiledAliasEntry {
@@ -101,7 +161,10 @@ impl ResolverImpl {
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<Option<CachedPath>, ResolveError> {
-        for alias in aliases {
+        if !aliases.may_match(specifier.as_bytes()) {
+            return Ok(None);
+        }
+        for alias in aliases.matching(specifier.as_bytes()) {
             if !alias.key_matches(specifier.as_bytes()) {
                 continue;
             }
