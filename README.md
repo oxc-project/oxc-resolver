@@ -321,14 +321,6 @@ Irrelevant tests
 - unsafe-cache.test.js
 - yield.test.js
 
-## [Sponsored By](https://github.com/sponsors/Boshen)
-
-<p align="center">
-  <a href="https://github.com/sponsors/Boshen">
-    <img src="https://raw.githubusercontent.com/Boshen/sponsors/main/sponsors.svg" alt="My sponsors" />
-  </a>
-</p>
-
 ## 📖 License
 
 `oxc_resolver` is free and open-source software licensed under the [MIT License](./LICENSE).
@@ -364,3 +356,11 @@ Oxc partially copies code from the following projects.
 [npm-badge]: https://img.shields.io/npm/dw/oxc-resolver?label=npm
 [npm-url]: https://npmx.dev/package/oxc-resolver
 [tsconfck]: https://github.com/dominikg/tsconfck
+
+## ❤ Who's [Sponsoring Oxc](https://github.com/sponsors/Boshen)?
+
+<p align="center">
+  <a href="https://github.com/sponsors/Boshen">
+    <img src="https://raw.githubusercontent.com/Boshen/sponsors/main/sponsors.svg" alt="Our sponsors" />
+  </a>
+</p>
