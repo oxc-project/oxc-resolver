@@ -518,6 +518,29 @@ impl TsConfig {
             .is_some()
             .then(|| self.compiler_options.paths_base.normalize_with(specifier))
     }
+
+    /// Maps a non-relative module `specifier` through this tsconfig's `compilerOptions.paths`
+    /// and `baseUrl` configuration, returning the mapped absolute path candidates without
+    /// checking whether they exist on disk.
+    ///
+    /// Unlike normal resolution (e.g. [`crate::ResolverImpl::resolve_file`]), which discards
+    /// a `paths`/`baseUrl` mapping when the mapped path does not point at a real file, this
+    /// keeps the mapping. It is intended for callers that need the alias mapping for a specifier
+    /// that is not expected to resolve to a real file, such as glob patterns used by
+    /// `import.meta.glob` (e.g. `@/foo/**/*`).
+    ///
+    /// Discover the tsconfig for an importing file with [`crate::ResolverImpl::find_tsconfig`],
+    /// which resolves project references so the returned config is the one that owns the file.
+    #[must_use]
+    pub fn resolve_path_alias_or_base_url(&self, specifier: &str) -> Vec<PathBuf> {
+        let mut paths = self.resolve_path_alias(specifier);
+        if paths.is_empty()
+            && let Some(base_url_path) = self.resolve_base_url(specifier)
+        {
+            paths.push(base_url_path);
+        }
+        paths
+    }
 }
 
 /// Compiler Options
