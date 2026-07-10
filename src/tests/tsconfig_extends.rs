@@ -298,7 +298,8 @@ impl crate::FileSystem for UnreadableFs {
 }
 
 /// When a tsconfig's `extends` target exists but is not readable (e.g. permission denied),
-/// `resolve_tsconfig` should return an `IOError` (not silently skip it).
+/// `resolve_tsconfig` should return a `TsconfigLoadFailed` wrapping an `IOError`
+/// (not silently skip it).
 #[test]
 fn test_extend_tsconfig_unreadable_file() {
     use crate::ResolveError;
@@ -319,13 +320,17 @@ fn test_extend_tsconfig_unreadable_file() {
 
     let result = resolver.resolve_tsconfig(&f);
     assert!(
-        matches!(&result, Err(ResolveError::IOError(_))),
-        "expected IOError for unreadable extends target, got {result:?}",
+        matches!(
+            &result,
+            Err(ResolveError::TsconfigLoadFailed { source, .. })
+                if matches!(source.as_ref(), ResolveError::IOError(_))
+        ),
+        "expected TsconfigLoadFailed wrapping IOError for unreadable extends target, got {result:?}",
     );
 }
 
 /// When a tsconfig's `references` target exists but is not readable (e.g. permission denied),
-/// `resolve_tsconfig` should return an `IOError`.
+/// `resolve_tsconfig` should return a `TsconfigLoadFailed` wrapping an `IOError`.
 #[test]
 fn test_references_unreadable_file() {
     use crate::ResolveError;
@@ -346,8 +351,12 @@ fn test_references_unreadable_file() {
 
     let result = resolver.resolve_tsconfig(&f);
     assert!(
-        matches!(&result, Err(ResolveError::IOError(_))),
-        "expected IOError for unreadable references target, got {result:?}",
+        matches!(
+            &result,
+            Err(ResolveError::TsconfigLoadFailed { source, .. })
+                if matches!(source.as_ref(), ResolveError::IOError(_))
+        ),
+        "expected TsconfigLoadFailed wrapping IOError for unreadable references target, got {result:?}",
     );
 }
 

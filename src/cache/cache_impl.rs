@@ -287,15 +287,22 @@ impl Cache {
             if err.kind() == io::ErrorKind::NotFound {
                 ResolveError::TsconfigNotFound(path.to_path_buf())
             } else {
-                ResolveError::from(err)
+                ResolveError::TsconfigLoadFailed {
+                    path: tsconfig_path.to_path_buf(),
+                    source: Box::new(ResolveError::from(err)),
+                }
             }
         })?;
         let canonical_path = self
             .canonicalize(&self.value(&tsconfig_path))
             .unwrap_or_else(|_| tsconfig_path.to_path_buf());
         let mut tsconfig = TsConfig::parse(root, &tsconfig_path, &canonical_path, tsconfig_string)
-            .map_err(|error| {
-                ResolveError::from_serde_json_error(tsconfig_path.to_path_buf(), &error)
+            .map_err(|error| ResolveError::TsconfigLoadFailed {
+                path: tsconfig_path.to_path_buf(),
+                source: Box::new(ResolveError::from_serde_json_error(
+                    tsconfig_path.to_path_buf(),
+                    &error,
+                )),
             })?;
 
         // Run callback (extends/references processing)
