@@ -47,6 +47,13 @@ pub enum ResolveError {
     #[error("Tsconfig extends configs circularly: {0}")]
     TsconfigCircularExtend(CircularPathBufs),
 
+    /// Failed to read or parse a tsconfig file.
+    ///
+    /// Keeps tsconfig load failures distinguishable from package.json ones,
+    /// which also surface as [ResolveError::Json] and [ResolveError::IOError].
+    #[error("Failed to load tsconfig {path:?}: {source}")]
+    TsconfigLoadFailed { path: PathBuf, source: Box<Self> },
+
     #[error("{0}")]
     IOError(IOError),
 

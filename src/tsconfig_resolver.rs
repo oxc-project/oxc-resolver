@@ -92,7 +92,7 @@ impl ResolverImpl {
     ///
     /// # Errors
     ///
-    /// * [ResolveError::Json]
+    /// * [ResolveError::TsconfigLoadFailed]
     fn find_tsconfig_impl(
         &self,
         cached_path: &CachedPath,
@@ -119,7 +119,11 @@ impl ResolverImpl {
                         Ok(tsconfig) => Ok(Some(tsconfig)),
                         // Skip unreadable tsconfig files (e.g. permission denied)
                         // and continue walking parent directories
-                        Err(ResolveError::IOError(_)) => Ok(None),
+                        Err(ResolveError::TsconfigLoadFailed { ref source, .. })
+                            if matches!(source.as_ref(), ResolveError::IOError(_)) =>
+                        {
+                            Ok(None)
+                        }
                         Err(e) => Err(e),
                     }
                 } else {
