@@ -411,8 +411,24 @@ impl Cache {
             || Ok(path.normalize_root(self)),
             |parent| {
                 self.canonicalize_with_visited(&parent, visited).and_then(|parent_canonical| {
-                    let normalized = parent_canonical
-                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
+                    // When no ancestor was rewritten (`parent_canonical` is `parent` itself) and
+                    // this key is exactly `<parent><MAIN_SEPARATOR><file_name>`, re-joining the
+                    // tail would rebuild `path`'s own key — reuse it and skip the strip_prefix,
+                    // scratch-buffer copy, hash, and shard probe. Keys with `.`/`..` tails,
+                    // trailing/doubled separators, or (on Windows) a `/` joint fail the check
+                    // and take the rebuild path, which folds them.
+                    let path_bytes = path.path().as_os_str().as_encoded_bytes();
+                    let parent_len = parent.path().as_os_str().len();
+                    let normalized = if Arc::ptr_eq(&parent_canonical.0, &parent.0)
+                        && path.path().file_name().is_some_and(|name| {
+                            parent_len + 1 + name.len() == path_bytes.len()
+                                && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
+                        }) {
+                        path.clone()
+                    } else {
+                        parent_canonical
+                            .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self)
+                    };
 
                     if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
                         let link = self.fs.read_link(normalized.path())?;
