@@ -23,7 +23,7 @@ mod tests {
 
         let path = Path::new("/foo/bar");
         let cached_path = cache.value(path);
-        assert!(format!("{cached_path:?}") == format!("{path:?}"));
-        assert!(format!("{cached_path}") == format!("{}", path.display()));
+        assert_eq!(format!("{cached_path:?}"), format!("{path:?}"));
+        assert_eq!(format!("{cached_path}"), format!("{}", path.display()));
     }
 }

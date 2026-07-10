@@ -2564,8 +2564,8 @@ fn test_cases() {
                 assert!(
                     matches!(resolved_path, Err(ResolveError::PackagePathNotExported { .. })),
                     "{} {:?}",
-                    &case.name,
-                    &resolved_path
+                    case.name,
+                    resolved_path
                 );
             } else {
                 for expect in expect {
@@ -2573,12 +2573,12 @@ fn test_cases() {
                         resolved_path,
                         Ok(Some(Path::new(expect).normalize())),
                         "{}",
-                        &case.name
+                        case.name
                     );
                 }
             }
         } else {
-            assert!(resolved_path.is_err(), "{} {resolved_path:?}", &case.name);
+            assert!(resolved_path.is_err(), "{} {resolved_path:?}", case.name);
         }
     }
 }

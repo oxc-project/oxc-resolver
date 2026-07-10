@@ -60,7 +60,7 @@ fn test() {
             assert!(
                 ctx.missing_dependencies.contains(&path),
                 "{specifier}: {path:?} not in {:?}",
-                &ctx.missing_dependencies
+                ctx.missing_dependencies
             );
         }
     }

@@ -1356,19 +1356,19 @@ fn test_cases() {
             .map(|p| p.map(|p| p.to_path_buf()));
         if let Some(expect) = case.expect {
             if expect.is_empty() {
-                assert!(matches!(resolved_path, Ok(None)), "{} {:?}", &case.name, &resolved_path);
+                assert!(matches!(resolved_path, Ok(None)), "{} {:?}", case.name, resolved_path);
             } else {
                 for expect in expect {
                     assert_eq!(
                         resolved_path,
                         Ok(Some(Path::new(expect).normalize())),
                         "{}",
-                        &case.name
+                        case.name
                     );
                 }
             }
         } else {
-            assert!(resolved_path.is_err(), "{} {resolved_path:?}", &case.name);
+            assert!(resolved_path.is_err(), "{} {resolved_path:?}", case.name);
         }
     }
 }
