@@ -411,8 +411,33 @@ impl Cache {
             || Ok(path.normalize_root(self)),
             |parent| {
                 self.canonicalize_with_visited(&parent, visited).and_then(|parent_canonical| {
-                    let normalized = parent_canonical
-                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
+                    // When no ancestor is a symlink — the common case — the parent
+                    // canonicalizes to itself, so `parent_canonical` is `parent`'s own interned
+                    // Arc and the rebuild below would just re-derive `path`'s existing key.
+                    // Skip it (the strip_prefix, scratch-buffer copy, hash, and shard probe)
+                    // and return this entry directly. That is only sound when the key is
+                    // spelled exactly `<parent><MAIN_SEPARATOR><file_name>`: spellings the
+                    // rebuild would fold — `.`/`..` tails, trailing or doubled separators, a
+                    // `/` joint on Windows — fail the shape check and rebuild as before. The
+                    // byte before the joint must be a non-separator because a root parent
+                    // already ends with the separator (the rebuild appends none), so with
+                    // `//x` or `C:\\x` the `+ 1` would count the doubled separator itself.
+                    // Wasm always rebuilds: component normalization trims uvwasi's trailing
+                    // NULs, which reuse would keep.
+                    let path_bytes = path.path().as_os_str().as_encoded_bytes();
+                    let parent_len = parent.path().as_os_str().len();
+                    let normalized = if cfg!(not(target_family = "wasm"))
+                        && Arc::ptr_eq(&parent_canonical.0, &parent.0)
+                        && path.path().file_name().is_some_and(|name| {
+                            parent_len + 1 + name.len() == path_bytes.len()
+                                && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
+                                && path_bytes[parent_len - 1] != std::path::MAIN_SEPARATOR as u8
+                        }) {
+                        path.clone()
+                    } else {
+                        parent_canonical
+                            .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self)
+                    };
 
                     if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
                         let link = self.fs.read_link(normalized.path())?;
