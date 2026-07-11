@@ -8,7 +8,7 @@ oxc-resolver is a Rust port of webpack's enhanced-resolve, providing ESM and Com
 
 ### Key Technologies
 
-- **Rust**: Core implementation using Rust 2024 edition (MSRV: 1.85.0)
+- **Rust**: Core implementation using Rust 2024 edition (MSRV: 1.95.0)
 - **NAPI**: Node.js bindings for JavaScript/TypeScript usage
 - **WebAssembly**: Browser support
 - **GitHub Actions**: CI/CD workflows
