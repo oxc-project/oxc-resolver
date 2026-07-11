@@ -416,13 +416,17 @@ impl Cache {
                     // tail would rebuild `path`'s own key — reuse it and skip the strip_prefix,
                     // scratch-buffer copy, hash, and shard probe. Keys with `.`/`..` tails,
                     // trailing/doubled separators, or (on Windows) a `/` joint fail the check
-                    // and take the rebuild path, which folds them.
+                    // and take the rebuild path, which folds them. A root parent already ends
+                    // with the separator, so the rebuild adds none and the `+ 1` would instead
+                    // count a doubled separator after the root (`//x`, `C:\\x`) — the byte
+                    // before the joint must therefore be a non-separator.
                     let path_bytes = path.path().as_os_str().as_encoded_bytes();
                     let parent_len = parent.path().as_os_str().len();
                     let normalized = if Arc::ptr_eq(&parent_canonical.0, &parent.0)
                         && path.path().file_name().is_some_and(|name| {
                             parent_len + 1 + name.len() == path_bytes.len()
                                 && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
+                                && path_bytes[parent_len - 1] != std::path::MAIN_SEPARATOR as u8
                         }) {
                         path.clone()
                     } else {

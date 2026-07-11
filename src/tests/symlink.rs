@@ -312,7 +312,7 @@ fn canonicalize_matches_os_for_all_node_modules() {
 fn canonicalize_dirty_cache_keys() {
     let f = super::fixture();
     let sep = std::path::MAIN_SEPARATOR;
-    let dirty = [
+    let mut dirty = vec![
         f.join(".."),
         f.join("lib").join(".."),
         f.join("lib").join("..").join("lib").join("complex1.js"),
@@ -320,6 +320,15 @@ fn canonicalize_dirty_cache_keys() {
         PathBuf::from(format!("{}{sep}", f.join("lib").display())),
         PathBuf::from(format!("{}{sep}{sep}complex1.js", f.join("lib").display())),
     ];
+    #[cfg(unix)]
+    {
+        dirty.push(PathBuf::from(format!("{sep}{}", f.display())));
+        dirty.push(PathBuf::from(format!("{sep}{sep}{}", f.display())));
+    }
+    #[cfg(target_os = "windows")]
+    {
+        dirty.push(PathBuf::from(f.display().to_string().replacen(":\\", ":\\\\", 1)));
+    }
     let resolver = Resolver::new(ResolveOptions::default());
     for path in dirty {
         let expected = fs::canonicalize(&path).unwrap();
@@ -327,7 +336,7 @@ fn canonicalize_dirty_cache_keys() {
         let expected = crate::windows::strip_windows_prefix(expected).unwrap();
         let cached = resolver.cache.value(&path);
         let actual = resolver.cache.canonicalize(&cached).unwrap();
-        assert_eq!(actual, expected, "{}", path.display());
+        assert_eq!(actual.as_os_str(), expected.as_os_str(), "{}", path.display());
     }
 }
 
