@@ -14,6 +14,9 @@ const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // `--use-napi-cross` behave identically.
 const buildCommand = createBuildCommand(process.argv.slice(2));
 const argsOptions = buildCommand.getOptions();
+// `getOptions()` does not surface args after `--`; the CLI's BuildCommand forwards those
+// separately as `cargoOptions`, so read the same field to keep the passthrough working.
+const restCargoOptions = buildCommand.cargoOptions ?? [];
 
 const isRelease = argsOptions.release === true || argsOptions.profile === "release";
 
@@ -96,10 +99,13 @@ if (process.env.OXC_RESOLVER_BUILD_STD === "1" && isRelease) {
   }
 }
 
+// Injected config first: cargo applies later `--config` values with higher precedence,
+// so a caller-passed `--config` can still override the remap entry.
+const cargoOptions = [...(remapConfig ? ["--config", remapConfig] : []), ...restCargoOptions];
+
 const napiArgs = {
   ...argsOptions,
-  // `getOptions()` doesn't surface CLI rest args, so this doesn't overwrite anything.
-  ...(remapConfig ? { cargoOptions: ["--config", remapConfig] } : {}),
+  ...(cargoOptions.length > 0 ? { cargoOptions } : {}),
   cwd: workspaceRoot,
   manifestPath: "napi/Cargo.toml",
   platform: true,
