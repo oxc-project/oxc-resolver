@@ -411,19 +411,19 @@ impl Cache {
             || Ok(path.normalize_root(self)),
             |parent| {
                 self.canonicalize_with_visited(&parent, visited).and_then(|parent_canonical| {
-                    // This step appends the tail to whatever `parent` canonicalized into. The
-                    // cache interns one Arc per key, so a pointer-equal `parent_canonical` means
-                    // no ancestor was rewritten by a symlink — and when this key is exactly
-                    // `<parent><MAIN_SEPARATOR><file_name>`, the rebuild below could only
-                    // reproduce `path`'s own key and hand back this very entry. Return it
-                    // directly, skipping the strip_prefix, scratch-buffer copy, hash, and shard
-                    // probe. Spellings the rebuild would fold rather than reproduce — `.`/`..`
-                    // tails, trailing or doubled separators, a `/` joint on Windows — fail the
-                    // shape check and take the rebuild path. A root parent already ends with the
-                    // separator (the rebuild appends none), so the `+ 1` would instead count a
-                    // doubled separator after the root (`//x`, `C:\\x`) — the byte before the
-                    // joint must be a non-separator. Wasm always rebuilds: component
-                    // normalization trims uvwasi's trailing NULs, which reuse would keep.
+                    // When no ancestor is a symlink — the common case — the parent
+                    // canonicalizes to itself, so `parent_canonical` is `parent`'s own interned
+                    // Arc and the rebuild below would just re-derive `path`'s existing key.
+                    // Skip it (the strip_prefix, scratch-buffer copy, hash, and shard probe)
+                    // and return this entry directly. That is only sound when the key is
+                    // spelled exactly `<parent><MAIN_SEPARATOR><file_name>`: spellings the
+                    // rebuild would fold — `.`/`..` tails, trailing or doubled separators, a
+                    // `/` joint on Windows — fail the shape check and rebuild as before. The
+                    // byte before the joint must be a non-separator because a root parent
+                    // already ends with the separator (the rebuild appends none), so with
+                    // `//x` or `C:\\x` the `+ 1` would count the doubled separator itself.
+                    // Wasm always rebuilds: component normalization trims uvwasi's trailing
+                    // NULs, which reuse would keep.
                     let path_bytes = path.path().as_os_str().as_encoded_bytes();
                     let parent_len = parent.path().as_os_str().len();
                     let normalized = if cfg!(not(target_family = "wasm"))
