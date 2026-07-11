@@ -81,7 +81,6 @@ missing_const_for_fn = "allow"
 name = "dir"
 
 [dependencies]
-cfg-if = "1"
 compact_str = "0.9"
 fast-glob = "1"
 indexmap = { version = "2", features = ["serde"] }

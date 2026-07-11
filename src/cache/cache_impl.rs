@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    cfg_select,
     collections::HashSet as StdHashSet,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
@@ -7,7 +8,6 @@ use std::{
     sync::Arc,
 };
 
-use cfg_if::cfg_if;
 use dashmap::{DashMap, mapref::entry::Entry};
 #[cfg(feature = "yarn_pnp")]
 use once_cell::sync::OnceCell;
@@ -94,12 +94,9 @@ impl Cache {
     pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
         let cached_path = self.canonicalize_impl(path)?;
         let path = cached_path.to_path_buf();
-        cfg_if! {
-            if #[cfg(target_os = "windows")] {
-                crate::windows::strip_windows_prefix(path)
-            } else {
-                Ok(path)
-            }
+        cfg_select! {
+            target_os = "windows" => crate::windows::strip_windows_prefix(path),
+            _ => Ok(path),
         }
     }
 
