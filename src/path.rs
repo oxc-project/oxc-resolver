@@ -3,9 +3,10 @@
 //! Code adapted from the following libraries
 //! * [path-absolutize](https://docs.rs/path-absolutize)
 //! * [normalize_path](https://docs.rs/normalize-path)
-use std::path::{Component, Path, PathBuf};
-
-use cfg_if::cfg_if;
+use std::{
+    cfg_select,
+    path::{Component, Path, PathBuf},
+};
 
 pub const SLASH_START: &[char; 2] = &['/', '\\'];
 
@@ -130,11 +131,12 @@ pub fn push_normalized_component(ret: &mut PathBuf, component: Component<'_>) {
             ret.pop();
         }
         Component::Normal(c) => {
-            cfg_if! {
-                if #[cfg(target_family = "wasm")] {
+            cfg_select! {
+                target_family = "wasm" => {
                     // Need to trim the extra \0 introduces by https://github.com/nodejs/uvwasi/issues/262
                     ret.push(c.to_string_lossy().trim_end_matches('\0'));
-                } else {
+                }
+                _ => {
                     ret.push(c);
                 }
             }

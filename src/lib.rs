@@ -87,6 +87,7 @@ pub use crate::{
 
 use std::{
     borrow::Cow,
+    cfg_select,
     cmp::Ordering,
     ffi::OsStr,
     fmt,
@@ -163,13 +164,10 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "yarn_pnp")] {
-                let fs = Fs::new(options.yarn_pnp);
-            } else {
-                let fs = Fs::new();
-            }
-        }
+        let fs = cfg_select! {
+            feature = "yarn_pnp" => Fs::new(options.yarn_pnp),
+            _ => Fs::new(),
+        };
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
         let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
@@ -190,17 +188,16 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "yarn_pnp")] {
-                let cache = if options.yarn_pnp == self.inner.options.yarn_pnp {
+        let cache = cfg_select! {
+            feature = "yarn_pnp" => {
+                if options.yarn_pnp == self.inner.options.yarn_pnp {
                     Arc::clone(&self.inner.cache)
                 } else {
                     Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
-                };
-            } else {
-                let cache = Arc::clone(&self.inner.cache);
+                }
             }
-        }
+            _ => Arc::clone(&self.inner.cache),
+        };
         let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
@@ -456,12 +453,10 @@ impl ResolverImpl {
             return Ok(path);
         }
 
-        cfg_if::cfg_if! {
-            if #[cfg(not(target_arch = "wasm32"))] {
-                let specifier = file_url::resolve_file_protocol(specifier)?;
-                let specifier = specifier.as_ref();
-            }
-        };
+        #[cfg(not(target_arch = "wasm32"))]
+        let specifier = file_url::resolve_file_protocol(specifier)?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let specifier = specifier.as_ref();
 
         let result = match Path::new(&specifier).components().next() {
             // 2. If X begins with '/'
