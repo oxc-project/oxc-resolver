@@ -62,6 +62,18 @@ if (isRelease) {
   } catch {
     // no registry dir (e.g. vendored deps) — nothing to collapse
   }
+  // `-Z build-std` compiles std from the sysroot's rust-src, so the `/rustup` mapping
+  // alone still leaves `toolchains/<tc>/lib/rustlib/src/rust/…` in panic locations.
+  // Collapse that tree too: `…/library/alloc/…` → `/std/alloc/…`, and std's vendored
+  // dependencies → `/deps/<crate>` to match the registry mapping.
+  const sysroot = spawnSync("rustc", ["--print", "sysroot"], { encoding: "utf8" });
+  if (sysroot.status === 0) {
+    const rustSrc = resolve(sysroot.stdout.trim(), "lib", "rustlib", "src", "rust");
+    remaps.push(
+      `--remap-path-prefix=${resolve(rustSrc, "vendor")}=/deps`,
+      `--remap-path-prefix=${resolve(rustSrc, "library")}=/std`,
+    );
+  }
   // TOML literal strings cannot contain single quotes; such paths just skip the remap.
   if (remaps.every((flag) => !flag.includes("'"))) {
     remapConfig = `target.'cfg(all())'.rustflags=[${remaps.map((flag) => `'${flag}'`).join(",")}]`;
