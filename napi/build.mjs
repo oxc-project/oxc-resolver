@@ -96,19 +96,21 @@ if (isRelease) {
 // `panic = "abort"` selects that runtime; std keeps its default `panic-unwind` feature so
 // the rebuilt std differs from the prebuilt one only by the dropped `backtrace` feature.
 //
-// Automatic on release builds with an explicit --target — i.e. the shipped binaries
-// (`RUSTC_BOOTSTRAP=1` unlocks `-Z build-std` on the pinned stable toolchain). Local dev
-// builds never rebuild std: debug builds skip this entirely, and a release build without
-// the `rust-src` component falls back to the prebuilt std — except in CI, where silently
-// shipping the ~200 KiB backtrace machinery again would be worse than a failed job.
-// `OXC_RESOLVER_BUILD_STD=0` opts a build out (the FreeBSD release VM). wasm targets keep
-// the prebuilt std (it bundles the toolchain's self-contained wasi-libc); windows-msvc
-// keeps the prebuilt std (a matched A/B in rolldown#10177 measured build-std as a small
-// size loss there) — all of these still get the path remap.
+// Only on CI release builds with an explicit --target — i.e. the shipped binaries
+// (`RUSTC_BOOTSTRAP=1` unlocks `-Z build-std` on the pinned stable toolchain; the release
+// workflow installs the required `rust-src` component). Local builds, debug or release,
+// never rebuild std — set CI=1 to reproduce a shipped binary. A CI release build without
+// rust-src fails outright: silently shipping the ~200 KiB backtrace machinery again would
+// be worse than a red job. `OXC_RESOLVER_BUILD_STD=0` opts a build out (the FreeBSD release
+// VM, where provisioning rust-src isn't worth it). wasm targets keep the prebuilt std (it
+// bundles the toolchain's self-contained wasi-libc); windows-msvc keeps the prebuilt std (a
+// matched A/B in rolldown#10177 measured build-std as a small size loss there) — all of
+// these still get the path remap.
 const target = argsOptions.target;
 if (
   isRelease &&
   target &&
+  process.env.CI &&
   process.env.OXC_RESOLVER_BUILD_STD !== "0" &&
   !target.startsWith("wasm") &&
   !target.includes("windows")
@@ -118,17 +120,12 @@ if (
     process.env.RUSTC_BOOTSTRAP = "1";
     process.env.CARGO_UNSTABLE_BUILD_STD = "std,panic_abort";
     process.env.CARGO_UNSTABLE_BUILD_STD_FEATURES = "panic-unwind";
-  } else if (process.env.CI) {
+  } else {
     console.error(
       "release build without the rust-src component would ship std's backtrace symbolizer: " +
         "run `rustup component add rust-src` (or set OXC_RESOLVER_BUILD_STD=0 to keep the prebuilt std)",
     );
     process.exit(1);
-  } else {
-    console.warn(
-      "rust-src component not installed: using the prebuilt std, which keeps the backtrace " +
-        "symbolizer released binaries drop (`rustup component add rust-src` to match)",
-    );
   }
 }
 

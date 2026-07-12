@@ -120,8 +120,8 @@ jobs:
 
       - run: rustup target add ${{ matrix.target }}
 
-      # std sources for `-Z build-std`: release builds with an explicit --target rebuild std
-      # without its backtrace symbolizer (see napi/build.mjs); missing rust-src fails the job.
+      # std sources for `-Z build-std`: CI release builds with an explicit --target rebuild
+      # std without its backtrace symbolizer (see napi/build.mjs); missing rust-src fails the job.
       - run: rustup component add rust-src
 
       - name: Setup OpenHarmony SDK
@@ -154,7 +154,7 @@ jobs:
     name: Build FreeBSD
     # OXC_RESOLVER_BUILD_STD=0 keeps the prebuilt std: provisioning rust-src inside the VM
     # isn't worth it for this niche target, and CI leaks into the VM, so without the opt-out
-    # the missing-rust-src guard in napi/build.mjs would fail the job instead of falling back.
+    # the missing-rust-src guard in napi/build.mjs would fail the job.
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
