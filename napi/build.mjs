@@ -1,7 +1,7 @@
 // Wrapper around `napi build` (the `build:debug` script) so release builds can
 // inject cargo configuration the napi CLI does not expose as flags.
 import { spawnSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +35,9 @@ const isRelease = argsOptions.release === true || argsOptions.profile === "relea
 // which suppresses config-level rustflags there — musl artifacts keep unremapped paths. The
 // durable fix is upstream in napi-rs.
 let remapConfig;
+// `<sysroot>/lib/rustlib/src/rust` — std sources from the rust-src component. Computed on
+// release builds; feeds both the path remap and the build-std gate (which checks it exists).
+let rustSrc;
 if (isRelease) {
   const cargoHome = process.env.CARGO_HOME ?? resolve(homedir(), ".cargo");
   const rustupHome = process.env.RUSTUP_HOME ?? resolve(homedir(), ".rustup");
@@ -68,7 +71,7 @@ if (isRelease) {
   // dependencies → `/deps/<crate>` to match the registry mapping.
   const sysroot = spawnSync("rustc", ["--print", "sysroot"], { encoding: "utf8" });
   if (sysroot.status === 0) {
-    const rustSrc = resolve(sysroot.stdout.trim(), "lib", "rustlib", "src", "rust");
+    rustSrc = resolve(sysroot.stdout.trim(), "lib", "rustlib", "src", "rust");
     remaps.push(
       `--remap-path-prefix=${resolve(rustSrc, "vendor")}=/deps`,
       `--remap-path-prefix=${resolve(rustSrc, "library")}=/std`,
@@ -93,21 +96,39 @@ if (isRelease) {
 // `panic = "abort"` selects that runtime; std keeps its default `panic-unwind` feature so
 // the rebuilt std differs from the prebuilt one only by the dropped `backtrace` feature.
 //
-// Opt-in via the release workflow because it needs `RUSTC_BOOTSTRAP=1` to unlock
-// `-Z build-std` on the pinned stable toolchain, the `rust-src` component (installed by the
-// release workflow), and an explicit `--target`. wasm targets keep the prebuilt std (it
-// bundles the toolchain's self-contained wasi-libc); windows-msvc keeps the prebuilt std (a
-// matched A/B in rolldown#10177 measured build-std as a small size loss there) — both still
-// get the path remap.
-if (process.env.OXC_RESOLVER_BUILD_STD === "1" && isRelease) {
-  if (!argsOptions.target) {
-    console.warn(
-      "OXC_RESOLVER_BUILD_STD=1 requires an explicit --target; building with prebuilt std instead",
-    );
-  } else if (!argsOptions.target.startsWith("wasm") && !argsOptions.target.includes("windows")) {
+// Automatic on release builds with an explicit --target — i.e. the shipped binaries
+// (`RUSTC_BOOTSTRAP=1` unlocks `-Z build-std` on the pinned stable toolchain). Local dev
+// builds never rebuild std: debug builds skip this entirely, and a release build without
+// the `rust-src` component falls back to the prebuilt std — except in CI, where silently
+// shipping the ~200 KiB backtrace machinery again would be worse than a failed job.
+// `OXC_RESOLVER_BUILD_STD=0` opts a build out (the FreeBSD release VM). wasm targets keep
+// the prebuilt std (it bundles the toolchain's self-contained wasi-libc); windows-msvc
+// keeps the prebuilt std (a matched A/B in rolldown#10177 measured build-std as a small
+// size loss there) — all of these still get the path remap.
+const target = argsOptions.target;
+if (
+  isRelease &&
+  target &&
+  process.env.OXC_RESOLVER_BUILD_STD !== "0" &&
+  !target.startsWith("wasm") &&
+  !target.includes("windows")
+) {
+  if (rustSrc && existsSync(resolve(rustSrc, "library", "std"))) {
+    console.info("build-std: rebuilding std without the backtrace feature");
     process.env.RUSTC_BOOTSTRAP = "1";
     process.env.CARGO_UNSTABLE_BUILD_STD = "std,panic_abort";
     process.env.CARGO_UNSTABLE_BUILD_STD_FEATURES = "panic-unwind";
+  } else if (process.env.CI) {
+    console.error(
+      "release build without the rust-src component would ship std's backtrace symbolizer: " +
+        "run `rustup component add rust-src` (or set OXC_RESOLVER_BUILD_STD=0 to keep the prebuilt std)",
+    );
+    process.exit(1);
+  } else {
+    console.warn(
+      "rust-src component not installed: using the prebuilt std, which keeps the backtrace " +
+        "symbolizer released binaries drop (`rustup component add rust-src` to match)",
+    );
   }
 }
 
