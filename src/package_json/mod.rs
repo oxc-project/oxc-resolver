@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{JSONError, ResolveError, path::PathUtil as _};
+use crate::{JSONError, ResolveError, path::PathUtil};
 
 /// Check if JSON content is empty or contains only whitespace
 fn check_if_empty(json_bytes: &[u8], path: &Path) -> Result<(), JSONError> {

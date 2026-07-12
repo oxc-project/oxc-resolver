@@ -24,7 +24,7 @@ impl MemoryFS {
     }
 
     pub fn add_file(&mut self, path: &Path, content: &str) {
-        use vfs::FileSystem as _;
+        use vfs::FileSystem;
         let fs = &mut self.fs;
         // Create all parent directories
         for path in path.ancestors().collect::<Vec<_>>().iter().rev() {
@@ -51,7 +51,7 @@ impl FileSystem for MemoryFS {
     }
 
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        use vfs::FileSystem as _;
+        use vfs::FileSystem;
         let mut file = self
             .fs
             .open_file(path.to_string_lossy().as_ref())
@@ -67,7 +67,7 @@ impl FileSystem for MemoryFS {
     }
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        use vfs::FileSystem as _;
+        use vfs::FileSystem;
         let metadata = self
             .fs
             .metadata(path.to_string_lossy().as_ref())
@@ -87,7 +87,7 @@ impl FileSystem for MemoryFS {
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
         // MemoryFS doesn't support symlinks, so just verify path exists and return it
-        use vfs::FileSystem as _;
+        use vfs::FileSystem;
         self.fs
             .metadata(path.to_string_lossy().as_ref())
             .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;

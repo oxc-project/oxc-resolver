@@ -7,7 +7,7 @@ use std::path::Path;
 use serde_json::json;
 
 use crate::{
-    Ctx, PathUtil as _, ResolveError, ResolveOptions, Resolver,
+    Ctx, PathUtil, ResolveError, ResolveOptions, Resolver,
     package_json::{ImportsExportsEntry, ImportsExportsEntryGeneric},
 };
 

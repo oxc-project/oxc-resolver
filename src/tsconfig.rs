@@ -11,7 +11,7 @@ use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use crate::{TsconfigReferences, path::PathUtil as _, replace_bom_with_whitespace};
+use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
 
 /// Template variable `${configDir}` for substitution of config files
 /// directory path.

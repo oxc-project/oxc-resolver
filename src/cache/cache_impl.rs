@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cfg_select,
     collections::HashSet as StdHashSet,
-    hash::{BuildHasherDefault, Hash as _, Hasher as _},
+    hash::{BuildHasherDefault, Hash, Hasher},
     io,
     path::{Path, PathBuf},
     sync::Arc,
@@ -17,7 +17,7 @@ use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
 use crate::{
     FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
-    context::ResolveContext as Ctx, path::PathUtil as _,
+    context::ResolveContext as Ctx, path::PathUtil,
 };
 
 /// Cache implementation used for caching filesystem access.

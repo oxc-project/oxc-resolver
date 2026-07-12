@@ -1,6 +1,6 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/missing.test.js
 
-use crate::{AliasValue, PathUtil as _, ResolveContext, ResolveOptions, Resolver};
+use crate::{AliasValue, PathUtil, ResolveContext, ResolveOptions, Resolver};
 
 #[test]
 fn test() {

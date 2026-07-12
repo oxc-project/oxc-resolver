@@ -6,7 +6,7 @@ use std::{
 use crate::{
     CachedPath, Ctx, ResolveError, ResolveOptions, ResolveResult, ResolverImpl, Specifier,
     SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-    path::PathUtil as _,
+    path::PathUtil,
 };
 
 #[derive(Default)]

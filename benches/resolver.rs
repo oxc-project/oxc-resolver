@@ -1,11 +1,11 @@
 use std::{
     env, fs,
-    io::{self, Write as _},
+    io::{self, Write},
     path::{Path, PathBuf},
 };
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use oxc_resolver::{FileSystem as _, FileSystemOs, PackageJson};
+use oxc_resolver::{FileSystem as FileSystemTrait, FileSystemOs, PackageJson};
 use rayon::prelude::*;
 
 use memory_fs::BenchMemoryFS;

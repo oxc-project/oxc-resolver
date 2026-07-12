@@ -10,7 +10,7 @@ pub use cached_path::CachedPath;
 #[cfg(test)]
 mod tests {
     use super::cache_impl::Cache;
-    use crate::FileSystem as _;
+    use crate::FileSystem;
     use std::path::Path;
     use std::sync::Arc;
 

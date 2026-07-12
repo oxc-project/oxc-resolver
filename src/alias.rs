@@ -5,7 +5,7 @@ use compact_str::CompactString;
 use crate::{
     Alias, AliasValue, CachedPath, ResolveError, ResolverImpl, TsConfig,
     context::ResolveContext as Ctx,
-    path::{PathUtil as _, SLASH_START},
+    path::{PathUtil, SLASH_START},
 };
 
 #[derive(Clone, Default)]
