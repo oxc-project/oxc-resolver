@@ -212,7 +212,7 @@ fn typings_takes_precedence_over_types() {
 fn completely_unresolvable_package() {
     let r = resolver();
     let result = r.resolve_dts(containing_file(), "completely-empty");
-    assert!(result.is_err());
+    result.unwrap_err();
 }
 
 #[test]

@@ -3,8 +3,10 @@
 //! The accessor logic lives in [`super`]; this module only provides the storage
 //! ([`PackageJsonCell`]), the [`JsonValue`]/[`JsonObject`] implementations, and `parse`.
 
-// `self_cell!` generates `pub` constructors with `impl FnOnce` parameters.
-#![allow(clippy::impl_trait_in_params)]
+#![expect(
+    clippy::impl_trait_in_params,
+    reason = "`self_cell!` generates `pub` constructors with `impl FnOnce` parameters"
+)]
 
 use std::path::PathBuf;
 
@@ -22,7 +24,7 @@ type BorrowedObject<'a> = simd_json::value::borrowed::Object<'a>;
 
 // `pub` because it appears as the type parameter of the public `PackageJson` alias. The
 // `self_cell!`-generated `pub` constructors take `impl FnOnce`; the module-level
-// `allow(clippy::impl_trait_in_params)` above silences clippy for those generated items.
+// `expect(clippy::impl_trait_in_params)` above silences clippy for those generated items.
 self_cell::self_cell! {
     pub struct PackageJsonCell {
         owner: MutBorrow<Vec<u8>>,

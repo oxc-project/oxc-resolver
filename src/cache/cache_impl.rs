@@ -45,7 +45,10 @@ impl Cache {
         &*self.fs
     }
 
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "shard selection needs only the low bits of the hash"
+    )]
     pub(crate) fn value(&self, path: &Path) -> CachedPath {
         // `Path::hash` is slow: https://doc.rust-lang.org/std/path/struct.Path.html#impl-Hash-for-Path
         // `path.as_os_str()` hash is not stable because we may joined a path like `foo/bar` and `foo\\bar` on windows.
@@ -407,59 +410,54 @@ impl Cache {
         let res = path.parent(self).map_or_else(
             || Ok(path.normalize_root(self)),
             |parent| {
-                self.canonicalize_with_visited(&parent, visited).and_then(|parent_canonical| {
-                    // When no ancestor is a symlink — the common case — the parent
-                    // canonicalizes to itself, so `parent_canonical` is `parent`'s own interned
-                    // Arc and the rebuild below would just re-derive `path`'s existing key.
-                    // Skip it (the strip_prefix, scratch-buffer copy, hash, and shard probe)
-                    // and return this entry directly. That is only sound when the key is
-                    // spelled exactly `<parent><MAIN_SEPARATOR><file_name>`: spellings the
-                    // rebuild would fold — `.`/`..` tails, trailing or doubled separators, a
-                    // `/` joint on Windows — fail the shape check and rebuild as before. The
-                    // byte before the joint must be a non-separator because a root parent
-                    // already ends with the separator (the rebuild appends none), so with
-                    // `//x` or `C:\\x` the `+ 1` would count the doubled separator itself.
-                    // Wasm always rebuilds: component normalization trims uvwasi's trailing
-                    // NULs, which reuse would keep.
-                    let path_bytes = path.path().as_os_str().as_encoded_bytes();
-                    let parent_len = parent.path().as_os_str().len();
-                    let normalized = if cfg!(not(target_family = "wasm"))
-                        && Arc::ptr_eq(&parent_canonical.0, &parent.0)
-                        && path.path().file_name().is_some_and(|name| {
-                            parent_len + 1 + name.len() == path_bytes.len()
-                                && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
-                                && path_bytes[parent_len - 1] != std::path::MAIN_SEPARATOR as u8
-                        }) {
-                        path.clone()
-                    } else {
-                        parent_canonical
-                            .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self)
-                    };
+                let parent_canonical = self.canonicalize_with_visited(&parent, visited)?;
+                // When no ancestor is a symlink — the common case — the parent
+                // canonicalizes to itself, so `parent_canonical` is `parent`'s own interned
+                // Arc and the rebuild below would just re-derive `path`'s existing key.
+                // Skip it (the strip_prefix, scratch-buffer copy, hash, and shard probe)
+                // and return this entry directly. That is only sound when the key is
+                // spelled exactly `<parent><MAIN_SEPARATOR><file_name>`: spellings the
+                // rebuild would fold — `.`/`..` tails, trailing or doubled separators, a
+                // `/` joint on Windows — fail the shape check and rebuild as before. The
+                // byte before the joint must be a non-separator because a root parent
+                // already ends with the separator (the rebuild appends none), so with
+                // `//x` or `C:\\x` the `+ 1` would count the doubled separator itself.
+                // Wasm always rebuilds: component normalization trims uvwasi's trailing
+                // NULs, which reuse would keep.
+                let path_bytes = path.path().as_os_str().as_encoded_bytes();
+                let parent_len = parent.path().as_os_str().len();
+                let normalized = if cfg!(not(target_family = "wasm"))
+                    && Arc::ptr_eq(&parent_canonical.0, &parent.0)
+                    && path.path().file_name().is_some_and(|name| {
+                        parent_len + 1 + name.len() == path_bytes.len()
+                            && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
+                            && path_bytes[parent_len - 1] != std::path::MAIN_SEPARATOR as u8
+                    }) {
+                    path.clone()
+                } else {
+                    parent_canonical
+                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self)
+                };
 
-                    if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
-                        let link = self.fs.read_link(normalized.path())?;
-                        if link.is_absolute() {
-                            return self.canonicalize_with_visited(
-                                &self.value(&link.normalize()),
-                                visited,
-                            );
-                        } else if let Some(dir) = normalized.parent(self) {
-                            // Symlink is relative `../../foo.js`, use the path directory
-                            // to resolve this symlink.
-                            return self.canonicalize_with_visited(
-                                &dir.normalize_with(&link, self),
-                                visited,
-                            );
-                        }
-                        debug_assert!(
-                            false,
-                            "Failed to get path parent for {}.",
-                            normalized.path().display()
-                        );
+                if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
+                    let link = self.fs.read_link(normalized.path())?;
+                    if link.is_absolute() {
+                        return self
+                            .canonicalize_with_visited(&self.value(&link.normalize()), visited);
+                    } else if let Some(dir) = normalized.parent(self) {
+                        // Symlink is relative `../../foo.js`, use the path directory
+                        // to resolve this symlink.
+                        return self
+                            .canonicalize_with_visited(&dir.normalize_with(&link, self), visited);
                     }
+                    debug_assert!(
+                        false,
+                        "Failed to get path parent for {}.",
+                        normalized.path().display()
+                    );
+                }
 
-                    Ok(normalized)
-                })
+                Ok(normalized)
             },
         )?;
 

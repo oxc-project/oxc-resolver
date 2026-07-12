@@ -15,7 +15,6 @@ impl MemoryFS {
     ///
     /// * Fails to create directory
     /// * Fails to write file
-    #[allow(dead_code)]
     pub fn new(data: &[(&'static str, &'static str)]) -> Self {
         let mut fs = Self { fs: vfs::MemoryFS::default() };
         for (path, content) in data {
@@ -24,7 +23,6 @@ impl MemoryFS {
         fs
     }
 
-    #[allow(dead_code)]
     pub fn add_file(&mut self, path: &Path, content: &str) {
         use vfs::FileSystem;
         let fs = &mut self.fs;

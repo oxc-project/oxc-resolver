@@ -11,7 +11,7 @@ use crate::node_path::NodePath;
 /// Options are directly ported from [enhanced-resolve](https://github.com/webpack/enhanced-resolve#resolver-options).
 ///
 /// See [webpack resolve](https://webpack.js.org/configuration/resolve/) for information and examples
-#[expect(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools, reason = "options are ported 1:1 from enhanced-resolve")]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
     /// Current working directory, used for testing purposes.

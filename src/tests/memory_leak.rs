@@ -36,13 +36,11 @@ fn test_canonicalized_path_not_dropped() {
     let path = resolver.cache.value(&f);
 
     // This should work without "Canonicalized path was dropped" error
-    let canonicalized = resolver.cache.canonicalize(&path);
-    assert!(canonicalized.is_ok());
+    let canonicalized = resolver.cache.canonicalize(&path).unwrap();
 
     // Try canonicalizing again - should still work
-    let canonicalized2 = resolver.cache.canonicalize(&path);
-    assert!(canonicalized2.is_ok());
-    assert_eq!(canonicalized.unwrap(), canonicalized2.unwrap());
+    let canonicalized2 = resolver.cache.canonicalize(&path).unwrap();
+    assert_eq!(canonicalized, canonicalized2);
 }
 
 /// Test to ensure canonicalized paths that are not in cache remain accessible

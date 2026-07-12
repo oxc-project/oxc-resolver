@@ -82,12 +82,11 @@ impl CachedPath {
     }
 
     pub(crate) fn parent(&self, cache: &Cache) -> Option<Self> {
-        self.0.parent.as_ref().and_then(|weak| {
-            weak.upgrade().map(CachedPath).or_else(|| {
-                // Weak pointer upgrade failed - parent was cleared from cache
-                // Recreate it by deriving the parent path
-                self.path().parent().map(|parent_path| cache.value(parent_path))
-            })
+        let weak = self.0.parent.as_ref()?;
+        weak.upgrade().map(CachedPath).or_else(|| {
+            // Weak pointer upgrade failed - parent was cleared from cache
+            // Recreate it by deriving the parent path
+            self.path().parent().map(|parent_path| cache.value(parent_path))
         })
     }
 

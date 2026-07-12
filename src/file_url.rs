@@ -232,32 +232,32 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn windows_rejects_no_drive_letter() {
-        assert!(resolve_file_protocol("file:///no_drive/file.js").is_err());
+        resolve_file_protocol("file:///no_drive/file.js").unwrap_err();
     }
 
     #[cfg(windows)]
     #[test]
     fn windows_rejects_encoded_backslash() {
-        assert!(resolve_file_protocol("file:///C:/path%5Cto").is_err());
-        assert!(resolve_file_protocol("file:///C:/path%5cto").is_err());
+        resolve_file_protocol("file:///C:/path%5Cto").unwrap_err();
+        resolve_file_protocol("file:///C:/path%5cto").unwrap_err();
     }
 
     #[cfg(not(windows))]
     #[test]
     fn posix_rejects_hostname() {
-        assert!(resolve_file_protocol("file://remotehost/path").is_err());
+        resolve_file_protocol("file://remotehost/path").unwrap_err();
     }
 
     #[cfg(not(windows))]
     #[test]
     fn posix_rejects_encoded_slash() {
-        assert!(resolve_file_protocol("file:///path%2Fto").is_err());
-        assert!(resolve_file_protocol("file:///path%2fto").is_err());
+        resolve_file_protocol("file:///path%2Fto").unwrap_err();
+        resolve_file_protocol("file:///path%2fto").unwrap_err();
     }
 
     #[test]
     fn invalid_utf8_rejected() {
-        assert!(resolve_file_protocol("file:///path/%FF").is_err());
+        resolve_file_protocol("file:///path/%FF").unwrap_err();
     }
 
     #[test]

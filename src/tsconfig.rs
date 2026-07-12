@@ -203,7 +203,7 @@ impl TsConfig {
     }
 
     /// Inherits settings from the given tsconfig into `self`.
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines, reason = "field-by-field merge of every inherited setting")]
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
         if self.files.is_none()
             && let Some(files) = &tsconfig.files
@@ -455,7 +455,7 @@ impl TsConfig {
         self
     }
 
-    #[expect(clippy::option_if_let_else)]
+    #[expect(clippy::option_if_let_else, reason = "the if/else reads clearer than `map_or_else`")]
     fn adjust_path(&self, path: PathBuf) -> PathBuf {
         if let Some(stripped) = path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE) {
             self.directory().join(stripped.trim_start_matches('/'))

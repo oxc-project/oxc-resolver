@@ -43,5 +43,5 @@ fn incorrect_description_file_2() {
 fn incorrect_description_file_3() {
     let f = super::fixture().join("incorrect-package");
     let resolution = Resolver::default().resolve(f.join("pack2"), ".");
-    assert!(resolution.is_err());
+    resolution.unwrap_err();
 }

@@ -6,12 +6,12 @@ use std::hash::Hasher;
 pub struct IdentityHasher(u64);
 
 impl Hasher for IdentityHasher {
-    fn write(&mut self, _: &[u8]) {
+    fn write(&mut self, _bytes: &[u8]) {
         unreachable!("Invalid use of IdentityHasher")
     }
 
-    fn write_u64(&mut self, n: u64) {
-        self.0 = n;
+    fn write_u64(&mut self, i: u64) {
+        self.0 = i;
     }
 
     fn finish(&self) -> u64 {

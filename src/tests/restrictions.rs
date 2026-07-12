@@ -130,7 +130,7 @@ fn should_check_restrictions_in_load_alias_or_file() {
 
     // Direct file access should fail due to restriction
     let resolution = resolver.resolve(&f, "./node_modules/pck1/index.js");
-    assert!(resolution.is_err());
+    resolution.unwrap_err();
 }
 
 // Test coverage for check_restrictions at line 1148 in browser field/alias resolution
@@ -149,7 +149,7 @@ fn should_check_restrictions_in_browser_field_alias() {
 
     // Should fail to resolve due to restriction on browser field
     let resolution = resolver.resolve(&f, "./lib/self.js");
-    assert!(resolution.is_err());
+    resolution.unwrap_err();
 }
 
 // Test coverage for check_restrictions at line 1326 in load_extension_alias()
