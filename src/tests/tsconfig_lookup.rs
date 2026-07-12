@@ -311,6 +311,61 @@ fn paths_no_base_url_anchors_at_config_dir() {
 }
 
 #[test]
+fn resolve_path_alias_or_base_url_maps_without_file_check() {
+    // `@/*` -> `./src/*`. The mapping must be applied even when the target does not point at a real file,
+    // so glob-like specifiers (e.g. `import.meta.glob` patterns) can be aliased.
+    let f = super::fixture_root().join("tsconfig/cases/paths-no-base-url");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let map = |importer: &std::path::Path, specifier: &str| {
+        resolver
+            .find_tsconfig(importer)
+            .unwrap()
+            .map(|tsconfig| tsconfig.resolve_path_alias_or_base_url(specifier))
+            .unwrap_or_default()
+    };
+
+    let importer = f.join("src/foo.ts");
+
+    assert_eq!(map(&importer, "@/assets/**/*"), vec![f.join("src/assets/**/*")]);
+    assert_eq!(map(&importer, "@/foo"), vec![f.join("src/foo")]);
+    assert_eq!(map(&importer, "unmatched/bar"), Vec::<std::path::PathBuf>::new());
+    assert_eq!(map(&importer, "./assets/**/*"), Vec::<std::path::PathBuf>::new());
+    assert_eq!(
+        map(&f.join("node_modules/pkg/index.ts"), "@/assets/**/*"),
+        Vec::<std::path::PathBuf>::new()
+    );
+}
+
+#[test]
+fn resolve_path_alias_or_base_url_maps_without_file_check_falls_back_to_base_url() {
+    // `baseUrl: "./src"` with no `paths`, so a non-relative specifier resolves under `./src` even for a glob-like specifier.
+    let f = super::fixture_root().join("tsconfig/cases/base-url");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let map = |importer: &std::path::Path, specifier: &str| {
+        resolver
+            .find_tsconfig(importer)
+            .unwrap()
+            .map(|tsconfig| tsconfig.resolve_path_alias_or_base_url(specifier))
+            .unwrap_or_default()
+    };
+
+    let importer = f.join("index.ts");
+
+    assert_eq!(map(&importer, "assets/**/*"), vec![f.join("src/assets/**/*")]);
+    assert_eq!(map(&importer, "foo.js"), vec![f.join("src/foo.js")]);
+}
+
+#[test]
 fn paths_explicit_extension_target() {
     let f = super::fixture_root().join("tsconfig/cases/paths-explicit-extension");
     let resolver =
