@@ -205,7 +205,7 @@ jobs:
     name: Publish NAPI
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # for `npm publish --provenance`
+      id-token: write # for `pnpm publish --provenance`
     needs:
       - build
       - build-freebsd
@@ -247,4 +247,14 @@ jobs:
           # Publish root package
           cp package.json napi/package.json
           cp README.md napi/README.md
-          npm publish napi/ --tag latest --provenance --access public
+
+          # Guard: fail if a workspace-only specifier would leak into the published manifest.
+          pnpm -C napi pack --out "$RUNNER_TEMP/pack-check.tgz"
+          if tar -xzOf "$RUNNER_TEMP/pack-check.tgz" package/package.json | grep -nE '"(catalog|workspace):'; then
+            echo "::error::catalog:/workspace: specifier leaked into the packed package.json"
+            exit 1
+          fi
+
+          # pnpm publish (unlike npm publish) resolves `catalog:` specifiers
+          # to concrete versions when packing.
+          pnpm publish napi/ --tag latest --provenance --access public --no-git-checks
