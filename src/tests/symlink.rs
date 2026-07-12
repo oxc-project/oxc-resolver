@@ -1,13 +1,15 @@
-#[cfg(target_os = "windows")]
-use crate::PathUtil;
-#[cfg(target_os = "windows")]
-use crate::tests::windows::get_dos_device_path;
-use std::path::PathBuf;
-use std::{fs, io, path::Path};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use walkdir::WalkDir;
 
 use super::fixture_root;
+#[cfg(target_os = "windows")]
+use crate::PathUtil;
+#[cfg(target_os = "windows")]
+use crate::tests::windows::get_dos_device_path;
 use crate::{ResolveOptions, Resolver};
 
 #[derive(Debug, Clone, Copy)]

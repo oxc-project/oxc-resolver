@@ -370,6 +370,7 @@ impl TsConfig {
             compiler_options.check_js = Some(*check_js);
         }
     }
+
     /// "Build" the root tsconfig, resolve:
     ///
     /// * `{configDir}` template variable

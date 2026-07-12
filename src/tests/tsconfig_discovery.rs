@@ -63,8 +63,7 @@ fn tsconfig_discovery_virtual_file_importer() {
 #[test]
 #[cfg(unix)]
 fn tsconfig_discovery_skips_unreadable_file() {
-    use std::fs;
-    use std::os::unix::fs::PermissionsExt;
+    use std::{fs, os::unix::fs::PermissionsExt};
 
     let dir =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("test_unreadable_tsconfig");

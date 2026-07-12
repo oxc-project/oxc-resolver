@@ -1,3 +1,5 @@
+#[cfg(feature = "yarn_pnp")]
+use std::sync::Arc;
 use std::{
     cfg_select, fs, io,
     path::{Path, PathBuf},
@@ -5,8 +7,6 @@ use std::{
 
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
-#[cfg(feature = "yarn_pnp")]
-use std::sync::Arc;
 
 use crate::ResolveError;
 

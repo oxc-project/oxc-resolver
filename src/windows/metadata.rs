@@ -64,8 +64,7 @@ fn maybe_verbatim(path: &Path) -> io::Result<Vec<u16>> {
 ///
 /// License of sudo: <https://github.com/microsoft/sudo/blob/9f50d79704a9d4d468bc59f725993714762981ca/LICENSE>
 fn get_long_path(mut path: Vec<u16>) -> io::Result<Vec<u16>> {
-    use windows::Win32::Storage::FileSystem::GetFullPathNameW;
-    use windows::core::HSTRING;
+    use windows::{Win32::Storage::FileSystem::GetFullPathNameW, core::HSTRING};
 
     // Normally the MAX_PATH is 260 UTF-16 code units (including the NULL).
     // However, for APIs such as CreateDirectory[1], the limit is 248.

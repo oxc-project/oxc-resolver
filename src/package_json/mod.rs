@@ -10,15 +10,15 @@ mod serde;
 #[cfg(target_endian = "little")]
 mod simd;
 
-#[cfg(target_endian = "big")]
-pub use serde::*;
-#[cfg(target_endian = "little")]
-pub use simd::*;
-
 use std::{
     fmt,
     path::{Path, PathBuf},
 };
+
+#[cfg(target_endian = "big")]
+pub use serde::*;
+#[cfg(target_endian = "little")]
+pub use simd::*;
 
 use crate::{JSONError, ResolveError, path::PathUtil};
 

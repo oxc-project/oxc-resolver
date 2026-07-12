@@ -1,7 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use oxc_resolver::Resolver;
 use rayon::prelude::*;
-
 use workload::Combo;
 
 fn run_combo(c: &mut Criterion, combo: Combo) {

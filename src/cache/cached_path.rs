@@ -9,9 +9,7 @@ use std::{
 
 use once_cell::sync::OnceCell as OnceLock;
 
-use super::cache_impl::Cache;
-use super::cached_meta::CachedMeta;
-use super::thread_local::SCRATCH_PATH;
+use super::{cache_impl::Cache, cached_meta::CachedMeta, thread_local::SCRATCH_PATH};
 use crate::{
     FileMetadata, FileSystem, PackageJson, TsConfig, context::ResolveContext as Ctx,
     path::push_normalized_component,

@@ -3,8 +3,7 @@
 //! enhanced_resolve's test <https://github.com/webpack/enhanced-resolve/blob/main/test/pnp.test.js>
 //! cannot be ported over because it uses mocks on `pnpApi` provided by the runtime.
 
-use crate::ResolveError::NotFound;
-use crate::{ResolveOptions, Resolver};
+use crate::{ResolveError::NotFound, ResolveOptions, Resolver};
 
 #[test]
 fn pnp_basic() {

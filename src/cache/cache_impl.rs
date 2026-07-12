@@ -13,8 +13,10 @@ use dashmap::{DashMap, mapref::entry::Entry};
 use once_cell::sync::OnceCell;
 use rustc_hash::FxHasher;
 
-use super::cached_path::{CachedPath, CachedPathImpl};
-use super::hasher::IdentityHasher;
+use super::{
+    cached_path::{CachedPath, CachedPathImpl},
+    hasher::IdentityHasher,
+};
 use crate::{
     FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
     context::ResolveContext as Ctx, path::PathUtil,

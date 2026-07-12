@@ -5,9 +5,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{ResolveOptions, Resolver};
-
 use thiserror::Error;
+
+use crate::{ResolveOptions, Resolver};
 
 /// Converts a Win32 drive letter or mounted folder into DOS device path, e.g.:
 /// `\\?\Volume{GUID}\`
