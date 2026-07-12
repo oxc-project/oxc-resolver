@@ -1,4 +1,4 @@
-// Wrapper around `napi build` (the `build:debug` script) so release builds can
+// Wrapper around `napi build` (the `build:debug` script) so CI release builds can
 // inject cargo configuration the napi CLI does not expose as flags.
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
@@ -19,11 +19,15 @@ const argsOptions = buildCommand.getOptions();
 const restCargoOptions = buildCommand.cargoOptions ?? [];
 
 const isRelease = argsOptions.release === true || argsOptions.profile === "release";
+// Shipped binaries are built only by CI release jobs; local builds — debug or release —
+// skip the remap and build-std machinery entirely.
+const isCiRelease = isRelease && Boolean(process.env.CI);
 
 // For published binaries, remap the absolute build-machine paths (cargo/rustup homes and
 // the workspace root) that rustc embeds into panic locations and tracing callsite metadata.
 // This shrinks the binary's string tables and keeps the build machine's filesystem layout
-// out of the shipped artifact. Release-only so local dev backtraces keep clickable paths.
+// out of the shipped artifact. CI-release-only so local backtraces keep clickable paths
+// (and local builds skip the `cargo fetch`).
 // Replace with cargo `-Ztrim-paths` once it stabilizes (rust-lang/cargo#12137).
 //
 // The flags are injected as a cargo `--config target.'cfg(all())'.rustflags=[…]` entry, NOT
@@ -36,9 +40,9 @@ const isRelease = argsOptions.release === true || argsOptions.profile === "relea
 // durable fix is upstream in napi-rs.
 let remapConfig;
 // `<sysroot>/lib/rustlib/src/rust` — std sources from the rust-src component. Computed on
-// release builds; feeds both the path remap and the build-std gate (which checks it exists).
+// CI release builds; feeds both the path remap and the build-std gate (which checks it exists).
 let rustSrc;
-if (isRelease) {
+if (isCiRelease) {
   const cargoHome = process.env.CARGO_HOME ?? resolve(homedir(), ".cargo");
   const rustupHome = process.env.RUSTUP_HOME ?? resolve(homedir(), ".rustup");
   const remaps = [
@@ -108,9 +112,8 @@ if (isRelease) {
 // these still get the path remap.
 const target = argsOptions.target;
 if (
-  isRelease &&
+  isCiRelease &&
   target &&
-  process.env.CI &&
   process.env.OXC_RESOLVER_BUILD_STD !== "0" &&
   !target.startsWith("wasm") &&
   !target.includes("windows")
