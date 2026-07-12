@@ -27,7 +27,7 @@
     "prepare": "vp config",
     "fmt": "vp fmt",
     "test": "vp test run -r ./napi",
-    "build:debug": "napi build --platform --manifest-path napi/Cargo.toml",
+    "build:debug": "node napi/build.mjs",
     "build": "vp run build:debug --features allocator --release",
     "postbuild:debug": "node napi/patch.mjs"
   },
