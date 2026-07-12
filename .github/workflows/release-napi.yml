@@ -228,8 +228,6 @@ jobs:
         with:
           path: artifacts
 
-      - run: npm install -g npm@latest # For trusted publishing support
-
       - name: Prepare dirs and artifacts
         # Invoke napi directly. Going through `pnpm napi ...` triggers pnpm 11's
         # verify-deps-before-run check, which fails after `cp package.json
