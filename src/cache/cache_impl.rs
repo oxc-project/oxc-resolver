@@ -5,7 +5,7 @@ use std::{
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Weak},
 };
 
 use dashmap::{DashMap, mapref::entry::Entry};
@@ -17,8 +17,13 @@ use super::cached_path::{CachedPath, CachedPathImpl};
 use super::hasher::IdentityHasher;
 use crate::{
     FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
-    context::ResolveContext as Ctx, path::PathUtil,
+    context::ResolveContext as Ctx,
+    path::{PathUtil, push_normalized_component},
 };
+
+/// Hashes of the symlink nodes currently being resolved in one canonicalization call, for
+/// circular-symlink detection.
+type VisitedLinks = StdHashSet<u64, BuildHasherDefault<IdentityHasher>>;
 
 /// Cache implementation used for caching filesystem access.
 pub struct Cache {
@@ -95,8 +100,11 @@ impl Cache {
     }
 
     pub(crate) fn canonicalize(&self, path: &CachedPath) -> Result<PathBuf, ResolveError> {
-        let cached_path = self.canonicalize_impl(path)?;
-        let path = cached_path.to_path_buf();
+        let path = self.canonicalize_buf(path, &mut None).or_else(|err| {
+            // Fallback: if the cached walk fails (e.g. after a cache clear), try the
+            // filesystem's own canonicalize before reporting the original error.
+            self.fs.canonicalize(path.path()).map_err(|_| err)
+        })?;
         cfg_select! {
             target_os = "windows" => crate::windows::strip_windows_prefix(path),
             _ => Ok(path),
@@ -138,7 +146,17 @@ impl Cache {
         path.meta.followed_or_init(|| match path.link_metadata(self.fs()) {
             Some(meta) if meta.is_symlink() => {
                 let followed = if symlinks {
-                    self.canonicalize_impl(path).ok().and_then(|c| c.link_metadata(self.fs()))
+                    self.resolve_symlink_node(path, &mut None)
+                        .or_else(|err| {
+                            // Same fallback the canonicalize entry point applies: try the
+                            // filesystem's own canonicalize before giving up.
+                            self.fs
+                                .canonicalize(path.path())
+                                .map(|canonical| self.value(&canonical))
+                                .map_err(|_| err)
+                        })
+                        .ok()
+                        .and_then(|c| c.link_metadata(self.fs()))
                 } else {
                     None
                 };
@@ -364,109 +382,177 @@ impl Cache {
         }
     }
 
-    /// Returns the canonical path, resolving all symbolic links.
+    /// Returns the canonical form of `path` as a freshly built `PathBuf`, resolving all
+    /// symbolic links.
     ///
-    /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
-    pub(crate) fn canonicalize_impl(&self, path: &CachedPath) -> Result<CachedPath, ResolveError> {
-        // Each canonicalization chain gets its own visited set for circular symlink detection
-        let mut visited = StdHashSet::with_hasher(BuildHasherDefault::<IdentityHasher>::default());
+    /// Canonicalization state is kept only where it is not redundant: a path that is its own
+    /// canonical form (no ancestor is a symlink — the large majority) carries a one-bit
+    /// `canonical_is_self` flag and no heap, while a symlink or a path below one caches its
+    /// canonical form in `canonicalized`. The previous design instead stored a `(Weak, Box<Path>)`
+    /// on *every* level and interned the whole canonical-side chain alongside the logical one,
+    /// which dominated the cache in symlink-heavy layouts.
+    fn canonicalize_buf(
+        &self,
+        path: &CachedPath,
+        visited: &mut Option<VisitedLinks>,
+    ) -> Result<PathBuf, ResolveError> {
+        // Hot path (warm cache): this exact spelling was already proven canonical, so it is its
+        // own answer — one exact-capacity allocation, no scan.
+        if path.canonical_is_self() {
+            return Ok(path.to_path_buf());
+        }
+        // Hot path (warm cache): a symlink whose target is cached, or a path below a symlink whose
+        // derived canonical form was cached on a previous call. Either way the answer is stored —
+        // no scan, no re-derivation.
+        if let Some((_, canonical)) = path.canonicalized.get() {
+            return Ok(canonical.to_path_buf());
+        }
 
-        // canonicalize_with_visited now handles caching at every recursion level
-        self.canonicalize_with_visited(path, &mut visited).or_else(|err| {
-            // Fallback: if canonicalization fails and path's cache was cleared,
-            // try direct FS canonicalize without caching the result
-            self.fs
-                .canonicalize(path.path())
-                .map(|canonical| self.value(&canonical))
-                .map_err(|_| err)
+        // Scan bottom-up for the nearest ancestor-or-self (`stop`) whose canonical form
+        // (`prefix`) is known, verifying via the cached `lstat` bit that every node below the
+        // stop is not a symlink.
+        let mut node = path.clone();
+        let (prefix, stop) = loop {
+            // Proven canonical already: its own spelling is the prefix.
+            if node.canonical_is_self() {
+                break (node.clone(), node);
+            }
+            // A node with a cached canonical form (a symlink's target, or an already-derived
+            // path below one): use it as the prefix. Consult the cache before `lstat` so a
+            // resolved node costs no syscall.
+            if let Some(prefix) = self.cached_canonical(&node) {
+                break (prefix, node);
+            }
+            // The root is its own canonical form; roots are never `lstat`'d.
+            let Some(parent) = node.parent(self) else {
+                break (node.normalize_root(self), node);
+            };
+            // An unresolved symlink: resolve it (caching the mapping on the node) and use the
+            // target as the prefix.
+            if node.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
+                break (self.resolve_symlink_node(&node, visited)?, node);
+            }
+            node = parent;
+        };
+
+        // The scan stopped at `path` itself (a resolved symlink leaf, or the root): the prefix is
+        // already the whole answer.
+        if Arc::ptr_eq(&stop.0, &path.0) {
+            return Ok(prefix.to_path_buf());
+        }
+
+        // Rebuild: fold the suffix below the stop node onto the prefix, in one exact-capacity
+        // allocation. The suffix is relative (the stop node is a textual ancestor), so
+        // `Prefix`/`RootDir` components cannot occur.
+        let suffix = path.path().strip_prefix(stop.path()).unwrap();
+        let prefix_bytes = prefix.path().as_os_str();
+        let extra = path.path().as_os_str().len() - stop.path().as_os_str().len();
+        let mut buf = std::ffi::OsString::with_capacity(prefix_bytes.len() + extra);
+        buf.push(prefix_bytes);
+        let mut result = PathBuf::from(buf);
+        for component in suffix.components() {
+            push_normalized_component(&mut result, component);
+        }
+
+        if result.as_os_str() == path.path().as_os_str() {
+            // The rebuild reproduced the key byte-for-byte: no ancestor was a symlink and every
+            // joint was already normalized, so this spelling *is* canonical, and so is every
+            // prefix of it. Mark the scanned chain so later scans stop immediately — one bit, no
+            // heap.
+            let mut current = path.clone();
+            loop {
+                current.set_canonical_is_self();
+                if Arc::ptr_eq(&current.0, &stop.0) {
+                    break;
+                }
+                let Some(parent) = current.parent(self) else { break };
+                current = parent;
+            }
+        } else {
+            // A path below a symlink: cache its derived canonical form so re-resolving it is O(1)
+            // (matching a per-leaf cache) instead of re-scanning to the symlink and re-folding.
+            // The `Weak` is left dangling: the canonical target is not interned (no twin entry),
+            // and a non-symlink leaf never routes through `resolve_symlink_node`, which is the
+            // only reader of the `Weak`. A symlink leaf already had its mapping set during the
+            // scan, so this `set` is a no-op for it.
+            let _ = path.canonicalized.set((Weak::new(), result.clone().into_boxed_path()));
+        }
+
+        Ok(result)
+    }
+
+    /// The stored canonical form of `node` as an interned [`CachedPath`], or `None` if the node
+    /// has no mapping (it is self-canonical, or not yet resolved).
+    ///
+    /// A mapping's `Weak` is live for a symlink target and dangling for a derived below-symlink
+    /// path; either way, a failed upgrade (a live target evicted from the cache, or the dangling
+    /// sentinel) falls back to re-interning the stored canonical bytes.
+    fn cached_canonical(&self, node: &CachedPath) -> Option<CachedPath> {
+        node.canonicalized.get().map(|(weak, canonical)| {
+            weak.upgrade().map_or_else(|| self.value(canonical), CachedPath)
         })
     }
 
-    /// Internal helper for canonicalization with circular symlink detection.
-    fn canonicalize_with_visited(
+    /// Resolve a symlink node to its canonical target, caching the mapping on the node.
+    ///
+    /// `node` must have `lstat`'d as a symlink (or already hold a stored mapping).
+    fn resolve_symlink_node(
         &self,
-        path: &CachedPath,
-        visited: &mut StdHashSet<u64, BuildHasherDefault<IdentityHasher>>,
+        node: &CachedPath,
+        visited: &mut Option<VisitedLinks>,
     ) -> Result<CachedPath, ResolveError> {
-        // Check cache first - if this path was already canonicalized, return the cached result
-        if let Some((weak, path_box)) = path.canonicalized.get() {
-            return weak
-                .upgrade()
-                .map(CachedPath)
-                .or_else(|| {
-                    // Weak pointer upgrade failed - recreate from the stored canonical path
-                    Some(self.value(path_box))
-                })
-                .ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::NotFound, "Cached path no longer exists").into()
-                });
+        if let Some(canonical) = self.cached_canonical(node) {
+            return Ok(canonical);
         }
 
-        // Check for circular symlink by tracking visited paths in the current canonicalization chain
-        if !visited.insert(path.hash) {
+        // A chain that re-enters a symlink still being resolved is circular. The set is
+        // allocated lazily: most canonicalize calls never meet a symlink.
+        if !visited.get_or_insert_default().insert(node.hash) {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
 
-        let res = path.parent(self).map_or_else(
-            || Ok(path.normalize_root(self)),
-            |parent| {
-                let parent_canonical = self.canonicalize_with_visited(&parent, visited)?;
-                // When no ancestor is a symlink — the common case — the parent
-                // canonicalizes to itself, so `parent_canonical` is `parent`'s own interned
-                // Arc and the rebuild below would just re-derive `path`'s existing key.
-                // Skip it (the strip_prefix, scratch-buffer copy, hash, and shard probe)
-                // and return this entry directly. That is only sound when the key is
-                // spelled exactly `<parent><MAIN_SEPARATOR><file_name>`: spellings the
-                // rebuild would fold — `.`/`..` tails, trailing or doubled separators, a
-                // `/` joint on Windows — fail the shape check and rebuild as before. The
-                // byte before the joint must be a non-separator because a root parent
-                // already ends with the separator (the rebuild appends none), so with
-                // `//x` or `C:\\x` the `+ 1` would count the doubled separator itself.
-                // Wasm always rebuilds: component normalization trims uvwasi's trailing
-                // NULs, which reuse would keep.
-                let path_bytes = path.path().as_os_str().as_encoded_bytes();
-                let parent_len = parent.path().as_os_str().len();
-                let normalized = if cfg!(not(target_family = "wasm"))
-                    && Arc::ptr_eq(&parent_canonical.0, &parent.0)
-                    && path.path().file_name().is_some_and(|name| {
-                        parent_len + 1 + name.len() == path_bytes.len()
-                            && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
-                            && path_bytes[parent_len - 1] != std::path::MAIN_SEPARATOR as u8
-                    }) {
-                    path.clone()
-                } else {
-                    parent_canonical
-                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self)
-                };
+        // Read the link through its canonical parent spelling. A symlink's last component is
+        // always a plain name: the OS resolves `.`/`..`/trailing-separator spellings before
+        // classifying, so those never `lstat` as symlinks.
+        let mut link_path = match node.parent(self) {
+            Some(parent) => {
+                let mut link_path = self.canonicalize_buf(&parent, visited)?;
+                node.path().file_name().map_or_else(
+                    || node.to_path_buf(),
+                    |name| {
+                        link_path.push(name);
+                        link_path
+                    },
+                )
+            }
+            None => node.to_path_buf(),
+        };
+        let link = self.fs.read_link(&link_path)?;
 
-                if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
-                    let link = self.fs.read_link(normalized.path())?;
-                    if link.is_absolute() {
-                        return self
-                            .canonicalize_with_visited(&self.value(&link.normalize()), visited);
-                    } else if let Some(dir) = normalized.parent(self) {
-                        // Symlink is relative `../../foo.js`, use the path directory
-                        // to resolve this symlink.
-                        return self
-                            .canonicalize_with_visited(&dir.normalize_with(&link, self), visited);
-                    }
-                    debug_assert!(
-                        false,
-                        "Failed to get path parent for {}.",
-                        normalized.path().display()
-                    );
-                }
+        let target = if link.is_absolute() {
+            link.normalize()
+        } else {
+            // Resolve the relative target against the canonical parent directory. `normalize_with`
+            // folds `.`/`..` and escapes a rooted-but-not-absolute head (`\dir`, `C:rel` on
+            // Windows) or an empty link verbatim.
+            link_path.pop();
+            link_path.normalize_with(&link)
+        };
 
-                Ok(normalized)
-            },
-        )?;
+        // The target chain may itself contain symlinks. Only the target and its canonical form
+        // are interned — the mapping needs a durable entry to point at.
+        let target = self.value(&target);
+        let canonical_buf = self.canonicalize_buf(&target, visited)?;
+        let canonical = if canonical_buf.as_os_str() == target.path().as_os_str() {
+            target
+        } else {
+            self.value(&canonical_buf)
+        };
 
-        // Cache the result before removing from visited set
-        // This ensures parent canonicalization results are cached and reused
-        let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.0.path.clone()));
-
-        // Remove from visited set when unwinding the recursion
-        visited.remove(&path.hash);
-        Ok(res)
+        let _ = node.canonicalized.set((Arc::downgrade(&canonical.0), canonical.0.path.clone()));
+        if let Some(visited) = visited.as_mut() {
+            visited.remove(&node.hash);
+        }
+        Ok(canonical)
     }
 }
