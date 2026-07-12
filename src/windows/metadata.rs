@@ -162,7 +162,7 @@ fn to_u16s<S: AsRef<OsStr>>(s: S) -> io::Result<Vec<u16>> {
         // wasting bytes here as paths created by this function are primarily used
         // in an ephemeral fashion.
 
-        use std::os::windows::ffi::OsStrExt;
+        use std::os::windows::ffi::OsStrExt as _;
         let mut maybe_result = Vec::with_capacity(s.len() + 1);
         maybe_result.extend(s.encode_wide());
 

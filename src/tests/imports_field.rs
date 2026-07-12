@@ -7,7 +7,7 @@ use std::path::Path;
 use serde_json::json;
 
 use crate::{
-    Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver,
+    Ctx, ImportsExportsMap, PathUtil as _, ResolveError, ResolveOptions, Resolver,
     package_json::ImportsExportsMapGeneric,
 };
 
@@ -132,7 +132,7 @@ fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
     ImportsExportsMapGeneric(map)
 }
 
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines, reason = "test table ported from enhanced-resolve")]
 #[test]
 fn test_cases() {
     let test_cases = vec![

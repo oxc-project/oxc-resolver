@@ -6,7 +6,7 @@ use std::{
 use crate::{
     CachedPath, Ctx, ResolveError, ResolveOptions, ResolveResult, ResolverImpl, Specifier,
     SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-    path::PathUtil,
+    path::PathUtil as _,
 };
 
 #[derive(Default)]
@@ -447,20 +447,20 @@ impl ResolverImpl {
             // Node.js subpath imports, e.g. `extends: "#config"`, resolved
             // through the nearest `package.json` `imports` field — the same
             // path the resolver takes for `require("#config")`.
-            Some(b'#') => self
-                .tsconfig_extends_resolver()
-                .load_package_imports(directory, specifier, Some(tsconfig), &mut Ctx::default())
-                .map_err(|err| match err {
-                    ResolveError::PackageImportNotDefined(..) | ResolveError::NotFound(..) => {
-                        ResolveError::TsconfigNotFound(PathBuf::from(specifier))
-                    }
-                    _ => err,
-                })
-                .and_then(|resolved| {
-                    resolved
-                        .map(|p| p.path().to_path_buf())
-                        .ok_or_else(|| ResolveError::TsconfigNotFound(PathBuf::from(specifier)))
-                }),
+            Some(b'#') => {
+                let resolved = self
+                    .tsconfig_extends_resolver()
+                    .load_package_imports(directory, specifier, Some(tsconfig), &mut Ctx::default())
+                    .map_err(|err| match err {
+                        ResolveError::PackageImportNotDefined(..) | ResolveError::NotFound(..) => {
+                            ResolveError::TsconfigNotFound(PathBuf::from(specifier))
+                        }
+                        _ => err,
+                    })?;
+                resolved
+                    .map(|p| p.path().to_path_buf())
+                    .ok_or_else(|| ResolveError::TsconfigNotFound(PathBuf::from(specifier)))
+            }
             _ => self
                 .tsconfig_extends_resolver()
                 .load_package_self_or_node_modules(directory, specifier, None, &mut Ctx::default())

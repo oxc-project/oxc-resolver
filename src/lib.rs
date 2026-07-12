@@ -218,8 +218,7 @@ impl ResolverImpl {
     }
 
     /// Check if two resolvers share the same cache (for testing).
-    #[cfg(test)]
-    #[allow(dead_code)]
+    #[cfg(all(test, feature = "yarn_pnp"))]
     pub(crate) fn shares_cache_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.cache, &other.cache)
     }
@@ -489,8 +488,7 @@ impl ResolverImpl {
                 return Err(err);
             }
             // enhanced-resolve: try fallback
-            self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)
-                .and_then(|value| value.ok_or(err))
+            self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)?.ok_or(err)
         })
     }
 
@@ -1060,8 +1058,7 @@ impl ResolverImpl {
         }
 
         // `resolve_to_unqualified` requires a trailing slash
-        let mut path = cached_path.to_path_buf();
-        path.push("");
+        let path = cached_path.path().join("");
 
         let resolution = pnp::resolve_to_unqualified_via_manifest(pnp_manifest, specifier, &path);
 
@@ -1698,7 +1695,7 @@ impl ResolverImpl {
     }
 
     /// PACKAGE_TARGET_RESOLVE(packageURL, target, patternMatch, isImports, conditions)
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines, reason = "direct port of the spec algorithm")]
     fn package_target_resolve(
         &self,
         package_url: &CachedPath,
@@ -2000,8 +1997,6 @@ impl ResolverImpl {
 /// UTF-8 BOM is 3 bytes: 0xEF, 0xBB, 0xBF
 pub(crate) fn replace_bom_with_whitespace(s: &mut [u8]) {
     if s.starts_with(b"\xEF\xBB\xBF") {
-        s[0] = b' ';
-        s[1] = b' ';
-        s[2] = b' ';
+        s[..3].fill(b' ');
     }
 }

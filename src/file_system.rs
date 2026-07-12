@@ -4,7 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "yarn_pnp")]
-use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
+use pnp::fs::{LruZipCache, VPath, VPathInfo as _, ZipCache as _};
 #[cfg(feature = "yarn_pnp")]
 use std::sync::Arc;
 

@@ -16,7 +16,10 @@ enum FileType {
     Dir,
 }
 
-#[allow(unused_variables)]
+#[cfg_attr(
+    not(target_os = "windows"),
+    expect(unused_variables, reason = "`file_type` is only used on Windows")
+)]
 fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(
     original: P,
     link: Q,
@@ -236,7 +239,7 @@ fn test_circular_symlink() {
     let result = resolver.resolve(&temp_path, "./link1");
 
     // Should error due to circular symlink
-    assert!(result.is_err());
+    result.unwrap_err();
 
     // Cleanup
     _ = fs::remove_file(&link1_path);

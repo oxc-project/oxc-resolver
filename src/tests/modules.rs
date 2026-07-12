@@ -70,6 +70,6 @@ mod tests {
             ResolveOptions { modules: vec![], ..ResolveOptions::default() },
         );
         let result = resolver.resolve("/project", "pkg");
-        assert!(result.is_err());
+        result.unwrap_err();
     }
 }

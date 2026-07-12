@@ -75,6 +75,6 @@ mod windows {
         let resolver =
             ResolverGeneric::new_with_file_system(file_system, ResolveOptions::default());
         let resolved_path = resolver.resolve(f, "package");
-        assert!(resolved_path.is_err());
+        resolved_path.unwrap_err();
     }
 }

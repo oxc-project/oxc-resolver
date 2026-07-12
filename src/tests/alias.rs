@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::{
-    AliasValue, PathUtil, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
+    AliasValue, PathUtil as _, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver,
 };
 
 #[test]
