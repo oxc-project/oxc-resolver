@@ -111,6 +111,7 @@ if (isCiRelease) {
 // matched A/B in rolldown#10177 measured build-std as a small size loss there) — all of
 // these still get the path remap.
 const target = argsOptions.target;
+let buildStdFlags = [];
 if (
   isCiRelease &&
   target &&
@@ -120,9 +121,12 @@ if (
 ) {
   if (rustSrc && existsSync(resolve(rustSrc, "library", "std"))) {
     console.info("build-std: rebuilding std without the backtrace feature");
+    // As CLI flags rather than CARGO_UNSTABLE_* env config: stable cargo silently ignores
+    // nightly-only env config but hard-errors on `-Z` flags, so if the RUSTC_BOOTSTRAP
+    // channel unlock (cargo reports "nightly" whenever it is set) ever stops working, the
+    // release job fails instead of quietly shipping the prebuilt std again.
     process.env.RUSTC_BOOTSTRAP = "1";
-    process.env.CARGO_UNSTABLE_BUILD_STD = "std,panic_abort";
-    process.env.CARGO_UNSTABLE_BUILD_STD_FEATURES = "panic-unwind";
+    buildStdFlags = ["-Zbuild-std=std,panic_abort", "-Zbuild-std-features=panic-unwind"];
   } else {
     console.error(
       "release build without the rust-src component would ship std's backtrace symbolizer: " +
@@ -134,7 +138,11 @@ if (
 
 // Injected config first: cargo applies later `--config` values with higher precedence,
 // so a caller-passed `--config` can still override the remap entry.
-const cargoOptions = [...(remapConfig ? ["--config", remapConfig] : []), ...restCargoOptions];
+const cargoOptions = [
+  ...(remapConfig ? ["--config", remapConfig] : []),
+  ...buildStdFlags,
+  ...restCargoOptions,
+];
 
 const napiArgs = {
   ...argsOptions,
