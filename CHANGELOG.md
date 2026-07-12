@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.24.2](https://github.com/oxc-project/oxc-resolver/compare/v11.24.1...v11.24.2) - 2026-07-12
+
+### <!-- 5 -->🎨 Styling
+
+- group and merge imports ([#1299](https://github.com/oxc-project/oxc-resolver/pull/1299)) (by @Boshen)
+
+### Contributors
+
+* @renovate[bot]
+* @Boshen
+
 ## [11.24.0](https://github.com/oxc-project/oxc-resolver/compare/v11.23.0...v11.24.0) - 2026-07-12
 
 ### <!-- 0 -->🚀 Features
