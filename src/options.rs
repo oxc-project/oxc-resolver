@@ -259,8 +259,9 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
+    ///
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_root("foo");
     /// assert_eq!(options.roots, vec![PathBuf::from("foo")])
@@ -276,8 +277,9 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
+    ///
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_extension(".jsonc");
     /// assert!(options.extensions.contains(&".jsonc".to_string()));
@@ -293,8 +295,9 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::ResolveOptions;
     /// use std::path::{Path, PathBuf};
+    ///
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_main_field("something");
     /// assert!(options.main_fields.contains(&"something".to_string()));
@@ -310,8 +313,9 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::{ResolveOptions, EnforceExtension};
     /// use std::path::{Path, PathBuf};
+    ///
+    /// use oxc_resolver::{EnforceExtension, ResolveOptions};
     ///
     /// let options = ResolveOptions::default().with_force_extension(EnforceExtension::Enabled);
     /// assert_eq!(options.enforce_extension, EnforceExtension::Enabled);
@@ -327,8 +331,9 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::{ResolveOptions};
     /// use std::path::{Path, PathBuf};
+    ///
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_fully_specified(true);
     /// assert_eq!(options.fully_specified, true);
@@ -344,8 +349,9 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::{ResolveOptions};
     /// use std::path::{Path, PathBuf};
+    ///
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_prefer_relative(true);
     /// assert_eq!(options.prefer_relative, true);
@@ -361,8 +367,9 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::{ResolveOptions};
     /// use std::path::{Path, PathBuf};
+    ///
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_prefer_absolute(true);
     /// assert_eq!(options.prefer_absolute, true);
@@ -378,7 +385,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::{ResolveOptions};
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_symbolic_link(false);
     /// assert_eq!(options.symlinks, false);
@@ -394,7 +401,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::{ResolveOptions};
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_module("module");
     /// assert!(options.modules.contains(&"module".to_string()));
@@ -410,7 +417,7 @@ impl ResolveOptions {
     /// ## Examples
     ///
     /// ```
-    /// use oxc_resolver::{ResolveOptions};
+    /// use oxc_resolver::ResolveOptions;
     ///
     /// let options = ResolveOptions::default().with_main_file("foo");
     /// assert!(options.main_files.contains(&"foo".to_string()));

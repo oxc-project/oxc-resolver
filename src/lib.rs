@@ -66,25 +66,6 @@ mod windows;
 #[cfg(test)]
 mod tests;
 
-pub use crate::{
-    cache::{Cache, CachedPath},
-    error::{JSONError, ResolveError, SpecifierError},
-    file_system::{FileMetadata, FileSystem, FileSystemOs},
-    options::{
-        Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
-        TsconfigOptions, TsconfigReferences,
-    },
-    package_json::{
-        ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
-        PackageJson, PackageType, SideEffects,
-    },
-    path::PathUtil,
-    resolution::{ModuleType, Resolution},
-    tsconfig::{
-        CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
-    },
-};
-
 use std::{
     borrow::Cow,
     cfg_select,
@@ -102,6 +83,24 @@ use crate::{
     context::ResolveContext as Ctx,
     path::SLASH_START,
     specifier::Specifier,
+};
+pub use crate::{
+    cache::{Cache, CachedPath},
+    error::{JSONError, ResolveError, SpecifierError},
+    file_system::{FileMetadata, FileSystem, FileSystemOs},
+    options::{
+        Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
+        TsconfigOptions, TsconfigReferences,
+    },
+    package_json::{
+        ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,
+        PackageJson, PackageType, SideEffects,
+    },
+    path::PathUtil,
+    resolution::{ModuleType, Resolution},
+    tsconfig::{
+        CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
+    },
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;

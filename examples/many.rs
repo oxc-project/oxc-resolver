@@ -1,8 +1,7 @@
 use std::{env, fs};
 
-use rayon::prelude::*;
-
 use oxc_resolver::{ResolveOptions, Resolver};
+use rayon::prelude::*;
 
 fn main() {
     let cwd = env::current_dir().expect("Failed to get current directory");

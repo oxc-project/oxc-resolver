@@ -27,12 +27,12 @@ type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 struct Extensions(u8);
 
 impl Extensions {
-    /// `.ts`, `.tsx`, `.mts`, `.cts`
-    const TYPESCRIPT: Self = Self(0b0001);
-    /// `.js`, `.jsx`, `.mjs`, `.cjs`
-    const JAVASCRIPT: Self = Self(0b0010);
     /// `.d.ts`, `.d.mts`, `.d.cts`
     const DECLARATION: Self = Self(0b0100);
+    /// `.js`, `.jsx`, `.mjs`, `.cjs`
+    const JAVASCRIPT: Self = Self(0b0010);
+    /// `.ts`, `.tsx`, `.mts`, `.cts`
+    const TYPESCRIPT: Self = Self(0b0001);
 
     const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
@@ -57,6 +57,7 @@ impl Extensions {
 
 impl std::ops::BitAnd for Extensions {
     type Output = Self;
+
     fn bitand(self, rhs: Self) -> Self {
         Self(self.0 & rhs.0)
     }

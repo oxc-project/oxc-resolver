@@ -5,10 +5,9 @@ use std::{
 };
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use memory_fs::BenchMemoryFS;
 use oxc_resolver::{FileSystem as FileSystemTrait, FileSystemOs, PackageJson};
 use rayon::prelude::*;
-
-use memory_fs::BenchMemoryFS;
 
 fn data() -> Vec<(PathBuf, &'static str)> {
     let cwd = env::current_dir().unwrap();
@@ -468,11 +467,11 @@ mod memory_fs {
     use std::{
         fs, io,
         path::{Path, PathBuf},
+        sync::LazyLock,
     };
 
     use oxc_resolver::{FileMetadata, FileSystem, ResolveError};
     use rustc_hash::{FxHashMap, FxHashSet};
-    use std::sync::LazyLock;
     use walkdir::WalkDir;
 
     /// Memory-based file system for benchmarks to eliminate I/O variance
