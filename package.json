@@ -19,6 +19,7 @@
   ],
   "main": "index.js",
   "browser": "browser.js",
+  "types": "index.d.ts",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
