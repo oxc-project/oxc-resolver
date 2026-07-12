@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.24.0](https://github.com/oxc-project/oxc-resolver/compare/v11.23.0...v11.24.0) - 2026-07-12
+
+### <!-- 0 -->🚀 Features
+
+- expose tsconfig paths resolve method without file existence check ([#1282](https://github.com/oxc-project/oxc-resolver/pull/1282)) (by @sapphi-red)
+- add `ResolveError::TsconfigLoadFailed` for tsconfig read and parse failures ([#1287](https://github.com/oxc-project/oxc-resolver/pull/1287)) (by @shulaoda)
+
+### <!-- 2 -->🚜 Refactor
+
+- replace cfg-if dependency with std cfg_select! macro ([#1290](https://github.com/oxc-project/oxc-resolver/pull/1290)) (by @Boshen)
+
+### <!-- 3 -->📚 Documentation
+
+- normalize README sponsor section ([#1273](https://github.com/oxc-project/oxc-resolver/pull/1273)) (by @Boshen)
+
+### <!-- 4 -->⚡ Performance
+
+- *(cache)* reuse the child path when its parent canonicalizes to itself ([#1288](https://github.com/oxc-project/oxc-resolver/pull/1288)) (by @Boshen)
+- *(napi)* shrink release binaries (path remap + build-std without backtrace) ([#1283](https://github.com/oxc-project/oxc-resolver/pull/1283)) (by @Boshen)
+
+### Contributors
+
+* @sapphi-red
+* @Boshen
+* @renovate[bot]
+* @shulaoda
+
 ## [11.23.0](https://github.com/oxc-project/oxc-resolver/compare/v11.22.0...v11.23.0) - 2026-07-02
 
 ### <!-- 0 -->🚀 Features
