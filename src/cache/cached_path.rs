@@ -4,7 +4,10 @@ use std::{
     hash::{Hash, Hasher},
     ops::Deref,
     path::{Component, Path, PathBuf},
-    sync::{Arc, Weak},
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use once_cell::sync::OnceCell as OnceLock;
@@ -27,6 +30,15 @@ pub struct CachedPathImpl {
     /// Cached `(is_file, is_dir)` filesystem metadata packed into one byte. See
     /// [`CachedMeta`] for the encoding and the rationale for skipping `OnceLock`.
     pub meta: CachedMeta,
+    /// This path's spelling was proven to be its own canonical form: no ancestor (or self) is a
+    /// symlink and the key needs no normalization. Lets a canonicalization scan stop here
+    /// instead of re-walking to the root. A lost update under a race only costs a re-derivation.
+    pub canonical_is_self: AtomicBool,
+    /// The canonical form of this path, set only where it differs from the path itself: a symlink
+    /// (target, with a live `Weak` used by `followed_metadata`) or a path below a symlink (its
+    /// derived canonical form, with a dangling `Weak`). A path that is its own canonical form uses
+    /// the [`Self::canonical_is_self`] bit instead, storing no heap — the common case, which
+    /// otherwise pinned a `(Weak, Box<Path>)` byte-copy of its own spelling on every cached path.
     /// Stored as `Box<Path>` (not `PathBuf`) to save 8 bytes per cached path entry —
     /// the canonical path is set once and never mutated.
     pub canonicalized: OnceLock<(Weak<Self>, Box<Path>)>,
@@ -53,6 +65,7 @@ impl CachedPathImpl {
             is_node_modules,
             inside_node_modules,
             meta: CachedMeta::new(),
+            canonical_is_self: AtomicBool::new(false),
             canonicalized: OnceLock::new(),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
@@ -229,6 +242,14 @@ impl CachedPath {
     /// whether to follow a symlink — so the two share a single `lstat` syscall per path.
     pub(crate) fn link_metadata(&self, fs: &dyn FileSystem) -> Option<FileMetadata> {
         self.meta.link_or_init(|| fs.symlink_metadata(&self.path).ok())
+    }
+
+    pub(crate) fn canonical_is_self(&self) -> bool {
+        self.canonical_is_self.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn set_canonical_is_self(&self) {
+        self.canonical_is_self.store(true, Ordering::Relaxed);
     }
 }
 
