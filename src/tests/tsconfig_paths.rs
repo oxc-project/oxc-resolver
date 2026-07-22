@@ -60,12 +60,12 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
             Err(ResolveError::NotFound("ts-path".to_string())),
         ),
         (
+            // A missing `extends` target is non-fatal: the config loads, so the
+            // alias it would have provided is just a normal `NotFound`.
             f.join("cases/extends-not-found"),
             "ts-path",
             f.join("cases").join("extends-not-found").join("tsconfig.json"),
-            Err(ResolveError::TsconfigNotFound(
-                f.join("cases").join("extends-not-found").join("not-found"),
-            )),
+            Err(ResolveError::NotFound("ts-path".to_string())),
         ),
         // no `base_url` <https://github.com/microsoft/TypeScript/issues/62207>
         (
