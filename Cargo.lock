@@ -875,9 +875,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pnp"
-version = "0.12.10"
+version = "0.12.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a068874344fa15263114022fc7bc257990fec3f679a9ce1aa235c18008456c32"
+checksum = "e57281b9cdf635e68b57fc347e213b413f099d57cdd708182d5e759418d41485"
 dependencies = [
  "byteorder",
  "concurrent_lru",
