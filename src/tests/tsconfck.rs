@@ -35,7 +35,7 @@ fn parse_invalid() {
 
 #[test]
 fn config_dir() {
-    let dir = super::fixture_root().join("tsconfck").join("parse").join("valid").join("configDir");
+    let dir = super::fixture_root().join("tsconfck").join("parse").join("valid").join("config-dir");
     let resolver = Resolver::default();
     for path in walk(&dir).into_iter().filter(|path| path.file_name().unwrap() == "tsconfig.json") {
         let tsconfig = resolver.resolve_tsconfig(&path).unwrap();
@@ -67,9 +67,9 @@ fn part_of_solution() {
         ("mixed", "src/foo.spec.ts", "tsconfig.test.json"),
         ("referenced-extends-original", "src/foo.ts", "src/tsconfig.src.json"),
         ("referenced-extends-original", "tests/foo.test.ts", "tests/tsconfig.test.json"),
-        ("referenced-with-configDir", "src/foo.ts", "tsconfig.src.json"),
+        ("referenced-with-config-dir", "src/foo.ts", "tsconfig.src.json"),
         (
-            "referenced-with-configDir-and-extends",
+            "referenced-with-config-dir-and-extends",
             "packages/foo/src/foo.ts",
             "packages/foo/tsconfig.foo.json",
         ),

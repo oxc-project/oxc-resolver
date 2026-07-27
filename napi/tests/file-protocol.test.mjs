@@ -113,13 +113,13 @@ describe.skipIf(process.env.WASI_TEST)("file:// protocol", () => {
       extensions: [".js", ".jsx", ".ts", ".tsx"],
     });
 
-    const dirPath = join(enhancedResolveRoot, "dirOrFile/");
+    const dirPath = join(enhancedResolveRoot, "dir-or-file/");
     const fileUrl = pathToFileURL(dirPath).href;
 
     const result = resolver.sync(enhancedResolveRoot, fileUrl);
 
     // Should resolve to index.js in the directory
-    assert.ok(result.path.includes("dirOrFile"));
+    assert.ok(result.path.includes("dir-or-file"));
     assert.ok(result.path.includes("index.js"));
   });
 
