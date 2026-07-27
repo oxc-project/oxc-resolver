@@ -1,6 +1,6 @@
 {
   "name": "extension-alias",
-  "packageManager": "yarn@4.9.2",
+  "packageManager": "yarn@4.17.1",
   "devDependencies": {
     "typescript": "^5.8.3"
   }

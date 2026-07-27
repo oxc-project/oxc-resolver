@@ -2,7 +2,7 @@
 # Manual changes might be lost - proceed with caution!
 
 __metadata:
-  version: 8
+  version: 10
   cacheKey: 10c0
 
 "@atlaskit/pragmatic-drag-and-drop@npm:^1.5.2, @custom/pragmatic-drag-and-drop@npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2, pragmatic-drag-and-drop@npm:@atlaskit/pragmatic-drag-and-drop@^1.5.2":
