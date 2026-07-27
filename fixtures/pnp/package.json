@@ -1,6 +1,6 @@
 {
   "name": "pnp",
-  "packageManager": "yarn@4.9.2",
+  "packageManager": "yarn@4.17.1",
   "scripts": {
     "test": "yarn node index.test.mjs"
   },

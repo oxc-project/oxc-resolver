@@ -2,7 +2,7 @@
   "name": "bench-pm-template",
   "private": true,
   "version": "1.0.0",
-  "packageManager": "yarn@4.9.2",
+  "packageManager": "yarn@4.17.1",
   "workspaces": [
     "apps/web",
     "packages/ui",
