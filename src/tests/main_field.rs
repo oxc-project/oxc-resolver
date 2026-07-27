@@ -33,6 +33,6 @@ fn test_fallback() {
         ..ResolveOptions::default()
     });
 
-    let resolution = resolver1.resolve(&f, "main_field_fallback").map(|r| r.full_path());
-    assert_eq!(resolution, Ok(f.join("node_modules/main_field_fallback/exist.js")));
+    let resolution = resolver1.resolve(&f, "main-field-fallback").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("node_modules/main-field-fallback/exist.js")));
 }

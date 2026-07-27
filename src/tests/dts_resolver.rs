@@ -1,7 +1,7 @@
 use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
 
 fn dts_fixture() -> std::path::PathBuf {
-    super::fixture_root().join("dts_resolver")
+    super::fixture_root().join("dts-resolver")
 }
 
 fn containing_file() -> std::path::PathBuf {

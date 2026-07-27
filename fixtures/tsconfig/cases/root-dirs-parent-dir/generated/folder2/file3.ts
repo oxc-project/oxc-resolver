@@ -1,1 +1,1 @@
-import {} from '../folder1/file1_1'
+import {} from '../folder1/file1-1'

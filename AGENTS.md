@@ -125,7 +125,7 @@ fixtures/
 │   ├── misc/              # Unicode paths, BOM handling, package.json edge cases
 │   ├── dot/               # Dot-path resolution
 │   └── ...
-├── dts_resolver/          # .d.ts resolution fixtures
+├── dts-resolver/          # .d.ts resolution fixtures
 ├── invalid/               # Invalid configuration scenarios
 ├── pnp/                   # Yarn Plug'n'Play fixtures
 ├── pnpm/                  # pnpm node_modules structure

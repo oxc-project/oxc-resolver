@@ -147,14 +147,14 @@ for (const [title, context, request, expected] of [
   [
     "differ between directory and file, resolve file",
     enhancedResolveRoot,
-    "./dirOrFile",
-    join(enhancedResolveRoot, "dirOrFile.js"),
+    "./dir-or-file",
+    join(enhancedResolveRoot, "dir-or-file.js"),
   ],
   [
     "differ between directory and file, resolve directory",
     enhancedResolveRoot,
-    "./dirOrFile/",
-    join(enhancedResolveRoot, "dirOrFile/index.js"),
+    "./dir-or-file/",
+    join(enhancedResolveRoot, "dir-or-file/index.js"),
   ],
   [
     "find node_modules outside of node_modules",

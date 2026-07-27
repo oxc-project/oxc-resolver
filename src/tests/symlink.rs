@@ -349,7 +349,7 @@ fn canonicalize_dirty_cache_keys() {
 /// follow both the anchor link and the inner link.
 #[test]
 fn symlinked_package_anchor_walks_suffix_symlinks() {
-    let root = fixture_root().join("node_modules-canonicalize/symlinked-workspace");
+    let root = fixture_root().join("node-modules-canonicalize/symlinked-workspace");
     let anchor = root.join("node_modules/pkg");
     let inner_link = anchor.join("src/link");
 
@@ -378,7 +378,7 @@ fn symlinked_package_anchor_walks_suffix_symlinks() {
 /// Canonicalization must follow it, not append the suffix across it.
 #[test]
 fn real_package_anchor_walks_internal_symlinks() {
-    let root = fixture_root().join("node_modules-canonicalize/internal-symlink");
+    let root = fixture_root().join("node-modules-canonicalize/internal-symlink");
     let dir_link = root.join("node_modules/pkg/lib");
     let file_link = root.join("node_modules/pkg/reexport.js");
 
@@ -408,7 +408,7 @@ fn real_package_anchor_walks_internal_symlinks() {
 /// compared against `std::fs::canonicalize`, walking through symlinked directories too.
 #[test]
 fn nested_monorepo_canonicalize_matches_os() {
-    let root = fixture_root().join("node_modules-canonicalize/nested-monorepo");
+    let root = fixture_root().join("node-modules-canonicalize/nested-monorepo");
     let nested = root.join("packages/ui/node_modules/dep");
     if !fs::symlink_metadata(&nested).is_ok_and(|m| m.is_symlink()) {
         eprintln!("skip nested_monorepo_canonicalize_matches_os: symlinks unavailable");

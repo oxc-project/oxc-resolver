@@ -42,8 +42,8 @@ fn test() {
         (f.join("root-dirs-parent-nav"), "generated/folder2/file3.ts", "../folder1/file1", f.join("root-dirs-parent-nav/folder1/file1.ts")),
 
         // Test Case 7: Directory import with parent navigation
-        // Import ../folder1/file1_1 from generated/folder2/file3.ts resolves to folder1/file1_1/index.ts
-        (f.join("root-dirs-parent-dir"), "generated/folder2/file3.ts", "../folder1/file1_1", f.join("root-dirs-parent-dir/folder1/file1_1/index.ts")),
+        // Import ../folder1/file1-1 from generated/folder2/file3.ts resolves to folder1/file1-1/index.ts
+        (f.join("root-dirs-parent-dir"), "generated/folder2/file3.ts", "../folder1/file1-1", f.join("root-dirs-parent-dir/folder1/file1-1/index.ts")),
 
         // Test Case 8: Single rootDir entry
         // Verify that rootDirs works correctly with only one entry
