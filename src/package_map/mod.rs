@@ -16,21 +16,6 @@ use std::path::{Path, PathBuf};
 use compact_str::CompactString;
 use rustc_hash::FxHashMap;
 
-use crate::JSONError;
-
-/// Check if JSON content is empty or contains only whitespace.
-fn check_if_empty(json_bytes: &[u8], path: &Path) -> Result<(), JSONError> {
-    if json_bytes.iter().all(|&byte| byte.is_ascii_whitespace()) {
-        return Err(JSONError {
-            path: path.to_path_buf(),
-            message: "File is empty".to_string(),
-            line: 0,
-            column: 0,
-        });
-    }
-    Ok(())
-}
-
 #[derive(Debug, ::serde::Deserialize)]
 struct PackageMapData {
     packages: FxHashMap<CompactString, PackageMapEntry>,
