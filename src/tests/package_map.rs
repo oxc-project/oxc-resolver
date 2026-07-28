@@ -87,6 +87,36 @@ fn invalid() {
 }
 
 #[test]
+fn package_self_precedes_package_map() {
+    let fixture = super::fixture_root().join("package-map/order");
+    let resolver = Resolver::new(ResolveOptions {
+        package_map: Some(fixture.join(".package-map.json")),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve(fixture.join("self"), "self-package").unwrap();
+    assert_eq!(resolution.path(), fixture.join("self/self.js"));
+}
+
+#[test]
+fn package_map_does_not_fallback_to_node_modules() {
+    let fixture = super::fixture_root().join("package-map/order");
+    let importer = fixture.join("self");
+
+    let resolution = Resolver::default().resolve(&importer, "fallback-package").unwrap();
+    assert_eq!(resolution.path(), fixture.join("self/node_modules/fallback-package/index.js"));
+
+    let resolver = Resolver::new(ResolveOptions {
+        package_map: Some(fixture.join(".package-map.json")),
+        ..ResolveOptions::default()
+    });
+    assert!(matches!(
+        resolver.resolve(importer, "fallback-package"),
+        Err(ResolveError::NotFound(specifier)) if specifier == "fallback-package"
+    ));
+}
+
+#[test]
 fn pnpm() {
     let fixtures = super::fixture_root();
     let specifiers = ["axios", "decimal.js", "postcss"];
