@@ -44,6 +44,13 @@ fn pnpm_isolated() {
 }
 
 #[test]
+fn pnpm_hoisted_loose() {
+    let fixture = super::fixture_root().join("bench-pm/installs/pnpm-hoisted");
+    let importer = fixture.join("node_modules/axios/lib").canonicalize().unwrap();
+    test_package_map(&importer, &fixture.join("node_modules/.package-map.json"), &["chalk"]);
+}
+
+#[test]
 fn yarn_isolated() {
     let fixture = super::fixture_root().join("bench-pm/installs/yarn-isolated");
     test_package_map(
