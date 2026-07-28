@@ -55,6 +55,7 @@ mod file_url;
 mod node_path;
 mod options;
 mod package_json;
+pub(crate) mod package_map;
 mod path;
 mod resolution;
 mod specifier;
