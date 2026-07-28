@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use crate::{FileSystem, FileSystemOs, ResolveOptions, Resolver, package_map::PackageMap};
+use crate::{
+    FileSystem, FileSystemOs, ResolveError, ResolveOptions, Resolver, package_map::PackageMap,
+};
 
 fn file_system() -> FileSystemOs {
     #[cfg(feature = "yarn_pnp")]
@@ -53,7 +55,7 @@ fn test_package_map(
     assert_eq!(package_map.realpath(), package_map_path.canonicalize().unwrap());
     assert_package_map(&package_map);
 
-    let resolver = Resolver::new(ResolveOptions { modules: vec![], ..ResolveOptions::default() });
+    let resolver = package_map_resolver(package_map_path);
     for specifier in specifiers {
         if let Err(error) = resolver.resolve(importer, specifier) {
             panic!(
@@ -63,6 +65,15 @@ fn test_package_map(
             );
         }
     }
+}
+
+fn package_map_resolver(package_map_path: &Path) -> Resolver {
+    Resolver::new(ResolveOptions {
+        condition_names: vec!["node".into(), "require".into()],
+        modules: vec![],
+        package_map: Some(package_map_path.to_path_buf()),
+        ..ResolveOptions::default()
+    })
 }
 
 #[test]
@@ -102,13 +113,22 @@ fn yarn() {
 #[test]
 fn pnpm_isolated() {
     let fixture = super::fixture_root().join("bench-pm/installs/pnpm-isolated");
+    let importer = fixture.join("apps/web/src");
+    let package_map_path = fixture.join("node_modules/.package-map.json");
     let specifiers = ["react", "axios", "@bench/ui"];
-    test_package_map(
-        &fixture.join("apps/web/src"),
-        &fixture.join("node_modules/.package-map.json"),
-        &specifiers,
-        |package_map| assert_dependencies(package_map, "apps/web", &specifiers),
-    );
+    test_package_map(&importer, &package_map_path, &specifiers, |package_map| {
+        assert_dependencies(package_map, "apps/web", &specifiers);
+
+        let axios_id = package_map.package("apps/web").unwrap().dependency("axios").unwrap();
+        let follow_redirects_id =
+            package_map.package(axios_id).unwrap().dependency("follow-redirects").unwrap();
+        assert!(package_map.package(follow_redirects_id).is_some());
+    });
+
+    assert!(matches!(
+        package_map_resolver(&package_map_path).resolve(&importer, "follow-redirects"),
+        Err(ResolveError::NotFound(specifier)) if specifier == "follow-redirects"
+    ));
 }
 
 #[test]

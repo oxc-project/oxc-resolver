@@ -30,6 +30,10 @@ impl PackageMapBackend for PackageMapData {
     fn package(&self, package_id: &str) -> Option<Self::Entry<'_>> {
         self.packages.get(package_id)
     }
+
+    fn iter(&self) -> impl Iterator<Item = (&str, Self::Entry<'_>)> {
+        self.packages.iter().map(|(id, entry)| (id.as_str(), entry))
+    }
 }
 
 impl<'a> PackageMapEntryBackend<'a> for &'a PackageMapEntryData {
