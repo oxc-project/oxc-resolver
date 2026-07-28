@@ -1,0 +1,8 @@
+{
+  "packages": {
+    "app": {
+      "url": "./app",
+      "dependencies": []
+    }
+  }
+}
