@@ -39,12 +39,7 @@ fn parse_package_map(package_map_path: &Path) -> Result<PackageMap, crate::JSONE
 
     let fs = file_system();
     let realpath = fs.canonicalize(package_map_path).unwrap();
-    PackageMap::parse(
-        &fs,
-        package_map_path.to_path_buf(),
-        realpath,
-        fs.read(package_map_path).unwrap(),
-    )
+    PackageMap::parse(package_map_path.to_path_buf(), realpath, fs.read(package_map_path).unwrap())
 }
 
 fn test_package_map(
