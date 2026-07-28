@@ -3,19 +3,11 @@
 use std::path::PathBuf;
 
 use super::{PackageMap, PackageMapData};
-use crate::{FileSystem, JSONError, replace_bom_with_whitespace};
+use crate::JSONError;
 
 impl PackageMap {
     /// Parse a `.package-map.json` file from JSON bytes.
-    pub fn parse(
-        _fs: &dyn FileSystem,
-        path: PathBuf,
-        realpath: PathBuf,
-        mut json: Vec<u8>,
-    ) -> Result<Self, JSONError> {
-        replace_bom_with_whitespace(&mut json);
-        super::check_if_empty(&json, &path)?;
-
+    pub fn parse(path: PathBuf, realpath: PathBuf, json: Vec<u8>) -> Result<Self, JSONError> {
         let data = serde_json::from_slice::<PackageMapData>(&json).map_err(|error| JSONError {
             path: path.clone(),
             message: error.to_string(),
