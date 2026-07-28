@@ -1,0 +1,14 @@
+{
+  "packages": {
+    "owner": {
+      "url": "./self",
+      "dependencies": {
+        "self-package": "decoy"
+      }
+    },
+    "decoy": {
+      "url": "./decoy",
+      "dependencies": {}
+    }
+  }
+}
