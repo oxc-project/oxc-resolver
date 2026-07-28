@@ -13,6 +13,7 @@ mod simd;
 
 use std::path::{Path, PathBuf};
 
+use compact_str::CompactString;
 use rustc_hash::FxHashMap;
 
 use crate::JSONError;
@@ -32,7 +33,7 @@ fn check_if_empty(json_bytes: &[u8], path: &Path) -> Result<(), JSONError> {
 
 #[derive(Debug, ::serde::Deserialize)]
 struct PackageMapData {
-    packages: FxHashMap<String, PackageMapEntry>,
+    packages: FxHashMap<CompactString, PackageMapEntry>,
 }
 
 /// Parsed Node.js package map.
@@ -45,7 +46,7 @@ pub struct PackageMap {
     realpath: PathBuf,
 
     /// Package IDs mapped to their package entries.
-    packages: FxHashMap<String, PackageMapEntry>,
+    packages: FxHashMap<CompactString, PackageMapEntry>,
 }
 
 impl PackageMap {
@@ -60,7 +61,7 @@ impl PackageMap {
     }
 
     /// Returns all package entries keyed by package ID.
-    pub fn packages(&self) -> &FxHashMap<String, PackageMapEntry> {
+    pub fn packages(&self) -> &FxHashMap<CompactString, PackageMapEntry> {
         &self.packages
     }
 
@@ -74,21 +75,21 @@ impl PackageMap {
 #[derive(Debug, ::serde::Deserialize)]
 pub struct PackageMapEntry {
     /// Absolute or relative URL for the package.
-    url: String,
+    url: CompactString,
 
     /// Bare package specifiers mapped to package IDs.
     #[serde(default)]
-    dependencies: FxHashMap<String, String>,
+    dependencies: FxHashMap<CompactString, CompactString>,
 }
 
 impl PackageMapEntry {
     /// Returns the package URL.
     pub fn url(&self) -> &str {
-        &self.url
+        self.url.as_str()
     }
 
     /// Returns the target package ID for a bare package specifier.
     pub fn dependency(&self, specifier: &str) -> Option<&str> {
-        self.dependencies.get(specifier).map(String::as_str)
+        self.dependencies.get(specifier).map(CompactString::as_str)
     }
 }
