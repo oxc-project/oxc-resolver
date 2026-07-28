@@ -45,6 +45,10 @@ impl PackageMapBackend for PackageMapCell {
     fn package(&self, package_id: &str) -> Option<Self::Entry<'_>> {
         self.borrow_dependent().packages.get(package_id)
     }
+
+    fn iter(&self) -> impl Iterator<Item = (&str, Self::Entry<'_>)> {
+        self.borrow_dependent().packages.iter().map(|(id, entry)| (*id, entry))
+    }
 }
 
 impl<'a> PackageMapEntryBackend<'a> for &'a PackageMapEntryData<'a> {
