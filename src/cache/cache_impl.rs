@@ -9,7 +9,6 @@ use std::{
 };
 
 use dashmap::{DashMap, mapref::entry::Entry};
-#[cfg(feature = "yarn_pnp")]
 use once_cell::sync::OnceCell;
 use rustc_hash::FxHasher;
 
@@ -30,8 +29,8 @@ pub struct Cache {
     pub(crate) tsconfigs_raw: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     /// Cache for built/resolved tsconfigs (used for resolution).
     pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
-    /// Parsed package maps, keyed by their `.package-map.json` path.
-    pub(crate) package_maps: DashMap<PathBuf, Arc<PackageMap>, BuildHasherDefault<FxHasher>>,
+    /// Parsed package map for this resolver, or `None` when no package map exists.
+    pub(crate) package_map: OnceCell<Option<PackageMap>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
 }
@@ -41,7 +40,6 @@ impl Cache {
         self.paths.clear();
         self.tsconfigs_raw.clear();
         self.tsconfigs_built.clear();
-        self.package_maps.clear();
     }
 
     /// The underlying filesystem as a trait object.
@@ -132,24 +130,27 @@ impl Cache {
         &self,
         path: &CachedPath,
         symlinks: bool,
-    ) -> Result<Arc<PackageMap>, ResolveError> {
-        if let Some(package_map) = self.package_maps.get(path.path()) {
-            return Ok(Arc::clone(package_map.value()));
+    ) -> Result<Option<&PackageMap>, ResolveError> {
+        if let Some(package_map) = self.package_map.get() {
+            return Ok(package_map.as_ref());
         }
 
-        let json = self.fs.read(path.path())?;
-        let realpath = if symlinks { self.canonicalize(path)? } else { path.to_path_buf() };
-        let package_map = Arc::new(
-            PackageMap::parse(path.to_path_buf(), realpath, json).map_err(ResolveError::Json)?,
-        );
-
-        Ok(match self.package_maps.entry(path.to_path_buf()) {
-            Entry::Occupied(entry) => Arc::clone(entry.get()),
-            Entry::Vacant(entry) => {
-                entry.insert(Arc::clone(&package_map));
-                package_map
-            }
-        })
+        let package_map = self.package_map.get_or_try_init(|| {
+            let Some(package_map_path) =
+                std::iter::successors(Some(path.clone()), |path| path.parent(self))
+                    .filter_map(|path| {
+                        path.cached_node_modules(symlinks, self, &mut Ctx::default())
+                    })
+                    .map(|node_modules| node_modules.push(".package-map.json", self))
+                    .find(|path| self.is_file(path, symlinks, &mut Ctx::default()))
+            else {
+                return Ok(None);
+            };
+            let json = self.fs.read(package_map_path.path())?;
+            let path = package_map_path.to_path_buf();
+            PackageMap::parse(path.clone(), path, json).map(Some).map_err(ResolveError::Json)
+        })?;
+        Ok(package_map.as_ref())
     }
 
     /// `stat`-equivalent metadata (symlinks followed) for `path`, cached in the `followed` slot.
@@ -388,7 +389,7 @@ impl Cache {
             paths: DashMap::with_hasher(BuildHasherDefault::default()),
             tsconfigs_raw: DashMap::with_hasher(BuildHasherDefault::default()),
             tsconfigs_built: DashMap::with_hasher(BuildHasherDefault::default()),
-            package_maps: DashMap::with_hasher(BuildHasherDefault::default()),
+            package_map: OnceCell::new(),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceCell::new(),
         }

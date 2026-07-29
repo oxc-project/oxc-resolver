@@ -640,11 +640,16 @@ impl ResolverImpl {
 
     fn load_package_map(
         &self,
-        _cached_path: &CachedPath,
+        cached_path: &CachedPath,
         _specifier: &str,
         _tsconfig: Option<&TsConfig>,
         _ctx: &mut Ctx,
     ) -> ResolveResult {
+        let Some(package_map) = self.cache.get_package_map(cached_path, self.options.symlinks)?
+        else {
+            return Ok(None);
+        };
+        dbg!(package_map);
         todo!()
     }
 
