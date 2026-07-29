@@ -82,7 +82,6 @@ use rustc_hash::FxHashSet;
 use crate::{
     alias::{CompiledAlias, compile_alias},
     context::ResolveContext as Ctx,
-    package_map::PackageMap,
     path::SLASH_START,
     specifier::Specifier,
 };
@@ -625,10 +624,7 @@ impl ResolverImpl {
             return Ok(path);
         }
         // 6. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
-        if let Some(package_map) = self.find_package_map(cached_path, ctx)?
-            && let Some(path) =
-                self.load_package_map(&package_map, cached_path, specifier, tsconfig, ctx)?
-        {
+        if let Some(path) = self.load_package_map(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
         // 7. LOAD_NODE_MODULES(X, dirname(Y))
@@ -644,12 +640,23 @@ impl ResolverImpl {
 
     fn load_package_map(
         &self,
-        package_map: &PackageMap,
         cached_path: &CachedPath,
         specifier: &str,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> ResolveResult {
+        let Some(package_map_path) =
+            std::iter::successors(Some(cached_path.clone()), |path| path.parent(&self.cache))
+                .map(|directory| {
+                    directory.normalize_with("node_modules/.package-map.json", &self.cache)
+                })
+                .find(|path| self.cache.is_file(path, self.options.symlinks, &mut Ctx::default()))
+        else {
+            return Ok(None);
+        };
+        ctx.add_file_dependency(package_map_path.path());
+        let package_map = self.cache.get_package_map(&package_map_path, self.options.symlinks)?;
+
         let importer_path = if self.options.symlinks {
             self.cache.canonicalize(cached_path).unwrap_or_else(|_| cached_path.to_path_buf())
         } else {
@@ -722,28 +729,6 @@ impl ResolverImpl {
 
         self.require_relative(&package_path, Self::dot_subpath(subpath).as_ref(), tsconfig, ctx)
             .map(Some)
-    }
-
-    fn find_package_map(
-        &self,
-        cached_path: &CachedPath,
-        ctx: &mut Ctx,
-    ) -> Result<Option<Arc<PackageMap>>, ResolveError> {
-        for directory in
-            std::iter::successors(Some(cached_path.clone()), |path| path.parent(&self.cache))
-        {
-            let package_map_path =
-                directory.normalize_with("node_modules/.package-map.json", &self.cache);
-            if self.cache.is_file(&package_map_path, self.options.symlinks, &mut Ctx::default()) {
-                ctx.add_file_dependency(package_map_path.path());
-                return self
-                    .cache
-                    .get_package_map(&package_map_path, self.options.symlinks)
-                    .map(Some);
-            }
-        }
-
-        Ok(None)
     }
 
     /// enhanced-resolve: ParsePlugin.
@@ -1553,10 +1538,7 @@ impl ResolverImpl {
         //   1. Return the string "node:" concatenated with packageSpecifier.
         self.require_core(package_name)?;
 
-        if let Some(package_map) = self.find_package_map(cached_path, ctx)?
-            && let Some(path) =
-                self.load_package_map(&package_map, cached_path, specifier, tsconfig, ctx)?
-        {
+        if let Some(path) = self.load_package_map(cached_path, specifier, tsconfig, ctx)? {
             return Ok(Some(path));
         }
 
