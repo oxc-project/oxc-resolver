@@ -1,4 +1,0 @@
-{
-  "name": "self-package",
-  "exports": "./self.js"
-}
