@@ -46,7 +46,7 @@ fn styled_components() {
 fn axios() {
     let dir = dir();
     let path = dir.join("fixtures/pnpm");
-    let module_path = dir.join("node_modules/.pnpm/axios@1.8.4/node_modules/axios");
+    let module_path = dir.join("node_modules/.pnpm/axios@1.8.4_debug@4.4.3/node_modules/axios");
     let specifier = "axios";
 
     // default
