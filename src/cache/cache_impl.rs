@@ -19,7 +19,7 @@ use super::{
 };
 use crate::{
     FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
-    context::ResolveContext as Ctx, path::PathUtil,
+    context::ResolveContext as Ctx, package_map::PackageMap, path::PathUtil,
 };
 
 /// Cache implementation used for caching filesystem access.
@@ -30,6 +30,8 @@ pub struct Cache {
     pub(crate) tsconfigs_raw: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     /// Cache for built/resolved tsconfigs (used for resolution).
     pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    /// Parsed package maps, keyed by their `.package-map.json` path.
+    pub(crate) package_maps: DashMap<PathBuf, Arc<PackageMap>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
 }
@@ -39,6 +41,7 @@ impl Cache {
         self.paths.clear();
         self.tsconfigs_raw.clear();
         self.tsconfigs_built.clear();
+        self.package_maps.clear();
     }
 
     /// The underlying filesystem as a trait object.
@@ -123,6 +126,30 @@ impl Cache {
             },
             FileMetadata::is_dir,
         )
+    }
+
+    pub(crate) fn get_package_map(
+        &self,
+        path: &CachedPath,
+        symlinks: bool,
+    ) -> Result<Arc<PackageMap>, ResolveError> {
+        if let Some(package_map) = self.package_maps.get(path.path()) {
+            return Ok(Arc::clone(package_map.value()));
+        }
+
+        let json = self.fs.read(path.path())?;
+        let realpath = if symlinks { self.canonicalize(path)? } else { path.to_path_buf() };
+        let package_map = Arc::new(
+            PackageMap::parse(path.to_path_buf(), realpath, json).map_err(ResolveError::Json)?,
+        );
+
+        Ok(match self.package_maps.entry(path.to_path_buf()) {
+            Entry::Occupied(entry) => Arc::clone(entry.get()),
+            Entry::Vacant(entry) => {
+                entry.insert(Arc::clone(&package_map));
+                package_map
+            }
+        })
     }
 
     /// `stat`-equivalent metadata (symlinks followed) for `path`, cached in the `followed` slot.
@@ -361,6 +388,7 @@ impl Cache {
             paths: DashMap::with_hasher(BuildHasherDefault::default()),
             tsconfigs_raw: DashMap::with_hasher(BuildHasherDefault::default()),
             tsconfigs_built: DashMap::with_hasher(BuildHasherDefault::default()),
+            package_maps: DashMap::with_hasher(BuildHasherDefault::default()),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceCell::new(),
         }

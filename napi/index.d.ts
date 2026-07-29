@@ -187,14 +187,6 @@ export interface NapiResolveOptions {
    */
   modules?: string | string[]
   /**
-   * Path to a Node.js package map used to resolve bare package specifiers.
-   *
-   * When set, package-map resolution takes precedence over `modules`.
-   *
-   * Default `undefined`.
-   */
-  packageMap?: string
-  /**
    * Resolve to a context instead of a file.
    *
    * Default `false`

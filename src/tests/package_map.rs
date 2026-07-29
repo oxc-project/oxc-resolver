@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use crate::{
-    FileSystem, FileSystemOs, ResolveError, ResolveOptions, Resolver, package_map::PackageMap,
+    FileSystem, FileSystemOs, ResolveContext, ResolveError, ResolveOptions, Resolver,
+    package_map::PackageMap,
 };
 
 fn file_system() -> FileSystemOs {
@@ -55,23 +56,28 @@ fn test_package_map(
     assert_eq!(package_map.realpath(), package_map_path.canonicalize().unwrap());
     assert_package_map(&package_map);
 
-    let resolver = package_map_resolver(package_map_path);
+    let resolver = package_map_resolver();
     for specifier in specifiers {
-        if let Err(error) = resolver.resolve(importer, specifier) {
+        let mut context = ResolveContext::default();
+        if let Err(error) = resolver.resolve_with_context(importer, specifier, None, &mut context) {
             panic!(
                 "failed to resolve {specifier:?} from {} using {}: {error}",
                 importer.display(),
                 package_map_path.display(),
             );
         }
+        assert!(
+            context.file_dependencies.contains(package_map_path),
+            "resolution did not request {}",
+            package_map_path.display()
+        );
     }
 }
 
-fn package_map_resolver(package_map_path: &Path) -> Resolver {
+fn package_map_resolver() -> Resolver {
     Resolver::new(ResolveOptions {
         condition_names: vec!["node".into(), "require".into()],
         modules: vec![],
-        package_map: Some(package_map_path.to_path_buf()),
         ..ResolveOptions::default()
     })
 }
@@ -89,12 +95,7 @@ fn invalid() {
 #[test]
 fn package_self_precedes_package_map() {
     let fixture = super::fixture_root().join("package-map/order");
-    let resolver = Resolver::new(ResolveOptions {
-        package_map: Some(fixture.join(".package-map.json")),
-        ..ResolveOptions::default()
-    });
-
-    let resolution = resolver.resolve(fixture.join("self"), "self-package").unwrap();
+    let resolution = Resolver::default().resolve(fixture.join("self"), "self-package").unwrap();
     assert_eq!(resolution.path(), fixture.join("self/self.js"));
 }
 
@@ -102,16 +103,11 @@ fn package_self_precedes_package_map() {
 fn package_map_does_not_fallback_to_node_modules() {
     let fixture = super::fixture_root().join("package-map/order");
     let importer = fixture.join("self");
+    let fallback = fixture.join("self/node_modules/fallback-package/index.js");
+    assert!(fallback.is_file());
 
-    let resolution = Resolver::default().resolve(&importer, "fallback-package").unwrap();
-    assert_eq!(resolution.path(), fixture.join("self/node_modules/fallback-package/index.js"));
-
-    let resolver = Resolver::new(ResolveOptions {
-        package_map: Some(fixture.join(".package-map.json")),
-        ..ResolveOptions::default()
-    });
     assert!(matches!(
-        resolver.resolve(importer, "fallback-package"),
+        Resolver::default().resolve(importer, "fallback-package"),
         Err(ResolveError::NotFound(specifier)) if specifier == "fallback-package"
     ));
 }
@@ -156,7 +152,7 @@ fn pnpm_isolated() {
     });
 
     assert!(matches!(
-        package_map_resolver(&package_map_path).resolve(&importer, "follow-redirects"),
+        package_map_resolver().resolve(&importer, "follow-redirects"),
         Err(ResolveError::NotFound(specifier)) if specifier == "follow-redirects"
     ));
 }

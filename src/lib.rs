@@ -74,7 +74,7 @@ use std::{
     ffi::OsStr,
     fmt,
     path::{Component, Path, PathBuf},
-    sync::{Arc, OnceLock},
+    sync::Arc,
 };
 
 use rustc_hash::FxHashSet;
@@ -131,7 +131,6 @@ pub struct ResolverImpl {
     cache: Arc<Cache>,
     alias: CompiledAlias,
     fallback: CompiledAlias,
-    package_map: OnceLock<Result<Arc<PackageMap>, ResolveError>>,
 }
 
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
@@ -171,7 +170,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             _ => Fs::new(),
         };
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback, package_map: OnceLock::new() };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
@@ -180,7 +179,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback, package_map: OnceLock::new() };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
@@ -200,7 +199,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             }
             _ => Arc::clone(&self.inner.cache),
         };
-        let inner = ResolverImpl { options, cache, alias, fallback, package_map: OnceLock::new() };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 }
@@ -626,8 +625,11 @@ impl ResolverImpl {
             return Ok(path);
         }
         // 6. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
-        if self.options.package_map.is_some() {
-            return self.load_package_map(cached_path, specifier, tsconfig, ctx);
+        if let Some(package_map) = self.find_package_map(cached_path, ctx)?
+            && let Some(path) =
+                self.load_package_map(&package_map, cached_path, specifier, tsconfig, ctx)?
+        {
+            return Ok(path);
         }
         // 7. LOAD_NODE_MODULES(X, dirname(Y))
         self.load_node_modules_or_legacy(
@@ -642,12 +644,12 @@ impl ResolverImpl {
 
     fn load_package_map(
         &self,
+        package_map: &PackageMap,
         cached_path: &CachedPath,
         specifier: &str,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        let package_map = self.package_map(ctx)?;
+    ) -> ResolveResult {
         let importer_path = if self.options.symlinks {
             self.cache.canonicalize(cached_path).unwrap_or_else(|_| cached_path.to_path_buf())
         } else {
@@ -656,6 +658,32 @@ impl ResolverImpl {
         let importer = package_map
             .package_for_path(&importer_path)
             .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let importer_package_map_path = package_map
+            .resolve_url(importer.url())
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        // `node_modules` isn't part of the package containing it. If an importer within
+        // `node_modules` only matched an entry outside that directory, it isn't owned by the map.
+        if let Some(node_modules_path) = importer_path
+            .ancestors()
+            .find(|path| path.file_name().is_some_and(|name| name == "node_modules"))
+            && !importer_package_map_path.starts_with(node_modules_path)
+        {
+            return Ok(None);
+        }
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
+        else {
+            return Ok(None);
+        };
+        let importer_package_path = if self.options.symlinks {
+            package_json.realpath().parent()
+        } else {
+            package_json.path().parent()
+        };
+        // An ancestor package map may belong to an enclosing workspace. Only use its matched
+        // entry when it owns the importer's nearest package scope.
+        if importer_package_path != Some(importer_package_map_path.as_path()) {
+            return Ok(None);
+        }
 
         let (package_name, subpath) = Self::parse_package_specifier(specifier);
         let package_id = importer
@@ -676,40 +704,33 @@ impl ResolverImpl {
             && let Some(path) =
                 self.load_package_exports(specifier, subpath, &package_path, tsconfig, ctx)?
         {
-            return Ok(path);
+            return Ok(Some(path));
         }
 
         self.require_relative(&package_path, Self::dot_subpath(subpath).as_ref(), tsconfig, ctx)
+            .map(Some)
     }
 
-    fn package_map(&self, ctx: &mut Ctx) -> Result<&PackageMap, ResolveError> {
-        let package_map_path =
-            self.options.package_map.as_ref().expect("checked before loading package map");
-        let package_map = self.package_map.get_or_init(|| {
-            let json = self.cache.fs.read(package_map_path)?;
-            let realpath = if self.options.symlinks {
-                self.cache.fs.canonicalize(package_map_path)?
-            } else {
-                package_map_path.clone()
-            };
-            PackageMap::parse(package_map_path.clone(), realpath, json)
-                .map(Arc::new)
-                .map_err(ResolveError::Json)
-        });
-
-        match package_map {
-            Ok(package_map) => {
-                ctx.add_file_dependency(package_map.path());
-                Ok(package_map)
-            }
-            Err(error) => {
-                match error {
-                    ResolveError::Json(error) => ctx.add_file_dependency(&error.path),
-                    _ => ctx.add_missing_dependency(package_map_path),
-                }
-                Err(error.clone())
+    fn find_package_map(
+        &self,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Result<Option<Arc<PackageMap>>, ResolveError> {
+        for directory in
+            std::iter::successors(Some(cached_path.clone()), |path| path.parent(&self.cache))
+        {
+            let package_map_path =
+                directory.normalize_with("node_modules/.package-map.json", &self.cache);
+            if self.cache.is_file(&package_map_path, self.options.symlinks, &mut Ctx::default()) {
+                ctx.add_file_dependency(package_map_path.path());
+                return self
+                    .cache
+                    .get_package_map(&package_map_path, self.options.symlinks)
+                    .map(Some);
             }
         }
+
+        Ok(None)
     }
 
     /// enhanced-resolve: ParsePlugin.
@@ -1519,8 +1540,11 @@ impl ResolverImpl {
         //   1. Return the string "node:" concatenated with packageSpecifier.
         self.require_core(package_name)?;
 
-        if self.options.package_map.is_some() {
-            return self.load_package_map(cached_path, specifier, tsconfig, ctx).map(Some);
+        if let Some(package_map) = self.find_package_map(cached_path, ctx)?
+            && let Some(path) =
+                self.load_package_map(&package_map, cached_path, specifier, tsconfig, ctx)?
+        {
+            return Ok(Some(path));
         }
 
         // 11. While parentURL is not the file system root,

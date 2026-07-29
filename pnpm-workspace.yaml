@@ -11,8 +11,6 @@ catalog:
 
 ignoreScripts: true
 
-nodePackageMapType: standard
-
 minimumReleaseAgeExclude:
   - vite-plus
   - "@voidzero-dev/*"
