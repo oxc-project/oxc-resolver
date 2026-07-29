@@ -12,6 +12,7 @@ export default defineConfig({
       "napi/browser.js",
       "napi/index.d.ts",
       "napi/index.js",
+      "napi/resolver.wasi.d.cts",
       "napi/resolver.wasi-browser.js",
       "napi/resolver.wasi.cjs",
       "napi/wasi-worker-browser.mjs",

@@ -14,6 +14,8 @@ ignoreScripts: true
 minimumReleaseAgeExclude:
   - vite-plus
   - "@voidzero-dev/*"
+  - "@napi-rs/cli@3.8.0"
+  - "@napi-rs/wasm-runtime@1.2.0"
 
 ignoredBuiltDependencies:
   - esbuild
