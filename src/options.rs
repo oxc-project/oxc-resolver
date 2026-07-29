@@ -122,13 +122,6 @@ pub struct ResolveOptions {
     /// sanitization.
     pub modules: Vec<String>,
 
-    /// Path to a Node.js package map used to resolve bare package specifiers.
-    ///
-    /// When set, package-map resolution takes precedence over [`modules`](Self::modules).
-    ///
-    /// Default `None`.
-    pub package_map: Option<PathBuf>,
-
     /// Resolve to a context instead of a file.
     ///
     /// Default `false`
@@ -419,27 +412,6 @@ impl ResolveOptions {
         self
     }
 
-    /// Sets the path to a Node.js package map.
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use std::path::PathBuf;
-    ///
-    /// use oxc_resolver::ResolveOptions;
-    ///
-    /// let options = ResolveOptions::default().with_package_map("node_modules/.package-map.json");
-    /// assert_eq!(
-    ///     options.package_map,
-    ///     Some(PathBuf::from("node_modules/.package-map.json"))
-    /// );
-    /// ```
-    #[must_use]
-    pub fn with_package_map<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.package_map = Some(path.as_ref().to_path_buf());
-        self
-    }
-
     /// Adds a main file to [ResolveOptions::main_files]
     ///
     /// ## Examples
@@ -589,7 +561,6 @@ impl Default for ResolveOptions {
             main_fields: vec!["main".into()],
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            package_map: None,
             resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
@@ -650,9 +621,6 @@ impl fmt::Display for ResolveOptions {
         }
         if !self.modules.is_empty() {
             write!(f, "modules:{:?},", self.modules)?;
-        }
-        if let Some(package_map) = &self.package_map {
-            write!(f, "package_map:{},", package_map.display())?;
         }
         if self.resolve_to_context {
             write!(f, "resolve_to_context:{:?},", self.resolve_to_context)?;
@@ -759,7 +727,6 @@ mod test {
             main_fields: vec![],
             main_files: vec![],
             modules: vec![],
-            package_map: None,
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: false,
             prefer_absolute: false,
