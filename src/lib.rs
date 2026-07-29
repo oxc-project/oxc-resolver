@@ -670,6 +670,19 @@ impl ResolverImpl {
         {
             return Ok(None);
         }
+        // Don't let an enclosing package's map cross a nearer nested project that has its own
+        // `node_modules` tree. A workspace listed in the map still works because its matched
+        // package path is the boundary where this walk stops.
+        let importer_cached_path = self.cache.value(&importer_path);
+        for directory in
+            std::iter::successors(Some(importer_cached_path), |path| path.parent(&self.cache))
+                .take_while(|path| path.path() != importer_package_map_path)
+        {
+            let node_modules = directory.normalize_with("node_modules", &self.cache);
+            if self.cache.is_dir(&node_modules, self.options.symlinks, &mut Ctx::default()) {
+                return Ok(None);
+            }
+        }
         let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
         else {
             return Ok(None);
