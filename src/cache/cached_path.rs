@@ -36,6 +36,11 @@ pub struct CachedPathImpl {
     pub tsconfig: OnceLock<Option<Arc<TsConfig>>>,
     /// `tsconfig.json` after resolving `references`, `files`, `include` and `extend`.
     pub resolved_tsconfig: OnceLock<Option<Arc<TsConfig>>>,
+    /// The nearest ancestor `tsconfig.json` whose `compilerOptions` govern how
+    /// this path is compiled, ignoring `exclude` ownership. Distinct from
+    /// [`Self::resolved_tsconfig`] (ownership-strict, used for `paths`/`baseUrl`
+    /// resolution), so the two answers are cached separately.
+    pub governing_tsconfig: OnceLock<Option<Arc<TsConfig>>>,
 }
 
 impl CachedPathImpl {
@@ -58,6 +63,7 @@ impl CachedPathImpl {
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),
             resolved_tsconfig: OnceLock::new(),
+            governing_tsconfig: OnceLock::new(),
         }
     }
 }

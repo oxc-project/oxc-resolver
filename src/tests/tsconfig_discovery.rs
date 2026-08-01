@@ -43,6 +43,59 @@ fn extensionless_file_owned_via_files_array() {
     assert_eq!(not_owned, Err(ResolveError::NotFound("@y/foo".into())));
 }
 
+/// `find_tsconfig` (ownership-strict, for `paths`/`baseUrl`) and
+/// `find_tsconfig_for_compiler_options` (nearest-ancestor, for `compilerOptions`)
+/// diverge for a file matched by `exclude` yet still imported into the build.
+///
+/// `tsc` compiles such a file with the nearest project's `compilerOptions`
+/// (imports override `exclude`), so the compiler-options lookup must return the
+/// excluding config — while alias resolution must still treat the file as
+/// unowned, so the config's `paths` do not leak into it.
+/// See <https://github.com/rolldown/rolldown/issues/10281>.
+#[test]
+fn find_tsconfig_for_compiler_options_of_excluded_imported_file() {
+    let f = super::fixture_root().join("tsconfig-compiler-options");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let excluded = f.join("excluded/service.ts");
+    let owned = f.join("main.ts");
+
+    // Ownership-strict discovery: the excluded file is owned by no project (no
+    // ancestor tsconfig includes it), so `find_tsconfig` returns `None` — #1220.
+    assert!(resolver.find_tsconfig(&excluded).unwrap().is_none());
+
+    // Compiler-options discovery: the nearest ancestor `tsconfig.json` governs,
+    // so its `experimentalDecorators` is available for the transformer.
+    let compiler_options_tsconfig =
+        resolver.find_tsconfig_for_compiler_options(&excluded).unwrap().unwrap();
+    assert_eq!(compiler_options_tsconfig.path, f.join("tsconfig.json"));
+    assert_eq!(compiler_options_tsconfig.compiler_options.experimental_decorators, Some(true));
+
+    // An owned file resolves to the same config through both APIs.
+    assert_eq!(resolver.find_tsconfig(&owned).unwrap().unwrap().path, f.join("tsconfig.json"));
+    assert_eq!(
+        resolver.find_tsconfig_for_compiler_options(&owned).unwrap().unwrap().path,
+        f.join("tsconfig.json"),
+    );
+
+    // The excluded file stays unowned for alias resolution: the config's `@/*`
+    // `paths` must not leak into it (imports from it are not `tsconfig`-aliased),
+    // while the owned file does resolve the alias.
+    assert_eq!(
+        resolver.resolve_file(&excluded, "@/util").map(|r| r.full_path()),
+        Err(ResolveError::NotFound("@/util".into())),
+    );
+    assert_eq!(
+        resolver.resolve_file(&owned, "@/util").map(|r| r.full_path()),
+        Ok(f.join("src/util.ts")),
+    );
+}
+
 #[test]
 fn tsconfig_discovery_virtual_file_importer() {
     let f = super::fixture_root().join("tsconfig");

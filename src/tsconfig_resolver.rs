@@ -9,6 +9,17 @@ use crate::{
     path::PathUtil,
 };
 
+/// Which question auto-discovery answers for a file: which project *owns* it
+/// (for `paths`/`baseUrl` resolution), or which project's `compilerOptions`
+/// *compile* it. They differ for a file matched by `exclude` yet still imported.
+#[derive(Debug, Clone, Copy)]
+enum TsconfigDiscoveryMode {
+    /// Ownership-strict, for `paths`/`baseUrl`. `None` when no project owns the file.
+    Owner,
+    /// Nearest ancestor `tsconfig.json` regardless of `exclude`, for `compilerOptions`.
+    CompilerOptions,
+}
+
 #[derive(Default)]
 pub struct TsconfigResolveContext {
     extended_configs: Vec<PathBuf>,
@@ -35,16 +46,25 @@ impl TsconfigResolveContext {
 }
 
 impl ResolverImpl {
-    /// Finds the `tsconfig` to which this `path` belongs.
+    /// Finds the `tsconfig` that *owns* this `path`, for resolving its
+    /// `paths` / `baseUrl` module aliases.
     ///
     /// If the `path` is inside `node_modules`, this function always returns `None`.
     ///
     /// Algorithm:
     ///
     /// 1. Search for `tsconfig.json` in ancestor directories.
-    /// 2. If the path is not included in this `tsconfig.json` through the `files`, `include`, or `exclude` fields:
-    ///    2.1. Search through project references until a referenced `tsconfig` includes this file.
-    ///    2.2. If none of the references include this path, return the `tsconfig.json` found in step 1.
+    /// 2. Return the nearest one that owns the file via `files` / `include`
+    ///    (and is not dropped by `exclude`), or via a matching project reference.
+    /// 3. If no project owns the file, return `None` — matching `tsserver` and
+    ///    `typescript-go`, which leave such a file in an inferred project with no
+    ///    `paths` / `baseUrl` rather than borrowing an unrelated ancestor's.
+    ///
+    /// To instead discover the config whose `compilerOptions` govern how the file
+    /// is *compiled* (decorators, class fields, JSX, target), use
+    /// [`Self::find_tsconfig_for_compiler_options`]: ownership is the wrong model
+    /// there, because `tsc` compiles an imported-but-`exclude`d file with the
+    /// nearest project's options anyway.
     ///
     /// # Errors
     ///
@@ -53,16 +73,53 @@ impl ResolverImpl {
         &self,
         path: P,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        self.find_tsconfig_with_mode(path, TsconfigDiscoveryMode::Owner)
+    }
+
+    /// Finds the `tsconfig` whose `compilerOptions` govern how this `path` is
+    /// *compiled* — decorators, class fields, JSX, target lowering — as opposed
+    /// to which project owns it for `paths` / `baseUrl` resolution
+    /// ([`Self::find_tsconfig`]).
+    ///
+    /// If the `path` is inside `node_modules`, this function always returns `None`.
+    ///
+    /// Unlike [`Self::find_tsconfig`], this returns the **nearest ancestor**
+    /// `tsconfig.json` regardless of `exclude`: `tsc` pulls a file reached through
+    /// an `import` into the nearest project's program and compiles it with that
+    /// project's `compilerOptions` even when its `exclude` lists the file (imports
+    /// override `exclude`). Project references are still honored — when a
+    /// referenced sub-project owns the file, its config is returned.
+    ///
+    /// This restores, for compiler-options consumers such as bundler transformers,
+    /// the proximity-based discovery that ownership-strict `find_tsconfig` gives
+    /// up (see <https://github.com/rolldown/rolldown/issues/10281>).
+    ///
+    /// # Errors
+    ///
+    /// * Returns an error if the tsconfig is invalid, including any extended or referenced tsconfigs.
+    pub fn find_tsconfig_for_compiler_options<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
+        self.find_tsconfig_with_mode(path, TsconfigDiscoveryMode::CompilerOptions)
+    }
+
+    fn find_tsconfig_with_mode<P: AsRef<Path>>(
+        &self,
+        path: P,
+        mode: TsconfigDiscoveryMode,
+    ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         let path = path.as_ref().to_string_lossy();
         let specifier = Specifier::parse(path.as_ref()).map_err(ResolveError::Specifier)?;
         let path = Path::new(specifier.path());
         let cached_path = self.cache.value(path);
-        self.find_tsconfig_tracing(&cached_path)
+        self.find_tsconfig_tracing(&cached_path, mode)
     }
 
     fn find_tsconfig_tracing(
         &self,
         cached_path: &CachedPath,
+        mode: TsconfigDiscoveryMode,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         // Don't discover tsconfig for paths inside node_modules
         if cached_path.inside_node_modules() {
@@ -72,12 +129,18 @@ impl ResolverImpl {
         if !cached_path.path.is_absolute() {
             return Ok(None);
         }
-        let span = tracing::debug_span!("find_tsconfig", path = %cached_path);
+        // The two modes give different answers for the same file (an excluded but
+        // imported file is `None` for `Owner` but its nearest config for
+        // `CompilerOptions`), so they memoize into separate slots.
+        let cache_slot = match mode {
+            TsconfigDiscoveryMode::Owner => &cached_path.resolved_tsconfig,
+            TsconfigDiscoveryMode::CompilerOptions => &cached_path.governing_tsconfig,
+        };
+        let span = tracing::debug_span!("find_tsconfig", path = %cached_path, ?mode);
         let _enter = span.enter();
-        cached_path
-            .resolved_tsconfig
+        cache_slot
             .get_or_try_init(|| {
-                self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
+                self.find_tsconfig_impl(cached_path, mode).map(|option_tsconfig| {
                     option_tsconfig.map(|tsconfig| {
                         let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
                         tracing::debug!(path = %cached_path, ret = ?r);
@@ -96,10 +159,11 @@ impl ResolverImpl {
     fn find_tsconfig_impl(
         &self,
         cached_path: &CachedPath,
+        mode: TsconfigDiscoveryMode,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         match &self.options.tsconfig {
             None => Ok(None),
-            Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path),
+            Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path, mode),
             Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o),
         }
     }
@@ -107,6 +171,7 @@ impl ResolverImpl {
     fn find_tsconfig_auto(
         &self,
         cached_path: &CachedPath,
+        mode: TsconfigDiscoveryMode,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         let mut ctx = Ctx::default();
         let mut cache_value = Some(cached_path.clone());
@@ -130,18 +195,30 @@ impl ResolverImpl {
                     Ok(None)
                 }
             })? {
-                // Return the nearest tsconfig that owns the file (directly via
-                // `files`/`include`/`exclude`, or via a matching reference);
-                // otherwise keep walking up to an ancestor that does.
-                if tsconfig.claims_ownership_of(cached_path.path()) {
-                    return Ok(Some(Arc::clone(tsconfig)));
+                match mode {
+                    // Ownership-strict: return the nearest tsconfig that owns the
+                    // file (directly via `files`/`include`/`exclude`, or via a
+                    // matching reference); otherwise keep walking up to an
+                    // ancestor that does.
+                    TsconfigDiscoveryMode::Owner => {
+                        if tsconfig.claims_ownership_of(cached_path.path()) {
+                            return Ok(Some(Arc::clone(tsconfig)));
+                        }
+                    }
+                    // Compiler-options: the nearest ancestor `tsconfig.json`
+                    // governs, regardless of `exclude`. `resolve_tsconfig_solution`
+                    // (applied by the caller) still narrows to a referenced
+                    // sub-project when one owns the file.
+                    TsconfigDiscoveryMode::CompilerOptions => {
+                        return Ok(Some(Arc::clone(tsconfig)));
+                    }
                 }
             }
             cache_value = cv.parent(&self.cache);
         }
-        // No tsconfig owns the file. Both `tsserver` and `typescript-go` leave
-        // such a file in an inferred project (no `paths`/`baseUrl`), rather than
-        // applying an unrelated ancestor's `compilerOptions`, so return `None`.
+        // `Owner`: no project owns the file — both `tsserver` and `typescript-go`
+        // leave it in an inferred project (no `paths`/`baseUrl`), so return `None`.
+        // `CompilerOptions`: no `tsconfig.json` exists in any ancestor directory.
         Ok(None)
     }
 
