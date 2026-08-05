@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.24.3](https://github.com/oxc-project/oxc-resolver/compare/v11.24.2...v11.24.3) - 2026-08-05
+
+### <!-- 2 -->🚜 Refactor
+
+- normalize fixture directory names ([#1329](https://github.com/oxc-project/oxc-resolver/pull/1329)) (by @Boshen)
+
+### <!-- 3 -->📚 Documentation
+
+- update sponsor section ([#1311](https://github.com/oxc-project/oxc-resolver/pull/1311)) (by @Boshen)
+
+### Contributors
+
+* @renovate[bot]
+* @20jasper
+* @Boshen
+
 ## [11.24.2](https://github.com/oxc-project/oxc-resolver/compare/v11.24.1...v11.24.2) - 2026-07-12
 
 ### <!-- 5 -->🎨 Styling
