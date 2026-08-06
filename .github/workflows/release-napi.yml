@@ -79,6 +79,14 @@ jobs:
             target: armv7-unknown-linux-musleabihf
             build: pnpm build -x
           - os: ubuntu-latest
+            target: loongarch64-unknown-linux-gnu
+            build: |-
+              sudo apt-get update &&
+              sudo apt-get install gcc-14-loongarch64-linux-gnu g++-14-loongarch64-linux-gnu -y &&
+              export TARGET_CC=loongarch64-linux-gnu-gcc-14 &&
+              export CXX=loongarch64-linux-gnu-g++-14 &&
+              pnpm build
+          - os: ubuntu-latest
             target: powerpc64le-unknown-linux-gnu
             build: pnpm build --use-napi-cross
           - os: ubuntu-latest
