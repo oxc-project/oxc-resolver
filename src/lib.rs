@@ -55,6 +55,7 @@ mod file_url;
 mod node_path;
 mod options;
 mod package_json;
+pub(crate) mod package_map;
 mod path;
 mod resolution;
 mod specifier;
@@ -604,7 +605,130 @@ impl ResolverImpl {
         {
             return Ok(path);
         }
-        self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
+        self.load_bare_package(cached_path, specifier, tsconfig, ctx)
+    }
+
+    fn load_bare_package(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
+        if subpath.is_empty() {
+            ctx.with_fully_specified(false);
+        }
+        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
+        if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
+            return Ok(path);
+        }
+        // 6. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
+        if let Some(path) = self.load_package_map(cached_path, specifier, tsconfig, ctx)? {
+            return Ok(path);
+        }
+        // 7. LOAD_NODE_MODULES(X, dirname(Y))
+        self.load_node_modules_or_legacy(
+            cached_path,
+            specifier,
+            package_name,
+            subpath,
+            tsconfig,
+            ctx,
+        )
+    }
+
+    fn load_package_map(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
+        let Some(package_map_path) =
+            std::iter::successors(Some(cached_path.clone()), |path| path.parent(&self.cache))
+                .map(|directory| {
+                    directory.normalize_with("node_modules/.package-map.json", &self.cache)
+                })
+                .find(|path| self.cache.is_file(path, self.options.symlinks, &mut Ctx::default()))
+        else {
+            return Ok(None);
+        };
+        ctx.add_file_dependency(package_map_path.path());
+        let package_map = self.cache.get_package_map(&package_map_path, self.options.symlinks)?;
+
+        let importer_path = if self.options.symlinks {
+            self.cache.canonicalize(cached_path).unwrap_or_else(|_| cached_path.to_path_buf())
+        } else {
+            cached_path.to_path_buf()
+        };
+        let importer = package_map
+            .package_for_path(&importer_path)
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let importer_package_map_path = package_map
+            .resolve_url(importer.url())
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        // `node_modules` isn't part of the package containing it. If an importer within
+        // `node_modules` only matched an entry outside that directory, it isn't owned by the map.
+        if let Some(node_modules_path) = importer_path
+            .ancestors()
+            .find(|path| path.file_name().is_some_and(|name| name == "node_modules"))
+            && !importer_package_map_path.starts_with(node_modules_path)
+        {
+            return Ok(None);
+        }
+        // Don't let an enclosing package's map cross a nearer nested project that has its own
+        // `node_modules` tree. A workspace listed in the map still works because its matched
+        // package path is the boundary where this walk stops.
+        let importer_cached_path = self.cache.value(&importer_path);
+        for directory in
+            std::iter::successors(Some(importer_cached_path), |path| path.parent(&self.cache))
+                .take_while(|path| path.path() != importer_package_map_path)
+        {
+            let node_modules = directory.normalize_with("node_modules", &self.cache);
+            if self.cache.is_dir(&node_modules, self.options.symlinks, &mut Ctx::default()) {
+                return Ok(None);
+            }
+        }
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
+        else {
+            return Ok(None);
+        };
+        let importer_package_path = if self.options.symlinks {
+            package_json.realpath().parent()
+        } else {
+            package_json.path().parent()
+        };
+        // An ancestor package map may belong to an enclosing workspace. Only use its matched
+        // entry when it owns the importer's nearest package scope.
+        if importer_package_path != Some(importer_package_map_path.as_path()) {
+            return Ok(None);
+        }
+
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
+        let package_id = importer
+            .dependency(package_name)
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let package = package_map
+            .package(package_id)
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let package_path = package_map
+            .resolve_url(package.url())
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let package_path = self.cache.value(&package_path);
+
+        if subpath.is_empty() {
+            ctx.with_fully_specified(false);
+        }
+        if self.is_dir(&package_path, ctx)
+            && let Some(path) =
+                self.load_package_exports(specifier, subpath, &package_path, tsconfig, ctx)?
+        {
+            return Ok(Some(path));
+        }
+
+        self.require_relative(&package_path, Self::dot_subpath(subpath).as_ref(), tsconfig, ctx)
+            .map(Some)
     }
 
     /// enhanced-resolve: ParsePlugin.
@@ -653,7 +777,25 @@ impl ResolverImpl {
         if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
-        // 6. LOAD_NODE_MODULES(X, dirname(Y))
+        self.load_node_modules_or_legacy(
+            cached_path,
+            specifier,
+            package_name,
+            subpath,
+            tsconfig,
+            ctx,
+        )
+    }
+
+    fn load_node_modules_or_legacy(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        package_name: &str,
+        subpath: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
         if let Some(path) =
             self.load_node_modules(cached_path, specifier, package_name, subpath, tsconfig, ctx)?
         {
@@ -689,7 +831,7 @@ impl ResolverImpl {
             }
         }
 
-        // 7. THROW "not found"
+        // 8. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
@@ -1395,6 +1537,10 @@ impl ResolverImpl {
         // 3. If packageSpecifier is a Node.js builtin module name, then
         //   1. Return the string "node:" concatenated with packageSpecifier.
         self.require_core(package_name)?;
+
+        if let Some(path) = self.load_package_map(cached_path, specifier, tsconfig, ctx)? {
+            return Ok(Some(path));
+        }
 
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {
