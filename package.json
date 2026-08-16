@@ -33,12 +33,12 @@
     "postbuild:debug": "node napi/patch.mjs"
   },
   "devDependencies": {
-    "@emnapi/core": "2.0.0-alpha.3",
-    "@emnapi/runtime": "2.0.0-alpha.3",
+    "@emnapi/core": "2.0.0-alpha.4",
+    "@emnapi/runtime": "2.0.0-alpha.4",
     "@napi-rs/cli": "^3.8.0",
     "@napi-rs/wasm-runtime": "^1.2.0",
     "@types/node": "^25.0.8",
-    "emnapi": "2.0.0-alpha.3",
+    "emnapi": "2.0.0-alpha.4",
     "typescript": "^7.0.0",
     "vite-plus": "catalog:"
   },
