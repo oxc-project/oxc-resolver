@@ -127,7 +127,7 @@ windows = { version = "0.62.2", features = ["Win32_Storage_FileSystem"] }
 
 [target.'cfg(target_endian = "little")'.dependencies]
 # simd-json only works on little-endian systems
-simd-json = { version = "0.17.0", default-features = false, features = ["runtime-detection"] }
+simd-json = { version = "0.18.0", default-features = false, features = ["runtime-detection"] }
 self_cell = "1" # Used by simd implementation for self-referential struct
 
 [dev-dependencies]
