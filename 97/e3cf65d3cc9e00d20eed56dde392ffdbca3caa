@@ -1,0 +1,19 @@
+src/tests/tsconfig_discovery.rs
+  s_3d6cc1eb40337f::t_61bf6e2927f765 115-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "97e3cf65d3cc9e00d20eed56dde392ffdbca3caa",
+  "prompts": {},
+  "sessions": {
+    "s_3d6cc1eb40337f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a013c7-a2fc-77a3-af2c-57d6645b5d72",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Cameron <cclark@cloudflare.com>"
+    }
+  }
+}
