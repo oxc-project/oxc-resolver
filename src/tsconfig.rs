@@ -11,7 +11,11 @@ use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 
-use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
+use crate::{
+    TsconfigReferences,
+    path::{PathUtil, is_path_relative},
+    replace_bom_with_whitespace,
+};
 
 /// Template variable `${configDir}` for substitution of config files
 /// directory path.
@@ -490,7 +494,7 @@ impl TsConfig {
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
     #[must_use]
     pub(crate) fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
-        if specifier.starts_with('.') {
+        if is_path_relative(specifier) {
             return Vec::new();
         }
 
