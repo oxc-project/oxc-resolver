@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      ".exact": ["./exact.ts"],
+      ".storybook/*": ["./.storybook/*"],
+      "..alias/*": ["./alias/*"]
+    }
+  }
+}

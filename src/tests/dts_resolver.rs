@@ -1,4 +1,6 @@
-use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
+use crate::{
+    Resolution, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
+};
 
 fn dts_fixture() -> std::path::PathBuf {
     super::fixture_root().join("dts-resolver")
@@ -254,6 +256,31 @@ fn tsconfig_paths_in_dts() {
     let containing = dts_fixture().join("with-tsconfig/index.ts");
     let result = r.resolve_dts(containing, "@lib/utils").unwrap();
     assert_eq!(result.path(), dts_fixture().join("with-tsconfig/lib/utils.ts"));
+}
+
+#[test]
+fn dot_prefixed_tsconfig_paths_in_dts() {
+    let f = super::fixture_root().join("tsconfig/cases/dot-prefixed-paths");
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into(), "types".into()],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: crate::TsconfigReferences::Disabled,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    #[rustfmt::skip]
+    let pass = [
+        (".exact", f.join("exact.ts")),
+        (".storybook/preview", f.join(".storybook/preview.ts")),
+        ("..alias/module", f.join("alias/module.ts")),
+        (".base-url", f.join(".base-url.ts")),
+    ];
+    for (request, expected) in pass {
+        let result = r.resolve_dts(f.join("index.ts"), request).map(Resolution::into_path_buf);
+        assert_eq!(result, Ok(expected), "{request}");
+    }
 }
 
 // -------- Extension substitution: .mjs → .mts priority --------
