@@ -195,7 +195,7 @@ impl TsConfig {
     pub(crate) fn load_references(&mut self, references: TsconfigReferences) -> bool {
         match references {
             TsconfigReferences::Disabled => {
-                self.references.drain(..);
+                self.references.clear();
             }
             TsconfigReferences::Auto => {}
         }
