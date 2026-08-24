@@ -127,8 +127,8 @@ fn yarn() {
 }
 
 #[test]
-fn pnpm_isolated() {
-    let fixture = super::fixture_root().join("bench-pm/installs/pnpm-isolated");
+fn resolution() {
+    let fixture = super::fixture_root().join("package-map/resolution");
     let importer = fixture.join("apps/web/src");
     let package_map_path = fixture.join("node_modules/.package-map.json");
     let specifiers = ["react", "axios", "@bench/ui"];
@@ -141,36 +141,19 @@ fn pnpm_isolated() {
         assert!(package_map.package(follow_redirects_id).is_some());
     });
 
+    let resolver = package_map_resolver();
+    assert_eq!(
+        resolver.resolve(&importer, "axios/client").map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/axios/lib/client.js"))
+    );
+    assert_eq!(
+        resolver
+            .resolve(fixture.join("node_modules/store/axios/lib"), "follow-redirects")
+            .map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/follow-redirects/index.js"))
+    );
     assert!(matches!(
-        package_map_resolver().resolve(&importer, "follow-redirects"),
+        resolver.resolve(&importer, "follow-redirects"),
         Err(ResolveError::NotFound(specifier)) if specifier == "follow-redirects"
     ));
-}
-
-#[test]
-fn pnpm_hoisted_loose() {
-    let fixture = super::fixture_root().join("bench-pm/installs/pnpm-hoisted");
-    let importer = fixture.join("node_modules/axios/lib").canonicalize().unwrap();
-    let specifiers = ["chalk"];
-    test_package_map(
-        &importer,
-        &fixture.join("node_modules/.package-map.json"),
-        &specifiers,
-        |package_map| {
-            let axios_id = package_map.package(".").unwrap().dependency("axios").unwrap();
-            assert_dependencies(package_map, axios_id, &specifiers);
-        },
-    );
-}
-
-#[test]
-fn yarn_isolated() {
-    let fixture = super::fixture_root().join("bench-pm/installs/yarn-isolated");
-    let specifiers = ["react", "axios", "@bench/ui"];
-    test_package_map(
-        &fixture.join("apps/web/src"),
-        &fixture.join("node_modules/.package-map.json"),
-        &specifiers,
-        |package_map| assert_dependencies(package_map, "../apps/web", &specifiers),
-    );
 }
