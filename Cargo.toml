@@ -115,7 +115,7 @@ thiserror = "2"
 tracing = "0.1"
 
 percent-encoding = "2"
-pnp = { version = "0.12.10", optional = true }
+pnp = { version = "0.12.12", optional = true }
 
 document-features = { version = "0.2.12", optional = true }
 
@@ -135,7 +135,7 @@ criterion2 = { version = "3.0.3", default-features = false }
 dirs = { version = "6.0.0" }
 pico-args = "0.5.0"
 rayon = { version = "1.12.0" }
-regress = { version = "0.11" } # ECMAScript regex engine for testing `Restriction::Fn`
+regress = { version = "0.12" } # ECMAScript regex engine for testing `Restriction::Fn`
 vfs = "0.13.0" # for testing with in memory file system
 walkdir = "2" # for loading benchmark fixtures
 
