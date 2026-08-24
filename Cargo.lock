@@ -513,7 +513,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c7ed2f2edad8a14c8186b847909a41fbb9c3eafa44f88bd891114ed5019da09"
 dependencies = [
  "hashbrown 0.16.1",
- "serde",
 ]
 
 [[package]]
@@ -1124,8 +1123,6 @@ checksum = "6ebe141eb4a23ecc4d5de93fa5b139ac65dc07c38037a2fe9a8fb7c9d36bd832"
 dependencies = [
  "halfbrown",
  "ref-cast",
- "serde",
- "serde_json",
  "simdutf8",
  "value-trait",
 ]

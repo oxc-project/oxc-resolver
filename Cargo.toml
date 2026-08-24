@@ -97,7 +97,7 @@ missing_const_for_fn = "allow"
 name = "dir"
 
 [dependencies]
-compact_str = { version = "0.10", features = ["serde"] }
+compact_str = "0.10"
 fast-glob = "1"
 indexmap = { version = "2", features = ["serde"] }
 json-strip-comments = "3.1"
@@ -127,11 +127,11 @@ windows = { version = "0.62.2", features = ["Win32_Storage_FileSystem"] }
 
 [target.'cfg(target_endian = "little")'.dependencies]
 # simd-json only works on little-endian systems
-simd-json = { version = "0.18.0", default-features = false, features = [
-  "runtime-detection",
-  "serde_impl",
-] }
+simd-json = { version = "0.18.0", default-features = false, features = ["runtime-detection"] }
 self_cell = "1" # Used by simd implementation for self-referential struct
+
+[target.'cfg(target_endian = "big")'.dependencies]
+compact_str = { version = "0.10", features = ["serde"] }
 
 [dev-dependencies]
 criterion2 = { version = "3.0.3", default-features = false }
