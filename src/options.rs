@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::node_path::NodePath;
+use crate::{PathUtil, node_path::NodePath};
 
 /// Module Resolution Options
 ///
@@ -123,6 +123,9 @@ pub struct ResolveOptions {
     pub modules: Vec<String>,
 
     /// Path to a Node.js package map used to resolve bare package specifiers.
+    ///
+    /// Relative paths are resolved against [`Self::cwd`], or the process current working
+    /// directory when `cwd` is not set.
     ///
     /// When set, package-map resolution takes precedence over [`modules`](Self::modules).
     ///
@@ -473,6 +476,13 @@ impl ResolveOptions {
 
         if self.node_path {
             self.modules.extend_from_slice(NodePath::build());
+        }
+
+        if self.package_map.as_ref().is_some_and(|path| path.is_relative()) {
+            let cwd = self.cwd.clone().or_else(|| std::env::current_dir().ok());
+            if let (Some(package_map), Some(cwd)) = (&mut self.package_map, cwd) {
+                *package_map = cwd.normalize_with(&*package_map);
+            }
         }
 
         self

@@ -189,6 +189,8 @@ export interface NapiResolveOptions {
   /**
    * Path to a Node.js package map used to resolve bare package specifiers.
    *
+   * Relative paths are resolved against the process current working directory.
+   *
    * When set, package-map resolution takes precedence over `modules`.
    *
    * Default `undefined`.

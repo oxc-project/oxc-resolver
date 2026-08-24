@@ -109,7 +109,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         let mut path_index = FxHashMap::default();
 
         for (package_id, entry) in store.iter() {
-            let Some(package_path) = Self::resolve_url_from(&path, entry.url()) else {
+            let Some(package_path) = Self::resolve_url_from(&realpath, entry.url()) else {
                 continue;
             };
             let package_id = Arc::<str>::from(package_id);
@@ -202,7 +202,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
 
     /// Resolves a package entry URL relative to the package map.
     pub fn resolve_url(&self, url: &str) -> Option<PathBuf> {
-        Self::resolve_url_from(&self.path, url)
+        Self::resolve_url_from(&self.realpath, url)
     }
 
     fn resolve_url_from(package_map_path: &Path, url: &str) -> Option<PathBuf> {
@@ -218,9 +218,8 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         }
 
         let decoded = percent_encoding::percent_decode_str(url).decode_utf8().ok()?;
-        // FIND_PACKAGE_ID receives the logical parent path directly, so relative package URLs
-        // must be resolved in the same path namespace. In particular, a canonical path on
-        // Windows may have a `\\?\` prefix that the parent path does not have.
+        // Node resolves the package map itself before using its URL as the base, so relative
+        // package URLs are resolved from the package map's canonical location.
         let base = package_map_path.parent()?;
         Some(base.normalize_with(Path::new(decoded.as_ref())))
     }

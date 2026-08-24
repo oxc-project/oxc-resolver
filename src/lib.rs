@@ -752,7 +752,7 @@ impl ResolverImpl {
         let package_map = self.package_map.get_or_init(|| {
             let json = self.cache.fs.read(package_map_path)?;
             let realpath = if self.options.symlinks {
-                self.cache.fs.canonicalize(package_map_path)?
+                self.cache.canonicalize(&self.cache.value(package_map_path))?
             } else {
                 package_map_path.clone()
             };
