@@ -21,6 +21,7 @@ fn assert_dependencies(package_map: &PackageMap, package_id: &str, specifiers: &
         .package(package_id)
         .unwrap_or_else(|| panic!("package map does not contain package ID {package_id:?}"));
     assert!(!package.url().is_empty(), "package {package_id:?} has an empty URL");
+    assert!(package.path().is_some(), "package {package_id:?} has no resolved path");
 
     for specifier in specifiers {
         let dependency_id = package.dependency(specifier).unwrap_or_else(|| {
@@ -86,19 +87,39 @@ fn package_map_resolver() -> Resolver {
 fn find_package_id() {
     let fixture = super::fixture_root().join("package-map/find-package-id");
     let package_map = parse_package_map(&fixture.join(".package-map.json")).unwrap();
+    let root_importer = fixture.join("packages/root/index.js");
+    let nested_importer = fixture.join("packages/root/nested/index.js");
+    let ambiguous_importer = fixture.join("packages/duplicate/index.js");
+    let external_importer = fixture.join("external/index.js");
 
-    assert_eq!(package_map.find_package_id(&fixture.join("packages/root/index.js")), Ok("root"));
+    assert_eq!(package_map.path_cache_len(), 0);
+    assert_eq!(package_map.find_package_id(&root_importer), Ok("root"));
+    assert_eq!(package_map.find_package_id(&nested_importer), Ok("nested"));
     assert_eq!(
-        package_map.find_package_id(&fixture.join("packages/root/nested/index.js")),
-        Ok("nested")
-    );
-    assert_eq!(
-        package_map.find_package_id(&fixture.join("packages/duplicate/index.js")),
+        package_map.find_package_id(&ambiguous_importer),
         Err(FindPackageIdError::AmbiguousResolution)
     );
     assert_eq!(
-        package_map.find_package_id(&fixture.join("external/index.js")),
+        package_map.find_package_id(&external_importer),
         Err(FindPackageIdError::ExternalFile)
+    );
+    assert_eq!(package_map.path_cache_len(), 4);
+
+    assert_eq!(package_map.find_package_id(&root_importer), Ok("root"));
+    assert_eq!(package_map.find_package_id(&nested_importer), Ok("nested"));
+    assert_eq!(
+        package_map.find_package_id(&ambiguous_importer),
+        Err(FindPackageIdError::AmbiguousResolution)
+    );
+    assert_eq!(
+        package_map.find_package_id(&external_importer),
+        Err(FindPackageIdError::ExternalFile)
+    );
+    assert_eq!(package_map.path_cache_len(), 4);
+
+    assert_eq!(
+        package_map.package("root").unwrap().path(),
+        Some(fixture.join("packages/root").as_path())
     );
 }
 

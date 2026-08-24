@@ -74,6 +74,6 @@ impl PackageMap {
             column: 0,
         })?;
 
-        Ok(Self { path, realpath, store: cell })
+        Ok(Self::new(path, realpath, cell))
     }
 }

@@ -56,6 +56,6 @@ impl PackageMap {
             column: error.column(),
         })?;
 
-        Ok(Self { path, realpath, store: data })
+        Ok(Self::new(path, realpath, data))
     }
 }

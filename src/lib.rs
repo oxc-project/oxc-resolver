@@ -688,9 +688,8 @@ impl ResolverImpl {
         let parent_package = package_map
             .package(parent_package_id)
             .expect("a package ID returned by the package map must have a corresponding entry");
-        let parent_package_path = package_map
-            .resolve_url(parent_package.url())
-            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let parent_package_path =
+            parent_package.path().ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
 
         // Don't let an enclosing package's map cross a nearer nested project that has its own
         // `node_modules` tree. A workspace listed in the map still works because its matched
@@ -707,7 +706,7 @@ impl ResolverImpl {
 
         // An auto-discovered map may belong to an enclosing workspace. Only use it when the
         // matched entry owns the importer's nearest package scope.
-        if package_json.path().parent() != Some(parent_package_path.as_path()) {
+        if package_json.path().parent() != Some(parent_package_path) {
             return Ok(None);
         }
 
@@ -743,10 +742,9 @@ impl ResolverImpl {
             .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
 
         // 6. Let PACKAGE_PATH be the resolved path of TARGET.
-        let package_path = package_map
-            .resolve_url(target.url())
-            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
-        let package_path = self.cache.value(&package_path);
+        let package_path =
+            target.path().ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let package_path = self.cache.value(package_path);
 
         // 7. LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_PATH).
         if self.is_dir(&package_path, ctx)

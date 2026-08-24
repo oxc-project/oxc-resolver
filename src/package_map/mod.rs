@@ -17,9 +17,14 @@ mod simd;
 
 use std::{
     fmt,
+    hash::BuildHasherDefault,
     marker::PhantomData,
     path::{Path, PathBuf},
+    sync::Arc,
 };
+
+use dashmap::DashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 
 use crate::PathUtil;
 
@@ -50,6 +55,13 @@ pub trait PackageMapEntryBackend<'a> {
     fn dependency(&self, specifier: &str) -> Option<&'a str>;
 }
 
+#[derive(Debug, Clone)]
+enum PackageOwner {
+    Package(Arc<str>),
+    Ambiguous,
+    External,
+}
+
 /// Parsed Node.js package map, generic over its storage backend.
 pub struct PackageMapGeneric<S> {
     /// Path to `.package-map.json`.
@@ -60,6 +72,15 @@ pub struct PackageMapGeneric<S> {
 
     /// Parsed package entries.
     store: S,
+
+    /// Resolved package paths keyed by package ID.
+    package_paths: FxHashMap<Arc<str>, Arc<Path>>,
+
+    /// Package ownership keyed by resolved package path.
+    path_index: FxHashMap<Arc<Path>, PackageOwner>,
+
+    /// Memoized ownership for importer paths.
+    path_cache: DashMap<PathBuf, PackageOwner, BuildHasherDefault<FxHasher>>,
 }
 
 /// Parsed Node.js package map for the current target.
@@ -75,11 +96,42 @@ impl<S: PackageMapBackend> fmt::Debug for PackageMapGeneric<S> {
             .field("path", &self.path)
             .field("realpath", &self.realpath)
             .field("packages", &self.store.len())
+            .field("resolved_paths", &self.package_paths.len())
+            .field("indexed_paths", &self.path_index.len())
+            .field("cached_paths", &self.path_cache.len())
             .finish()
     }
 }
 
 impl<S: PackageMapBackend> PackageMapGeneric<S> {
+    fn new(path: PathBuf, realpath: PathBuf, store: S) -> Self {
+        let mut package_paths = FxHashMap::default();
+        let mut path_index = FxHashMap::default();
+
+        for (package_id, entry) in store.iter() {
+            let Some(package_path) = Self::resolve_url_from(&path, entry.url()) else {
+                continue;
+            };
+            let package_id = Arc::<str>::from(package_id);
+            let package_path = Arc::<Path>::from(package_path);
+
+            package_paths.insert(Arc::clone(&package_id), Arc::clone(&package_path));
+            path_index
+                .entry(package_path)
+                .and_modify(|owner| *owner = PackageOwner::Ambiguous)
+                .or_insert(PackageOwner::Package(package_id));
+        }
+
+        Self {
+            path,
+            realpath,
+            store,
+            package_paths,
+            path_index,
+            path_cache: DashMap::with_hasher(BuildHasherDefault::default()),
+        }
+    }
+
     /// Returns the path where `.package-map.json` was found.
     pub fn path(&self) -> &Path {
         &self.path
@@ -105,43 +157,55 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         &'a self,
         package_id: &str,
     ) -> Option<PackageMapEntryGeneric<'a, S::Entry<'a>>> {
-        self.store
-            .package(package_id)
-            .map(|entry| PackageMapEntryGeneric { entry, marker: PhantomData })
+        self.store.package(package_id).map(|entry| PackageMapEntryGeneric {
+            entry,
+            path: self.package_paths.get(package_id).map(Arc::as_ref),
+            marker: PhantomData,
+        })
     }
 
     /// Finds the package ID for the most specific package containing `path`.
     pub fn find_package_id<'a>(&'a self, path: &Path) -> Result<&'a str, FindPackageIdError> {
-        let mut matched = None;
-        let mut matched_depth = 0;
-        let mut ambiguous = false;
-
-        for (package_id, entry) in self.store.iter() {
-            let Some(package_path) = self.resolve_url(entry.url()) else {
-                continue;
-            };
-            if path.starts_with(&package_path) {
-                let depth = package_path.components().count();
-                if depth > matched_depth {
-                    matched = Some(package_id);
-                    matched_depth = depth;
-                    ambiguous = false;
-                } else if depth == matched_depth {
-                    matched = None;
-                    ambiguous = true;
-                }
-            }
+        if let Some(owner) = self.path_cache.get(path) {
+            return self.package_id_for_owner(owner.value());
         }
 
-        if ambiguous {
-            Err(FindPackageIdError::AmbiguousResolution)
-        } else {
-            matched.ok_or(FindPackageIdError::ExternalFile)
+        let owner = path
+            .ancestors()
+            .find_map(|path| self.path_index.get(path).cloned())
+            .unwrap_or(PackageOwner::External);
+        let result = self.package_id_for_owner(&owner);
+        self.path_cache.insert(path.to_path_buf(), owner);
+        result
+    }
+
+    #[cfg(test)]
+    pub(crate) fn path_cache_len(&self) -> usize {
+        self.path_cache.len()
+    }
+
+    fn package_id_for_owner<'a>(
+        &'a self,
+        owner: &PackageOwner,
+    ) -> Result<&'a str, FindPackageIdError> {
+        match owner {
+            PackageOwner::Package(package_id) => Ok(self
+                .package_paths
+                .get_key_value(package_id.as_ref())
+                .expect("an indexed package ID must have a corresponding resolved path")
+                .0
+                .as_ref()),
+            PackageOwner::Ambiguous => Err(FindPackageIdError::AmbiguousResolution),
+            PackageOwner::External => Err(FindPackageIdError::ExternalFile),
         }
     }
 
     /// Resolves a package entry URL relative to the package map.
     pub fn resolve_url(&self, url: &str) -> Option<PathBuf> {
+        Self::resolve_url_from(&self.path, url)
+    }
+
+    fn resolve_url_from(package_map_path: &Path, url: &str) -> Option<PathBuf> {
         #[cfg(not(target_arch = "wasm32"))]
         if url.starts_with("file://") {
             let path = crate::file_url::resolve_file_protocol(url).ok()?;
@@ -157,7 +221,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         // FIND_PACKAGE_ID receives the logical parent path directly, so relative package URLs
         // must be resolved in the same path namespace. In particular, a canonical path on
         // Windows may have a `\\?\` prefix that the parent path does not have.
-        let base = self.path.parent()?;
+        let base = package_map_path.parent()?;
         Some(base.normalize_with(Path::new(decoded.as_ref())))
     }
 }
@@ -165,6 +229,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
 /// A package entry in a Node.js package map.
 pub struct PackageMapEntryGeneric<'a, E> {
     entry: E,
+    path: Option<&'a Path>,
     marker: PhantomData<&'a ()>,
 }
 
@@ -172,6 +237,11 @@ impl<'a, E: PackageMapEntryBackend<'a>> PackageMapEntryGeneric<'a, E> {
     /// Returns the package URL.
     pub fn url(&self) -> &'a str {
         self.entry.url()
+    }
+
+    /// Returns the resolved package path.
+    pub fn path(&self) -> Option<&'a Path> {
+        self.path
     }
 
     /// Returns the target package ID for a bare package specifier.
