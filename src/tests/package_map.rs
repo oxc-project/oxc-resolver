@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     FileSystem, FileSystemOs, ResolveContext, ResolveError, ResolveOptions, Resolver,
-    package_map::PackageMap,
+    package_map::{FindPackageIdError, PackageMap},
 };
 
 fn file_system() -> FileSystemOs {
@@ -80,6 +80,26 @@ fn package_map_resolver() -> Resolver {
         modules: vec![],
         ..ResolveOptions::default()
     })
+}
+
+#[test]
+fn find_package_id() {
+    let fixture = super::fixture_root().join("package-map/find-package-id");
+    let package_map = parse_package_map(&fixture.join(".package-map.json")).unwrap();
+
+    assert_eq!(package_map.find_package_id(&fixture.join("packages/root/index.js")), Ok("root"));
+    assert_eq!(
+        package_map.find_package_id(&fixture.join("packages/root/nested/index.js")),
+        Ok("nested")
+    );
+    assert_eq!(
+        package_map.find_package_id(&fixture.join("packages/duplicate/index.js")),
+        Err(FindPackageIdError::AmbiguousResolution)
+    );
+    assert_eq!(
+        package_map.find_package_id(&fixture.join("external/index.js")),
+        Err(FindPackageIdError::ExternalFile)
+    );
 }
 
 #[test]

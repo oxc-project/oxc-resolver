@@ -82,6 +82,7 @@ use rustc_hash::FxHashSet;
 use crate::{
     alias::{CompiledAlias, compile_alias},
     context::ResolveContext as Ctx,
+    package_map::{FindPackageIdError, PackageMap},
     path::SLASH_START,
     specifier::Specifier,
 };
@@ -623,8 +624,7 @@ impl ResolverImpl {
         if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
-        // 6. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
-        if let Some(path) = self.load_package_map(cached_path, specifier, tsconfig, ctx)? {
+        if let Some(path) = self.handle_package_map(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
         // 7. LOAD_NODE_MODULES(X, dirname(Y))
@@ -638,19 +638,104 @@ impl ResolverImpl {
         )
     }
 
-    fn load_package_map(
+    // 6. If a package map PACKAGE_MAP exists,
+    // a. Find the package ID for the package owning Y
+    //    1. Let PARENT_PACKAGE_ID be FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)
+    //    b. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
+    fn handle_package_map(
         &self,
         cached_path: &CachedPath,
-        _specifier: &str,
-        _tsconfig: Option<&TsConfig>,
-        _ctx: &mut Ctx,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
     ) -> ResolveResult {
         let Some(package_map) = self.cache.get_package_map(cached_path, self.options.symlinks)?
         else {
             return Ok(None);
         };
-        dbg!(package_map);
-        todo!()
+        ctx.add_file_dependency(package_map.path());
+        // Find the package ID for the package owning Y
+        // 1. Let PARENT_PACKAGE_ID be FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)
+        let parent_path = cached_path.path();
+        let parent_package_id =
+            package_map.find_package_id(parent_path).map_err(|error| match error {
+                FindPackageIdError::AmbiguousResolution => {
+                    ResolveError::PackageMapAmbiguousResolution {
+                        specifier: specifier.to_string(),
+                        parent_path: parent_path.to_path_buf(),
+                        package_map_path: package_map.path().to_path_buf(),
+                    }
+                }
+                FindPackageIdError::ExternalFile => ResolveError::PackageMapExternalFile {
+                    specifier: specifier.to_string(),
+                    parent_path: parent_path.to_path_buf(),
+                    package_map_path: package_map.path().to_path_buf(),
+                },
+            })?;
+        self.load_package_map(specifier, parent_package_id, package_map, tsconfig, ctx)
+    }
+
+    fn load_package_map(
+        &self,
+        specifier: &str,
+        parent_package_id: &str,
+        package_map: &PackageMap,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
+        // 1. Try to interpret X as a combination of NAME and SUBPATH where the name
+        //    may have a @scope/ prefix and the subpath begins with a slash (`/`).
+        let (name, subpath) = Self::parse_package_specifier(specifier);
+
+        // 2. Find the package map entry for key PARENT_PACKAGE_ID.
+        let parent_package = package_map
+            .package(parent_package_id)
+            .expect("a package ID returned by the package map must have a corresponding entry");
+
+        // 3. Look up NAME in the entry's "dependencies" map.
+        // 4. If NAME is not found, THROW "not found".
+        let dependency_id = parent_package
+            .dependency(name)
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+
+        // 5. Let TARGET be PACKAGE_MAP.packages[dependencies[name]].
+        let target = package_map
+            .package(dependency_id)
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+
+        // 6. Let PACKAGE_PATH be the resolved path of TARGET.
+        let package_path = package_map
+            .resolve_url(target.url())
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let package_path = self.cache.value(&package_path);
+
+        // 7. LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_PATH).
+        if self.is_dir(&package_path, ctx)
+            && let Some(path) =
+                self.load_package_exports(specifier, subpath, &package_path, tsconfig, ctx)?
+        {
+            return Ok(Some(path));
+        }
+
+        let dot_subpath = Self::dot_subpath(subpath);
+        let package_subpath = package_path.normalize_with(dot_subpath.as_ref(), &self.cache);
+
+        // 8. LOAD_AS_FILE(PACKAGE_PATH/SUBPATH).
+        if !subpath.ends_with('/')
+            && let Some(path) = self.load_as_file(&package_subpath, tsconfig, ctx)?
+        {
+            return Ok(Some(path));
+        }
+
+        // 9. LOAD_AS_DIRECTORY(PACKAGE_PATH/SUBPATH).
+        if self.is_dir(&package_subpath, ctx)
+            && let Some(path) = self.load_as_directory(&package_subpath, tsconfig, ctx)?
+        {
+            return Ok(Some(path));
+        }
+
+        // 10. THROW "not found".
+        Err(ResolveError::NotFound(specifier.to_string()))
     }
 
     /// enhanced-resolve: ParsePlugin.
@@ -1460,7 +1545,7 @@ impl ResolverImpl {
         //   1. Return the string "node:" concatenated with packageSpecifier.
         self.require_core(package_name)?;
 
-        if let Some(path) = self.load_package_map(cached_path, specifier, tsconfig, ctx)? {
+        if let Some(path) = self.handle_package_map(cached_path, specifier, tsconfig, ctx)? {
             return Ok(Some(path));
         }
 
