@@ -87,12 +87,13 @@ fn test_package_map(
 }
 
 fn package_map_resolver(package_map_path: &Path) -> Resolver {
-    Resolver::new(ResolveOptions {
+    let resolver = Resolver::new(ResolveOptions {
         condition_names: vec!["node".into(), "require".into()],
-        modules: vec![],
         package_map: Some(package_map_path.to_path_buf()),
         ..ResolveOptions::default()
-    })
+    });
+    assert!(resolver.options().modules.is_empty());
+    resolver
 }
 
 #[test]

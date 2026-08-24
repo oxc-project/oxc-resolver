@@ -58,7 +58,6 @@ describe("option", () => {
     const fixture = path.resolve(import.meta.dirname, "../../fixtures/package-map/resolution");
     const resolver = new ResolverFactory({
       conditionNames: ["node", "require"],
-      modules: [],
       packageMap: path.join(fixture, "node_modules/.package-map.json"),
     });
 
