@@ -1,6 +1,9 @@
 {
   "name": "@bench/web",
-  "exports": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./tsconfig": "./tsconfig.self.json"
+  },
   "imports": {
     "#react": "react"
   }

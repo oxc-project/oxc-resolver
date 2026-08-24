@@ -390,19 +390,22 @@ fn package_map_without_symlink_resolution() {
 #[test]
 fn package_map_resolves_tsconfig_extends() {
     let fixture = super::fixture_root().join("package-map/resolution");
-    let config_file = fixture.join("apps/web/tsconfig.package-map.json");
     let resolver = Resolver::new(ResolveOptions {
         condition_names: vec!["node".into(), "require".into()],
         modules: vec![],
         package_map: Some(fixture.join("node_modules/.package-map.json")),
         tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: config_file.clone(),
+            config_file: fixture.join("apps/web/tsconfig.package-map.json"),
             references: TsconfigReferences::Auto,
         })),
         ..ResolveOptions::default()
     });
 
-    resolver.resolve_tsconfig(config_file).expect("resolve tsconfig through map");
+    for config_file in ["tsconfig.package-map.json", "tsconfig.package-map-self.json"] {
+        resolver
+            .resolve_tsconfig(fixture.join("apps/web").join(config_file))
+            .expect("resolve tsconfig through map");
+    }
 }
 
 #[test]
