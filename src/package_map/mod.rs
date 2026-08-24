@@ -23,6 +23,16 @@ use std::{
 
 use crate::PathUtil;
 
+/// Error returned when finding the package ID that owns a path.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum FindPackageIdError {
+    /// Multiple package IDs map to the same owning path.
+    AmbiguousResolution,
+
+    /// The path is not contained by any package in the map.
+    ExternalFile,
+}
+
 /// Storage for the parsed package entries.
 pub trait PackageMapBackend {
     type Entry<'a>: PackageMapEntryBackend<'a>
@@ -100,30 +110,34 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
             .map(|entry| PackageMapEntryGeneric { entry, marker: PhantomData })
     }
 
-    /// Returns the most specific package entry containing `path`.
-    pub fn package_for_path<'a>(
-        &'a self,
-        path: &Path,
-    ) -> Option<PackageMapEntryGeneric<'a, S::Entry<'a>>> {
+    /// Finds the package ID for the most specific package containing `path`.
+    pub fn find_package_id<'a>(&'a self, path: &Path) -> Result<&'a str, FindPackageIdError> {
         let mut matched = None;
         let mut matched_depth = 0;
+        let mut ambiguous = false;
 
-        for (_, entry) in self.store.iter() {
-            let package_path = self.resolve_url(entry.url())?;
+        for (package_id, entry) in self.store.iter() {
+            let Some(package_path) = self.resolve_url(entry.url()) else {
+                continue;
+            };
             if path.starts_with(&package_path) {
                 let depth = package_path.components().count();
                 if depth > matched_depth {
-                    matched = Some(entry);
+                    matched = Some(package_id);
                     matched_depth = depth;
+                    ambiguous = false;
                 } else if depth == matched_depth {
-                    // Without a propagated package ID, multiple entries for the same URL are
-                    // ambiguous and must not be guessed.
                     matched = None;
+                    ambiguous = true;
                 }
             }
         }
 
-        matched.map(|entry| PackageMapEntryGeneric { entry, marker: PhantomData })
+        if ambiguous {
+            Err(FindPackageIdError::AmbiguousResolution)
+        } else {
+            matched.ok_or(FindPackageIdError::ExternalFile)
+        }
     }
 
     /// Resolves a package entry URL relative to the package map.

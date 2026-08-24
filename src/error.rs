@@ -31,6 +31,22 @@ pub enum ResolveError {
     #[error("Cannot find module '{0}'")]
     NotFound(/* specifier */ String),
 
+    /// The importing path matches multiple package IDs in a package map.
+    #[error(
+        "Cannot resolve {specifier:?} from {parent_path:?}: file is within multiple packages defined in {package_map_path:?}"
+    )]
+    PackageMapAmbiguousResolution {
+        specifier: String,
+        parent_path: PathBuf,
+        package_map_path: PathBuf,
+    },
+
+    /// The importing path is not owned by a package in a package map.
+    #[error(
+        "Cannot resolve {specifier:?} from {parent_path:?}: file is not within any package defined in {package_map_path:?}"
+    )]
+    PackageMapExternalFile { specifier: String, parent_path: PathBuf, package_map_path: PathBuf },
+
     /// Matched alias value  not found
     #[error("Cannot find module '{0}' for matched aliased key '{1}'")]
     MatchedAliasNotFound(/* specifier */ String, /* alias key */ String),
