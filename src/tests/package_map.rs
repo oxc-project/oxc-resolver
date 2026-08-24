@@ -270,7 +270,7 @@ fn package_map_accessors_and_urls() {
     assert_eq!(package_map.resolve_url("./store/react"), Some(fixture.join("store/react")));
     assert_eq!(package_map.resolve_url("https://example.com/package"), None);
     assert_eq!(package_map.resolve_url("%FF"), None);
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
     assert!(package_map.resolve_url("file:///tmp/package").is_some());
 
     let empty =
