@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     FileSystem, FileSystemOs, ResolveContext, ResolveError, ResolveOptions, Resolver,
@@ -125,18 +125,71 @@ fn find_package_id() {
 }
 
 #[test]
-fn find_package_id_uses_logical_package_map_path() {
+fn find_package_id_uses_canonical_package_map_path() {
     let fixture = super::fixture_root().join("package-map/find-package-id");
     let package_map_path = fixture.join(".package-map.json");
+    let canonical_package_map_path = fixture.join("canonical-location/.package-map.json");
     let fs = file_system();
     let package_map = PackageMap::parse(
         package_map_path.clone(),
-        fixture.join("canonical-location/.package-map.json"),
+        canonical_package_map_path,
         fs.read(&package_map_path).unwrap(),
     )
     .unwrap();
 
-    assert_eq!(package_map.find_package_id(&fixture.join("packages/root/index.js")), Ok("root"));
+    assert_eq!(
+        package_map.find_package_id(&fixture.join("canonical-location/packages/root/index.js")),
+        Ok("root")
+    );
+    assert_eq!(
+        package_map.package("root").unwrap().path(),
+        Some(fixture.join("canonical-location/packages/root").as_path())
+    );
+}
+
+#[test]
+fn relative_package_map_path_uses_cwd() {
+    let fixtures = super::fixture_root();
+    let fixture = fixtures.join("package-map/resolution");
+    let package_map_path = PathBuf::from("package-map/resolution/node_modules/.package-map.json");
+    let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixtures),
+        condition_names: vec!["node".into(), "require".into()],
+        modules: vec![],
+        package_map: Some(package_map_path),
+        ..ResolveOptions::default()
+    });
+
+    assert_eq!(
+        resolver.options().package_map.as_deref(),
+        Some(fixture.join("node_modules/.package-map.json").as_path())
+    );
+    assert_eq!(
+        resolver
+            .resolve(fixture.join("apps/web/src"), "axios")
+            .map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/axios/index.js"))
+    );
+}
+
+#[test]
+#[cfg_attr(target_os = "wasi", ignore)]
+fn symlinked_package_map_uses_canonical_location_as_base() {
+    let fixture = super::fixture_root().join("integration/nested-symlink");
+    let package_map_path = fixture.join("apps/tooling/.package-map.json");
+
+    // Some Windows checkouts materialize repository symlinks as plain files.
+    if !package_map_path.is_file() {
+        return;
+    }
+
+    let resolver = package_map_resolver(&package_map_path);
+    assert_eq!(
+        resolver
+            .resolve(fixture.join("tooling/typescript-config"), "dep")
+            .map(|resolution| resolution.full_path()),
+        Ok(fixture.join("nm/index.js"))
+    );
 }
 
 #[test]

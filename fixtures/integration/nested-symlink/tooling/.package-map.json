@@ -1,0 +1,13 @@
+{
+  "packages": {
+    "tooling": {
+      "url": "./typescript-config",
+      "dependencies": {
+        "dep": "dep"
+      }
+    },
+    "dep": {
+      "url": "../nm"
+    }
+  }
+}
