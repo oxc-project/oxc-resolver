@@ -103,6 +103,21 @@ fn find_package_id() {
 }
 
 #[test]
+fn find_package_id_uses_logical_package_map_path() {
+    let fixture = super::fixture_root().join("package-map/find-package-id");
+    let package_map_path = fixture.join(".package-map.json");
+    let fs = file_system();
+    let package_map = PackageMap::parse(
+        package_map_path.clone(),
+        fixture.join("canonical-location/.package-map.json"),
+        fs.read(&package_map_path).unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(package_map.find_package_id(&fixture.join("packages/root/index.js")), Ok("root"));
+}
+
+#[test]
 fn pnpm() {
     let fixtures = super::fixture_root();
     let specifiers = ["axios", "decimal.js", "postcss"];

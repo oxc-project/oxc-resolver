@@ -154,7 +154,10 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         }
 
         let decoded = percent_encoding::percent_decode_str(url).decode_utf8().ok()?;
-        let base = self.realpath.parent()?;
+        // FIND_PACKAGE_ID receives the logical parent path directly, so relative package URLs
+        // must be resolved in the same path namespace. In particular, a canonical path on
+        // Windows may have a `\\?\` prefix that the parent path does not have.
+        let base = self.path.parent()?;
         Some(base.normalize_with(Path::new(decoded.as_ref())))
     }
 }
