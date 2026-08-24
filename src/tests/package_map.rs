@@ -347,6 +347,8 @@ fn package_owner_errors() {
 #[test]
 fn package_map_load_errors_are_cached() {
     let fixture = super::fixture_root().join("package-map/invalid");
+    parse_package_map(&fixture.join("invalid-shape.package-map.json")).unwrap_err();
+
     let package_map_path = fixture.join(".package-map.json");
     let resolver = package_map_resolver(&package_map_path);
 
