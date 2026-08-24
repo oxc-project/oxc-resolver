@@ -1,0 +1,3 @@
+{
+  "extends": "plain-directory/tsconfig.json"
+}

@@ -1,3 +1,7 @@
 {
-  "name": "@bench/web"
+  "name": "@bench/web",
+  "exports": "./src/index.js",
+  "imports": {
+    "#react": "react"
+  }
 }

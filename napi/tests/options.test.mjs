@@ -54,15 +54,12 @@ describe("option", () => {
     it("should allow field array", () => createTest(["main"]));
   });
 
-  it("should resolve with a relative package map path", () => {
+  it("should resolve with a package map", () => {
     const fixture = path.resolve(import.meta.dirname, "../../fixtures/package-map/resolution");
     const resolver = new ResolverFactory({
       conditionNames: ["node", "require"],
       modules: [],
-      packageMap: path.relative(
-        process.cwd(),
-        path.join(fixture, "node_modules/.package-map.json"),
-      ),
+      packageMap: path.join(fixture, "node_modules/.package-map.json"),
     });
 
     assert.match(

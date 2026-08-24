@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     FileSystem, FileSystemOs, ResolveContext, ResolveError, ResolveOptions, Resolver,
+    TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
     package_map::{FindPackageIdError, PackageMap},
 };
 
@@ -42,8 +43,15 @@ fn parse_package_map(package_map_path: &Path) -> Result<PackageMap, crate::JSONE
     );
 
     let fs = file_system();
-    let realpath = fs.canonicalize(package_map_path).unwrap();
+    let realpath = canonicalize_package_map_path(&fs, package_map_path);
     PackageMap::parse(package_map_path.to_path_buf(), realpath, fs.read(package_map_path).unwrap())
+}
+
+fn canonicalize_package_map_path(fs: &FileSystemOs, package_map_path: &Path) -> PathBuf {
+    let realpath = fs.canonicalize(package_map_path).unwrap();
+    #[cfg(target_os = "windows")]
+    let realpath = crate::windows::strip_windows_prefix(realpath).unwrap();
+    realpath
 }
 
 fn test_package_map(
@@ -54,7 +62,10 @@ fn test_package_map(
 ) {
     let package_map = parse_package_map(package_map_path).unwrap();
     assert_eq!(package_map.path(), package_map_path);
-    assert_eq!(package_map.realpath(), package_map_path.canonicalize().unwrap());
+    assert_eq!(
+        package_map.realpath(),
+        canonicalize_package_map_path(&file_system(), package_map_path)
+    );
     assert_package_map(&package_map);
 
     let resolver = package_map_resolver(package_map_path);
@@ -246,6 +257,151 @@ fn resolution() {
         resolver.resolve(&importer, "follow-redirects"),
         Err(ResolveError::NotFound(specifier)) if specifier == "follow-redirects"
     ));
+}
+
+#[test]
+fn package_map_accessors_and_urls() {
+    let fixture = super::fixture_root().join("package-map/resolution/node_modules");
+    let package_map = parse_package_map(&fixture.join(".package-map.json")).unwrap();
+
+    assert_eq!(package_map.len(), 8);
+    assert!(!package_map.is_empty());
+    assert!(format!("{package_map:?}").contains("packages: 8"));
+    assert_eq!(package_map.resolve_url("./store/react"), Some(fixture.join("store/react")));
+    assert_eq!(package_map.resolve_url("https://example.com/package"), None);
+    assert_eq!(package_map.resolve_url("%FF"), None);
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(package_map.resolve_url("file:///tmp/package").is_some());
+
+    let empty =
+        parse_package_map(&super::fixture_root().join("package-map/empty/.package-map.json"))
+            .unwrap();
+    assert!(empty.is_empty());
+}
+
+#[test]
+fn load_as_file_and_directory() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    let importer = fixture.join("apps/web/src");
+    let resolver = package_map_resolver(&fixture.join("node_modules/.package-map.json"));
+
+    assert_eq!(
+        resolver.resolve(&importer, "plain-file").map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/plain-file.js"))
+    );
+    assert_eq!(
+        resolver.resolve(&importer, "plain-directory").map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/plain-directory/index.js"))
+    );
+    for specifier in ["plain-directory/missing", "invalid-target", "missing-target"] {
+        assert!(matches!(
+            resolver.resolve(&importer, specifier),
+            Err(ResolveError::NotFound(not_found)) if not_found == specifier
+        ));
+    }
+}
+
+#[test]
+fn package_self_and_imports_target() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    let importer = fixture.join("apps/web/src");
+    let resolver = package_map_resolver(&fixture.join("node_modules/.package-map.json"));
+
+    assert_eq!(
+        resolver.resolve(&importer, "@bench/web").map(|resolution| resolution.full_path()),
+        Ok(fixture.join("apps/web/src/index.js"))
+    );
+    assert_eq!(
+        resolver.resolve(&importer, "#react").map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/react/index.js"))
+    );
+}
+
+#[test]
+fn package_owner_errors() {
+    let fixture = super::fixture_root().join("package-map/find-package-id");
+    let package_map_path = fixture.join(".package-map.json");
+    let resolver = package_map_resolver(&package_map_path);
+
+    let mut context = ResolveContext::default();
+    assert!(matches!(
+        resolver.resolve_with_context(
+            fixture.join("packages/duplicate"),
+            "dependency",
+            None,
+            &mut context
+        ),
+        Err(ResolveError::PackageMapAmbiguousResolution { .. })
+    ));
+    assert!(context.file_dependencies.contains(&package_map_path));
+
+    let mut context = ResolveContext::default();
+    assert!(matches!(
+        resolver.resolve_with_context(fixture.join("external"), "dependency", None, &mut context),
+        Err(ResolveError::PackageMapExternalFile { .. })
+    ));
+    assert!(context.file_dependencies.contains(&package_map_path));
+}
+
+#[test]
+fn package_map_load_errors_are_cached() {
+    let fixture = super::fixture_root().join("package-map/invalid");
+    let package_map_path = fixture.join(".package-map.json");
+    let resolver = package_map_resolver(&package_map_path);
+
+    for _ in 0..2 {
+        let mut context = ResolveContext::default();
+        assert!(matches!(
+            resolver.resolve_with_context(&fixture, "dependency", None, &mut context),
+            Err(ResolveError::Json(_))
+        ));
+        assert!(context.file_dependencies.contains(&package_map_path));
+    }
+
+    let missing_package_map_path = fixture.join("missing-package-map.json");
+    let resolver = package_map_resolver(&missing_package_map_path);
+    let mut context = ResolveContext::default();
+    resolver.resolve_with_context(&fixture, "dependency", None, &mut context).unwrap_err();
+    assert!(context.missing_dependencies.contains(&missing_package_map_path));
+}
+
+#[test]
+fn package_map_without_symlink_resolution() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    let package_map_path = fixture.join("node_modules/.package-map.json");
+    let resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["node".into(), "require".into()],
+        modules: vec![],
+        package_map: Some(package_map_path),
+        symlinks: false,
+        ..ResolveOptions::default()
+    });
+
+    assert_eq!(
+        resolver
+            .resolve(fixture.join("apps/web/src"), "react")
+            .map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/react/index.js"))
+    );
+    assert!(format!("{}", resolver.options()).contains("package_map:"));
+}
+
+#[test]
+fn package_map_resolves_tsconfig_extends() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    let config_file = fixture.join("apps/web/tsconfig.package-map.json");
+    let resolver = Resolver::new(ResolveOptions {
+        condition_names: vec!["node".into(), "require".into()],
+        modules: vec![],
+        package_map: Some(fixture.join("node_modules/.package-map.json")),
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: config_file.clone(),
+            references: TsconfigReferences::Auto,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    resolver.resolve_tsconfig(config_file).expect("resolve tsconfig through map");
 }
 
 #[test]

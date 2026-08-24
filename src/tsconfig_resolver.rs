@@ -420,6 +420,7 @@ impl ResolverImpl {
             condition_names: vec!["node".into(), "import".into()],
             extensions: vec![".json".into()],
             main_files: vec!["tsconfig".into()],
+            package_map: self.options.package_map.clone(),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: self.options.yarn_pnp,
             #[cfg(feature = "yarn_pnp")]
@@ -429,15 +430,11 @@ impl ResolverImpl {
         .sanitize();
         let alias = crate::alias::compile_alias(&options.alias);
         let fallback = crate::alias::compile_alias(&options.fallback);
+        let package_map =
+            options.package_map.as_ref().map(|_| Box::new(std::sync::OnceLock::new()));
         // Extends-resolution never toggles `yarn_pnp`, so reuse the same cache (and thus the
         // same underlying filesystem) rather than rebuilding it.
-        Self {
-            options,
-            cache: Arc::clone(&self.cache),
-            alias,
-            fallback,
-            package_map: std::sync::OnceLock::new(),
-        }
+        Self { options, cache: Arc::clone(&self.cache), alias, fallback, package_map }
     }
 
     fn get_extended_tsconfig_path(
