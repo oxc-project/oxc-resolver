@@ -138,10 +138,7 @@ impl Cache {
         let package_map = self.package_map.get_or_try_init(|| {
             let Some(package_map_path) =
                 std::iter::successors(Some(path.clone()), |path| path.parent(self))
-                    .filter_map(|path| {
-                        path.cached_node_modules(symlinks, self, &mut Ctx::default())
-                    })
-                    .map(|node_modules| node_modules.push(".package-map.json", self))
+                    .map(|path| path.normalize_with("node_modules/.package-map.json", self))
                     .find(|path| self.is_file(path, symlinks, &mut Ctx::default()))
             else {
                 return Ok(None);

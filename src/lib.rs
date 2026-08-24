@@ -649,11 +649,23 @@ impl ResolverImpl {
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> ResolveResult {
+        // Package maps contain filesystem paths and cannot own virtual or otherwise relative
+        // importers.
+        if !cached_path.path().is_absolute() {
+            return Ok(None);
+        }
+
         let Some(package_map) = self.cache.get_package_map(cached_path, self.options.symlinks)?
         else {
             return Ok(None);
         };
         ctx.add_file_dependency(package_map.path());
+
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
+        else {
+            return Ok(None);
+        };
+
         // Find the package ID for the package owning Y
         // 1. Let PARENT_PACKAGE_ID be FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)
         let parent_path = cached_path.path();
@@ -672,6 +684,33 @@ impl ResolverImpl {
                     package_map_path: package_map.path().to_path_buf(),
                 },
             })?;
+
+        let parent_package = package_map
+            .package(parent_package_id)
+            .expect("a package ID returned by the package map must have a corresponding entry");
+        let parent_package_path = package_map
+            .resolve_url(parent_package.url())
+            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+
+        // Don't let an enclosing package's map cross a nearer nested project that has its own
+        // `node_modules` tree. A workspace listed in the map still works because its matched
+        // package path is the boundary where this walk stops.
+        for directory in
+            std::iter::successors(Some(cached_path.clone()), |path| path.parent(&self.cache))
+                .take_while(|path| path.path() != parent_package_path)
+        {
+            let node_modules = directory.normalize_with("node_modules", &self.cache);
+            if self.cache.is_dir(&node_modules, self.options.symlinks, &mut Ctx::default()) {
+                return Ok(None);
+            }
+        }
+
+        // An auto-discovered map may belong to an enclosing workspace. Only use it when the
+        // matched entry owns the importer's nearest package scope.
+        if package_json.path().parent() != Some(parent_package_path.as_path()) {
+            return Ok(None);
+        }
+
         self.load_package_map(specifier, parent_package_id, package_map, tsconfig, ctx)
     }
 
