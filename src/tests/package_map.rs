@@ -57,7 +57,7 @@ fn test_package_map(
     assert_eq!(package_map.realpath(), package_map_path.canonicalize().unwrap());
     assert_package_map(&package_map);
 
-    let resolver = package_map_resolver();
+    let resolver = package_map_resolver(package_map_path);
     for specifier in specifiers {
         let mut context = ResolveContext::default();
         if let Err(error) = resolver.resolve_with_context(importer, specifier, None, &mut context) {
@@ -75,10 +75,11 @@ fn test_package_map(
     }
 }
 
-fn package_map_resolver() -> Resolver {
+fn package_map_resolver(package_map_path: &Path) -> Resolver {
     Resolver::new(ResolveOptions {
         condition_names: vec!["node".into(), "require".into()],
         modules: vec![],
+        package_map: Some(package_map_path.to_path_buf()),
         ..ResolveOptions::default()
     })
 }
@@ -177,7 +178,7 @@ fn resolution() {
         assert!(package_map.package(follow_redirects_id).is_some());
     });
 
-    let resolver = package_map_resolver();
+    let resolver = package_map_resolver(&package_map_path);
     assert_eq!(
         resolver.resolve(&importer, "axios/client").map(|resolution| resolution.full_path()),
         Ok(fixture.join("node_modules/store/axios/lib/client.js"))
@@ -191,5 +192,17 @@ fn resolution() {
     assert!(matches!(
         resolver.resolve(&importer, "follow-redirects"),
         Err(ResolveError::NotFound(specifier)) if specifier == "follow-redirects"
+    ));
+}
+
+#[test]
+fn disabled_by_default() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    let importer = fixture.join("apps/web/src");
+    let resolver = Resolver::new(ResolveOptions { modules: vec![], ..ResolveOptions::default() });
+
+    assert!(matches!(
+        resolver.resolve(importer, "axios"),
+        Err(ResolveError::NotFound(specifier)) if specifier == "axios"
     ));
 }

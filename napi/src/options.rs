@@ -109,6 +109,13 @@ pub struct NapiResolveOptions {
     #[napi(ts_type = "string | string[]")]
     pub modules: Option<StrOrStrListType>,
 
+    /// Path to a Node.js package map used to resolve bare package specifiers.
+    ///
+    /// When set, package-map resolution takes precedence over `modules`.
+    ///
+    /// Default `undefined`.
+    pub package_map: Option<String>,
+
     /// Resolve to a context instead of a file.
     ///
     /// Default `false`
