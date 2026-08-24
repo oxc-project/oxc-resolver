@@ -24,7 +24,7 @@ oxc_resolver = { workspace = true }
 
 napi = { version = "3.8", default-features = false, features = ["napi3", "serde-json"] }
 napi-derive = { version = "3" }
-regress = { version = "0.11" } # ECMAScript regex engine for `Restriction` regex
+regress = { version = "0.12" } # ECMAScript regex engine for `Restriction` regex
 tracing-subscriber = { version = "0.3.23", optional = true, default-features = false, features = [
   "std",
   "fmt",
