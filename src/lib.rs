@@ -494,6 +494,31 @@ impl ResolverImpl {
             if err.is_ignore() {
                 return Err(err);
             }
+
+            // A configured package map replaces node_modules lookup. Its modules list is cleared
+            // during option sanitization, so bare requests reach this existing error path without
+            // adding a branch to successful default resolution.
+            let err = if self.package_map.is_some()
+                && matches!(&err, ResolveError::NotFound(_))
+                && matches!(Path::new(specifier).components().next(), Some(Component::Normal(_)))
+                && !specifier.starts_with('#')
+            {
+                let (name, subpath) = Self::parse_package_specifier(specifier);
+                match self.load_package_map_for_importer(
+                    cached_path,
+                    specifier,
+                    name,
+                    subpath,
+                    tsconfig,
+                    ctx,
+                ) {
+                    Ok(path) => return Ok(path),
+                    Err(err) => err,
+                }
+            } else {
+                err
+            };
+
             // enhanced-resolve: try fallback
             self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)?.ok_or(err)
         })
@@ -611,9 +636,6 @@ impl ResolverImpl {
             && let Ok(path) = self.require_relative(cached_path, specifier, tsconfig, ctx)
         {
             return Ok(path);
-        }
-        if self.package_map.is_some() {
-            return self.load_package_self_or_package_map(cached_path, specifier, tsconfig, ctx);
         }
         self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
     }

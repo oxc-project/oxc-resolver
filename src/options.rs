@@ -478,9 +478,15 @@ impl ResolveOptions {
             self.modules.extend_from_slice(NodePath::build());
         }
 
-        if self.package_map.as_ref().is_some_and(|path| path.is_relative()) {
-            let cwd = self.cwd.clone().or_else(|| std::env::current_dir().ok());
-            if let (Some(package_map), Some(cwd)) = (&mut self.package_map, cwd) {
+        if let Some(package_map) = &mut self.package_map {
+            // LOAD_PACKAGE_MAP is terminal when a package map exists, so node_modules lookup must
+            // not resolve a request before the package-map not-found path gets a chance to handle
+            // it.
+            self.modules.clear();
+
+            if package_map.is_relative()
+                && let Some(cwd) = self.cwd.clone().or_else(|| std::env::current_dir().ok())
+            {
                 *package_map = cwd.normalize_with(&*package_map);
             }
         }
