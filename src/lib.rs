@@ -495,9 +495,11 @@ impl ResolverImpl {
                 return Err(err);
             }
 
-            // A configured package map replaces node_modules lookup. Its modules list is cleared
-            // during option sanitization, so bare requests reach this existing error path without
-            // adding a branch to successful default resolution.
+            // Node package maps apply only to bare, non-builtin specifiers. Builtins were handled
+            // by `require_core`; relative, absolute, and `#imports` requests fail the guards below.
+            // Sanitization clears `modules` when a map is configured, making LOAD_PACKAGE_MAP
+            // terminal instead of falling through to LOAD_NODE_MODULES (CommonJS steps 6 and 7).
+            // Keep the dispatch on this not-found path so the default successful path is unchanged.
             let err = if self.package_map.is_some()
                 && matches!(&err, ResolveError::NotFound(_))
                 && matches!(Path::new(specifier).components().next(), Some(Component::Normal(_)))
@@ -680,10 +682,13 @@ impl ResolverImpl {
         self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
     }
 
-    // 6. If a package map PACKAGE_MAP exists,
-    // a. Find the package ID for the package owning Y
-    //    1. Let PARENT_PACKAGE_ID be FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)
-    //    b. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
+    /// Implements package-map dispatch from step 6 of Node's CommonJS resolution pseudocode.
+    ///
+    /// Node permits the importing package ID to be propagated by the caller. [`Resolver`] returns
+    /// paths rather than package IDs, so this implementation takes the specified fallback and calls
+    /// `FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)` for every uncached importer path.
+    ///
+    /// See <https://nodejs.org/api/modules.html#all-together>.
     #[cold]
     #[inline(never)]
     fn load_package_map_for_importer(
@@ -697,8 +702,8 @@ impl ResolverImpl {
     ) -> Result<CachedPath, ResolveError> {
         let package_map = self.package_map(ctx)?;
 
-        // Find the package ID for the package owning Y
-        // 1. Let PARENT_PACKAGE_ID be FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)
+        // Step 6.a: derive PARENT_PACKAGE_ID from dirname(Y). `cached_path` is already dirname(Y)
+        // because the public resolve API accepts the importing directory, not the importing file.
         let parent_path = cached_path.path();
         let parent_package_id =
             package_map.find_package_id(parent_path).map_err(|error| match error {
@@ -727,6 +732,10 @@ impl ResolverImpl {
         )
     }
 
+    /// Implements `LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)`.
+    ///
+    /// The numbered comments correspond directly to Node's
+    /// [CommonJS resolution pseudocode](https://nodejs.org/api/modules.html#all-together).
     fn load_package_map(
         &self,
         specifier: &str,
@@ -737,6 +746,9 @@ impl ResolverImpl {
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
+        // Step 1 was performed once by `parse_package_specifier`: NAME includes an optional
+        // `@scope/` prefix and SUBPATH is either empty or begins with `/`.
+
         // 2. Find the package map entry for key PARENT_PACKAGE_ID.
         let parent_package = package_map
             .package(parent_package_id)
@@ -766,6 +778,8 @@ impl ResolverImpl {
             return Ok(path);
         }
 
+        // `CachedPath::normalize_with` expects a relative operand. Prefixing the specified `/`
+        // SUBPATH with `.` preserves PACKAGE_PATH/SUBPATH instead of treating it as a root path.
         let dot_subpath = Self::dot_subpath(subpath);
         let package_subpath = package_path.normalize_with(dot_subpath.as_ref(), &self.cache);
 
@@ -787,6 +801,11 @@ impl ResolverImpl {
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
+    /// Loads the configured static package map synchronously and caches either result.
+    ///
+    /// Node loads its map synchronously at startup. Loading is deferred here until the first
+    /// applicable request because [`Resolver::new`] cannot report I/O or JSON errors. The map
+    /// remains static for the lifetime of this resolver, matching Node's package-map limitation.
     fn package_map(&self, ctx: &mut Ctx) -> Result<&PackageMap, ResolveError> {
         let package_map_path =
             self.options.package_map.as_ref().expect("checked before loading package map");

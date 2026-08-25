@@ -1,16 +1,35 @@
-//! Node.js package map definitions.
+//! Implementation of experimental [Node.js package maps][node-package-maps].
 //!
-//! Package maps describe package locations and their dependency edges. The package manager has
-//! already encoded whether those edges use `standard` or `loose` semantics, so both map types
-//! share the same representation here.
+//! A package map is one static JSON file containing a `packages` object. Each key is an opaque,
+//! unique package ID. Its value has a required `url` and an optional `dependencies` object that
+//! maps the bare package name used by source code to another package ID. Package IDs therefore
+//! identify dependency graph nodes independently of their locations and allow different importers
+//! to resolve the same package name to different versions.
 //!
-//! See the [Node.js package-map specification](https://nodejs.org/api/packages.html#package-maps),
-//! the [pnpm setting](https://pnpm.io/settings#nodeexperimentalpackagemap), and the
-//! [Yarn setting](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
+//! Entry URLs are resolved from the package map's effective location into filesystem paths. The
+//! effective location is canonical when symlink resolution is enabled and is otherwise the
+//! configured path. Explicit URLs must use the `file:` protocol. The resulting paths form the
+//! index used by [`PackageMap::find_package_id`] to identify the package that owns an importer.
+//! Multiple IDs resolving to the same owning path are retained as ambiguous, as required for
+//! [multiple packages sharing one URL][shared-url].
+//!
+//! The resolver API does not propagate a package ID between resolutions, so it always uses the
+//! specification's path-based fallback to identify the importer. The parsed map and both successful
+//! and failed ownership lookups are cached. Parsing itself is synchronous but deferred until the
+//! first applicable resolution because resolver construction cannot return an error. Selecting a
+//! dependency follows one map edge before regular resolution resumes; package-map dependency cycles
+//! are not detected, matching the specification's limitation.
 //!
 //! The accessor logic is shared between two storage backends: little-endian systems borrow
 //! strings directly from simd-json's input buffer, while big-endian systems store owned
 //! [`compact_str::CompactString`]s parsed by serde-json.
+//!
+//! Package-manager configuration:
+//! [pnpm](https://pnpm.io/settings#nodeexperimentalpackagemap),
+//! [Yarn](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
+//!
+//! [node-package-maps]: https://nodejs.org/api/packages.html#package-maps
+//! [shared-url]: https://nodejs.org/api/packages.html#multiple-packages-for-the-same-url
 
 #![expect(dead_code, reason = "package-map resolver integration follows the parser")]
 
@@ -32,13 +51,13 @@ use rustc_hash::{FxHashMap, FxHasher};
 
 use crate::PathUtil;
 
-/// Error returned when finding the package ID that owns a path.
+/// Error returned by the path-based fallback in Node's package-map resolution algorithm.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FindPackageIdError {
-    /// Multiple package IDs map to the same owning path.
+    /// Multiple package IDs resolve to the same owning package path.
     AmbiguousResolution,
 
-    /// The path is not contained by any package in the map.
+    /// The importer path is not contained by any package location in the map.
     ExternalFile,
 }
 
@@ -66,24 +85,30 @@ enum PackageOwner {
     External,
 }
 
-/// Parsed Node.js package map, generic over its storage backend.
+/// Parsed Node.js package map and its resolved package-location index.
+///
+/// This represents the specification's top-level `packages` object. See
+/// [Configuration file format](https://nodejs.org/api/packages.html#configuration-file-format).
 pub struct PackageMapGeneric<S> {
-    /// Path to `.package-map.json`.
+    /// Configured package-map path, used for diagnostics and dependency tracking.
     path: PathBuf,
 
-    /// Canonical path to `.package-map.json`.
+    /// Effective package-map path whose parent is the base for relative entry URLs.
+    ///
+    /// This is canonicalized when the resolver's symlink option is enabled; otherwise it is the
+    /// configured path.
     realpath: PathBuf,
 
-    /// Parsed package entries.
+    /// Package entries keyed by their opaque package IDs.
     store: S,
 
-    /// Resolved package paths keyed by package ID.
+    /// Valid `file:` package locations keyed by package ID.
     package_paths: FxHashMap<Arc<str>, Arc<Path>>,
 
-    /// Package ownership keyed by resolved package path.
+    /// Package ownership keyed by resolved location; duplicate locations are ambiguous.
     path_index: FxHashMap<Arc<Path>, PackageOwner>,
 
-    /// Memoized ownership for importer paths.
+    /// Memoized path-based ownership results for importer directories.
     path_cache: DashMap<PathBuf, PackageOwner, BuildHasherDefault<FxHasher>>,
 }
 
@@ -141,7 +166,9 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         &self.path
     }
 
-    /// Returns the canonical path where `.package-map.json` is stored.
+    /// Returns the effective package-map path used to resolve entry URLs.
+    ///
+    /// This is canonical when symlink resolution is enabled and is otherwise the configured path.
     pub fn realpath(&self) -> &Path {
         &self.realpath
     }
@@ -156,7 +183,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         self.store.len() == 0
     }
 
-    /// Returns a package entry by package ID.
+    /// Returns the entry for an opaque package ID from the top-level `packages` object.
     pub fn package<'a>(
         &'a self,
         package_id: &str,
@@ -168,7 +195,14 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         })
     }
 
-    /// Finds the package ID for the most specific package containing `path`.
+    /// Implements the path-based fallback for determining which package owns an importer.
+    ///
+    /// The nearest ancestor present in the resolved-path index owns `path`. If multiple package
+    /// IDs resolve to that ancestor, this returns [`FindPackageIdError::AmbiguousResolution`]. If
+    /// no mapped package contains `path`, it returns [`FindPackageIdError::ExternalFile`].
+    ///
+    /// This corresponds to `FIND_PACKAGE_ID(PATH, PACKAGE_MAP)` in Node's
+    /// [CommonJS resolution pseudocode](https://nodejs.org/api/modules.html#all-together).
     pub fn find_package_id<'a>(&'a self, path: &Path) -> Result<&'a str, FindPackageIdError> {
         if let Some(owner) = self.path_cache.get(path) {
             return self.package_id_for_owner(owner.value());
@@ -204,7 +238,11 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         }
     }
 
-    /// Resolves a package entry URL relative to the package map.
+    /// Resolves an entry's `url` from the effective package-map location into a filesystem path.
+    ///
+    /// `file://` URLs and filesystem paths are accepted. Non-file protocols, percent-decoded paths
+    /// that are not UTF-8, and paths without a package-map parent return `None` and cannot be
+    /// resolution targets.
     pub fn resolve_url(&self, url: &str) -> Option<PathBuf> {
         Self::resolve_url_from(&self.realpath, url)
     }
@@ -222,14 +260,14 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         }
 
         let decoded = percent_encoding::percent_decode_str(url).decode_utf8().ok()?;
-        // Node resolves the package map itself before using its URL as the base, so relative
-        // package URLs are resolved from the package map's canonical location.
+        // Node uses the package map URL as the base. `package_map_path` is the equivalent effective
+        // filesystem location: canonical when symlink resolution is enabled, configured otherwise.
         let base = package_map_path.parent()?;
         Some(base.normalize_with(Path::new(decoded.as_ref())))
     }
 }
 
-/// A package entry in a Node.js package map.
+/// One package entry from the package map's top-level `packages` object.
 pub struct PackageMapEntryGeneric<'a, E> {
     entry: E,
     path: Option<&'a Path>,
@@ -237,17 +275,19 @@ pub struct PackageMapEntryGeneric<'a, E> {
 }
 
 impl<'a, E: PackageMapEntryBackend<'a>> PackageMapEntryGeneric<'a, E> {
-    /// Returns the package URL.
+    /// Returns the required `url` string exactly as stored in the map.
     pub fn url(&self) -> &'a str {
         self.entry.url()
     }
 
-    /// Returns the resolved package path.
+    /// Returns the resolved file path, or `None` when `url` is not a valid file target.
     pub fn path(&self) -> Option<&'a Path> {
         self.path
     }
 
-    /// Returns the target package ID for a bare package specifier.
+    /// Looks up a bare package name in `dependencies` and returns its target package ID.
+    ///
+    /// A missing `dependencies` object behaves as an empty object.
     pub fn dependency(&self, specifier: &str) -> Option<&'a str> {
         self.entry.dependency(specifier)
     }
