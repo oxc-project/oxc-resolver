@@ -129,6 +129,15 @@ pub struct ResolveOptions {
     ///
     /// When set, package-map resolution takes precedence over [`modules`](Self::modules).
     ///
+    /// Package maps participate only in bare-specifier resolution after built-in modules. Relative
+    /// paths, absolute paths, and `#imports` continue through their normal resolution paths.
+    /// Package self-resolution also runs before the package map, following Node's CommonJS
+    /// algorithm.
+    ///
+    /// The static map is loaded synchronously on the first applicable resolution and cached for the
+    /// resolver's lifetime. The path-based ownership fallback is always used because resolution
+    /// results do not carry Node's optional importer package ID.
+    ///
     /// See the [Node.js package-map specification](https://nodejs.org/api/packages.html#package-maps),
     /// the [pnpm setting](https://pnpm.io/settings#nodeexperimentalpackagemap), and the
     /// [Yarn setting](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
