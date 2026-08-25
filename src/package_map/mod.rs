@@ -4,6 +4,10 @@
 //! already encoded whether those edges use `standard` or `loose` semantics, so both map types
 //! share the same representation here.
 //!
+//! See the [Node.js package-map specification](https://nodejs.org/api/packages.html#package-maps),
+//! the [pnpm setting](https://pnpm.io/settings#nodeexperimentalpackagemap), and the
+//! [Yarn setting](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
+//!
 //! The accessor logic is shared between two storage backends: little-endian systems borrow
 //! strings directly from simd-json's input buffer, while big-endian systems store owned
 //! [`compact_str::CompactString`]s parsed by serde-json.

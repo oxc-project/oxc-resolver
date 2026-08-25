@@ -115,6 +115,10 @@ pub struct NapiResolveOptions {
     ///
     /// When set, package-map resolution takes precedence over `modules`.
     ///
+    /// See the [Node.js package-map specification](https://nodejs.org/api/packages.html#package-maps),
+    /// the [pnpm setting](https://pnpm.io/settings#nodeexperimentalpackagemap), and the
+    /// [Yarn setting](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
+    ///
     /// Default `undefined`.
     pub package_map: Option<String>,
 

@@ -129,6 +129,10 @@ pub struct ResolveOptions {
     ///
     /// When set, package-map resolution takes precedence over [`modules`](Self::modules).
     ///
+    /// See the [Node.js package-map specification](https://nodejs.org/api/packages.html#package-maps),
+    /// the [pnpm setting](https://pnpm.io/settings#nodeexperimentalpackagemap), and the
+    /// [Yarn setting](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
+    ///
     /// Default `None`.
     pub package_map: Option<PathBuf>,
 
