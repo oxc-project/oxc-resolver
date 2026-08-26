@@ -867,7 +867,7 @@ impl ResolverImpl {
             } else {
                 package_map_path.clone()
             };
-            PackageMap::parse(package_map_path.clone(), realpath, json)
+            PackageMap::parse(package_map_path.clone(), &realpath, json)
                 .map(Arc::new)
                 .map_err(ResolveError::Json)
         });
