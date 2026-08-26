@@ -55,7 +55,7 @@ mod file_url;
 mod node_path;
 mod options;
 mod package_json;
-pub(crate) mod package_map;
+mod package_map;
 mod path;
 mod resolution;
 mod specifier;
@@ -74,7 +74,7 @@ use std::{
     ffi::OsStr,
     fmt,
     path::{Component, Path, PathBuf},
-    sync::{Arc, LazyLock, OnceLock},
+    sync::Arc,
 };
 
 use rustc_hash::FxHashSet;
@@ -82,7 +82,6 @@ use rustc_hash::FxHashSet;
 use crate::{
     alias::{CompiledAlias, compile_alias},
     context::ResolveContext as Ctx,
-    package_map::{FindPackageIdError, PackageMap},
     path::SLASH_START,
     specifier::Specifier,
 };
@@ -120,37 +119,6 @@ pub struct ResolveContext {
 /// Resolver with the current operating system as the file system
 pub type Resolver = ResolverGeneric<FileSystemOs>;
 
-struct PackageMapCache {
-    path: PathBuf,
-    value: OnceLock<Result<Arc<PackageMap>, ResolveError>>,
-}
-
-impl PackageMapCache {
-    fn new(path: PathBuf) -> Self {
-        Self { path, value: OnceLock::new() }
-    }
-}
-
-static NODE_OPTIONS_PACKAGE_MAP_PATH: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
-    let node_options = std::env::var("NODE_OPTIONS").ok()?;
-    let cwd = std::env::current_dir().ok()?;
-    package_map::package_map_path_from_node_options(&node_options, &cwd)
-});
-
-fn package_map_from_environment() -> Option<Box<PackageMapCache>> {
-    NODE_OPTIONS_PACKAGE_MAP_PATH.as_ref().map(|path| Box::new(PackageMapCache::new(path.clone())))
-}
-
-fn sanitize_options(mut options: ResolveOptions, package_map_enabled: bool) -> ResolveOptions {
-    options = options.sanitize();
-    if package_map_enabled {
-        // LOAD_PACKAGE_MAP is terminal when a package map exists, so node_modules lookup must not
-        // resolve a request before the package-map not-found path gets a chance to handle it.
-        options.modules.clear();
-    }
-    options
-}
-
 /// Non-generic core of the resolver holding the heavy resolution algorithm.
 ///
 /// The filesystem is type-erased to `Arc<dyn FileSystem>` here so that the resolver
@@ -162,7 +130,7 @@ pub struct ResolverImpl {
     cache: Arc<Cache>,
     alias: CompiledAlias,
     fallback: CompiledAlias,
-    package_map: Option<Box<PackageMapCache>>,
+    package_map: Option<Box<package_map::PackageMapCache>>,
 }
 
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
@@ -194,8 +162,7 @@ impl<Fs: FileSystem + 'static> Default for ResolverGeneric<Fs> {
 impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
-        let package_map = package_map_from_environment();
-        let options = sanitize_options(options, package_map.is_some());
+        let (options, package_map) = package_map::configure(options);
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let fs = cfg_select! {
@@ -208,8 +175,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        let package_map = package_map_from_environment();
-        let options = sanitize_options(options, package_map.is_some());
+        let (options, package_map) = package_map::configure(options);
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
@@ -217,30 +183,11 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         Self { inner, _marker: std::marker::PhantomData }
     }
 
-    #[cfg(test)]
-    pub(crate) fn new_with_package_map(options: ResolveOptions, path: PathBuf) -> Self {
-        let package_map = Some(Box::new(PackageMapCache::new(path)));
-        let options = sanitize_options(options, true);
-        let alias = compile_alias(&options.alias);
-        let fallback = compile_alias(&options.fallback);
-        let fs = cfg_select! {
-            feature = "yarn_pnp" => Fs::new(options.yarn_pnp),
-            _ => Fs::new(),
-        };
-        let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback, package_map };
-        Self { inner, _marker: std::marker::PhantomData }
-    }
-
     /// Clone the resolver using the same underlying cache.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
-        let package_map = self
-            .inner
-            .package_map
-            .as_ref()
-            .map(|package_map| Box::new(PackageMapCache::new(package_map.path.clone())));
-        let options = sanitize_options(options, package_map.is_some());
+        let (options, package_map) =
+            package_map::reconfigure(options, self.inner.package_map.as_deref());
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = cfg_select! {
@@ -543,30 +490,16 @@ impl ResolverImpl {
                 return Err(err);
             }
 
-            // Node package maps apply only to bare, non-builtin specifiers. Builtins were handled
-            // by `require_core`; relative, absolute, and `#imports` requests fail the guards below.
-            // Sanitization clears `modules` when a map is configured, making LOAD_PACKAGE_MAP
-            // terminal instead of falling through to LOAD_NODE_MODULES (CommonJS steps 6 and 7).
-            // Keep the dispatch on this not-found path so the default successful path is unchanged.
-            let err = if self.package_map.is_some()
-                && matches!(&err, ResolveError::NotFound(_))
-                && matches!(Path::new(specifier).components().next(), Some(Component::Normal(_)))
-                && !specifier.starts_with('#')
-            {
-                let (name, subpath) = Self::parse_package_specifier(specifier);
-                match self.load_package_map_for_importer(
-                    cached_path,
-                    specifier,
-                    name,
-                    subpath,
-                    tsconfig,
-                    ctx,
-                ) {
-                    Ok(path) => return Ok(path),
-                    Err(err) => err,
-                }
-            } else {
-                err
+            let err = match self.try_package_map_on_not_found(
+                cached_path,
+                specifier,
+                tsconfig,
+                ctx,
+                &err,
+            ) {
+                Some(Ok(path)) => return Ok(path),
+                Some(Err(err)) => err,
+                None => err,
             };
 
             // enhanced-resolve: try fallback
@@ -690,203 +623,6 @@ impl ResolverImpl {
         self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
     }
 
-    #[cold]
-    #[inline(never)]
-    fn load_package_self_or_package_map(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        let (package_name, subpath) = Self::parse_package_specifier(specifier);
-        if subpath.is_empty() {
-            ctx.with_fully_specified(false);
-        }
-        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
-        if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
-            return Ok(path);
-        }
-        self.load_package_map_for_importer(
-            cached_path,
-            specifier,
-            package_name,
-            subpath,
-            tsconfig,
-            ctx,
-        )
-    }
-
-    fn load_bare_package(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        if self.package_map.is_some() {
-            return self.load_package_self_or_package_map(cached_path, specifier, tsconfig, ctx);
-        }
-        self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
-    }
-
-    /// Implements package-map dispatch from step 6 of Node's CommonJS resolution pseudocode.
-    ///
-    /// Node permits the importing package ID to be propagated by the caller. [`Resolver`] returns
-    /// paths rather than package IDs, so this implementation takes the specified fallback and calls
-    /// `FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)` for every uncached importer path.
-    ///
-    /// See <https://nodejs.org/api/modules.html#all-together>.
-    #[cold]
-    #[inline(never)]
-    fn load_package_map_for_importer(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        name: &str,
-        subpath: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        let package_map = self.package_map(ctx)?;
-
-        // Step 6.a: derive PARENT_PACKAGE_ID from dirname(Y). `cached_path` is already dirname(Y)
-        // because the public resolve API accepts the importing directory, not the importing file.
-        let parent_path = cached_path.path();
-        let parent_package_id =
-            package_map.find_package_id(parent_path).map_err(|error| match error {
-                FindPackageIdError::AmbiguousResolution => {
-                    ResolveError::PackageMapAmbiguousResolution {
-                        specifier: specifier.to_string(),
-                        parent_path: parent_path.to_path_buf(),
-                        package_map_path: package_map.path().to_path_buf(),
-                    }
-                }
-                FindPackageIdError::ExternalFile => ResolveError::PackageMapExternalFile {
-                    specifier: specifier.to_string(),
-                    parent_path: parent_path.to_path_buf(),
-                    package_map_path: package_map.path().to_path_buf(),
-                },
-            })?;
-
-        self.load_package_map(
-            specifier,
-            name,
-            subpath,
-            parent_package_id,
-            package_map,
-            tsconfig,
-            ctx,
-        )
-    }
-
-    /// Implements `LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)`.
-    ///
-    /// The numbered comments correspond directly to Node's
-    /// [CommonJS resolution pseudocode](https://nodejs.org/api/modules.html#all-together).
-    fn load_package_map(
-        &self,
-        specifier: &str,
-        name: &str,
-        subpath: &str,
-        parent_package_id: &str,
-        package_map: &PackageMap,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        // Step 1 was performed once by `parse_package_specifier`: NAME includes an optional
-        // `@scope/` prefix and SUBPATH is either empty or begins with `/`.
-
-        // 2. Find the package map entry for key PARENT_PACKAGE_ID.
-        let parent_package = package_map
-            .package(parent_package_id)
-            .expect("a package ID returned by the package map must have a corresponding entry");
-
-        // 3. Look up NAME in the entry's "dependencies" map.
-        // 4. If NAME is not found, THROW "not found".
-        let dependency_id = parent_package
-            .dependency(name)
-            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
-
-        // 5. Let TARGET be PACKAGE_MAP.packages[dependencies[name]].
-        let target = package_map
-            .package(dependency_id)
-            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
-
-        // 6. Let PACKAGE_PATH be the resolved path of TARGET.
-        let package_path =
-            target.path().ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
-        let package_path = self.cache.value(package_path);
-
-        // 7. LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_PATH).
-        if self.is_dir(&package_path, ctx)
-            && let Some(path) =
-                self.load_package_exports(specifier, subpath, &package_path, tsconfig, ctx)?
-        {
-            return Ok(path);
-        }
-
-        // `CachedPath::normalize_with` expects a relative operand. Prefixing the specified `/`
-        // SUBPATH with `.` preserves PACKAGE_PATH/SUBPATH instead of treating it as a root path.
-        let dot_subpath = Self::dot_subpath(subpath);
-        let package_subpath = package_path.normalize_with(dot_subpath.as_ref(), &self.cache);
-
-        // 8. LOAD_AS_FILE(PACKAGE_PATH/SUBPATH).
-        if !subpath.ends_with('/')
-            && let Some(path) = self.load_as_file(&package_subpath, tsconfig, ctx)?
-        {
-            return Ok(path);
-        }
-
-        // 9. LOAD_AS_DIRECTORY(PACKAGE_PATH/SUBPATH).
-        if self.is_dir(&package_subpath, ctx)
-            && let Some(path) = self.load_as_directory(&package_subpath, tsconfig, ctx)?
-        {
-            return Ok(path);
-        }
-
-        // 10. THROW "not found".
-        Err(ResolveError::NotFound(specifier.to_string()))
-    }
-
-    /// Loads the package map selected by `NODE_OPTIONS` synchronously and caches either result.
-    ///
-    /// Node loads its map synchronously at startup. Loading is deferred here until the first
-    /// applicable request because [`Resolver::new`] cannot report I/O or JSON errors. The map
-    /// remains static for the lifetime of this resolver, matching Node's package-map limitation.
-    fn package_map(&self, ctx: &mut Ctx) -> Result<&PackageMap, ResolveError> {
-        let package_map = self
-            .package_map
-            .as_ref()
-            .expect("a package map cache is created when NODE_OPTIONS selects a package map");
-        let package_map_path = &package_map.path;
-        let package_map = package_map.value.get_or_init(|| {
-            let json = self.cache.fs.read(package_map_path)?;
-            let realpath = if self.options.symlinks {
-                self.cache.canonicalize(&self.cache.value(package_map_path))?
-            } else {
-                package_map_path.clone()
-            };
-            PackageMap::parse(package_map_path.clone(), &realpath, json)
-                .map(Arc::new)
-                .map_err(ResolveError::Json)
-        });
-
-        match package_map {
-            Ok(package_map) => {
-                ctx.add_file_dependency(package_map.path());
-                Ok(package_map)
-            }
-            Err(error) => {
-                match error {
-                    ResolveError::Json(error) => ctx.add_file_dependency(&error.path),
-                    _ => ctx.add_missing_dependency(package_map_path),
-                }
-                Err(error.clone())
-            }
-        }
-    }
-
     /// enhanced-resolve: ParsePlugin.
     ///
     /// It's allowed to escape # as \0# to avoid parsing it as fragment.
@@ -933,25 +669,7 @@ impl ResolverImpl {
         if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
-        self.load_node_modules_or_legacy(
-            cached_path,
-            specifier,
-            package_name,
-            subpath,
-            tsconfig,
-            ctx,
-        )
-    }
-
-    fn load_node_modules_or_legacy(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        package_name: &str,
-        subpath: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
+        // 6. LOAD_NODE_MODULES(X, dirname(Y))
         if let Some(path) =
             self.load_node_modules(cached_path, specifier, package_name, subpath, tsconfig, ctx)?
         {
@@ -987,7 +705,7 @@ impl ResolverImpl {
             }
         }
 
-        // 8. THROW "not found"
+        // 7. THROW "not found"
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
@@ -1694,17 +1412,10 @@ impl ResolverImpl {
         //   1. Return the string "node:" concatenated with packageSpecifier.
         self.require_core(package_name)?;
 
-        if self.package_map.is_some() {
-            return self
-                .load_package_map_for_importer(
-                    cached_path,
-                    specifier,
-                    package_name,
-                    subpath,
-                    tsconfig,
-                    ctx,
-                )
-                .map(Some);
+        if let Some(result) =
+            self.package_map_resolve(cached_path, specifier, package_name, subpath, tsconfig, ctx)
+        {
+            return result;
         }
 
         // 11. While parentURL is not the file system root,
