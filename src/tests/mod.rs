@@ -17,7 +17,6 @@ mod missing;
 mod module_type;
 mod modules;
 mod package_json;
-mod package_map;
 #[cfg(feature = "yarn_pnp")]
 mod pnp;
 mod resolution;

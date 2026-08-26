@@ -23,10 +23,6 @@ pub struct PackageMapEntryData {
 impl PackageMapBackend for PackageMapData {
     type Entry<'a> = &'a PackageMapEntryData;
 
-    fn len(&self) -> usize {
-        self.packages.len()
-    }
-
     fn package(&self, package_id: &str) -> Option<Self::Entry<'_>> {
         self.packages.get(package_id)
     }
