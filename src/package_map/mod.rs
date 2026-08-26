@@ -39,7 +39,6 @@ mod serde;
 mod simd;
 
 use std::{
-    fmt,
     hash::BuildHasherDefault,
     marker::PhantomData,
     path::{Path, PathBuf},
@@ -123,7 +122,6 @@ pub trait PackageMapBackend {
     where
         Self: 'a;
 
-    fn len(&self) -> usize;
     fn package(&self, package_id: &str) -> Option<Self::Entry<'_>>;
     fn iter(&self) -> impl Iterator<Item = (&str, Self::Entry<'_>)>;
 }
@@ -168,18 +166,6 @@ pub type PackageMap = PackageMapGeneric<serde::PackageMapData>;
 /// Parsed Node.js package map for the current target.
 #[cfg(target_endian = "little")]
 pub type PackageMap = PackageMapGeneric<simd::PackageMapCell>;
-
-impl<S: PackageMapBackend> fmt::Debug for PackageMapGeneric<S> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PackageMap")
-            .field("path", &self.path)
-            .field("packages", &self.store.len())
-            .field("resolved_paths", &self.package_paths.len())
-            .field("indexed_paths", &self.path_index.len())
-            .field("cached_paths", &self.path_cache.len())
-            .finish()
-    }
-}
 
 impl<S: PackageMapBackend> PackageMapGeneric<S> {
     fn new(path: PathBuf, realpath: &Path, store: S) -> Self {
@@ -246,11 +232,6 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         let result = self.package_id_for_owner(&owner);
         self.path_cache.insert(path.to_path_buf(), owner);
         result
-    }
-
-    #[cfg(test)]
-    pub(crate) fn path_cache_len(&self) -> usize {
-        self.path_cache.len()
     }
 
     fn package_id_for_owner<'a>(

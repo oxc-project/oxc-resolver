@@ -30,10 +30,6 @@ self_cell::self_cell! {
 impl PackageMapBackend for PackageMapCell {
     type Entry<'a> = &'a BorrowedValue<'a>;
 
-    fn len(&self) -> usize {
-        self.packages().len()
-    }
-
     fn package(&self, package_id: &str) -> Option<Self::Entry<'_>> {
         self.packages().get(package_id)
     }

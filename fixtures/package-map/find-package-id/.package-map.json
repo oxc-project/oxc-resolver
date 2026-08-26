@@ -3,14 +3,17 @@
     "root": {
       "url": "./packages/root"
     },
-    "nested": {
-      "url": "./packages/root/nested"
-    },
     "duplicate-a": {
       "url": "./packages/duplicate"
     },
     "duplicate-b": {
       "url": "./packages/duplicate"
+    },
+    "invalid-percent": {
+      "url": "%FF"
+    },
+    "file-url": {
+      "url": "file:///tmp/package"
     }
   }
 }

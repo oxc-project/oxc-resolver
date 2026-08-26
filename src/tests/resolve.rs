@@ -1,6 +1,9 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/resolve.test.js>
 
-use crate::{Resolution, ResolveError, ResolveOptions, Resolver};
+use crate::{
+    Resolution, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
+    TsconfigReferences, package_map::package_map_path_from_node_options,
+};
 
 #[test]
 fn resolve() {
@@ -83,6 +86,181 @@ fn issue238_resolve() {
     let resolved_path =
         resolver.resolve(f.join("src/common"), "config/myObjectFile").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/common/config/myObjectFile.js")));
+}
+
+#[test]
+fn package_map_resolution() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    let importer = fixture.join("apps/web/src");
+    let package_map = fixture.join("node_modules/.package-map.json");
+    let options = ResolveOptions {
+        condition_names: vec!["node".into(), "require".into()],
+        ..ResolveOptions::default()
+    };
+    let resolver = Resolver::new_with_package_map(options.clone(), package_map.clone());
+
+    for (base, request, expected) in [
+        (&importer, "axios", "node_modules/store/axios/index.js"),
+        (&importer, "axios/client", "node_modules/store/axios/lib/client.js"),
+        (&importer, "@bench/ui", "packages/ui/src/index.js"),
+        (&importer, "@bench/web", "apps/web/src/index.js"),
+        (&importer, "#react", "node_modules/store/react/index.js"),
+        (&importer, "plain-file", "node_modules/store/plain-file.js"),
+        (&importer, "plain-directory", "node_modules/store/plain-directory/index.js"),
+        (
+            &fixture.join("node_modules/store/axios/lib"),
+            "follow-redirects",
+            "node_modules/store/follow-redirects/index.js",
+        ),
+    ] {
+        assert_eq!(
+            resolver.resolve(base, request).map(|resolution| resolution.full_path()),
+            Ok(fixture.join(expected)),
+            "failed to resolve {request:?}",
+        );
+    }
+
+    for request in
+        ["follow-redirects", "invalid-target", "missing-target", "plain-directory/missing"]
+    {
+        assert!(matches!(
+            resolver.resolve(&importer, request),
+            Err(ResolveError::NotFound(specifier)) if specifier == request
+        ));
+    }
+
+    let cloned = resolver.clone_with_options(options.clone());
+    assert_eq!(
+        cloned.resolve(&importer, "react").map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/react/index.js"))
+    );
+
+    let without_symlinks =
+        Resolver::new_with_package_map(ResolveOptions { symlinks: false, ..options }, package_map);
+    assert_eq!(
+        without_symlinks.resolve(&importer, "react").map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/react/index.js"))
+    );
+}
+
+#[test]
+fn package_map_resolution_errors() {
+    let fixture = super::fixture_root().join("package-map/find-package-id");
+    let resolver = Resolver::new_with_package_map(
+        ResolveOptions::default(),
+        fixture.join(".package-map.json"),
+    );
+    assert!(matches!(
+        resolver.resolve(fixture.join("packages/duplicate"), "dependency"),
+        Err(ResolveError::PackageMapAmbiguousResolution { .. })
+    ));
+    assert!(matches!(
+        resolver.resolve(fixture.join("external"), "dependency"),
+        Err(ResolveError::PackageMapExternalFile { .. })
+    ));
+
+    let fixture = super::fixture_root().join("package-map/invalid");
+    for package_map in [".package-map.json", "invalid-shape.package-map.json"] {
+        let resolver =
+            Resolver::new_with_package_map(ResolveOptions::default(), fixture.join(package_map));
+        for _ in 0..2 {
+            assert!(matches!(resolver.resolve(&fixture, "dependency"), Err(ResolveError::Json(_))));
+        }
+    }
+
+    let resolver = Resolver::new_with_package_map(
+        ResolveOptions::default(),
+        fixture.join("missing.package-map.json"),
+    );
+    resolver.resolve(&fixture, "dependency").unwrap_err();
+}
+
+#[test]
+fn package_map_resolves_tsconfig_extends() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    let resolver = Resolver::new_with_package_map(
+        ResolveOptions {
+            condition_names: vec!["node".into(), "require".into()],
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: fixture.join("apps/web/tsconfig.package-map.json"),
+                references: TsconfigReferences::Auto,
+            })),
+            ..ResolveOptions::default()
+        },
+        fixture.join("node_modules/.package-map.json"),
+    );
+
+    for config_file in ["tsconfig.package-map.json", "tsconfig.package-map-self.json"] {
+        resolver
+            .resolve_tsconfig(fixture.join("apps/web").join(config_file))
+            .expect("resolve tsconfig through package map");
+    }
+}
+
+#[test]
+#[cfg_attr(target_os = "wasi", ignore)]
+fn package_map_resolves_from_canonical_location() {
+    let fixture = super::fixture_root().join("integration/nested-symlink");
+    let package_map = fixture.join("apps/tooling/.package-map.json");
+
+    // Some Windows checkouts materialize repository symlinks as plain files.
+    if !package_map.is_file() {
+        return;
+    }
+
+    let resolver = Resolver::new_with_package_map(ResolveOptions::default(), package_map);
+    assert_eq!(
+        resolver
+            .resolve(fixture.join("tooling/typescript-config"), "dep")
+            .map(|resolution| resolution.full_path()),
+        Ok(fixture.join("nm/index.js"))
+    );
+}
+
+#[test]
+fn package_map_node_options() {
+    let cwd = super::fixture_root();
+    assert_eq!(package_map_path_from_node_options("--trace-warnings", &cwd), None);
+    assert_eq!(
+        package_map_path_from_node_options(
+            "--experimental-package-map=./first.json \
+             --experimental-package-map=\"./last map.json\"",
+            &cwd,
+        ),
+        Some(cwd.join("last map.json"))
+    );
+    assert_eq!(
+        package_map_path_from_node_options(
+            "--experimental-package-map \"./separate map.json\"",
+            &cwd,
+        ),
+        Some(cwd.join("separate map.json"))
+    );
+    assert_eq!(
+        package_map_path_from_node_options(
+            r#"--experimental-package-map="./escaped\"quote.json""#,
+            &cwd,
+        ),
+        Some(cwd.join("escaped\"quote.json"))
+    );
+    assert_eq!(
+        package_map_path_from_node_options(
+            "--experimental-package-map=./valid.json --experimental-package-map=",
+            &cwd,
+        ),
+        None
+    );
+    assert_eq!(
+        package_map_path_from_node_options(
+            "--experimental-package-map=\"./unterminated.json",
+            &cwd,
+        ),
+        None
+    );
+    assert_eq!(
+        package_map_path_from_node_options("--experimental-package-map=\"./trailing\\", &cwd),
+        None
+    );
 }
 
 #[test]
