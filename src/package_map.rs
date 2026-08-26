@@ -262,14 +262,6 @@ fn sanitize_options(mut options: ResolveOptions, package_map_enabled: bool) -> R
     options
 }
 
-#[cfg(test)]
-pub fn resolver_for_test(options: ResolveOptions, path: PathBuf) -> crate::Resolver {
-    let mut resolver = crate::Resolver::new(options);
-    resolver.inner.options.modules.clear();
-    resolver.inner.package_map = Some(Box::new(PackageMapCache::new(path)));
-    resolver
-}
-
 /// Extracts the last `--experimental-package-map` path from `NODE_OPTIONS`.
 ///
 /// Tokenization follows Node's `ParseNodeOptionsEnvVar`: spaces separate arguments, double quotes
