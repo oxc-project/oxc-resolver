@@ -2,7 +2,8 @@
 
 use crate::{
     Resolution, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
-    TsconfigReferences, package_map::package_map_path_from_node_options,
+    TsconfigReferences,
+    package_map::{package_map_path_from_node_options, resolver_for_test},
 };
 
 #[test]
@@ -97,7 +98,7 @@ fn package_map_resolution() {
         condition_names: vec!["node".into(), "require".into()],
         ..ResolveOptions::default()
     };
-    let resolver = Resolver::new_with_package_map(options.clone(), package_map.clone());
+    let resolver = resolver_for_test(options.clone(), package_map.clone());
 
     for (base, request, expected) in [
         (&importer, "axios", "node_modules/store/axios/index.js"),
@@ -120,9 +121,13 @@ fn package_map_resolution() {
         );
     }
 
-    for request in
-        ["follow-redirects", "invalid-target", "missing-target", "plain-directory/missing"]
-    {
+    for request in [
+        "follow-redirects",
+        "invalid-target",
+        "missing-target",
+        "plain-directory/missing",
+        "./missing",
+    ] {
         assert!(matches!(
             resolver.resolve(&importer, request),
             Err(ResolveError::NotFound(specifier)) if specifier == request
@@ -136,7 +141,7 @@ fn package_map_resolution() {
     );
 
     let without_symlinks =
-        Resolver::new_with_package_map(ResolveOptions { symlinks: false, ..options }, package_map);
+        resolver_for_test(ResolveOptions { symlinks: false, ..options }, package_map);
     assert_eq!(
         without_symlinks.resolve(&importer, "react").map(|resolution| resolution.full_path()),
         Ok(fixture.join("node_modules/store/react/index.js"))
@@ -146,10 +151,7 @@ fn package_map_resolution() {
 #[test]
 fn package_map_resolution_errors() {
     let fixture = super::fixture_root().join("package-map/find-package-id");
-    let resolver = Resolver::new_with_package_map(
-        ResolveOptions::default(),
-        fixture.join(".package-map.json"),
-    );
+    let resolver = resolver_for_test(ResolveOptions::default(), fixture.join(".package-map.json"));
     assert!(matches!(
         resolver.resolve(fixture.join("packages/duplicate"), "dependency"),
         Err(ResolveError::PackageMapAmbiguousResolution { .. })
@@ -161,24 +163,21 @@ fn package_map_resolution_errors() {
 
     let fixture = super::fixture_root().join("package-map/invalid");
     for package_map in [".package-map.json", "invalid-shape.package-map.json"] {
-        let resolver =
-            Resolver::new_with_package_map(ResolveOptions::default(), fixture.join(package_map));
+        let resolver = resolver_for_test(ResolveOptions::default(), fixture.join(package_map));
         for _ in 0..2 {
             assert!(matches!(resolver.resolve(&fixture, "dependency"), Err(ResolveError::Json(_))));
         }
     }
 
-    let resolver = Resolver::new_with_package_map(
-        ResolveOptions::default(),
-        fixture.join("missing.package-map.json"),
-    );
+    let resolver =
+        resolver_for_test(ResolveOptions::default(), fixture.join("missing.package-map.json"));
     resolver.resolve(&fixture, "dependency").unwrap_err();
 }
 
 #[test]
 fn package_map_resolves_tsconfig_extends() {
     let fixture = super::fixture_root().join("package-map/resolution");
-    let resolver = Resolver::new_with_package_map(
+    let resolver = resolver_for_test(
         ResolveOptions {
             condition_names: vec!["node".into(), "require".into()],
             tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
@@ -208,7 +207,7 @@ fn package_map_resolves_from_canonical_location() {
         return;
     }
 
-    let resolver = Resolver::new_with_package_map(ResolveOptions::default(), package_map);
+    let resolver = resolver_for_test(ResolveOptions::default(), package_map);
     assert_eq!(
         resolver
             .resolve(fixture.join("tooling/typescript-config"), "dep")
@@ -260,6 +259,40 @@ fn package_map_node_options() {
     assert_eq!(
         package_map_path_from_node_options("--experimental-package-map=\"./trailing\\", &cwd),
         None
+    );
+}
+
+#[test]
+#[cfg(not(target_os = "wasi"))]
+fn package_map_from_node_options() {
+    let fixture = super::fixture_root().join("package-map/resolution");
+    if std::env::var_os("OXC_RESOLVER_PACKAGE_MAP_TEST_CHILD").is_some() {
+        let resolver = Resolver::new(ResolveOptions {
+            condition_names: vec!["node".into(), "require".into()],
+            ..ResolveOptions::default()
+        });
+        assert_eq!(
+            resolver
+                .resolve(fixture.join("apps/web/src"), "axios")
+                .map(|resolution| resolution.full_path()),
+            Ok(fixture.join("node_modules/store/axios/index.js"))
+        );
+        return;
+    }
+
+    let package_map = fixture.join("node_modules/.package-map.json");
+    let escaped_path = package_map.to_string_lossy().replace('\\', "\\\\").replace('"', "\\\"");
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "tests::resolve::package_map_from_node_options", "--nocapture"])
+        .env("OXC_RESOLVER_PACKAGE_MAP_TEST_CHILD", "1")
+        .env("NODE_OPTIONS", format!(r#"--experimental-package-map="{escaped_path}""#))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "child process failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
     );
 }
 
