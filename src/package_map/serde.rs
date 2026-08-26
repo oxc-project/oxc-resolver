@@ -1,6 +1,6 @@
 //! Package map backend for big-endian systems using serde-json and owned compact strings.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use compact_str::CompactString;
 use rustc_hash::FxHashMap;
@@ -48,7 +48,7 @@ impl<'a> PackageMapEntryBackend<'a> for &'a PackageMapEntryData {
 
 impl PackageMap {
     /// Parse a `.package-map.json` file from JSON bytes.
-    pub fn parse(path: PathBuf, realpath: PathBuf, json: Vec<u8>) -> Result<Self, JSONError> {
+    pub fn parse(path: PathBuf, realpath: &Path, json: Vec<u8>) -> Result<Self, JSONError> {
         let data = serde_json::from_slice::<PackageMapData>(&json).map_err(|error| JSONError {
             path: path.clone(),
             message: error.to_string(),

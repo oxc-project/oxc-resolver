@@ -21,7 +21,6 @@ fn assert_dependencies(package_map: &PackageMap, package_id: &str, specifiers: &
     let package = package_map
         .package(package_id)
         .unwrap_or_else(|| panic!("package map does not contain package ID {package_id:?}"));
-    assert!(!package.url().is_empty(), "package {package_id:?} has an empty URL");
     assert!(package.path().is_some(), "package {package_id:?} has no resolved path");
 
     for specifier in specifiers {
@@ -31,7 +30,7 @@ fn assert_dependencies(package_map: &PackageMap, package_id: &str, specifiers: &
         let dependency = package_map.package(dependency_id).unwrap_or_else(|| {
             panic!("package map does not contain dependency package ID {dependency_id:?}")
         });
-        assert!(!dependency.url().is_empty(), "package {dependency_id:?} has an empty URL");
+        assert!(dependency.path().is_some(), "package {dependency_id:?} has no resolved path");
     }
 }
 
@@ -44,7 +43,7 @@ fn parse_package_map(package_map_path: &Path) -> Result<PackageMap, crate::JSONE
 
     let fs = file_system();
     let realpath = canonicalize_package_map_path(&fs, package_map_path);
-    PackageMap::parse(package_map_path.to_path_buf(), realpath, fs.read(package_map_path).unwrap())
+    PackageMap::parse(package_map_path.to_path_buf(), &realpath, fs.read(package_map_path).unwrap())
 }
 
 fn canonicalize_package_map_path(fs: &FileSystemOs, package_map_path: &Path) -> PathBuf {
@@ -62,10 +61,6 @@ fn test_package_map(
 ) {
     let package_map = parse_package_map(package_map_path).unwrap();
     assert_eq!(package_map.path(), package_map_path);
-    assert_eq!(
-        package_map.realpath(),
-        canonicalize_package_map_path(&file_system(), package_map_path)
-    );
     assert_package_map(&package_map);
 
     let resolver = package_map_resolver(package_map_path);
@@ -146,7 +141,7 @@ fn find_package_id_uses_canonical_package_map_path() {
     let fs = file_system();
     let package_map = PackageMap::parse(
         package_map_path.clone(),
-        canonical_package_map_path,
+        &canonical_package_map_path,
         fs.read(&package_map_path).unwrap(),
     )
     .unwrap();
@@ -282,23 +277,17 @@ fn resolution() {
 }
 
 #[test]
-fn package_map_accessors_and_urls() {
-    let fixture = super::fixture_root().join("package-map/resolution/node_modules");
-    let package_map = parse_package_map(&fixture.join(".package-map.json")).unwrap();
-
-    assert_eq!(package_map.len(), 8);
-    assert!(!package_map.is_empty());
+fn package_map_debug() {
+    let package_map = parse_package_map(
+        &super::fixture_root().join("package-map/resolution/node_modules/.package-map.json"),
+    )
+    .unwrap();
     assert!(format!("{package_map:?}").contains("packages: 8"));
-    assert_eq!(package_map.resolve_url("./store/react"), Some(fixture.join("store/react")));
-    assert_eq!(package_map.resolve_url("https://example.com/package"), None);
-    assert_eq!(package_map.resolve_url("%FF"), None);
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
-    assert!(package_map.resolve_url("file:///tmp/package").is_some());
 
     let empty =
         parse_package_map(&super::fixture_root().join("package-map/empty/.package-map.json"))
             .unwrap();
-    assert!(empty.is_empty());
+    assert!(empty.package("missing").is_none());
 }
 
 #[test]

@@ -33,8 +33,6 @@
 //! [node-package-maps]: https://nodejs.org/api/packages.html#package-maps
 //! [shared-url]: https://nodejs.org/api/packages.html#multiple-packages-for-the-same-url
 
-#![expect(dead_code, reason = "package-map resolver integration follows the parser")]
-
 #[cfg(target_endian = "big")]
 mod serde;
 #[cfg(target_endian = "little")]
@@ -151,12 +149,6 @@ pub struct PackageMapGeneric<S> {
     /// Configured package-map path, used for diagnostics and dependency tracking.
     path: PathBuf,
 
-    /// Effective package-map path whose parent is the base for relative entry URLs.
-    ///
-    /// This is canonicalized when the resolver's symlink option is enabled; otherwise it is the
-    /// configured path.
-    realpath: PathBuf,
-
     /// Package entries keyed by their opaque package IDs.
     store: S,
 
@@ -181,7 +173,6 @@ impl<S: PackageMapBackend> fmt::Debug for PackageMapGeneric<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PackageMap")
             .field("path", &self.path)
-            .field("realpath", &self.realpath)
             .field("packages", &self.store.len())
             .field("resolved_paths", &self.package_paths.len())
             .field("indexed_paths", &self.path_index.len())
@@ -191,12 +182,12 @@ impl<S: PackageMapBackend> fmt::Debug for PackageMapGeneric<S> {
 }
 
 impl<S: PackageMapBackend> PackageMapGeneric<S> {
-    fn new(path: PathBuf, realpath: PathBuf, store: S) -> Self {
+    fn new(path: PathBuf, realpath: &Path, store: S) -> Self {
         let mut package_paths = FxHashMap::default();
         let mut path_index = FxHashMap::default();
 
         for (package_id, entry) in store.iter() {
-            let Some(package_path) = Self::resolve_url_from(&realpath, entry.url()) else {
+            let Some(package_path) = Self::resolve_url_from(realpath, entry.url()) else {
                 continue;
             };
             let package_id = Arc::<str>::from(package_id);
@@ -211,7 +202,6 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
 
         Self {
             path,
-            realpath,
             store,
             package_paths,
             path_index,
@@ -222,23 +212,6 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
     /// Returns the path where `.package-map.json` was found.
     pub fn path(&self) -> &Path {
         &self.path
-    }
-
-    /// Returns the effective package-map path used to resolve entry URLs.
-    ///
-    /// This is canonical when symlink resolution is enabled and is otherwise the configured path.
-    pub fn realpath(&self) -> &Path {
-        &self.realpath
-    }
-
-    /// Returns the number of package entries.
-    pub fn len(&self) -> usize {
-        self.store.len()
-    }
-
-    /// Returns whether the package map contains no package entries.
-    pub fn is_empty(&self) -> bool {
-        self.store.len() == 0
     }
 
     /// Returns the entry for an opaque package ID from the top-level `packages` object.
@@ -301,10 +274,6 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
     /// `file://` URLs and filesystem paths are accepted. Non-file protocols, percent-decoded paths
     /// that are not UTF-8, and paths without a package-map parent return `None` and cannot be
     /// resolution targets.
-    pub fn resolve_url(&self, url: &str) -> Option<PathBuf> {
-        Self::resolve_url_from(&self.realpath, url)
-    }
-
     fn resolve_url_from(package_map_path: &Path, url: &str) -> Option<PathBuf> {
         #[cfg(not(target_arch = "wasm32"))]
         if url.starts_with("file://") {
@@ -333,11 +302,6 @@ pub struct PackageMapEntryGeneric<'a, E> {
 }
 
 impl<'a, E: PackageMapEntryBackend<'a>> PackageMapEntryGeneric<'a, E> {
-    /// Returns the required `url` string exactly as stored in the map.
-    pub fn url(&self) -> &'a str {
-        self.entry.url()
-    }
-
     /// Returns the resolved file path, or `None` when `url` is not a valid file target.
     pub fn path(&self) -> Option<&'a Path> {
         self.path
