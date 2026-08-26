@@ -8,17 +8,19 @@
 //!
 //! Entry URLs are resolved from the package map's effective location into filesystem paths. The
 //! effective location is canonical when symlink resolution is enabled and is otherwise the
-//! configured path. Explicit URLs must use the `file:` protocol. The resulting paths form the
+//! `NODE_OPTIONS` path. Explicit URLs must use the `file:` protocol. The resulting paths form the
 //! index used by [`PackageMap::find_package_id`] to identify the package that owns an importer.
 //! Multiple IDs resolving to the same owning path are retained as ambiguous, as required for
 //! [multiple packages sharing one URL][shared-url].
 //!
-//! The resolver API does not propagate a package ID between resolutions, so it always uses the
-//! specification's path-based fallback to identify the importer. The parsed map and both successful
-//! and failed ownership lookups are cached. Parsing itself is synchronous but deferred until the
-//! first applicable resolution because resolver construction cannot return an error. Selecting a
-//! dependency follows one map edge before regular resolution resumes; package-map dependency cycles
-//! are not detected, matching the specification's limitation.
+//! Package-map resolution is enabled automatically when `NODE_OPTIONS` contains Node's
+//! `--experimental-package-map` option. The resolver API does not propagate a package ID between
+//! resolutions, so it always uses the specification's path-based fallback to identify the
+//! importer. The parsed map and both successful and failed ownership lookups are cached. Parsing
+//! itself is synchronous but deferred until the first applicable resolution because resolver
+//! construction cannot return an error. Selecting a dependency follows one map edge before regular
+//! resolution resumes; package-map dependency cycles are not detected, matching the
+//! specification's limitation.
 //!
 //! The accessor logic is shared between two storage backends: little-endian systems borrow
 //! strings directly from simd-json's input buffer, while big-endian systems store owned
@@ -50,6 +52,62 @@ use dashmap::DashMap;
 use rustc_hash::{FxHashMap, FxHasher};
 
 use crate::PathUtil;
+
+/// Extracts the last `--experimental-package-map` path from `NODE_OPTIONS`.
+///
+/// Tokenization follows Node's `ParseNodeOptionsEnvVar`: spaces separate arguments, double quotes
+/// group text, and backslashes escape the following character inside quoted text. Both the
+/// `--experimental-package-map=<path>` and `--experimental-package-map <path>` forms are accepted.
+pub fn package_map_path_from_node_options(node_options: &str, cwd: &Path) -> Option<PathBuf> {
+    let arguments = parse_node_options(node_options)?;
+    let mut package_map_path = None;
+    let mut index = 0;
+
+    while index < arguments.len() {
+        let argument = &arguments[index];
+        if let Some(path) = argument.strip_prefix("--experimental-package-map=") {
+            package_map_path = (!path.is_empty()).then(|| PathBuf::from(path));
+        } else if argument == "--experimental-package-map" {
+            index += 1;
+            package_map_path = arguments
+                .get(index)
+                .filter(|path| !path.is_empty() && !path.starts_with('-'))
+                .map(PathBuf::from);
+        }
+        index += 1;
+    }
+
+    package_map_path
+        .map(|path| if path.is_relative() { cwd.normalize_with(path) } else { path.normalize() })
+}
+
+fn parse_node_options(node_options: &str) -> Option<Vec<String>> {
+    let mut arguments = Vec::new();
+    let mut chars = node_options.chars();
+    let mut is_in_string = false;
+    let mut will_start_new_argument = true;
+
+    while let Some(mut character) = chars.next() {
+        if character == '\\' && is_in_string {
+            character = chars.next()?;
+        } else if character == ' ' && !is_in_string {
+            will_start_new_argument = true;
+            continue;
+        } else if character == '"' {
+            is_in_string = !is_in_string;
+            continue;
+        }
+
+        if will_start_new_argument {
+            arguments.push(String::from(character));
+            will_start_new_argument = false;
+        } else {
+            arguments.last_mut().expect("an argument has started").push(character);
+        }
+    }
+
+    (!is_in_string).then_some(arguments)
+}
 
 /// Error returned by the path-based fallback in Node's package-map resolution algorithm.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

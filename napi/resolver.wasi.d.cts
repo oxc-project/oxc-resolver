@@ -187,28 +187,6 @@ export interface NapiResolveOptions {
    */
   modules?: string | string[]
   /**
-   * Path to a Node.js package map used to resolve bare package specifiers.
-   *
-   * Relative paths are resolved against the process current working directory.
-   *
-   * When set, package-map resolution takes precedence over `modules`.
-   *
-   * Package maps participate only in bare-specifier resolution after built-in modules. Relative
-   * paths, absolute paths, and `#imports` continue through normal resolution. Package
-   * self-resolution runs before the package map.
-   *
-   * The static map is loaded synchronously on the first applicable resolution and cached for the
-   * resolver's lifetime. Importer ownership is derived from the importing path because resolution
-   * results do not carry a package ID.
-   *
-   * See the [Node.js package-map specification](https://nodejs.org/api/packages.html#package-maps),
-   * the [pnpm setting](https://pnpm.io/settings#nodeexperimentalpackagemap), and the
-   * [Yarn setting](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
-   *
-   * Default `undefined`.
-   */
-  packageMap?: string
-  /**
    * Resolve to a context instead of a file.
    *
    * Default `false`

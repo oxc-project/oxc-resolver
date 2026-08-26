@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     FileSystem, FileSystemOs, ResolveContext, ResolveError, ResolveOptions, Resolver,
     TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-    package_map::{FindPackageIdError, PackageMap},
+    package_map::{FindPackageIdError, PackageMap, package_map_path_from_node_options},
 };
 
 fn file_system() -> FileSystemOs {
@@ -87,11 +87,13 @@ fn test_package_map(
 }
 
 fn package_map_resolver(package_map_path: &Path) -> Resolver {
-    let resolver = Resolver::new(ResolveOptions {
-        condition_names: vec!["node".into(), "require".into()],
-        package_map: Some(package_map_path.to_path_buf()),
-        ..ResolveOptions::default()
-    });
+    let resolver = Resolver::new_with_package_map(
+        ResolveOptions {
+            condition_names: vec!["node".into(), "require".into()],
+            ..ResolveOptions::default()
+        },
+        package_map_path.to_path_buf(),
+    );
     assert!(resolver.options().modules.is_empty());
     resolver
 }
@@ -160,27 +162,46 @@ fn find_package_id_uses_canonical_package_map_path() {
 }
 
 #[test]
-fn relative_package_map_path_uses_cwd() {
-    let fixtures = super::fixture_root();
-    let fixture = fixtures.join("package-map/resolution");
-    let package_map_path = PathBuf::from("package-map/resolution/node_modules/.package-map.json");
-    let resolver = Resolver::new(ResolveOptions {
-        cwd: Some(fixtures),
-        condition_names: vec!["node".into(), "require".into()],
-        modules: vec![],
-        package_map: Some(package_map_path),
-        ..ResolveOptions::default()
-    });
+fn node_options_package_map_path() {
+    let cwd = super::fixture_root();
 
+    assert_eq!(package_map_path_from_node_options("", &cwd), None);
+    assert_eq!(package_map_path_from_node_options("--trace-warnings", &cwd), None);
     assert_eq!(
-        resolver.options().package_map.as_deref(),
-        Some(fixture.join("node_modules/.package-map.json").as_path())
+        package_map_path_from_node_options(
+            "--trace-warnings --experimental-package-map=./first.json \
+             --experimental-package-map=\"./last map.json\"",
+            &cwd,
+        ),
+        Some(cwd.join("last map.json"))
     );
     assert_eq!(
-        resolver
-            .resolve(fixture.join("apps/web/src"), "axios")
-            .map(|resolution| resolution.full_path()),
-        Ok(fixture.join("node_modules/store/axios/index.js"))
+        package_map_path_from_node_options(
+            "--experimental-package-map \"./separate map.json\"",
+            &cwd,
+        ),
+        Some(cwd.join("separate map.json"))
+    );
+    assert_eq!(
+        package_map_path_from_node_options(
+            r#"--experimental-package-map="./escaped\"quote.json""#,
+            &cwd,
+        ),
+        Some(cwd.join("escaped\"quote.json"))
+    );
+    assert_eq!(
+        package_map_path_from_node_options(
+            "--experimental-package-map=./valid.json --experimental-package-map=",
+            &cwd,
+        ),
+        None
+    );
+    assert_eq!(
+        package_map_path_from_node_options(
+            "--experimental-package-map=\"./unterminated.json",
+            &cwd,
+        ),
+        None
     );
 }
 
@@ -372,13 +393,15 @@ fn package_map_load_errors_are_cached() {
 fn package_map_without_symlink_resolution() {
     let fixture = super::fixture_root().join("package-map/resolution");
     let package_map_path = fixture.join("node_modules/.package-map.json");
-    let resolver = Resolver::new(ResolveOptions {
-        condition_names: vec!["node".into(), "require".into()],
-        modules: vec![],
-        package_map: Some(package_map_path),
-        symlinks: false,
-        ..ResolveOptions::default()
-    });
+    let resolver = Resolver::new_with_package_map(
+        ResolveOptions {
+            condition_names: vec!["node".into(), "require".into()],
+            modules: vec![],
+            symlinks: false,
+            ..ResolveOptions::default()
+        },
+        package_map_path,
+    );
 
     assert_eq!(
         resolver
@@ -386,38 +409,27 @@ fn package_map_without_symlink_resolution() {
             .map(|resolution| resolution.full_path()),
         Ok(fixture.join("node_modules/store/react/index.js"))
     );
-    assert!(format!("{}", resolver.options()).contains("package_map:"));
 }
 
 #[test]
 fn package_map_resolves_tsconfig_extends() {
     let fixture = super::fixture_root().join("package-map/resolution");
-    let resolver = Resolver::new(ResolveOptions {
-        condition_names: vec!["node".into(), "require".into()],
-        modules: vec![],
-        package_map: Some(fixture.join("node_modules/.package-map.json")),
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: fixture.join("apps/web/tsconfig.package-map.json"),
-            references: TsconfigReferences::Auto,
-        })),
-        ..ResolveOptions::default()
-    });
+    let resolver = Resolver::new_with_package_map(
+        ResolveOptions {
+            condition_names: vec!["node".into(), "require".into()],
+            modules: vec![],
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: fixture.join("apps/web/tsconfig.package-map.json"),
+                references: TsconfigReferences::Auto,
+            })),
+            ..ResolveOptions::default()
+        },
+        fixture.join("node_modules/.package-map.json"),
+    );
 
     for config_file in ["tsconfig.package-map.json", "tsconfig.package-map-self.json"] {
         resolver
             .resolve_tsconfig(fixture.join("apps/web").join(config_file))
             .expect("resolve tsconfig through map");
     }
-}
-
-#[test]
-fn disabled_by_default() {
-    let fixture = super::fixture_root().join("package-map/resolution");
-    let importer = fixture.join("apps/web/src");
-    let resolver = Resolver::new(ResolveOptions { modules: vec![], ..ResolveOptions::default() });
-
-    assert!(matches!(
-        resolver.resolve(importer, "axios"),
-        Err(ResolveError::NotFound(specifier)) if specifier == "axios"
-    ));
 }

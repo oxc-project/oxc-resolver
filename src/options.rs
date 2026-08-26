@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{PathUtil, node_path::NodePath};
+use crate::node_path::NodePath;
 
 /// Module Resolution Options
 ///
@@ -121,29 +121,6 @@ pub struct ResolveOptions {
     /// When `NODE_PATH` is set, absolute entries from `NODE_PATH` are appended during option
     /// sanitization.
     pub modules: Vec<String>,
-
-    /// Path to a Node.js package map used to resolve bare package specifiers.
-    ///
-    /// Relative paths are resolved against [`Self::cwd`], or the process current working
-    /// directory when `cwd` is not set.
-    ///
-    /// When set, package-map resolution takes precedence over [`modules`](Self::modules).
-    ///
-    /// Package maps participate only in bare-specifier resolution after built-in modules. Relative
-    /// paths, absolute paths, and `#imports` continue through their normal resolution paths.
-    /// Package self-resolution also runs before the package map, following Node's CommonJS
-    /// algorithm.
-    ///
-    /// The static map is loaded synchronously on the first applicable resolution and cached for the
-    /// resolver's lifetime. The path-based ownership fallback is always used because resolution
-    /// results do not carry Node's optional importer package ID.
-    ///
-    /// See the [Node.js package-map specification](https://nodejs.org/api/packages.html#package-maps),
-    /// the [pnpm setting](https://pnpm.io/settings#nodeexperimentalpackagemap), and the
-    /// [Yarn setting](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
-    ///
-    /// Default `None`.
-    pub package_map: Option<PathBuf>,
 
     /// Resolve to a context instead of a file.
     ///
@@ -435,27 +412,6 @@ impl ResolveOptions {
         self
     }
 
-    /// Sets the path to a Node.js package map.
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use std::path::PathBuf;
-    ///
-    /// use oxc_resolver::ResolveOptions;
-    ///
-    /// let options = ResolveOptions::default().with_package_map("node_modules/.package-map.json");
-    /// assert_eq!(
-    ///     options.package_map,
-    ///     Some(PathBuf::from("node_modules/.package-map.json"))
-    /// );
-    /// ```
-    #[must_use]
-    pub fn with_package_map<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.package_map = Some(path.as_ref().to_path_buf());
-        self
-    }
-
     /// Adds a main file to [ResolveOptions::main_files]
     ///
     /// ## Examples
@@ -489,19 +445,6 @@ impl ResolveOptions {
 
         if self.node_path {
             self.modules.extend_from_slice(NodePath::build());
-        }
-
-        if let Some(package_map) = &mut self.package_map {
-            // LOAD_PACKAGE_MAP is terminal when a package map exists, so node_modules lookup must
-            // not resolve a request before the package-map not-found path gets a chance to handle
-            // it.
-            self.modules.clear();
-
-            if package_map.is_relative()
-                && let Some(cwd) = self.cwd.clone().or_else(|| std::env::current_dir().ok())
-            {
-                *package_map = cwd.normalize_with(&*package_map);
-            }
         }
 
         self
@@ -618,7 +561,6 @@ impl Default for ResolveOptions {
             main_fields: vec!["main".into()],
             main_files: vec!["index".into()],
             modules: vec!["node_modules".into()],
-            package_map: None,
             resolve_to_context: false,
             prefer_relative: false,
             prefer_absolute: false,
@@ -679,9 +621,6 @@ impl fmt::Display for ResolveOptions {
         }
         if !self.modules.is_empty() {
             write!(f, "modules:{:?},", self.modules)?;
-        }
-        if let Some(package_map) = &self.package_map {
-            write!(f, "package_map:{},", package_map.display())?;
         }
         if self.resolve_to_context {
             write!(f, "resolve_to_context:{:?},", self.resolve_to_context)?;
@@ -788,7 +727,6 @@ mod test {
             main_fields: vec![],
             main_files: vec![],
             modules: vec![],
-            package_map: None,
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: false,
             prefer_absolute: false,

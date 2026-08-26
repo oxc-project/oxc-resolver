@@ -74,7 +74,7 @@ use std::{
     ffi::OsStr,
     fmt,
     path::{Component, Path, PathBuf},
-    sync::{Arc, OnceLock},
+    sync::{Arc, LazyLock, OnceLock},
 };
 
 use rustc_hash::FxHashSet;
@@ -120,7 +120,36 @@ pub struct ResolveContext {
 /// Resolver with the current operating system as the file system
 pub type Resolver = ResolverGeneric<FileSystemOs>;
 
-type PackageMapCache = OnceLock<Result<Arc<PackageMap>, ResolveError>>;
+struct PackageMapCache {
+    path: PathBuf,
+    value: OnceLock<Result<Arc<PackageMap>, ResolveError>>,
+}
+
+impl PackageMapCache {
+    fn new(path: PathBuf) -> Self {
+        Self { path, value: OnceLock::new() }
+    }
+}
+
+static NODE_OPTIONS_PACKAGE_MAP_PATH: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
+    let node_options = std::env::var("NODE_OPTIONS").ok()?;
+    let cwd = std::env::current_dir().ok()?;
+    package_map::package_map_path_from_node_options(&node_options, &cwd)
+});
+
+fn package_map_from_environment() -> Option<Box<PackageMapCache>> {
+    NODE_OPTIONS_PACKAGE_MAP_PATH.as_ref().map(|path| Box::new(PackageMapCache::new(path.clone())))
+}
+
+fn sanitize_options(mut options: ResolveOptions, package_map_enabled: bool) -> ResolveOptions {
+    options = options.sanitize();
+    if package_map_enabled {
+        // LOAD_PACKAGE_MAP is terminal when a package map exists, so node_modules lookup must not
+        // resolve a request before the package-map not-found path gets a chance to handle it.
+        options.modules.clear();
+    }
+    options
+}
 
 /// Non-generic core of the resolver holding the heavy resolution algorithm.
 ///
@@ -165,7 +194,8 @@ impl<Fs: FileSystem + 'static> Default for ResolverGeneric<Fs> {
 impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
-        let options = options.sanitize();
+        let package_map = package_map_from_environment();
+        let options = sanitize_options(options, package_map.is_some());
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let fs = cfg_select! {
@@ -173,17 +203,31 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             _ => Fs::new(),
         };
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let package_map = options.package_map.as_ref().map(|_| Box::new(OnceLock::new()));
         let inner = ResolverImpl { options, cache, alias, fallback, package_map };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        let options = options.sanitize();
+        let package_map = package_map_from_environment();
+        let options = sanitize_options(options, package_map.is_some());
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let package_map = options.package_map.as_ref().map(|_| Box::new(OnceLock::new()));
+        let inner = ResolverImpl { options, cache, alias, fallback, package_map };
+        Self { inner, _marker: std::marker::PhantomData }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_with_package_map(options: ResolveOptions, path: PathBuf) -> Self {
+        let package_map = Some(Box::new(PackageMapCache::new(path)));
+        let options = sanitize_options(options, true);
+        let alias = compile_alias(&options.alias);
+        let fallback = compile_alias(&options.fallback);
+        let fs = cfg_select! {
+            feature = "yarn_pnp" => Fs::new(options.yarn_pnp),
+            _ => Fs::new(),
+        };
+        let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
         let inner = ResolverImpl { options, cache, alias, fallback, package_map };
         Self { inner, _marker: std::marker::PhantomData }
     }
@@ -191,7 +235,12 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     /// Clone the resolver using the same underlying cache.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
-        let options = options.sanitize();
+        let package_map = self
+            .inner
+            .package_map
+            .as_ref()
+            .map(|package_map| Box::new(PackageMapCache::new(package_map.path.clone())));
+        let options = sanitize_options(options, package_map.is_some());
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = cfg_select! {
@@ -204,7 +253,6 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             }
             _ => Arc::clone(&self.inner.cache),
         };
-        let package_map = options.package_map.as_ref().map(|_| Box::new(OnceLock::new()));
         let inner = ResolverImpl { options, cache, alias, fallback, package_map };
         Self { inner, _marker: std::marker::PhantomData }
     }
@@ -801,29 +849,28 @@ impl ResolverImpl {
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
-    /// Loads the configured static package map synchronously and caches either result.
+    /// Loads the package map selected by `NODE_OPTIONS` synchronously and caches either result.
     ///
     /// Node loads its map synchronously at startup. Loading is deferred here until the first
     /// applicable request because [`Resolver::new`] cannot report I/O or JSON errors. The map
     /// remains static for the lifetime of this resolver, matching Node's package-map limitation.
     fn package_map(&self, ctx: &mut Ctx) -> Result<&PackageMap, ResolveError> {
-        let package_map_path =
-            self.options.package_map.as_ref().expect("checked before loading package map");
         let package_map = self
             .package_map
             .as_ref()
-            .expect("a package map cache is created when the option is set")
-            .get_or_init(|| {
-                let json = self.cache.fs.read(package_map_path)?;
-                let realpath = if self.options.symlinks {
-                    self.cache.canonicalize(&self.cache.value(package_map_path))?
-                } else {
-                    package_map_path.clone()
-                };
-                PackageMap::parse(package_map_path.clone(), realpath, json)
-                    .map(Arc::new)
-                    .map_err(ResolveError::Json)
-            });
+            .expect("a package map cache is created when NODE_OPTIONS selects a package map");
+        let package_map_path = &package_map.path;
+        let package_map = package_map.value.get_or_init(|| {
+            let json = self.cache.fs.read(package_map_path)?;
+            let realpath = if self.options.symlinks {
+                self.cache.canonicalize(&self.cache.value(package_map_path))?
+            } else {
+                package_map_path.clone()
+            };
+            PackageMap::parse(package_map_path.clone(), realpath, json)
+                .map(Arc::new)
+                .map_err(ResolveError::Json)
+        });
 
         match package_map {
             Ok(package_map) => {

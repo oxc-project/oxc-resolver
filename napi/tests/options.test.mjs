@@ -53,17 +53,4 @@ describe("option", () => {
     it("should allow field string", () => createTest("main"));
     it("should allow field array", () => createTest(["main"]));
   });
-
-  it("should resolve with a package map", () => {
-    const fixture = path.resolve(import.meta.dirname, "../../fixtures/package-map/resolution");
-    const resolver = new ResolverFactory({
-      conditionNames: ["node", "require"],
-      packageMap: path.join(fixture, "node_modules/.package-map.json"),
-    });
-
-    assert.match(
-      normalizePath(resolver.sync(path.join(fixture, "apps/web/src"), "axios").path),
-      /\/node_modules\/store\/axios\/index\.js$/,
-    );
-  });
 });

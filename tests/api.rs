@@ -137,7 +137,6 @@ fn options_api() {
         .with_main_field("asdf")
         .with_main_file("main")
         .with_module("module")
-        .with_package_map("node_modules/.package-map.json")
         .with_prefer_absolute(true)
         .with_prefer_relative(true)
         .with_root(PathBuf::new())
