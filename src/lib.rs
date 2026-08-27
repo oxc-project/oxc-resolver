@@ -617,10 +617,27 @@ impl ResolverImpl {
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
-        if self.cache.package_map.is_some() {
-            return self.load_package_self_or_package_map(cached_path, specifier, tsconfig, ctx);
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
+        if subpath.is_empty() {
+            ctx.with_fully_specified(false);
         }
-        self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
+        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
+        if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
+            return Ok(path);
+        }
+        if let Some(result) =
+            self.package_map_resolve(cached_path, specifier, package_name, subpath, tsconfig, ctx)
+        {
+            return result;
+        }
+        self.load_node_modules_or_not_found(
+            cached_path,
+            specifier,
+            package_name,
+            subpath,
+            tsconfig,
+            ctx,
+        )
     }
 
     /// enhanced-resolve: ParsePlugin.
@@ -669,6 +686,25 @@ impl ResolverImpl {
         if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
+        self.load_node_modules_or_not_found(
+            cached_path,
+            specifier,
+            package_name,
+            subpath,
+            tsconfig,
+            ctx,
+        )
+    }
+
+    fn load_node_modules_or_not_found(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        package_name: &str,
+        subpath: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
         // 6. LOAD_NODE_MODULES(X, dirname(Y))
         if let Some(path) =
             self.load_node_modules(cached_path, specifier, package_name, subpath, tsconfig, ctx)?
@@ -1415,7 +1451,7 @@ impl ResolverImpl {
         if let Some(result) =
             self.package_map_resolve(cached_path, specifier, package_name, subpath, tsconfig, ctx)
         {
-            return result;
+            return result.map(Some);
         }
 
         // 11. While parentURL is not the file system root,

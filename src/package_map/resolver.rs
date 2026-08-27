@@ -13,44 +13,21 @@ impl ResolverImpl {
         subpath: &str,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
-    ) -> Option<Result<Option<CachedPath>, ResolveError>> {
-        self.cache.package_map.as_ref()?;
-        Some(
-            self.load_package_map_for_importer(
-                cached_path,
-                specifier,
-                package_name,
-                subpath,
-                tsconfig,
-                ctx,
-            )
-            .map(Some),
-        )
-    }
-
-    pub(crate) fn load_package_self_or_package_map(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        let (package_name, subpath) = Self::parse_package_specifier(specifier);
-        if subpath.is_empty() {
-            ctx.with_fully_specified(false);
-        }
-        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
-        if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
-            return Ok(path);
-        }
-        self.load_package_map_for_importer(
+    ) -> Option<Result<CachedPath, ResolveError>> {
+        let package_map = match self.package_map(ctx) {
+            Ok(Some(package_map)) => package_map,
+            Ok(None) => return None,
+            Err(error) => return Some(Err(error)),
+        };
+        Some(self.load_package_map_for_importer(
             cached_path,
             specifier,
             package_name,
             subpath,
+            &package_map,
             tsconfig,
             ctx,
-        )
+        ))
     }
 
     /// Implements package-map dispatch from step 6 of Node's CommonJS resolution pseudocode.
@@ -66,11 +43,10 @@ impl ResolverImpl {
         specifier: &str,
         name: &str,
         subpath: &str,
+        package_map: &PackageMap,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
-        let package_map = self.package_map(ctx)?;
-
         // Step 6.a: derive PARENT_PACKAGE_ID from dirname(Y). `cached_path` is already dirname(Y)
         // because the public resolve API accepts the importing directory, not the importing file.
         let parent_path = cached_path.path();
@@ -171,37 +147,30 @@ impl ResolverImpl {
         Err(ResolveError::NotFound(specifier.to_string()))
     }
 
-    /// Loads the package map selected by `NODE_OPTIONS` synchronously and caches either result.
+    /// Tests `NODE_OPTIONS`, loads the selected package map synchronously, and caches either result.
     ///
     /// Node loads its map synchronously at startup. Loading is deferred here until the first
-    /// applicable request because `Resolver::new` cannot report I/O or JSON errors. The map remains
-    /// static for the lifetime of this resolver, matching Node's package-map limitation.
-    fn package_map(&self, ctx: &mut Ctx) -> Result<&PackageMap, ResolveError> {
-        let package_map = self
-            .cache
-            .package_map
-            .as_ref()
-            .expect("a package map cache is created when NODE_OPTIONS selects a package map");
-        let package_map_path = &package_map.path;
-        let package_map = package_map.value.get_or_init(|| {
+    /// applicable request because `Resolver::new` cannot report I/O or JSON errors. Clearing the
+    /// resolver cache causes the next request to test `NODE_OPTIONS` and load its map again.
+    fn package_map(&self, ctx: &mut Ctx) -> Result<Option<Arc<PackageMap>>, ResolveError> {
+        let package_map = self.cache.package_map.get_or_init(|package_map_path| {
             tracing::debug!(path = ?package_map_path, "load_package_map");
             let json = self.cache.fs.read(package_map_path)?;
-            PackageMap::parse(package_map_path.clone(), json)
-                .map(Arc::new)
-                .map_err(ResolveError::Json)
+            PackageMap::parse(package_map_path.to_path_buf(), json).map_err(ResolveError::Json)
         });
 
         match package_map {
-            Ok(package_map) => {
+            Ok(Some(package_map)) => {
                 ctx.add_file_dependency(package_map.path());
-                Ok(package_map)
+                Ok(Some(package_map))
             }
-            Err(error) => {
-                match error {
+            Ok(None) => Ok(None),
+            Err((package_map_path, error)) => {
+                match &error {
                     ResolveError::Json(error) => ctx.add_file_dependency(&error.path),
-                    _ => ctx.add_missing_dependency(package_map_path),
+                    _ => ctx.add_missing_dependency(&package_map_path),
                 }
-                Err(error.clone())
+                Err(error)
             }
         }
     }
