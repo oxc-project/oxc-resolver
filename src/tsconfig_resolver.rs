@@ -425,9 +425,12 @@ impl ResolverImpl {
             #[cfg(feature = "yarn_pnp")]
             cwd: self.options.cwd.clone(),
             ..ResolveOptions::default()
-        };
-        let (options, package_map) =
-            crate::package_map::reconfigure(options, self.package_map.as_deref());
+        }
+        .sanitize();
+        let package_map = self
+            .package_map
+            .as_deref()
+            .map(|package_map| Box::new(crate::package_map::reconfigure(package_map)));
         let alias = crate::alias::compile_alias(&options.alias);
         let fallback = crate::alias::compile_alias(&options.fallback);
         // Extends-resolution never toggles `yarn_pnp`, so reuse the same cache (and thus the

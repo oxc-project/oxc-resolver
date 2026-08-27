@@ -215,7 +215,7 @@ use std::{
 use dashmap::DashMap;
 use rustc_hash::{FxHashMap, FxHasher};
 
-use crate::{CachedPath, Ctx, PathUtil, ResolveError, ResolveOptions, ResolverImpl, TsConfig};
+use crate::{CachedPath, Ctx, PathUtil, ResolveError, ResolverImpl, TsConfig};
 
 pub struct PackageMapCache {
     path: PathBuf,
@@ -234,20 +234,12 @@ static NODE_OPTIONS_PACKAGE_MAP_PATH: LazyLock<Option<PathBuf>> = LazyLock::new(
     package_map_path_from_node_options(&node_options, &cwd)
 });
 
-pub fn configure(options: ResolveOptions) -> (ResolveOptions, Option<Box<PackageMapCache>>) {
-    let package_map = NODE_OPTIONS_PACKAGE_MAP_PATH
-        .as_ref()
-        .map(|path| Box::new(PackageMapCache::new(path.clone())));
-    (options.sanitize(), package_map)
+pub fn configure() -> Option<Box<PackageMapCache>> {
+    NODE_OPTIONS_PACKAGE_MAP_PATH.as_ref().map(|path| Box::new(PackageMapCache::new(path.clone())))
 }
 
-pub fn reconfigure(
-    options: ResolveOptions,
-    package_map: Option<&PackageMapCache>,
-) -> (ResolveOptions, Option<Box<PackageMapCache>>) {
-    let package_map =
-        package_map.map(|package_map| Box::new(PackageMapCache::new(package_map.path.clone())));
-    (options.sanitize(), package_map)
+pub fn reconfigure(package_map: &PackageMapCache) -> PackageMapCache {
+    PackageMapCache::new(package_map.path.clone())
 }
 
 /// Extracts the last `--experimental-package-map` path from `NODE_OPTIONS`.
