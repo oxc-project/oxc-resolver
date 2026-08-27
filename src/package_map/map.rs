@@ -72,12 +72,12 @@ pub(super) type PackageMap = PackageMapGeneric<super::serde::PackageMapData>;
 pub(super) type PackageMap = PackageMapGeneric<super::simd::PackageMapCell>;
 
 impl<S: PackageMapBackend> PackageMapGeneric<S> {
-    pub(super) fn new(path: PathBuf, realpath: &Path, store: S) -> Self {
+    pub(super) fn new(path: PathBuf, store: S) -> Self {
         let mut package_paths = FxHashMap::default();
         let mut path_index = FxHashMap::default();
 
         for (package_id, entry) in store.iter() {
-            let Some(package_path) = Self::resolve_url_from(realpath, entry.url()) else {
+            let Some(package_path) = Self::resolve_url_from(&path, entry.url()) else {
                 continue;
             };
             let package_id = Arc::<str>::from(package_id);
@@ -175,8 +175,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         }
 
         let decoded = percent_encoding::percent_decode_str(url).decode_utf8().ok()?;
-        // Node uses the package map URL as the base. `package_map_path` is the equivalent effective
-        // filesystem location: canonical when symlink resolution is enabled, configured otherwise.
+        // Node uses the configured package map URL as the base.
         let base = package_map_path.parent()?;
         Some(base.normalize_with(Path::new(decoded.as_ref())))
     }

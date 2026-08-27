@@ -9,20 +9,12 @@ use super::{map::PackageMap, node_options::package_map_path_from_node_options};
 
 pub struct PackageMapCache {
     pub(super) path: PathBuf,
-    logical_value: OnceLock<Result<Arc<PackageMap>, ResolveError>>,
-    canonical_value: OnceLock<Result<Arc<PackageMap>, ResolveError>>,
+    pub(super) value: OnceLock<Result<Arc<PackageMap>, ResolveError>>,
 }
 
 impl PackageMapCache {
     fn new(path: PathBuf) -> Self {
-        Self { path, logical_value: OnceLock::new(), canonical_value: OnceLock::new() }
-    }
-
-    pub(super) const fn value(
-        &self,
-        symlinks: bool,
-    ) -> &OnceLock<Result<Arc<PackageMap>, ResolveError>> {
-        if symlinks { &self.canonical_value } else { &self.logical_value }
+        Self { path, value: OnceLock::new() }
     }
 }
 
