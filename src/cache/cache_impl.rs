@@ -19,7 +19,9 @@ use super::{
 };
 use crate::{
     FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
-    context::ResolveContext as Ctx, path::PathUtil,
+    context::ResolveContext as Ctx,
+    package_map::{self, PackageMapCache},
+    path::PathUtil,
 };
 
 /// Cache implementation used for caching filesystem access.
@@ -33,7 +35,7 @@ pub struct Cache {
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
     /// Package map selected from the process environment, shared by resolvers using this cache.
-    pub(crate) package_map: Option<Box<crate::package_map::PackageMapCache>>,
+    pub(crate) package_map: Option<Box<PackageMapCache>>,
 }
 
 impl Cache {
@@ -365,7 +367,7 @@ impl Cache {
             tsconfigs_built: DashMap::with_hasher(BuildHasherDefault::default()),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceCell::new(),
-            package_map: crate::package_map::configure(),
+            package_map: package_map::configure(),
         }
     }
 
