@@ -1,9 +1,18 @@
 #![cfg(not(target_os = "wasi"))]
 
-use std::{env, path::PathBuf, process::Command};
+use std::{
+    env, io,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
 use oxc_resolver::{
-    ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    FileMetadata, FileSystem, FileSystemOs, ResolveError, ResolveOptions, Resolver,
+    ResolverGeneric, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
 };
 
 const CHILD_CASE: &str = "OXC_RESOLVER_PACKAGE_MAP_TEST_CASE";
@@ -48,6 +57,50 @@ fn node_options(case: &str) -> String {
 
 fn new_resolver(options: ResolveOptions) -> Resolver {
     Resolver::new(options)
+}
+
+struct CountingPackageMapFs {
+    package_map_path: PathBuf,
+    package_map_reads: Arc<AtomicUsize>,
+}
+
+impl FileSystem for CountingPackageMapFs {
+    #[cfg(feature = "yarn_pnp")]
+    fn new(_yarn_pnp: bool) -> Self {
+        unreachable!()
+    }
+
+    #[cfg(not(feature = "yarn_pnp"))]
+    fn new() -> Self {
+        unreachable!()
+    }
+
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
+        if path == self.package_map_path {
+            self.package_map_reads.fetch_add(1, Ordering::Relaxed);
+        }
+        std::fs::read(path)
+    }
+
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        FileSystemOs::read_to_string(path)
+    }
+
+    fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+        FileSystemOs::metadata(path)
+    }
+
+    fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
+        FileSystemOs::symlink_metadata(path)
+    }
+
+    fn read_link(&self, path: &Path) -> Result<PathBuf, ResolveError> {
+        FileSystemOs::read_link(path)
+    }
+
+    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+        FileSystemOs::canonicalize(path)
+    }
 }
 
 fn resolution() {
@@ -105,6 +158,40 @@ fn resolution() {
             .map(|resolution| resolution.full_path()),
         Ok(fixture.join("node_modules/store/react/index.js"))
     );
+
+    let package_map_path = fixture.join("node_modules/.package-map.json");
+    let package_map_reads = Arc::new(AtomicUsize::new(0));
+    let resolver = ResolverGeneric::new_with_file_system(
+        CountingPackageMapFs {
+            package_map_path,
+            package_map_reads: Arc::clone(&package_map_reads),
+        },
+        ResolveOptions::default(),
+    );
+    for expected_reads in [1, 1] {
+        resolver.resolve(&importer, "axios").unwrap();
+        assert_eq!(package_map_reads.load(Ordering::Relaxed), expected_reads);
+    }
+
+    let package_map_node_options = env::var_os("NODE_OPTIONS").unwrap();
+    // SAFETY: each package-map case runs as the only test in an isolated child process.
+    unsafe { env::set_var("NODE_OPTIONS", "--trace-warnings") };
+    resolver.clear_cache();
+    assert!(matches!(
+        resolver.resolve(&importer, "axios"),
+        Err(ResolveError::NotFound(specifier)) if specifier == "axios"
+    ));
+    assert_eq!(package_map_reads.load(Ordering::Relaxed), 1);
+
+    // SAFETY: each package-map case runs as the only test in an isolated child process.
+    unsafe { env::set_var("NODE_OPTIONS", package_map_node_options) };
+    assert!(matches!(
+        resolver.resolve(&importer, "axios"),
+        Err(ResolveError::NotFound(specifier)) if specifier == "axios"
+    ));
+    resolver.clear_cache();
+    resolver.resolve(&importer, "axios").unwrap();
+    assert_eq!(package_map_reads.load(Ordering::Relaxed), 2);
 
     let resolver = new_resolver(ResolveOptions {
         tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
