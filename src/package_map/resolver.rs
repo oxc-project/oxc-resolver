@@ -204,14 +204,9 @@ impl ResolverImpl {
             .as_ref()
             .expect("a package map cache is created when NODE_OPTIONS selects a package map");
         let package_map_path = &package_map.path;
-        let package_map = package_map.value(self.options.symlinks).get_or_init(|| {
+        let package_map = package_map.value.get_or_init(|| {
             let json = self.cache.fs.read(package_map_path)?;
-            let realpath = if self.options.symlinks {
-                self.cache.canonicalize(&self.cache.value(package_map_path))?
-            } else {
-                package_map_path.clone()
-            };
-            PackageMap::parse(package_map_path.clone(), &realpath, json)
+            PackageMap::parse(package_map_path.clone(), json)
                 .map(Arc::new)
                 .map_err(ResolveError::Json)
         });

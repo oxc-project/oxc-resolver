@@ -6,9 +6,8 @@
 //! identify dependency graph nodes independently of their locations and allow different importers
 //! to resolve the same package name to different versions.
 //!
-//! Entry URLs are resolved from the package map's effective location into filesystem paths. The
-//! effective location is canonical when symlink resolution is enabled and is otherwise the
-//! `NODE_OPTIONS` path. Explicit URLs must use the `file:` protocol. The resulting paths form the
+//! Entry URLs are resolved from the package map's configured `NODE_OPTIONS` location into
+//! filesystem paths. Explicit URLs must use the `file:` protocol. The resulting paths form the
 //! index used to identify the package that owns an importer. Multiple IDs resolving to the same
 //! owning path are retained as ambiguous, as required for [multiple packages sharing one
 //! URL][shared-url].

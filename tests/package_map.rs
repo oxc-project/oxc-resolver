@@ -158,7 +158,7 @@ fn child(case: &str) {
             if fixture.join("apps/tooling/.package-map.json").is_file() {
                 assert_eq!(
                     new_resolver(ResolveOptions::default())
-                        .resolve(fixture.join("tooling/typescript-config"), "dep")
+                        .resolve(fixture.join("apps/tooling/typescript-config"), "dep")
                         .map(|resolution| resolution.full_path()),
                     Ok(fixture.join("nm/index.js"))
                 );
