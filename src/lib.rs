@@ -490,18 +490,6 @@ impl ResolverImpl {
                 return Err(err);
             }
 
-            let err = match self.try_package_map_on_not_found(
-                cached_path,
-                specifier,
-                tsconfig,
-                ctx,
-                &err,
-            ) {
-                Some(Ok(path)) => return Ok(path),
-                Some(Err(err)) => err,
-                None => err,
-            };
-
             // enhanced-resolve: try fallback
             self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)?.ok_or(err)
         })
@@ -620,7 +608,7 @@ impl ResolverImpl {
         {
             return Ok(path);
         }
-        self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
+        self.load_bare_package(cached_path, specifier, tsconfig, ctx)
     }
 
     /// enhanced-resolve: ParsePlugin.
