@@ -28,7 +28,6 @@ impl ResolverImpl {
         )
     }
 
-    #[inline(never)]
     pub(crate) fn load_package_self_or_package_map(
         &self,
         cached_path: &CachedPath,
@@ -61,7 +60,6 @@ impl ResolverImpl {
     /// `FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)` for every uncached importer path.
     ///
     /// See <https://nodejs.org/api/modules.html#all-together>.
-    #[inline(never)]
     fn load_package_map_for_importer(
         &self,
         cached_path: &CachedPath,
@@ -139,6 +137,7 @@ impl ResolverImpl {
         // 6. Let PACKAGE_PATH be the resolved path of TARGET.
         let package_path =
             target.path().ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        tracing::debug!(parent_package_id, dependency_id, ?package_path, "resolve_package_map");
         let package_path = self.cache.value(package_path);
 
         // 7. LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_PATH).
@@ -185,6 +184,7 @@ impl ResolverImpl {
             .expect("a package map cache is created when NODE_OPTIONS selects a package map");
         let package_map_path = &package_map.path;
         let package_map = package_map.value.get_or_init(|| {
+            tracing::debug!(path = ?package_map_path, "load_package_map");
             let json = self.cache.fs.read(package_map_path)?;
             PackageMap::parse(package_map_path.clone(), json)
                 .map(Arc::new)
