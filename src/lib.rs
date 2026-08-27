@@ -162,7 +162,8 @@ impl<Fs: FileSystem + 'static> Default for ResolverGeneric<Fs> {
 impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
-        let (options, package_map) = package_map::configure(options);
+        let options = options.sanitize();
+        let package_map = package_map::configure();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let fs = cfg_select! {
@@ -175,7 +176,8 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
-        let (options, package_map) = package_map::configure(options);
+        let options = options.sanitize();
+        let package_map = package_map::configure();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
@@ -186,8 +188,12 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     /// Clone the resolver using the same underlying cache.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
-        let (options, package_map) =
-            package_map::reconfigure(options, self.inner.package_map.as_deref());
+        let options = options.sanitize();
+        let package_map = self
+            .inner
+            .package_map
+            .as_deref()
+            .map(|package_map| Box::new(package_map::reconfigure(package_map)));
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = cfg_select! {
