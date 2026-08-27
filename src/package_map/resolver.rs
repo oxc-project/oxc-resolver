@@ -5,24 +5,6 @@ use crate::{CachedPath, Ctx, ResolveError, ResolverImpl, TsConfig};
 use super::map::{FindPackageIdError, PackageMap};
 
 impl ResolverImpl {
-    /// Resolves a bare package through the active package map or regular package lookup.
-    ///
-    /// # Errors
-    ///
-    /// Returns the underlying package-map or filesystem resolution error.
-    pub(crate) fn load_bare_package(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        if self.cache.package_map.is_some() {
-            return self.load_package_self_or_package_map(cached_path, specifier, tsconfig, ctx);
-        }
-        self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
-    }
-
     pub(crate) fn package_map_resolve(
         &self,
         cached_path: &CachedPath,
@@ -46,9 +28,8 @@ impl ResolverImpl {
         )
     }
 
-    #[cold]
     #[inline(never)]
-    fn load_package_self_or_package_map(
+    pub(crate) fn load_package_self_or_package_map(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
@@ -80,7 +61,6 @@ impl ResolverImpl {
     /// `FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)` for every uncached importer path.
     ///
     /// See <https://nodejs.org/api/modules.html#all-together>.
-    #[cold]
     #[inline(never)]
     fn load_package_map_for_importer(
         &self,

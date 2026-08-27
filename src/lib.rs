@@ -609,6 +609,20 @@ impl ResolverImpl {
         self.load_bare_package(cached_path, specifier, tsconfig, ctx)
     }
 
+    /// Resolves a bare package through the active package map or regular package lookup.
+    fn load_bare_package(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
+        if self.cache.package_map.is_some() {
+            return self.load_package_self_or_package_map(cached_path, specifier, tsconfig, ctx);
+        }
+        self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
+    }
+
     /// enhanced-resolve: ParsePlugin.
     ///
     /// It's allowed to escape # as \0# to avoid parsing it as fragment.
