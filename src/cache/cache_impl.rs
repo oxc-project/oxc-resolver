@@ -32,6 +32,8 @@ pub struct Cache {
     pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
+    /// Package map selected from the process environment, shared by resolvers using this cache.
+    pub(crate) package_map: Option<Box<crate::package_map::PackageMapCache>>,
 }
 
 impl Cache {
@@ -363,6 +365,7 @@ impl Cache {
             tsconfigs_built: DashMap::with_hasher(BuildHasherDefault::default()),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceCell::new(),
+            package_map: crate::package_map::configure(),
         }
     }
 

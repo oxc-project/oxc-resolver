@@ -130,7 +130,6 @@ pub struct ResolverImpl {
     cache: Arc<Cache>,
     alias: CompiledAlias,
     fallback: CompiledAlias,
-    package_map: Option<Box<package_map::PackageMapCache>>,
 }
 
 /// Generic implementation of the resolver, can be configured by the [Cache] trait
@@ -163,7 +162,6 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     #[must_use]
     pub fn new(options: ResolveOptions) -> Self {
         let options = options.sanitize();
-        let package_map = package_map::configure();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let fs = cfg_select! {
@@ -171,17 +169,16 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             _ => Fs::new(),
         };
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback, package_map };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
     pub fn new_with_file_system(file_system: Fs, options: ResolveOptions) -> Self {
         let options = options.sanitize();
-        let package_map = package_map::configure();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback, package_map };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
@@ -189,11 +186,6 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         let options = options.sanitize();
-        let package_map = self
-            .inner
-            .package_map
-            .as_deref()
-            .map(|package_map| Box::new(package_map::reconfigure(package_map)));
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = cfg_select! {
@@ -206,7 +198,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             }
             _ => Arc::clone(&self.inner.cache),
         };
-        let inner = ResolverImpl { options, cache, alias, fallback, package_map };
+        let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }
     }
 }

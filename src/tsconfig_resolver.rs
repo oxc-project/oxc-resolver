@@ -427,15 +427,11 @@ impl ResolverImpl {
             ..ResolveOptions::default()
         }
         .sanitize();
-        let package_map = self
-            .package_map
-            .as_deref()
-            .map(|package_map| Box::new(crate::package_map::reconfigure(package_map)));
         let alias = crate::alias::compile_alias(&options.alias);
         let fallback = crate::alias::compile_alias(&options.fallback);
         // Extends-resolution never toggles `yarn_pnp`, so reuse the same cache (and thus the
         // same underlying filesystem) rather than rebuilding it.
-        Self { options, cache: Arc::clone(&self.cache), alias, fallback, package_map }
+        Self { options, cache: Arc::clone(&self.cache), alias, fallback }
     }
 
     fn get_extended_tsconfig_path(
