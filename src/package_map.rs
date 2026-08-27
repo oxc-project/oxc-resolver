@@ -238,8 +238,7 @@ pub fn configure(options: ResolveOptions) -> (ResolveOptions, Option<Box<Package
     let package_map = NODE_OPTIONS_PACKAGE_MAP_PATH
         .as_ref()
         .map(|path| Box::new(PackageMapCache::new(path.clone())));
-    let options = sanitize_options(options, package_map.is_some());
-    (options, package_map)
+    (options.sanitize(), package_map)
 }
 
 pub fn reconfigure(
@@ -248,18 +247,7 @@ pub fn reconfigure(
 ) -> (ResolveOptions, Option<Box<PackageMapCache>>) {
     let package_map =
         package_map.map(|package_map| Box::new(PackageMapCache::new(package_map.path.clone())));
-    let options = sanitize_options(options, package_map.is_some());
-    (options, package_map)
-}
-
-fn sanitize_options(mut options: ResolveOptions, package_map_enabled: bool) -> ResolveOptions {
-    options = options.sanitize();
-    if package_map_enabled {
-        // LOAD_PACKAGE_MAP is terminal when a package map exists, so node_modules lookup must not
-        // resolve a request before the package-map not-found path gets a chance to handle it.
-        options.modules.clear();
-    }
-    options
+    (options.sanitize(), package_map)
 }
 
 /// Extracts the last `--experimental-package-map` path from `NODE_OPTIONS`.
@@ -509,38 +497,6 @@ impl<'a, E: PackageMapEntryBackend<'a>> PackageMapEntryGeneric<'a, E> {
 }
 
 impl ResolverImpl {
-    pub fn try_package_map_on_not_found(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-        error: &ResolveError,
-    ) -> Option<Result<CachedPath, ResolveError>> {
-        // Node package maps apply only to bare, non-builtin specifiers. Builtins were handled by
-        // `require_core`; relative, absolute, and `#imports` requests fail the guards below.
-        if self.package_map.is_none()
-            || !matches!(error, ResolveError::NotFound(_))
-            || !matches!(
-                Path::new(specifier).components().next(),
-                Some(std::path::Component::Normal(_))
-            )
-            || specifier.starts_with('#')
-        {
-            return None;
-        }
-
-        let (name, subpath) = Self::parse_package_specifier(specifier);
-        Some(self.load_package_map_for_importer(
-            cached_path,
-            specifier,
-            name,
-            subpath,
-            tsconfig,
-            ctx,
-        ))
-    }
-
     /// Resolves a bare package through the active package map or regular package lookup.
     ///
     /// # Errors

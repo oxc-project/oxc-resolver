@@ -92,7 +92,6 @@ fn resolution() {
         ));
     }
 
-    assert!(resolver.options().modules.is_empty());
     assert_eq!(
         resolver
             .clone_with_options(options.clone())
