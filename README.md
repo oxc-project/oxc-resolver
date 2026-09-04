@@ -106,6 +106,14 @@ See [docs.rs/oxc_resolver](https://docs.rs/oxc_resolver/latest/oxc_resolver).
   - `.pnp.cjs` manifest file exists in the closest directory, searched from the current working directory,
   - no multi-project setup, per second bullet point in [FIND_PNP_MANIFEST](https://yarnpkg.com/advanced/pnp-spec#find_pnp_manifest)
 
+### [Node.js package maps](https://nodejs.org/api/packages.html#package-maps)
+
+Package-map resolution is enabled automatically when `NODE_OPTIONS` contains Node's
+`--experimental-package-map` option. No resolver option is required. Package managers can generate
+the map and inject the option by enabling
+[`nodeExperimentalPackageMap` in pnpm](https://pnpm.io/settings#nodeexperimentalpackagemap) or
+[`nodeExperimentalPackageMap` in Yarn](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
+
 ## Terminology
 
 ### `directory`
