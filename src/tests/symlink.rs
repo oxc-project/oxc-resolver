@@ -317,6 +317,7 @@ fn canonicalize_matches_os_for_all_node_modules() {
 fn canonicalize_dirty_cache_keys() {
     let f = super::fixture();
     let sep = std::path::MAIN_SEPARATOR;
+    let m1 = f.join("node_modules").join("m1");
     let mut dirty = vec![
         f.join(".."),
         f.join("lib").join(".."),
@@ -324,7 +325,20 @@ fn canonicalize_dirty_cache_keys() {
         f.join("lib").join(".").join("complex1.js"),
         PathBuf::from(format!("{}{sep}", f.join("lib").display())),
         PathBuf::from(format!("{}{sep}{sep}complex1.js", f.join("lib").display())),
+        m1.join(".").join("a.js"),
+        m1.join("..").join("m1").join("a.js"),
+        PathBuf::from(format!("{}{sep}", m1.display())),
+        PathBuf::from(format!("{}{sep}{sep}a.js", m1.display())),
     ];
+    let anchor = fixture_root()
+        .join("node_modules-canonicalize")
+        .join("symlinked-workspace")
+        .join("node_modules")
+        .join("pkg");
+    if fs::symlink_metadata(&anchor).is_ok_and(|m| m.is_symlink()) {
+        dirty.push(anchor.join(".").join("real").join("file.js"));
+        dirty.push(PathBuf::from(format!("{}{sep}{sep}real{sep}file.js", anchor.display())));
+    }
     #[cfg(unix)]
     {
         dirty.push(PathBuf::from(format!("{sep}{}", f.display())));
@@ -444,4 +458,52 @@ fn nested_monorepo_canonicalize_matches_os() {
         resolve(&root.join("node_modules/dep/index.js")),
         root.join("node_modules/.pnpm/dep@2.0.0/node_modules/dep/index.js")
     );
+}
+
+#[test]
+fn canonicalize_stores_no_self_referential_mappings() {
+    // Native separators throughout: canonicalization rebuilds with `MAIN_SEPARATOR`, so a key that
+    // mixed `/` and `\` would not be recognized as its own canonical form on Windows.
+    let root = fixture_root().join("node_modules-canonicalize").join("nested-monorepo");
+    let anchor = root.join("node_modules").join("dep");
+    if !fs::symlink_metadata(&anchor).is_ok_and(|m| m.is_symlink()) {
+        eprintln!("skip canonicalize_stores_no_self_referential_mappings: symlinks unavailable");
+        return;
+    }
+
+    let resolver = Resolver::new(ResolveOptions::default());
+    let logical = anchor.join("index.js");
+    let store_dir =
+        root.join("node_modules").join(".pnpm").join("dep@2.0.0").join("node_modules").join("dep");
+    let store = store_dir.join("index.js");
+    let canonical = resolver.cache.canonicalize(&resolver.cache.value(&logical)).unwrap();
+    assert_eq!(canonical, store);
+
+    // A path that is its own canonical form (the real store file) stores no per-node canonical:
+    // it is marked with the one-bit `canonical_is_self` flag instead. This is the #852 win — the
+    // majority of cache entries are self-canonical and previously each pinned a `(Weak, Box)`.
+    let store_entry = resolver.cache.canonicalize(&resolver.cache.value(&store)).unwrap();
+    assert_eq!(store_entry, store);
+    let store_cached = resolver.cache.value(&store);
+    assert!(store_cached.canonical_is_self());
+    assert!(store_cached.canonicalized.get().is_none());
+
+    // No cache entry carries a self-referential mapping (a canonical form equal to its own key).
+    for entry in &resolver.cache.paths {
+        let key = entry.key();
+        if let Some((_, canonical)) = key.canonicalized.get() {
+            assert_ne!(
+                canonical.as_os_str(),
+                key.path().as_os_str(),
+                "a path equal to its own canonical form must use the bit, not a stored mapping: {}",
+                key.path().display()
+            );
+        }
+    }
+
+    // The symlink node keeps a live mapping to its interned target (needed by `followed_metadata`).
+    let anchor_cached = resolver.cache.value(&anchor);
+    let (weak, target) = anchor_cached.canonicalized.get().expect("symlink node stores a mapping");
+    assert!(weak.upgrade().is_some(), "the symlink node's mapping target stays interned");
+    assert_eq!(target.as_os_str(), store_dir.as_os_str());
 }
