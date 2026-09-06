@@ -337,9 +337,9 @@ dependencies = [
 
 [[package]]
 name = "fast-glob"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cc9868289ee02952b341465ce66e67adec151227afedacf9137c0adb1e53943"
+checksum = "6d3f5d15b86ff37d2d23719f90657a53d5399abe0736dacb9e5fbe549314d349"
 dependencies = [
  "arrayvec",
 ]
@@ -539,9 +539,9 @@ checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
 
 [[package]]
 name = "indexmap"
-version = "2.14.1"
+version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07aa2048142242915a31d35844fb311e0e53fcca590c3a0a40dcf1b841fa09eb"
+checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.0",
@@ -588,9 +588,9 @@ dependencies = [
 
 [[package]]
 name = "libmimalloc-sys2"
-version = "0.1.61"
+version = "0.1.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5cd7ba032dd74ede1f3ccfd0a07c52aaab57c7324ee330cdf34d660f1a3c78d"
+checksum = "19dd68bf4f38eb64bf37ee1811f23f83ab65f6b170e3991ca0b73e0a553ef057"
 dependencies = [
  "cc",
  "cmake",
@@ -646,9 +646,9 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "mimalloc-safe"
-version = "0.1.65"
+version = "0.1.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dad88e7be1f5c4388cfb406b68d9b174d9fe89bb2c52c1237358c8184b96c152"
+checksum = "237c3f32c58ce9695414e3c49fc2771b5c741d569ebec39995fb0ae4df497ba8"
 dependencies = [
  "libmimalloc-sys2",
 ]
