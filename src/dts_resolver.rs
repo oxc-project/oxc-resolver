@@ -14,7 +14,7 @@
 use std::{borrow::Cow, path::Path};
 
 use crate::{
-    CachedPath, PackageJson, ResolveError, ResolverImpl, TsConfig,
+    CachedPath, PackageJson, ResolveError, ResolverImpl,
     context::ResolveContext as Ctx,
     resolution::{ModuleType, Resolution},
     specifier::Specifier,
@@ -29,8 +29,6 @@ struct Extensions(u8);
 impl Extensions {
     /// `.d.ts`, `.d.mts`, `.d.cts`
     const DECLARATION: Self = Self(0b0100);
-    /// `.json`
-    const JSON: Self = Self(0b1000);
     /// `.js`, `.jsx`, `.mjs`, `.cjs`
     const JAVASCRIPT: Self = Self(0b0010);
     /// `.ts`, `.tsx`, `.mts`, `.cts`
@@ -108,19 +106,8 @@ impl ResolverImpl {
         let containing_dir = containing_file.parent().unwrap_or(containing_file);
         let cached_dir = self.cache.value(containing_dir);
 
-        let tsconfig = self.manual_tsconfig()?;
-
-        // TS: `bundlerModuleNameResolver` starts from TypeScript | JavaScript | Declaration and
-        // adds Json when `getResolveJsonModule(compilerOptions)` is true.
-        // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/moduleNameResolver.ts#L1771-L1774
-        // `getResolveJsonModule`: an explicit `resolveJsonModule` wins, otherwise it defaults to
-        // true under `moduleResolution: "bundler"`.
-        // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/utilities.ts#L9173-L9187
-        let mut extensions =
+        let extensions =
             Extensions::TYPESCRIPT.union(Extensions::JAVASCRIPT).union(Extensions::DECLARATION);
-        if tsconfig.as_deref().and_then(|t| t.compiler_options.resolve_json_module) != Some(false) {
-            extensions = extensions.union(Extensions::JSON);
-        }
 
         // Parse query/fragment
         let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
@@ -130,9 +117,7 @@ impl ResolverImpl {
         // 1. tsconfig paths (non-relative only)
         if !specifier.starts_with('.')
             && !specifier.starts_with('/')
-            && let Some(tsconfig) = tsconfig.as_deref()
-            && let Some(path) =
-                self.dts_resolve_tsconfig_paths(tsconfig, extensions, specifier, &mut ctx)?
+            && let Some(path) = self.dts_resolve_tsconfig_paths(specifier, &mut ctx)?
         {
             return self.dts_finalize(&path, &mut ctx);
         }
@@ -313,17 +298,14 @@ impl ResolverImpl {
                 }
             }
             ".json" => {
-                // TS: `tryAddingExtensions`, `case Extension.Json`: `.d.json.ts` first, then the
-                // `.json` file itself when Json is in the extension set.
+                // TS: `case Extension.Json`: `.d.json.ts` first, then the `.json` file itself.
                 // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/moduleNameResolver.ts#L2155-L2158
                 if extensions.contains(Extensions::DECLARATION)
                     && let Some(p) = self.dts_try_file(base, ".d.json.ts", ctx)
                 {
                     return Some(p);
                 }
-                if extensions.contains(Extensions::JSON)
-                    && let Some(p) = self.dts_try_file(base, ".json", ctx)
-                {
+                if let Some(p) = self.dts_try_file(base, ".json", ctx) {
                     return Some(p);
                 }
             }
@@ -718,15 +700,18 @@ impl ResolverImpl {
 
     // -------- tsconfig paths --------
 
-    fn dts_resolve_tsconfig_paths(
-        &self,
-        tsconfig: &TsConfig,
-        extensions: Extensions,
-        specifier: &str,
-        ctx: &mut Ctx,
-    ) -> ResolveResult {
+    fn dts_resolve_tsconfig_paths(&self, specifier: &str, ctx: &mut Ctx) -> ResolveResult {
+        // Reuse the existing tsconfig resolution
+        let tsconfig = self.manual_tsconfig()?;
+
+        let Some(tsconfig) = tsconfig.as_deref() else {
+            return Ok(None);
+        };
+
         // Resolve path aliases
         let paths = tsconfig.resolve_path_alias(specifier);
+        let extensions =
+            Extensions::TYPESCRIPT.union(Extensions::DECLARATION).union(Extensions::JAVASCRIPT);
         for path in paths {
             let resolved_path = self.cache.value(&path);
             if let Some(result) = self.dts_resolve_relative(extensions, &resolved_path, ctx)? {
