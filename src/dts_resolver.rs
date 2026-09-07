@@ -124,7 +124,7 @@ impl ResolverImpl {
         // 1. tsconfig paths (non-relative only)
         if !specifier.starts_with('.')
             && !specifier.starts_with('/')
-            && let Some(path) = self.dts_resolve_tsconfig_paths(specifier, &mut ctx)?
+            && let Some(path) = self.dts_resolve_tsconfig_paths(extensions, specifier, &mut ctx)?
         {
             return self.dts_finalize(&path, &mut ctx);
         }
@@ -710,7 +710,12 @@ impl ResolverImpl {
 
     // -------- tsconfig paths --------
 
-    fn dts_resolve_tsconfig_paths(&self, specifier: &str, ctx: &mut Ctx) -> ResolveResult {
+    fn dts_resolve_tsconfig_paths(
+        &self,
+        extensions: Extensions,
+        specifier: &str,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
         // Reuse the existing tsconfig resolution
         let tsconfig = self.manual_tsconfig()?;
 
@@ -720,10 +725,6 @@ impl ResolverImpl {
 
         // Resolve path aliases
         let paths = tsconfig.resolve_path_alias(specifier);
-        let extensions = Extensions::TYPESCRIPT
-            .union(Extensions::DECLARATION)
-            .union(Extensions::JAVASCRIPT)
-            .union(Extensions::JSON);
         for path in paths {
             let resolved_path = self.cache.value(&path);
             if let Some(result) = self.dts_resolve_relative(extensions, &resolved_path, ctx)? {
