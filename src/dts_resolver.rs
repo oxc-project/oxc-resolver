@@ -14,7 +14,7 @@
 use std::{borrow::Cow, path::Path};
 
 use crate::{
-    CachedPath, PackageJson, ResolveError, ResolverImpl,
+    CachedPath, PackageJson, ResolveError, ResolverImpl, TsConfig,
     context::ResolveContext as Ctx,
     resolution::{ModuleType, Resolution},
     specifier::Specifier,
@@ -108,13 +108,19 @@ impl ResolverImpl {
         let containing_dir = containing_file.parent().unwrap_or(containing_file);
         let cached_dir = self.cache.value(containing_dir);
 
+        let tsconfig = self.manual_tsconfig()?;
+
         // TS: `bundlerModuleNameResolver` starts from TypeScript | JavaScript | Declaration and
-        // adds Json because `resolveJsonModule` defaults to true under `moduleResolution: "bundler"`.
+        // adds Json when `getResolveJsonModule(compilerOptions)` is true.
         // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/moduleNameResolver.ts#L1771-L1774
-        let extensions = Extensions::TYPESCRIPT
-            .union(Extensions::JAVASCRIPT)
-            .union(Extensions::DECLARATION)
-            .union(Extensions::JSON);
+        // `getResolveJsonModule`: an explicit `resolveJsonModule` wins, otherwise it defaults to
+        // true under `moduleResolution: "bundler"`.
+        // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/utilities.ts#L9173-L9187
+        let mut extensions =
+            Extensions::TYPESCRIPT.union(Extensions::JAVASCRIPT).union(Extensions::DECLARATION);
+        if tsconfig.as_deref().and_then(|t| t.compiler_options.resolve_json_module) != Some(false) {
+            extensions = extensions.union(Extensions::JSON);
+        }
 
         // Parse query/fragment
         let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
@@ -124,7 +130,9 @@ impl ResolverImpl {
         // 1. tsconfig paths (non-relative only)
         if !specifier.starts_with('.')
             && !specifier.starts_with('/')
-            && let Some(path) = self.dts_resolve_tsconfig_paths(extensions, specifier, &mut ctx)?
+            && let Some(tsconfig) = tsconfig.as_deref()
+            && let Some(path) =
+                self.dts_resolve_tsconfig_paths(tsconfig, extensions, specifier, &mut ctx)?
         {
             return self.dts_finalize(&path, &mut ctx);
         }
@@ -712,17 +720,11 @@ impl ResolverImpl {
 
     fn dts_resolve_tsconfig_paths(
         &self,
+        tsconfig: &TsConfig,
         extensions: Extensions,
         specifier: &str,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        // Reuse the existing tsconfig resolution
-        let tsconfig = self.manual_tsconfig()?;
-
-        let Some(tsconfig) = tsconfig.as_deref() else {
-            return Ok(None);
-        };
-
         // Resolve path aliases
         let paths = tsconfig.resolve_path_alias(specifier);
         for path in paths {

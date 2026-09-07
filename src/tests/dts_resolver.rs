@@ -57,6 +57,21 @@ fn json_declaration_over_json_file() {
     assert_eq!(result.path(), dts_fixture().join("relative-json/typed.d.json.ts"));
 }
 
+#[test]
+fn json_file_disabled_by_tsconfig() {
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into(), "types".into()],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: dts_fixture().join("no-json-module/tsconfig.json"),
+            references: crate::TsconfigReferences::Disabled,
+        })),
+        ..ResolveOptions::default()
+    });
+    let containing = dts_fixture().join("no-json-module/index.ts");
+    let result = r.resolve_dts(containing, "./data.json");
+    assert_eq!(result, Err(ResolveError::NotFound("./data.json".into())));
+}
+
 // -------- Extension substitution --------
 
 #[test]
