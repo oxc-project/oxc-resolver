@@ -40,6 +40,23 @@ fn relative_directory_index() {
     assert_eq!(result.path(), dts_fixture().join("relative-basic/index.ts"));
 }
 
+// -------- JSON --------
+
+#[test]
+fn json_file() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "./relative-json/data.json").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("relative-json/data.json"));
+    assert_eq!(result.module_type(), Some(crate::ModuleType::Json));
+}
+
+#[test]
+fn json_declaration_over_json_file() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "./relative-json/typed.json").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("relative-json/typed.d.json.ts"));
+}
+
 // -------- Extension substitution --------
 
 #[test]

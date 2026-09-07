@@ -29,6 +29,8 @@ struct Extensions(u8);
 impl Extensions {
     /// `.d.ts`, `.d.mts`, `.d.cts`
     const DECLARATION: Self = Self(0b0100);
+    /// `.json`
+    const JSON: Self = Self(0b1000);
     /// `.js`, `.jsx`, `.mjs`, `.cjs`
     const JAVASCRIPT: Self = Self(0b0010);
     /// `.ts`, `.tsx`, `.mts`, `.cts`
@@ -106,8 +108,13 @@ impl ResolverImpl {
         let containing_dir = containing_file.parent().unwrap_or(containing_file);
         let cached_dir = self.cache.value(containing_dir);
 
-        let extensions =
-            Extensions::TYPESCRIPT.union(Extensions::JAVASCRIPT).union(Extensions::DECLARATION);
+        // TS: `bundlerModuleNameResolver` starts from TypeScript | JavaScript | Declaration and
+        // adds Json because `resolveJsonModule` defaults to true under `moduleResolution: "bundler"`.
+        // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/moduleNameResolver.ts#L1771-L1774
+        let extensions = Extensions::TYPESCRIPT
+            .union(Extensions::JAVASCRIPT)
+            .union(Extensions::DECLARATION)
+            .union(Extensions::JSON);
 
         // Parse query/fragment
         let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
@@ -251,6 +258,10 @@ impl ResolverImpl {
     }
 
     /// TS: `tryAddingExtensions`
+    #[expect(
+        clippy::too_many_lines,
+        reason = "mirrors TypeScript's `tryAddingExtensions` branch by branch"
+    )]
     fn dts_try_extensions(
         &self,
         base: &CachedPath,
@@ -294,8 +305,16 @@ impl ResolverImpl {
                 }
             }
             ".json" => {
+                // TS: `tryAddingExtensions`, `case Extension.Json`: `.d.json.ts` first, then the
+                // `.json` file itself when Json is in the extension set.
+                // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/moduleNameResolver.ts#L2155-L2158
                 if extensions.contains(Extensions::DECLARATION)
                     && let Some(p) = self.dts_try_file(base, ".d.json.ts", ctx)
+                {
+                    return Some(p);
+                }
+                if extensions.contains(Extensions::JSON)
+                    && let Some(p) = self.dts_try_file(base, ".json", ctx)
                 {
                     return Some(p);
                 }
@@ -701,8 +720,10 @@ impl ResolverImpl {
 
         // Resolve path aliases
         let paths = tsconfig.resolve_path_alias(specifier);
-        let extensions =
-            Extensions::TYPESCRIPT.union(Extensions::DECLARATION).union(Extensions::JAVASCRIPT);
+        let extensions = Extensions::TYPESCRIPT
+            .union(Extensions::DECLARATION)
+            .union(Extensions::JAVASCRIPT)
+            .union(Extensions::JSON);
         for path in paths {
             let resolved_path = self.cache.value(&path);
             if let Some(result) = self.dts_resolve_relative(extensions, &resolved_path, ctx)? {
