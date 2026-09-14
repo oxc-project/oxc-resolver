@@ -251,6 +251,10 @@ impl ResolverImpl {
     }
 
     /// TS: `tryAddingExtensions`
+    #[expect(
+        clippy::too_many_lines,
+        reason = "mirrors TypeScript's `tryAddingExtensions` branch by branch"
+    )]
     fn dts_try_extensions(
         &self,
         base: &CachedPath,
@@ -294,9 +298,14 @@ impl ResolverImpl {
                 }
             }
             ".json" => {
+                // TS: `case Extension.Json`: `.d.json.ts` first, then the `.json` file itself.
+                // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/moduleNameResolver.ts#L2155-L2158
                 if extensions.contains(Extensions::DECLARATION)
                     && let Some(p) = self.dts_try_file(base, ".d.json.ts", ctx)
                 {
+                    return Some(p);
+                }
+                if let Some(p) = self.dts_try_file(base, ".json", ctx) {
                     return Some(p);
                 }
             }
