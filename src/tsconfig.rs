@@ -118,6 +118,16 @@ impl TsConfig {
                     }
                 },
             );
+        for paths in [&mut tsconfig.files, &mut tsconfig.include, &mut tsconfig.exclude]
+            .into_iter()
+            .flatten()
+        {
+            for path in paths {
+                if !path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                    *path = canonical_directory.normalize_with(&path);
+                }
+            }
+        }
         if let Some(root_dirs) = &mut tsconfig.compiler_options.root_dirs {
             for root_dir in root_dirs.iter_mut() {
                 if !root_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
