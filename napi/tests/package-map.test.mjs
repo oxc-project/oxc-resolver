@@ -118,11 +118,12 @@ test("rejects invalid package maps", () => {
   }
 });
 
-test("reloads NODE_OPTIONS after clearing the resolver cache", () => {
+test("reloads package maps after clearing the resolver cache", () => {
   const importer = path.join(fixture, "apps/web/src");
   const packageMapOptions = nodeOptions(path.join(fixture, "node_modules/.package-map.json"));
-  const [mapped, cached, cleared, reloaded] = run([
+  const [mapped, reloaded, cached, unmapped, restored] = run([
     { nodeOptions: packageMapOptions, importer, specifier: "plain-file" },
+    { clearCache: true, importer, specifier: "plain-file" },
     { nodeOptions: "--trace-warnings", importer, specifier: "plain-file" },
     { clearCache: true, importer, specifier: "plain-file" },
     { nodeOptions: packageMapOptions, clearCache: true, importer, specifier: "plain-file" },
@@ -130,9 +131,10 @@ test("reloads NODE_OPTIONS after clearing the resolver cache", () => {
 
   const expected = path.join(fixture, "node_modules/store/plain-file.js");
   assertResolution(mapped, expected);
-  assertResolution(cached, expected);
-  assert.match(cleared.error, /Cannot find module 'plain-file'/);
   assertResolution(reloaded, expected);
+  assertResolution(cached, expected);
+  assert.match(unmapped.error, /Cannot find module 'plain-file'/);
+  assertResolution(restored, expected);
 });
 
 test("resolves tsconfig extends through package maps", () => {
