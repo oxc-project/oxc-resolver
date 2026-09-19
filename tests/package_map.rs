@@ -277,6 +277,15 @@ fn package_map() {
         "unterminated",
         "trailing-escape",
     ] {
+        if cfg!(target_endian = "big") {
+            // `cross` runs the test binary through an emulator, but a child process launched from
+            // the test would bypass that runner.
+            // SAFETY: this integration test is the only test in its process.
+            unsafe { env::set_var("NODE_OPTIONS", node_options(case)) };
+            child(case);
+            continue;
+        }
+
         let output = Command::new(env::current_exe().unwrap())
             .args(["--exact", "package_map", "--nocapture"])
             .current_dir(root())
