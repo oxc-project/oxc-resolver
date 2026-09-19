@@ -1,8 +1,7 @@
-//! Package map backend for big-endian systems using serde-json and owned compact strings.
+//! Package map backend for big-endian systems using serde-json and owned strings.
 
 use std::path::PathBuf;
 
-use compact_str::CompactString;
 use rustc_hash::FxHashMap;
 
 use crate::{JSONError, ResolveError};
@@ -11,14 +10,14 @@ use super::map::{PackageMap, PackageMapBackend, PackageMapEntryBackend};
 
 #[derive(Debug, ::serde::Deserialize)]
 pub(super) struct PackageMapData {
-    packages: FxHashMap<CompactString, PackageMapEntryData>,
+    packages: FxHashMap<String, PackageMapEntryData>,
 }
 
 #[derive(Debug, ::serde::Deserialize)]
 pub(super) struct PackageMapEntryData {
-    url: CompactString,
+    url: String,
     #[serde(default)]
-    dependencies: FxHashMap<CompactString, CompactString>,
+    dependencies: FxHashMap<String, String>,
 }
 
 impl PackageMapBackend for PackageMapData {
@@ -39,7 +38,7 @@ impl<'a> PackageMapEntryBackend<'a> for &'a PackageMapEntryData {
     }
 
     fn dependency(&self, specifier: &str) -> Option<&'a str> {
-        self.dependencies.get(specifier).map(CompactString::as_str)
+        self.dependencies.get(specifier).map(String::as_str)
     }
 }
 

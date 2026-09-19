@@ -178,7 +178,6 @@ dependencies = [
  "castaway",
  "cfg-if",
  "itoa",
- "serde",
  "static_assertions",
  "zmij",
 ]
