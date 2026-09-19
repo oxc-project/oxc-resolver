@@ -32,8 +32,6 @@ pub struct Cache {
     pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
-    /// Package map state selected from the process environment, shared by resolvers using this
-    /// cache.
     pub(crate) package_map: Box<PackageMapCache>,
 }
 

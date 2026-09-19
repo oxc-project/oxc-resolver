@@ -609,7 +609,6 @@ impl ResolverImpl {
         self.load_bare_package(cached_path, specifier, tsconfig, ctx)
     }
 
-    /// Resolves a bare package through the active package map or regular package lookup.
     fn load_bare_package(
         &self,
         cached_path: &CachedPath,
@@ -621,7 +620,6 @@ impl ResolverImpl {
         if subpath.is_empty() {
             ctx.with_fully_specified(false);
         }
-        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
         if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }

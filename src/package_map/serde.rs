@@ -44,7 +44,6 @@ impl<'a> PackageMapEntryBackend<'a> for &'a PackageMapEntryData {
 }
 
 impl PackageMap {
-    /// Parse a `.package-map.json` file from JSON bytes.
     pub(super) fn parse(path: PathBuf, json: Vec<u8>) -> Result<Self, ResolveError> {
         let data = serde_json::from_slice::<PackageMapData>(&json).map_err(|error| {
             if error.is_data() {

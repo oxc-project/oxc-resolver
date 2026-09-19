@@ -9,17 +9,12 @@ use rustc_hash::{FxHashMap, FxHasher};
 
 use crate::{PathUtil, ResolveError};
 
-/// Error returned by the path-based fallback in Node's package-map resolution algorithm.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(super) enum FindPackageIdError {
-    /// Multiple package IDs resolve to the same owning package path.
     AmbiguousResolution,
-
-    /// The importer path is not contained by any package location in the map.
     ExternalFile,
 }
 
-/// Storage for the parsed package entries.
 pub(super) trait PackageMapBackend {
     type Entry<'a>: PackageMapEntryBackend<'a>
     where
@@ -29,7 +24,6 @@ pub(super) trait PackageMapBackend {
     fn iter(&self) -> impl Iterator<Item = (&str, Self::Entry<'_>)>;
 }
 
-/// A package entry stored by a package map backend.
 pub(super) trait PackageMapEntryBackend<'a> {
     fn url(&self) -> &'a str;
     fn dependency(&self, specifier: &str) -> Option<&'a str>;
@@ -42,31 +36,16 @@ enum PackageOwner {
     External,
 }
 
-/// Parsed Node.js package map and its resolved package-location index.
-///
-/// This represents the specification's top-level `packages` object. See
-/// [Configuration file format](https://nodejs.org/api/packages.html#configuration-file-format).
 pub(super) struct PackageMapGeneric<S> {
-    /// Canonical package-map path, used as the URL base and for diagnostics and dependency tracking.
     path: PathBuf,
-
-    /// Package entries keyed by their opaque package IDs.
     store: S,
-
-    /// Resolved `file:` package locations keyed by package ID.
     package_paths: FxHashMap<Arc<str>, Arc<Path>>,
-
-    /// Package ownership keyed by resolved location; duplicate locations are ambiguous.
     path_index: FxHashMap<Arc<Path>, PackageOwner>,
-
-    /// Memoized path-based ownership results for importer directories.
     path_cache: DashMap<PathBuf, PackageOwner, BuildHasherDefault<FxHasher>>,
 }
 
-/// Parsed Node.js package map for the current target.
 #[cfg(target_endian = "big")]
 pub(super) type PackageMap = PackageMapGeneric<super::serde::PackageMapData>;
-/// Parsed Node.js package map for the current target.
 #[cfg(target_endian = "little")]
 pub(super) type PackageMap = PackageMapGeneric<super::simd::PackageMapCell>;
 
@@ -105,12 +84,10 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         })
     }
 
-    /// Returns the path where `.package-map.json` was found.
     pub(super) fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Returns the entry for an opaque package ID from the top-level `packages` object.
     pub(super) fn package<'a>(
         &'a self,
         package_id: &str,
@@ -125,14 +102,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         })
     }
 
-    /// Implements the path-based fallback for determining which package owns an importer.
-    ///
-    /// The nearest ancestor present in the resolved-path index owns `path`. If multiple package
-    /// IDs resolve to that ancestor, this returns [`FindPackageIdError::AmbiguousResolution`]. If
-    /// no mapped package contains `path`, it returns [`FindPackageIdError::ExternalFile`].
-    ///
-    /// This corresponds to `FIND_PACKAGE_ID(PATH, PACKAGE_MAP)` in Node's
-    /// [CommonJS resolution pseudocode](https://nodejs.org/api/modules.html#all-together).
+    /// Implements Node's `FIND_PACKAGE_ID` fallback by finding the nearest mapped ancestor.
     pub(super) fn find_package_id<'a>(
         &'a self,
         path: &Path,
@@ -173,13 +143,8 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         }
     }
 
-    /// Resolves an entry's `url` from the effective package-map location into a filesystem path.
-    ///
-    /// Resolves an entry URL against the configured package-map URL using WHATWG URL semantics.
     fn resolve_url_from(package_map_path: &Path, value: &str) -> Result<PathBuf, String> {
-        // WHATWG URL parsing trims leading and trailing C0 controls and spaces, and removes ASCII
-        // tabs and newlines anywhere in the input. Backslashes are path separators for `file:`
-        // URLs, including relative URLs resolved against a `file:` base.
+        // Match WHATWG file URL preprocessing before resolving against the map location.
         let value = value.trim_matches(|character: char| character <= '\u{20}');
         let normalized_value;
         let value = if value.contains(['\\', '\t', '\n', '\r']) {
@@ -294,21 +259,16 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
     }
 }
 
-/// One package entry from the package map's top-level `packages` object.
 pub(super) struct PackageMapEntryGeneric<'a, E> {
     entry: E,
     path: &'a Path,
 }
 
 impl<'a, E: PackageMapEntryBackend<'a>> PackageMapEntryGeneric<'a, E> {
-    /// Returns the resolved file path.
     pub(super) const fn path(&self) -> &'a Path {
         self.path
     }
 
-    /// Looks up a bare package name in `dependencies` and returns its target package ID.
-    ///
-    /// A missing `dependencies` object behaves as an empty object.
     pub(super) fn dependency(&self, specifier: &str) -> Option<&'a str> {
         self.entry.dependency(specifier)
     }

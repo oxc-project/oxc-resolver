@@ -80,7 +80,6 @@ fn has_valid_shape(value: &BorrowedValue<'_>) -> bool {
 }
 
 impl PackageMap {
-    /// Parse a `.package-map.json` file from JSON bytes.
     pub(super) fn parse(path: PathBuf, json: Vec<u8>) -> Result<Self, ResolveError> {
         let cell = PackageMapCell::try_new(MutBorrow::new(json), |bytes| {
             simd_json::to_borrowed_value(bytes.borrow_mut())

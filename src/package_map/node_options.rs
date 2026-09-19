@@ -4,9 +4,7 @@ use crate::PathUtil;
 
 /// Extracts the last `--experimental-package-map` path from `NODE_OPTIONS`.
 ///
-/// Tokenization follows Node's `ParseNodeOptionsEnvVar`: spaces separate arguments, double quotes
-/// group text, and backslashes escape the following character inside quoted text. Both the
-/// `--experimental-package-map=<path>` and `--experimental-package-map <path>` forms are accepted.
+/// Tokenization follows Node's `ParseNodeOptionsEnvVar` quoting and escaping rules.
 pub(super) fn package_map_path_from_node_options(
     node_options: &str,
     cwd: &Path,
