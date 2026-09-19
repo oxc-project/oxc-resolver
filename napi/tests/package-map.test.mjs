@@ -8,20 +8,15 @@ import { normalizePath } from "./utils.mjs";
 const rootDir = path.resolve(import.meta.dirname, "../..");
 const fixture = path.join(rootDir, "fixtures/package-map/resolution");
 const childFixture = path.join(rootDir, "fixtures/package-map/node-options.mjs");
+const binding = path.join(
+  rootDir,
+  process.env.WASI_TEST ? "napi/resolver.wasi.cjs" : "napi/index.js",
+);
 
-test("enables package maps from NODE_OPTIONS", () => {
-  const binding = path.join(
-    rootDir,
-    process.env.WASI_TEST ? "napi/resolver.wasi.cjs" : "napi/index.js",
-  );
+function assertAxiosResolution(importer) {
   const result = spawnSync(
     process.execPath,
-    [
-      childFixture,
-      binding,
-      path.join(fixture, "node_modules/.package-map.json"),
-      path.join(fixture, "apps/web/src"),
-    ],
+    [childFixture, binding, path.join(fixture, "node_modules/.package-map.json"), importer],
     {
       cwd: rootDir,
       encoding: "utf8",
@@ -31,4 +26,13 @@ test("enables package maps from NODE_OPTIONS", () => {
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(normalizePath(result.stdout), /\/node_modules\/store\/axios\/index\.js$/);
+}
+
+test("enables package maps from NODE_OPTIONS", () => {
+  assertAxiosResolution(path.join(fixture, "apps/web/src"));
+});
+
+test("normalizes importer paths before finding their package", () => {
+  const importer = [fixture, "packages", "ui", "..", "..", "apps", "web", "src"].join(path.sep);
+  assertAxiosResolution(importer);
 });

@@ -1,7 +1,7 @@
 use std::{
     hash::BuildHasherDefault,
     marker::PhantomData,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
@@ -132,7 +132,14 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
             return self.package_id_for_owner(owner.value());
         }
 
-        let owner = path
+        let normalized_path;
+        let lookup_path = if path.components().any(|component| component == Component::ParentDir) {
+            normalized_path = path.normalize();
+            normalized_path.as_path()
+        } else {
+            path
+        };
+        let owner = lookup_path
             .ancestors()
             .find_map(|path| self.path_index.get(path).cloned())
             .unwrap_or(PackageOwner::External);
