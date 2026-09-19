@@ -3,3 +3,5 @@ packages:
   - packages/ui
   - packages/utils
 shamefullyHoist: true
+
+nodePackageMapType: loose
