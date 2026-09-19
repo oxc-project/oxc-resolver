@@ -50,7 +50,6 @@ mod context;
 mod dts_resolver;
 mod error;
 mod file_system;
-#[cfg(not(target_arch = "wasm32"))]
 mod file_url;
 mod node_path;
 mod options;
