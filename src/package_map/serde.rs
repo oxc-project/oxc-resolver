@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use compact_str::CompactString;
 use rustc_hash::FxHashMap;
 
-use crate::JSONError;
+use crate::{JSONError, ResolveError};
 
 use super::map::{PackageMap, PackageMapBackend, PackageMapEntryBackend};
 
@@ -45,14 +45,23 @@ impl<'a> PackageMapEntryBackend<'a> for &'a PackageMapEntryData {
 
 impl PackageMap {
     /// Parse a `.package-map.json` file from JSON bytes.
-    pub(super) fn parse(path: PathBuf, json: Vec<u8>) -> Result<Self, JSONError> {
-        let data = serde_json::from_slice::<PackageMapData>(&json).map_err(|error| JSONError {
-            path: path.clone(),
-            message: error.to_string(),
-            line: error.line(),
-            column: error.column(),
+    pub(super) fn parse(path: PathBuf, json: Vec<u8>) -> Result<Self, ResolveError> {
+        let data = serde_json::from_slice::<PackageMapData>(&json).map_err(|error| {
+            if error.is_data() {
+                ResolveError::PackageMapInvalid {
+                    package_map_path: path.clone(),
+                    reason: error.to_string(),
+                }
+            } else {
+                ResolveError::Json(JSONError {
+                    path: path.clone(),
+                    message: error.to_string(),
+                    line: error.line(),
+                    column: error.column(),
+                })
+            }
         })?;
 
-        Ok(Self::new(path, data))
+        Self::new(path, data)
     }
 }

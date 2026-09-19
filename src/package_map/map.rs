@@ -1,6 +1,5 @@
 use std::{
     hash::BuildHasherDefault,
-    marker::PhantomData,
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -8,7 +7,7 @@ use std::{
 use dashmap::DashMap;
 use rustc_hash::{FxHashMap, FxHasher};
 
-use crate::PathUtil;
+use crate::{PathUtil, ResolveError};
 
 /// Error returned by the path-based fallback in Node's package-map resolution algorithm.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -48,13 +47,13 @@ enum PackageOwner {
 /// This represents the specification's top-level `packages` object. See
 /// [Configuration file format](https://nodejs.org/api/packages.html#configuration-file-format).
 pub(super) struct PackageMapGeneric<S> {
-    /// Configured package-map path, used for diagnostics and dependency tracking.
+    /// Canonical package-map path, used as the URL base and for diagnostics and dependency tracking.
     path: PathBuf,
 
     /// Package entries keyed by their opaque package IDs.
     store: S,
 
-    /// Valid `file:` package locations keyed by package ID.
+    /// Resolved `file:` package locations keyed by package ID.
     package_paths: FxHashMap<Arc<str>, Arc<Path>>,
 
     /// Package ownership keyed by resolved location; duplicate locations are ambiguous.
@@ -72,14 +71,21 @@ pub(super) type PackageMap = PackageMapGeneric<super::serde::PackageMapData>;
 pub(super) type PackageMap = PackageMapGeneric<super::simd::PackageMapCell>;
 
 impl<S: PackageMapBackend> PackageMapGeneric<S> {
-    pub(super) fn new(path: PathBuf, store: S) -> Self {
+    pub(super) fn new(path: PathBuf, store: S) -> Result<Self, ResolveError> {
         let mut package_paths = FxHashMap::default();
         let mut path_index = FxHashMap::default();
 
         for (package_id, entry) in store.iter() {
-            let Some(package_path) = Self::resolve_url_from(&path, entry.url()) else {
-                continue;
-            };
+            let url = entry.url();
+            if url.is_empty() {
+                return Err(Self::invalid(
+                    &path,
+                    format!("package {package_id:?} has an empty \"url\" field"),
+                ));
+            }
+            let package_path = Self::resolve_url_from(&path, url).map_err(|reason| {
+                Self::invalid(&path, format!("package {package_id:?} has {reason}"))
+            })?;
             let package_id = Arc::<str>::from(package_id);
             let package_path = Arc::<Path>::from(package_path);
 
@@ -90,13 +96,13 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
                 .or_insert(PackageOwner::Package(package_id));
         }
 
-        Self {
+        Ok(Self {
             path,
             store,
             package_paths,
             path_index,
             path_cache: DashMap::with_hasher(BuildHasherDefault::default()),
-        }
+        })
     }
 
     /// Returns the path where `.package-map.json` was found.
@@ -111,8 +117,11 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
     ) -> Option<PackageMapEntryGeneric<'a, S::Entry<'a>>> {
         self.store.package(package_id).map(|entry| PackageMapEntryGeneric {
             entry,
-            path: self.package_paths.get(package_id).map(Arc::as_ref),
-            marker: PhantomData,
+            path: self
+                .package_paths
+                .get(package_id)
+                .map(Arc::as_ref)
+                .expect("a parsed package entry must have a resolved path"),
         })
     }
 
@@ -166,38 +175,134 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
 
     /// Resolves an entry's `url` from the effective package-map location into a filesystem path.
     ///
-    /// `file://` URLs and filesystem paths are accepted. Non-file protocols, percent-decoded paths
-    /// that are not UTF-8, and paths without a package-map parent return `None` and cannot be
-    /// resolution targets.
-    fn resolve_url_from(package_map_path: &Path, url: &str) -> Option<PathBuf> {
-        #[cfg(not(target_arch = "wasm32"))]
-        if url.starts_with("file://") {
-            let path = crate::file_url::resolve_file_protocol(url).ok()?;
-            return Some(PathBuf::from(path.as_ref()).normalize());
+    /// Resolves an entry URL against the configured package-map URL using WHATWG URL semantics.
+    fn resolve_url_from(package_map_path: &Path, value: &str) -> Result<PathBuf, String> {
+        // WHATWG URL parsing trims leading and trailing C0 controls and spaces, and removes ASCII
+        // tabs and newlines anywhere in the input. Backslashes are path separators for `file:`
+        // URLs, including relative URLs resolved against a `file:` base.
+        let value = value.trim_matches(|character: char| character <= '\u{20}');
+        let normalized_value;
+        let value = if value.contains(['\\', '\t', '\n', '\r']) {
+            normalized_value = value
+                .chars()
+                .filter_map(|character| match character {
+                    '\t' | '\n' | '\r' => None,
+                    '\\' => Some('/'),
+                    character => Some(character),
+                })
+                .collect::<String>();
+            normalized_value.as_str()
+        } else {
+            value
+        };
+        let value = value.split_once(['?', '#']).map_or(value, |(path, _)| path);
+
+        let scheme = Self::split_url_scheme(value);
+        if let Some((scheme, _)) = scheme
+            && !scheme.eq_ignore_ascii_case("file")
+        {
+            return Err(format!(
+                "an unsupported URL scheme in {value:?}; only file URLs and relative URLs are supported"
+            ));
+        }
+        if Self::has_invalid_percent_encoding(value) {
+            return Err(format!("an invalid file URL {value:?}"));
         }
 
-        // The package map specification only permits file URLs.
-        if url.contains("://") {
+        let relative = if value.starts_with("//") {
+            return Self::file_url_to_path(&format!("file:{value}"), value);
+        } else if let Some((_, rest)) = scheme {
+            if rest.starts_with("//") {
+                return Self::file_url_to_path(&format!("file:{rest}"), value);
+            }
+            if rest.starts_with('/') || Self::starts_with_windows_drive(rest) {
+                return Self::file_url_to_path(&format!("file://{rest}"), value);
+            }
+            rest
+        } else {
+            value
+        };
+
+        if Self::has_encoded_separator(relative) {
+            return Err(format!("an invalid file URL {value:?}"));
+        }
+        let base = package_map_path
+            .parent()
+            .ok_or_else(|| "an invalid configuration file path".to_string())?;
+        if relative.is_empty() {
+            return Ok(base.to_path_buf());
+        }
+        let decoded = percent_encoding::percent_decode_str(relative)
+            .decode_utf8()
+            .map_err(|_| format!("an invalid file URL {value:?}"))?;
+        Ok(base.normalize_with(Path::new(decoded.as_ref())))
+    }
+
+    fn file_url_to_path(url: &str, value: &str) -> Result<PathBuf, String> {
+        crate::file_url::resolve_file_protocol(url)
+            .map(|path| PathBuf::from(path.as_ref()).normalize())
+            .map_err(|_| format!("an invalid file URL {value:?}"))
+    }
+
+    fn split_url_scheme(value: &str) -> Option<(&str, &str)> {
+        let mut bytes = value.bytes();
+        if !bytes.next()?.is_ascii_alphabetic() {
             return None;
         }
+        for (index, byte) in value.bytes().enumerate().skip(1) {
+            if byte == b':' {
+                return Some((&value[..index], &value[index + 1..]));
+            }
+            if !byte.is_ascii_alphanumeric() && !matches!(byte, b'+' | b'-' | b'.') {
+                return None;
+            }
+        }
+        None
+    }
 
-        let decoded = percent_encoding::percent_decode_str(url).decode_utf8().ok()?;
-        // Node uses the configured package map URL as the base.
-        let base = package_map_path.parent()?;
-        Some(base.normalize_with(Path::new(decoded.as_ref())))
+    fn starts_with_windows_drive(value: &str) -> bool {
+        let bytes = value.as_bytes();
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
+    }
+
+    fn has_invalid_percent_encoding(value: &str) -> bool {
+        let bytes = value.as_bytes();
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] == b'%'
+                && (index + 2 >= bytes.len()
+                    || !bytes[index + 1].is_ascii_hexdigit()
+                    || !bytes[index + 2].is_ascii_hexdigit())
+            {
+                return true;
+            }
+            index += if bytes[index] == b'%' { 3 } else { 1 };
+        }
+        false
+    }
+
+    fn has_encoded_separator(value: &str) -> bool {
+        value.as_bytes().windows(3).any(|bytes| {
+            bytes[0] == b'%'
+                && ((bytes[1] == b'2' && bytes[2].eq_ignore_ascii_case(&b'f'))
+                    || (cfg!(windows) && bytes[1] == b'5' && bytes[2].eq_ignore_ascii_case(&b'c')))
+        })
+    }
+
+    fn invalid(package_map_path: &Path, reason: String) -> ResolveError {
+        ResolveError::PackageMapInvalid { package_map_path: package_map_path.to_path_buf(), reason }
     }
 }
 
 /// One package entry from the package map's top-level `packages` object.
 pub(super) struct PackageMapEntryGeneric<'a, E> {
     entry: E,
-    path: Option<&'a Path>,
-    marker: PhantomData<&'a ()>,
+    path: &'a Path,
 }
 
 impl<'a, E: PackageMapEntryBackend<'a>> PackageMapEntryGeneric<'a, E> {
-    /// Returns the resolved file path, or `None` when `url` is not a valid file target.
-    pub(super) fn path(&self) -> Option<&'a Path> {
+    /// Returns the resolved file path.
+    pub(super) const fn path(&self) -> &'a Path {
         self.path
     }
 

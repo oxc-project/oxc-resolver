@@ -37,7 +37,7 @@ impl PackageMapCache {
         initialized
     }
 
-    pub fn clear(&self) {
+    pub(crate) fn clear(&self) {
         *self.value.write().expect("package map cache was poisoned") = None;
     }
 }

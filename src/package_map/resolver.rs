@@ -49,7 +49,13 @@ impl ResolverImpl {
     ) -> Result<CachedPath, ResolveError> {
         // Step 6.a: derive PARENT_PACKAGE_ID from dirname(Y). `cached_path` is already dirname(Y)
         // because the public resolve API accepts the importing directory, not the importing file.
-        let parent_path = cached_path.path();
+        let canonical_parent_path;
+        let parent_path = if self.options.symlinks {
+            canonical_parent_path = self.cache.canonicalize(cached_path)?;
+            canonical_parent_path.as_path()
+        } else {
+            cached_path.path()
+        };
         let parent_package_id =
             package_map.find_package_id(parent_path).map_err(|error| match error {
                 FindPackageIdError::AmbiguousResolution => {
@@ -106,13 +112,15 @@ impl ResolverImpl {
             .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
 
         // 5. Let TARGET be PACKAGE_MAP.packages[dependencies[name]].
-        let target = package_map
-            .package(dependency_id)
-            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let target = package_map.package(dependency_id).ok_or_else(|| {
+            ResolveError::PackageMapKeyNotFound {
+                package_id: dependency_id.to_string(),
+                package_map_path: package_map.path().to_path_buf(),
+            }
+        })?;
 
         // 6. Let PACKAGE_PATH be the resolved path of TARGET.
-        let package_path =
-            target.path().ok_or_else(|| ResolveError::NotFound(specifier.to_string()))?;
+        let package_path = target.path();
         tracing::debug!(parent_package_id, dependency_id, ?package_path, "resolve_package_map");
         let package_path = self.cache.value(package_path);
 
@@ -156,7 +164,10 @@ impl ResolverImpl {
         let package_map = self.cache.package_map.get_or_init(|package_map_path| {
             tracing::debug!(path = ?package_map_path, "load_package_map");
             let json = self.cache.fs.read(package_map_path)?;
-            PackageMap::parse(package_map_path.to_path_buf(), json).map_err(ResolveError::Json)
+            // Node resolves package URLs from the real path of the configuration file so they
+            // match the canonical module paths used by default during resolution.
+            let canonical_path = self.cache.canonicalize(&self.cache.value(package_map_path))?;
+            PackageMap::parse(canonical_path, json)
         });
 
         match package_map {
@@ -168,6 +179,9 @@ impl ResolverImpl {
             Err((package_map_path, error)) => {
                 match &error {
                     ResolveError::Json(error) => ctx.add_file_dependency(&error.path),
+                    ResolveError::PackageMapInvalid { package_map_path, .. } => {
+                        ctx.add_file_dependency(package_map_path);
+                    }
                     _ => ctx.add_missing_dependency(&package_map_path),
                 }
                 Err(error)

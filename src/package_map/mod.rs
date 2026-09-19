@@ -6,11 +6,11 @@
 //! identify dependency graph nodes independently of their locations and allow different importers
 //! to resolve the same package name to different versions.
 //!
-//! Entry URLs are resolved from the package map's configured `NODE_OPTIONS` location into
-//! filesystem paths. Explicit URLs must use the `file:` protocol. The resulting paths form the
-//! index used to identify the package that owns an importer. Multiple IDs resolving to the same
-//! owning path are retained as ambiguous, as required for [multiple packages sharing one
-//! URL][shared-url].
+//! Entry URLs are resolved from the real path of the package map selected by `NODE_OPTIONS` into
+//! filesystem paths, matching Node.js. Explicit URLs must use the `file:` protocol. The resulting
+//! paths form the index used to identify the package that owns an importer. Multiple IDs resolving
+//! to the same owning path are retained as ambiguous, as required for [multiple packages sharing
+//! one URL][shared-url].
 //!
 //! Package-map resolution is enabled automatically when `NODE_OPTIONS` contains Node's
 //! `--experimental-package-map` option. The resolver API does not propagate a package ID between

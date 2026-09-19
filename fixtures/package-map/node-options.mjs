@@ -1,24 +1,28 @@
 import { pathToFileURL } from "node:url";
 
-const [bindingPath, packageMapPath, importer] = process.argv.slice(2);
-if (!bindingPath || !packageMapPath || !importer) {
-  throw new Error("Expected binding, package-map, and importer paths");
+const [bindingPath, payloadJson] = process.argv.slice(2);
+if (!bindingPath || !payloadJson) {
+  throw new Error("Expected binding path and operation payload");
 }
-
-const escapedPackageMapPath = packageMapPath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-process.env.NODE_OPTIONS = [
-  "--trace-warnings",
-  "--experimental-package-map=ignored.json",
-  `--experimental-package-map="${escapedPackageMapPath}"`,
-].join(" ");
 
 const binding = await import(pathToFileURL(bindingPath));
 const ResolverFactory = binding.ResolverFactory ?? binding.default.ResolverFactory;
-const result = new ResolverFactory({
-  conditionNames: ["node", "require"],
-}).sync(importer, "axios");
+const { options, operations } = JSON.parse(payloadJson);
+const resolver = new ResolverFactory(
+  options ?? {
+    conditionNames: ["node", "require"],
+  },
+);
+const results = [];
 
-if (result.error) {
-  throw new Error(result.error);
+for (const { nodeOptions, clearCache, importer, specifier } of operations) {
+  if (nodeOptions !== undefined) {
+    process.env.NODE_OPTIONS = nodeOptions;
+  }
+  if (clearCache) {
+    resolver.clearCache();
+  }
+  results.push(resolver.sync(importer, specifier));
 }
-process.stdout.write(result.path);
+
+process.stdout.write(JSON.stringify(results));

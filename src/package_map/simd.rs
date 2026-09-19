@@ -13,7 +13,7 @@ use simd_json::{
     prelude::{ValueAsObject, ValueAsScalar},
 };
 
-use crate::JSONError;
+use crate::{JSONError, ResolveError};
 
 use super::map::{PackageMap, PackageMapBackend, PackageMapEntryBackend};
 
@@ -81,28 +81,27 @@ fn has_valid_shape(value: &BorrowedValue<'_>) -> bool {
 
 impl PackageMap {
     /// Parse a `.package-map.json` file from JSON bytes.
-    pub(super) fn parse(path: PathBuf, json: Vec<u8>) -> Result<Self, JSONError> {
+    pub(super) fn parse(path: PathBuf, json: Vec<u8>) -> Result<Self, ResolveError> {
         let cell = PackageMapCell::try_new(MutBorrow::new(json), |bytes| {
             simd_json::to_borrowed_value(bytes.borrow_mut())
         })
-        .map_err(|error| JSONError {
-            path: path.clone(),
-            message: error.to_string(),
-            line: 0,
-            column: 0,
+        .map_err(|error| {
+            ResolveError::Json(JSONError {
+                path: path.clone(),
+                message: error.to_string(),
+                line: 0,
+                column: 0,
+            })
         })?;
 
         if !has_valid_shape(cell.borrow_dependent()) {
-            return Err(JSONError {
-                path,
-                message:
-                    "package map must contain package entries with string URLs and dependencies"
-                        .to_string(),
-                line: 0,
-                column: 0,
+            return Err(ResolveError::PackageMapInvalid {
+                package_map_path: path,
+                reason: "expected a packages object whose entries have string URLs and string-valued dependency objects"
+                    .to_string(),
             });
         }
 
-        Ok(Self::new(path, cell))
+        Self::new(path, cell)
     }
 }

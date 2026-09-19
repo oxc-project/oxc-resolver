@@ -1,0 +1,7 @@
+{
+  "packages": {
+    "invalid": {
+      "url": "./package%zz"
+    }
+  }
+}
