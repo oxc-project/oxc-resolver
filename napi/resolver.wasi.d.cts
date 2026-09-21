@@ -83,10 +83,11 @@ export declare const enum ModuleType {
 export interface NapiResolveOptions {
   /**
    * Discover tsconfig automatically or use the specified tsconfig.json path.
+   * `'auto-nearest'` falls back to the nearest config for files no project owns.
    *
    * Default `None`
    */
-  tsconfig?: 'auto' | TsconfigOptions
+  tsconfig?: 'auto' | 'auto-nearest' | TsconfigOptions
   /**
    * Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].
    *

@@ -106,6 +106,7 @@ fn push_unique(paths: &mut Vec<PathBuf>, path: &Path) {
 #[derive(Default)]
 pub struct TsconfigResolveContext {
     extended_configs: Vec<PathBuf>,
+    referenced_configs: Vec<PathBuf>,
 }
 
 impl TsconfigResolveContext {
@@ -126,6 +127,32 @@ impl TsconfigResolveContext {
         new_vec.push(path);
         new_vec
     }
+
+    pub fn with_referenced_file<R, T: FnOnce(&mut Self) -> R>(
+        &mut self,
+        path: PathBuf,
+        cb: T,
+    ) -> R {
+        self.referenced_configs.push(path);
+        let result = cb(self);
+        self.referenced_configs.pop();
+        result
+    }
+
+    pub fn is_already_referenced(&self, path: &Path) -> bool {
+        self.referenced_configs.iter().any(|config| config == path)
+    }
+
+    pub fn is_direct_self_reference(&self, path: &Path) -> bool {
+        self.referenced_configs.last().is_some_and(|config| config == path)
+    }
+
+    pub fn get_referenced_configs_with(&self, path: PathBuf) -> Vec<PathBuf> {
+        let mut configs = Vec::with_capacity(self.referenced_configs.len() + 1);
+        configs.extend_from_slice(&self.referenced_configs);
+        configs.push(path);
+        configs
+    }
 }
 
 impl ResolverImpl {
@@ -136,9 +163,10 @@ impl ResolverImpl {
     /// Algorithm:
     ///
     /// 1. Search for `tsconfig.json` in ancestor directories.
-    /// 2. If the path is not included in this `tsconfig.json` through the `files`, `include`, or `exclude` fields:
-    ///    2.1. Search through project references until a referenced `tsconfig` includes this file.
-    ///    2.2. If none of the references include this path, return the `tsconfig.json` found in step 1.
+    /// 2. Search its project-reference graph breadth-first for a config that owns the path.
+    /// 3. If neither the config nor its graph owns the path, continue with the next ancestor.
+    /// 4. [`TsconfigDiscovery::AutoNearest`] instead returns the first config as a compatibility
+    ///    fallback, bounding discovery at the nearest project root.
     ///
     /// # Errors
     ///
@@ -193,7 +221,8 @@ impl ResolverImpl {
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         match &self.options.tsconfig {
             None => Ok(None),
-            Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path),
+            Some(TsconfigDiscovery::Auto) => self.find_tsconfig_auto(cached_path, false),
+            Some(TsconfigDiscovery::AutoNearest) => self.find_tsconfig_auto(cached_path, true),
             Some(TsconfigDiscovery::Manual(o)) => self.find_tsconfig_manual(o),
         }
     }
@@ -201,6 +230,7 @@ impl ResolverImpl {
     fn find_tsconfig_auto(
         &self,
         cached_path: &CachedPath,
+        nearest_fallback: bool,
     ) -> Result<Option<Arc<TsConfig>>, ResolveError> {
         let mut ctx = Ctx::default();
         let mut cache_value = Some(cached_path.clone());
@@ -228,6 +258,9 @@ impl ResolverImpl {
                 // `files`/`include`/`exclude`, or via a matching reference);
                 // otherwise keep walking up to an ancestor that does.
                 if tsconfig.claims_ownership_of(cached_path.path()) {
+                    return Ok(Some(Arc::clone(tsconfig)));
+                }
+                if nearest_fallback {
                     return Ok(Some(Arc::clone(tsconfig)));
                 }
             }
@@ -300,7 +333,9 @@ impl ResolverImpl {
         let path = path.as_ref();
         let references = match &self.options.tsconfig {
             Some(TsconfigDiscovery::Manual(o)) => o.references,
-            Some(TsconfigDiscovery::Auto) => TsconfigReferences::Auto,
+            Some(TsconfigDiscovery::Auto | TsconfigDiscovery::AutoNearest) => {
+                TsconfigReferences::Auto
+            }
             None => TsconfigReferences::Disabled,
         };
         self.load_tsconfig(true, path, references, &mut TsconfigResolveContext::default())
@@ -323,35 +358,38 @@ impl ResolverImpl {
                     ctx.get_extended_configs_with(tsconfig.path().to_path_buf()).into(),
                 ));
             }
+            if root && ctx.is_already_referenced(tsconfig.path()) {
+                if ctx.is_direct_self_reference(tsconfig.path()) {
+                    return Err(ResolveError::TsconfigSelfReference(tsconfig.path().to_path_buf()));
+                }
+                return Err(ResolveError::TsconfigCircularReference(
+                    ctx.get_referenced_configs_with(tsconfig.path().to_path_buf()).into(),
+                ));
+            }
 
             self.extend_tsconfig(&directory, tsconfig, ctx, load_context)?;
 
             if tsconfig.load_references(references) {
                 let path = tsconfig.path().to_path_buf();
                 let directory = tsconfig.directory().to_path_buf();
-                for reference in &tsconfig.references {
-                    let reference_tsconfig_path = directory.normalize_with(&reference.path);
-                    let referenced_tsconfig = self.cache.get_tsconfig(
-                        /* root */ true,
-                        &reference_tsconfig_path,
-                        |reference_tsconfig, reference_load_context| {
-                            if reference_tsconfig.path() == path {
-                                return Err(ResolveError::TsconfigSelfReference(
-                                    reference_tsconfig.path().to_path_buf(),
-                                ));
-                            }
-                            self.extend_tsconfig(
-                                &self.cache.value(reference_tsconfig.directory()),
-                                reference_tsconfig,
-                                ctx,
-                                reference_load_context,
-                            )?;
-                            Ok(())
-                        },
-                    )?;
-                    load_context.extend_load(&referenced_tsconfig);
-                    tsconfig.references_resolved.push(Arc::clone(&referenced_tsconfig.config));
-                }
+                let reference_paths = tsconfig
+                    .references
+                    .iter()
+                    .map(|reference| directory.normalize_with(&reference.path))
+                    .collect::<Vec<_>>();
+                ctx.with_referenced_file(path, |ctx| {
+                    for reference_path in reference_paths {
+                        let referenced_tsconfig = self.load_tsconfig(
+                            /* root */ true,
+                            &reference_path,
+                            TsconfigReferences::Auto,
+                            ctx,
+                        )?;
+                        load_context.extend_load(&referenced_tsconfig);
+                        tsconfig.references_resolved.push(Arc::clone(&referenced_tsconfig.config));
+                    }
+                    Ok::<(), ResolveError>(())
+                })?;
             }
             Ok(())
         })
@@ -449,7 +487,9 @@ impl ResolverImpl {
         let paths = match &self.options.tsconfig {
             // Do not resolve against project references because its already resolved during
             // initialization phase.
-            Some(TsconfigDiscovery::Auto) => tsconfig.resolve_path_alias(specifier),
+            Some(TsconfigDiscovery::Auto | TsconfigDiscovery::AutoNearest) => {
+                tsconfig.resolve_path_alias(specifier)
+            }
             Some(TsconfigDiscovery::Manual(o))
                 if matches!(o.references, TsconfigReferences::Disabled) =>
             {

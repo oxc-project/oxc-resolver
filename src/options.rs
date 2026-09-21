@@ -516,7 +516,12 @@ impl std::fmt::Debug for Restriction {
 
 #[derive(Debug, Clone)]
 pub enum TsconfigDiscovery {
+    /// Match TypeScript project ownership. Files owned by no config use no tsconfig.
     Auto,
+    /// Search the nearest config and its reference graph, falling back to that nearest config when
+    /// no project owns the file. This compatibility mode is useful for orphan Storybook or Angular
+    /// files that rely on solution-root path aliases.
+    AutoNearest,
     Manual(TsconfigOptions),
 }
 

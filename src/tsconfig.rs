@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::VecDeque,
     fmt::Debug,
     hash::BuildHasherDefault,
     path::{Component, Path, PathBuf},
@@ -8,7 +9,7 @@ use std::{
 
 use compact_str::CompactString;
 use indexmap::IndexMap;
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashSet, FxHasher};
 use serde::Deserialize;
 
 use crate::{
@@ -441,10 +442,16 @@ impl TsConfig {
         path: &Path,
         specifier: &str,
     ) -> Vec<PathBuf> {
-        for tsconfig in &self.references_resolved {
-            if path.starts_with(&tsconfig.compiler_options.paths_base) {
-                return tsconfig.resolve_path_alias(specifier);
+        let mut queue = self.references_resolved.iter().cloned().collect::<VecDeque<_>>();
+        let mut visited = FxHashSet::default();
+        while let Some(config) = queue.pop_front() {
+            if !visited.insert(config.path.clone()) {
+                continue;
             }
+            if path.starts_with(&config.compiler_options.paths_base) {
+                return config.resolve_path_alias(specifier);
+            }
+            queue.extend(config.references_resolved.iter().cloned());
         }
         self.resolve_path_alias(specifier)
     }
@@ -801,16 +808,25 @@ fn to_forward_slashes(s: Cow<'_, str>) -> Cow<'_, str> {
 /// Tsconfig resolver
 impl TsConfig {
     pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
-        if !tsconfig.references_resolved.is_empty()
-            && let Some(solution_tsconfig) = tsconfig
-                .references_resolved
-                .iter()
-                .find(|referenced| referenced.is_file_included_in_tsconfig(path))
-                .map(Arc::clone)
-        {
+        if let Some(solution_tsconfig) = tsconfig.find_referenced_config(path) {
             return solution_tsconfig;
         }
         tsconfig
+    }
+
+    fn find_referenced_config(&self, path: &Path) -> Option<Arc<Self>> {
+        let mut queue = self.references_resolved.iter().cloned().collect::<VecDeque<_>>();
+        let mut visited = FxHashSet::default();
+        while let Some(config) = queue.pop_front() {
+            if !visited.insert(config.path.clone()) {
+                continue;
+            }
+            if config.is_file_included_in_tsconfig(path) {
+                return Some(config);
+            }
+            queue.extend(config.references_resolved.iter().cloned());
+        }
+        None
     }
 
     /// Whether this tsconfig (directly or via a referenced sub-project) claims
@@ -821,7 +837,7 @@ impl TsConfig {
     pub(crate) fn claims_ownership_of(&self, path: &Path) -> bool {
         // Any matching reference claims ownership (consistent with
         // resolve_tsconfig_solution).
-        if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {
+        if self.find_referenced_config(path).is_some() {
             return true;
         }
         // Solution-style configs (have `references` and explicit empty
