@@ -1,7 +1,7 @@
 //! Experimental [Node.js package map] resolution selected through `NODE_OPTIONS`.
 //!
 //! A package map contains a `packages` object whose opaque package IDs map to a required `url` and
-//! an optional `dependencies` object. Entry URLs are resolved from the real path of the map.
+//! an optional `dependencies` object. Entry URLs are resolved from the configured map path.
 //! Multiple IDs resolving to the same path remain ambiguous, as required for [multiple packages
 //! sharing one URL].
 //!

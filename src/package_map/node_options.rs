@@ -1,14 +1,9 @@
-use std::path::{Path, PathBuf};
-
-use crate::PathUtil;
+use std::path::PathBuf;
 
 /// Extracts the last `--experimental-package-map` path from `NODE_OPTIONS`.
 ///
 /// Tokenization follows Node's `ParseNodeOptionsEnvVar` quoting and escaping rules.
-pub(super) fn package_map_path_from_node_options(
-    node_options: &str,
-    cwd: &Path,
-) -> Option<PathBuf> {
+pub(super) fn package_map_path_from_node_options(node_options: &str) -> Option<PathBuf> {
     let arguments = parse_node_options(node_options)?;
     let mut package_map_path = None;
     let mut index = 0;
@@ -28,7 +23,6 @@ pub(super) fn package_map_path_from_node_options(
     }
 
     package_map_path
-        .map(|path| if path.is_relative() { cwd.normalize_with(path) } else { path.normalize() })
 }
 
 fn parse_node_options(node_options: &str) -> Option<Vec<String>> {
@@ -57,4 +51,22 @@ fn parse_node_options(node_options: &str) -> Option<Vec<String>> {
     }
 
     (!is_in_string).then_some(arguments)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn absolute_path_does_not_require_cwd() {
+        #[cfg(windows)]
+        let path = r"C:\package-map.json";
+        #[cfg(not(windows))]
+        let path = "/package-map.json";
+
+        assert_eq!(
+            package_map_path_from_node_options(&format!(r#"--experimental-package-map="{path}""#)),
+            Some(PathBuf::from(path)),
+        );
+    }
 }

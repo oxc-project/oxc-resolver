@@ -40,6 +40,7 @@ fn node_options(case: &str) -> String {
             fixture("package-map/invalid/invalid-dependencies.package-map.json")
         }
         "invalid-url" => fixture("package-map/invalid/invalid-url.package-map.json"),
+        "invalid-authority" => fixture("package-map/invalid/invalid-authority.package-map.json"),
         "invalid-percent" => fixture("package-map/invalid/invalid-percent.package-map.json"),
         "encoded-separator" => fixture("package-map/invalid/encoded-separator.package-map.json"),
         "url-forms" => fixture("package-map/url-forms/.package-map.json"),
@@ -158,6 +159,37 @@ fn resolution() {
         "axios",
         &fixture.join("node_modules/store/axios/index.js"),
     );
+    assert_eq!(
+        resolver
+            .resolve_file(fixture.join("node_modules/store/plain-file.js"), "react")
+            .map(|resolution| resolution.full_path()),
+        Ok(fixture.join("node_modules/store/react/index.js")),
+    );
+    let resolution = resolver
+        .resolve_file(fixture.join("node_modules/store/plain-file.js"), "react#fragment")
+        .unwrap();
+    assert_eq!(resolution.path(), fixture.join("node_modules/store/react/index.js"));
+    assert_eq!(resolution.fragment(), Some("#fragment"));
+
+    let context_resolver =
+        Resolver::new(ResolveOptions { resolve_to_context: true, ..ResolveOptions::default() });
+    assert_resolution(
+        &context_resolver,
+        &importer,
+        "plain-directory",
+        &fixture.join("node_modules/store/plain-directory"),
+    );
+
+    let browser_resolver = Resolver::new(ResolveOptions {
+        alias_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    });
+    assert_resolution(
+        &browser_resolver,
+        &importer,
+        "plain-directory",
+        &fixture.join("node_modules/store/react/index.js"),
+    );
 
     assert_not_found(&resolver, &importer, "follow-redirects");
     assert_not_found(&resolver, &importer, "plain-directory/missing");
@@ -268,7 +300,9 @@ fn invalid(case: &str) {
             let expected_reason = match case {
                 "empty-url" => Some("empty \"url\" field"),
                 "invalid-url" => Some("unsupported URL scheme"),
-                "invalid-percent" | "encoded-separator" => Some("invalid file URL"),
+                "invalid-authority" | "invalid-percent" | "encoded-separator" => {
+                    Some("invalid file URL")
+                }
                 "invalid-shape" | "invalid-dependencies" => None,
                 _ => unreachable!(),
             };
@@ -316,6 +350,7 @@ fn child(case: &str) {
         | "empty-url"
         | "invalid-dependencies"
         | "invalid-url"
+        | "invalid-authority"
         | "invalid-percent"
         | "encoded-separator" => invalid(case),
         #[cfg(not(windows))]
@@ -341,6 +376,7 @@ fn package_map() {
         "empty-url",
         "invalid-dependencies",
         "invalid-url",
+        "invalid-authority",
         "invalid-percent",
         "encoded-separator",
         "missing",

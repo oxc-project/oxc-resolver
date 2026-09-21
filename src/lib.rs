@@ -263,7 +263,11 @@ impl ResolverImpl {
     }
 
     fn resolve_file_impl(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
-        let mut ctx = Ctx { resolve_file: true, ..Ctx::default() };
+        let mut ctx = Ctx {
+            resolve_file: true,
+            package_map_parent: Some(path.to_path_buf()),
+            ..Ctx::default()
+        };
         let Some(dir) = path.parent() else {
             return Err(Self::invalid_resolve_file_path_error(path));
         };
@@ -486,7 +490,6 @@ impl ResolverImpl {
             if err.is_ignore() {
                 return Err(err);
             }
-
             // enhanced-resolve: try fallback
             self.load_alias(cached_path, specifier, &self.fallback, tsconfig, ctx)?.ok_or(err)
         })

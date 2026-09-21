@@ -2,5 +2,3 @@ packages:
   - apps/web
   - packages/ui
   - packages/utils
-
-nodePackageMapType: standard

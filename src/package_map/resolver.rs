@@ -33,8 +33,7 @@ impl ResolverImpl {
     /// Implements package-map dispatch from step 6 of Node's CommonJS resolution pseudocode.
     ///
     /// Node permits the importing package ID to be propagated by the caller. The resolver returns
-    /// paths rather than package IDs, so this implementation takes the specified fallback and calls
-    /// `FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)` for every uncached importer path.
+    /// paths rather than package IDs, so this implementation uses the importing path to find it.
     ///
     /// See <https://nodejs.org/api/modules.html#all-together>.
     fn load_package_map_for_importer(
@@ -47,34 +46,41 @@ impl ResolverImpl {
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
-        // Step 6.a: derive PARENT_PACKAGE_ID from dirname(Y). `cached_path` is already dirname(Y)
-        // because the public resolve API accepts the importing directory, not the importing file.
-        let parent_path = cached_path.path();
-        let parent_package_id =
-            package_map.find_package_id(parent_path).map_err(|error| match error {
-                FindPackageIdError::AmbiguousResolution => {
-                    ResolveError::PackageMapAmbiguousResolution {
+        // Step 6.a: derive PARENT_PACKAGE_ID from the importer. `resolve` supplies dirname(Y), while
+        // the first `resolve_file` dispatch retains Y so file-valued package entries match Node.
+        let package_map_parent = ctx.package_map_parent.take();
+        let parent_path = package_map_parent.as_deref().unwrap_or_else(|| cached_path.path());
+        let result = (|| {
+            let parent_package_id =
+                package_map.find_package_id(parent_path).map_err(|error| match error {
+                    FindPackageIdError::AmbiguousResolution => {
+                        ResolveError::PackageMapAmbiguousResolution {
+                            specifier: specifier.to_string(),
+                            parent_path: parent_path.to_path_buf(),
+                            package_map_path: package_map.path().to_path_buf(),
+                        }
+                    }
+                    FindPackageIdError::ExternalFile => ResolveError::PackageMapExternalFile {
                         specifier: specifier.to_string(),
                         parent_path: parent_path.to_path_buf(),
                         package_map_path: package_map.path().to_path_buf(),
-                    }
-                }
-                FindPackageIdError::ExternalFile => ResolveError::PackageMapExternalFile {
-                    specifier: specifier.to_string(),
-                    parent_path: parent_path.to_path_buf(),
-                    package_map_path: package_map.path().to_path_buf(),
-                },
-            })?;
+                    },
+                })?;
 
-        self.load_package_map(
-            specifier,
-            name,
-            subpath,
-            parent_package_id,
-            package_map,
-            tsconfig,
-            ctx,
-        )
+            self.load_package_map(
+                specifier,
+                name,
+                subpath,
+                parent_package_id,
+                package_map,
+                tsconfig,
+                ctx,
+            )
+        })();
+        if result.is_err() {
+            ctx.package_map_parent = package_map_parent;
+        }
+        result
     }
 
     /// Implements `LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)`.
@@ -131,15 +137,17 @@ impl ResolverImpl {
         let package_subpath = package_path.normalize_with(dot_subpath.as_ref(), &self.cache);
 
         // 8. LOAD_AS_FILE(PACKAGE_PATH/SUBPATH).
-        if !subpath.ends_with('/')
-            && let Some(path) = self.load_as_file(&package_subpath, tsconfig, ctx)?
+        // 9. LOAD_AS_DIRECTORY(PACKAGE_PATH/SUBPATH).
+        // Apply enhanced-resolve aliases at the same point as regular node_modules resolution.
+        if (!self.options.alias_fields.is_empty() || !self.options.alias.is_empty())
+            && !self.options.resolve_to_context
+            && self.is_dir(&package_subpath, ctx)
+            && let Some(path) = self.load_browser_field_or_alias(&package_subpath, tsconfig, ctx)?
         {
             return Ok(path);
         }
-
-        // 9. LOAD_AS_DIRECTORY(PACKAGE_PATH/SUBPATH).
-        if self.is_dir(&package_subpath, ctx)
-            && let Some(path) = self.load_as_directory(&package_subpath, tsconfig, ctx)?
+        if let Some(path) =
+            self.load_as_file_or_directory(&package_subpath, subpath, tsconfig, ctx)?
         {
             return Ok(path);
         }

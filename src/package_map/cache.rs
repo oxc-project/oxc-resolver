@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use crate::ResolveError;
+use crate::{PathUtil, ResolveError};
 
 use super::{map::PackageMap, node_options::package_map_path_from_node_options};
 
@@ -44,6 +44,10 @@ impl PackageMapCache {
 
 fn package_map_path() -> Option<PathBuf> {
     let node_options = std::env::var("NODE_OPTIONS").ok()?;
-    let cwd = std::env::current_dir().ok()?;
-    package_map_path_from_node_options(&node_options, &cwd)
+    let path = package_map_path_from_node_options(&node_options)?;
+    if path.is_relative() {
+        Some(std::env::current_dir().ok()?.normalize_with(path))
+    } else {
+        Some(path.normalize())
+    }
 }

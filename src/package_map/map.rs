@@ -195,7 +195,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
             if rest.starts_with("//") {
                 return Self::file_url_to_path(&format!("file:{rest}"), value);
             }
-            if rest.starts_with('/') || Self::starts_with_windows_drive(rest) {
+            if Self::starts_with_windows_drive(rest) {
                 return Self::file_url_to_path(&format!("file://{rest}"), value);
             }
             rest
@@ -215,7 +215,46 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         let decoded = percent_encoding::percent_decode_str(relative)
             .decode_utf8()
             .map_err(|_| format!("an invalid file URL {value:?}"))?;
+        #[cfg(windows)]
+        if relative.starts_with('/') {
+            return Self::windows_root_relative_path(base, &decoded);
+        }
         Ok(base.normalize_with(Path::new(decoded.as_ref())))
+    }
+
+    #[cfg(windows)]
+    fn windows_root_relative_path(base: &Path, relative: &str) -> Result<PathBuf, String> {
+        use std::path::Prefix;
+
+        let Some(Component::Prefix(prefix)) = base.components().next() else {
+            return Err("an invalid configuration file path".to_string());
+        };
+        let mut suffix = relative;
+        let mut path = match prefix.kind() {
+            Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => {
+                let bytes = relative.as_bytes();
+                let drive = if bytes.len() >= 4
+                    && bytes[0] == b'/'
+                    && bytes[1].is_ascii_alphabetic()
+                    && bytes[2] == b':'
+                    && bytes[3] == b'/'
+                {
+                    suffix = &relative[3..];
+                    bytes[1]
+                } else {
+                    drive
+                };
+                PathBuf::from(format!("{}:", char::from(drive)))
+            }
+            Prefix::UNC(server, _) | Prefix::VerbatimUNC(server, _) => {
+                PathBuf::from(format!(r"\\{}", server.to_string_lossy()))
+            }
+            Prefix::DeviceNS(_) | Prefix::Verbatim(_) => {
+                return Err("an invalid configuration file path".to_string());
+            }
+        };
+        path.push(suffix);
+        Ok(path.normalize())
     }
 
     fn file_url_to_path(url: &str, value: &str) -> Result<PathBuf, String> {
@@ -294,5 +333,47 @@ impl<'a, E: PackageMapEntryBackend<'a>> PackageMapEntryGeneric<'a, E> {
 
     pub(super) fn dependency(&self, specifier: &str) -> Option<&'a str> {
         self.entry.dependency(specifier)
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::PackageMap;
+    use std::path::Path;
+
+    #[test]
+    fn root_relative_url_preserves_drive_or_host() {
+        assert_eq!(
+            PackageMap::resolve_url_from(
+                Path::new(r"D:\maps\.package-map.json"),
+                "/store/package",
+            )
+            .unwrap(),
+            Path::new(r"D:\store\package"),
+        );
+        assert_eq!(
+            PackageMap::resolve_url_from(
+                Path::new(r"D:\maps\.package-map.json"),
+                "file:/store/package",
+            )
+            .unwrap(),
+            Path::new(r"D:\store\package"),
+        );
+        assert_eq!(
+            PackageMap::resolve_url_from(
+                Path::new(r"D:\maps\.package-map.json"),
+                "/E:/store/package",
+            )
+            .unwrap(),
+            Path::new(r"E:\store\package"),
+        );
+        assert_eq!(
+            PackageMap::resolve_url_from(
+                Path::new(r"\\server\share\maps\.package-map.json"),
+                "/store/package",
+            )
+            .unwrap(),
+            Path::new(r"\\server\store\package"),
+        );
     }
 }
