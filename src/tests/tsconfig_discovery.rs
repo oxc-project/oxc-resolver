@@ -130,8 +130,8 @@ fn extends_root_dirs_with_ancestor_tsconfig() {
     });
 
     let path = f.join("pkg/src/consumer.ts");
-    let resolved = resolver.resolve_file(&path, "./data").map(|r| r.full_path());
-    assert_eq!(resolved, Ok(f.join("pkg/gen/types/src/data.ts")));
+    let resolution = resolver.resolve_file(&path, "./data").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("pkg/gen/types/src/data.ts")));
 }
 
 #[test]
@@ -150,4 +150,23 @@ fn tsconfig_discovery_with_inherited_include_from_subdirectory() {
 
     let resolved_path = resolver.resolve_file(&importer, "@/b").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/b.ts")));
+}
+
+#[test]
+fn tsconfig_discovery_keeps_symlink_visible_file_patterns() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
+    let linked_project = f.join("project/configs");
+    let importer = linked_project.join("src/a.ts");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let config = resolver.find_tsconfig(&importer).expect("valid config").expect("owned file");
+    assert_eq!(config.path, linked_project.join("tsconfig.json"));
+
+    let resolution = resolver.resolve_file(&importer, "@link/b").map(|result| result.full_path());
+    assert_eq!(resolution, Ok(f.join("real-configs/src/b.ts")));
 }

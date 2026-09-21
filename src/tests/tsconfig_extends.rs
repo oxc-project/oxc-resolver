@@ -224,6 +224,28 @@ fn test_extend_tsconfig_not_found() {
 }
 
 #[test]
+fn test_explicit_null_clears_earlier_extends_entries() {
+    let f = super::fixture_root().join("tsconfig/cases/null-overrides");
+    let resolver = Resolver::default();
+
+    let config = resolver.resolve_tsconfig(&f).expect("resolved");
+    assert_eq!(config.files, None);
+    assert_eq!(config.include, None);
+    assert_eq!(config.exclude, None);
+
+    let options = &config.compiler_options;
+    assert_eq!(options.base_url, None);
+    assert_eq!(options.paths, None);
+    assert_eq!(options.strict, None);
+    assert_eq!(options.allow_js, None);
+    assert_eq!(options.root_dirs, None);
+    assert_eq!(options.out_dir, None);
+    assert_eq!(options.declaration_dir, None);
+    // Fields omitted by the later config still inherit from the earlier one.
+    assert_eq!(options.target.as_deref(), Some("ES2020"));
+}
+
+#[test]
 fn test_extend_diagnostics_and_dependencies() {
     let f = super::fixture_root().join("tsconfig/cases/extends-diagnostics");
 
