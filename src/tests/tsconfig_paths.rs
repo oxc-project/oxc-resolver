@@ -344,7 +344,7 @@ fn test_tsconfig_mixed_root_non_root_cache() {
         tsconfig: Some(TsconfigDiscovery::Auto),
         ..ResolveOptions::default()
     });
-    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
+    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_, _| Ok(())).unwrap();
     let resolved_path =
         resolver.resolve_file(f2.join("foo.ts"), "bar/index.ts").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f2.join("bar/index.ts")));
@@ -359,7 +359,7 @@ fn test_tsconfig_mixed_root_non_root_cache2() {
         tsconfig: Some(TsconfigDiscovery::Auto),
         ..ResolveOptions::default()
     });
-    resolver.cache.get_tsconfig(true, &f2.join("tsconfig.base.json"), |_| Ok(())).unwrap();
+    resolver.cache.get_tsconfig(true, &f2.join("tsconfig.base.json"), |_, _| Ok(())).unwrap();
     let resolved_path =
         resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f2.join("src/index.js")));
@@ -374,7 +374,7 @@ fn test_tsconfig_mixed_root_non_root_cache3() {
         tsconfig: Some(TsconfigDiscovery::Auto),
         ..ResolveOptions::default()
     });
-    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
+    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_, _| Ok(())).unwrap();
     let resolved_path =
         resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f2.join("src/index.js")));

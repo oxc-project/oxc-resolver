@@ -6,7 +6,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    ResolveError, ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions,
+    TsconfigReferences,
 };
 
 #[test]
@@ -220,6 +221,64 @@ fn test_extend_tsconfig_not_found() {
 
     let result = resolver.resolve_tsconfig(&f);
     assert!(result.is_ok(), "a missing `extends` target must be non-fatal, got {result:?}");
+}
+
+#[test]
+fn test_extend_diagnostics_and_dependencies() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-diagnostics");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Disabled,
+        })),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let first = resolver.resolve_tsconfig_with_context(&f).expect("usable local config");
+    assert_eq!(first.config.compiler_options.target.as_deref(), Some("ES2022"));
+    assert_eq!(first.diagnostics.len(), 2);
+    assert!(first.diagnostics.iter().any(|diagnostic| {
+        matches!(&diagnostic.error, ResolveError::TsconfigNotFound(path) if path.ends_with("missing.json"))
+    }));
+    assert!(first.diagnostics.iter().any(|diagnostic| {
+        matches!(
+            &diagnostic.error,
+            ResolveError::TsconfigLoadFailed { path, source }
+                if path == &f.join("malformed.json")
+                    && matches!(source.as_ref(), ResolveError::Json(_))
+        )
+    }));
+    assert_eq!(
+        first.file_dependencies.as_ref(),
+        [f.join("tsconfig.json"), f.join("malformed.json"), f.join("valid.json")]
+    );
+    assert!(first.missing_dependencies.iter().any(|path| path.ends_with("missing.json")));
+
+    // The full outcome, not only the config, survives a cache hit.
+    let second = resolver.resolve_tsconfig_with_context(&f).expect("cached outcome");
+    assert_eq!(second.diagnostics.as_ref(), first.diagnostics.as_ref());
+    assert_eq!(second.file_dependencies.as_ref(), first.file_dependencies.as_ref());
+    assert_eq!(second.missing_dependencies.as_ref(), first.missing_dependencies.as_ref());
+
+    // Resolution uses the usable local config despite both diagnostics.
+    let resolution = resolver
+        .resolve_file(f.join("importer.ts"), "@app/value")
+        .map(|resolution| resolution.full_path());
+    assert_eq!(resolution, Ok(f.join("src/value.ts")));
+}
+
+#[test]
+fn test_malformed_root_config_remains_fatal_with_context() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-diagnostics/malformed.json");
+    let resolver = Resolver::default();
+
+    assert!(matches!(
+        resolver.resolve_tsconfig_with_context(&f),
+        Err(ResolveError::TsconfigLoadFailed { source, .. })
+            if matches!(source.as_ref(), ResolveError::Json(_))
+    ));
 }
 
 /// When a tsconfig's `references` target does not exist,
@@ -449,8 +508,8 @@ fn test_extend_package_not_found_still_resolves() {
         ..ResolveOptions::default()
     });
 
-    let resolved = resolver.resolve_file(f.join("a.ts"), "./b").map(|r| r.full_path());
-    assert_eq!(resolved, Ok(f.join("b.ts")));
+    let resolution = resolver.resolve_file(f.join("a.ts"), "./b").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("b.ts")));
 }
 
 /// Same for a missing **relative** `extends` target (e.g. a generated
@@ -465,6 +524,6 @@ fn test_extend_relative_not_found_still_resolves() {
         ..ResolveOptions::default()
     });
 
-    let resolved = resolver.resolve_file(f.join("a.ts"), "./b").map(|r| r.full_path());
-    assert_eq!(resolved, Ok(f.join("b.ts")));
+    let resolution = resolver.resolve_file(f.join("a.ts"), "./b").map(|r| r.full_path());
+    assert_eq!(resolution, Ok(f.join("b.ts")));
 }
