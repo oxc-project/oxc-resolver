@@ -11,6 +11,19 @@ const fixtureDir = path.resolve(
 
 describe("option", () => {
   describe("tsconfig", () => {
+    it("applies inherited custom conditions", () => {
+      const root = path.resolve(
+        import.meta.dirname,
+        "../../fixtures/tsconfig/cases/custom-conditions",
+      );
+      const resolver = new ResolverFactory({ tsconfig: "auto", conditionNames: ["global"] });
+      const result = resolver.resolveFileSync(
+        path.join(root, "inherited/main.ts"),
+        "custom-conditions-pkg",
+      );
+      assert.equal(result.path, path.join(root, "node_modules/custom-conditions-pkg/tsconfig.js"));
+    });
+
     it("supports the explicit nearest-config fallback mode", () => {
       const root = path.resolve(
         import.meta.dirname,

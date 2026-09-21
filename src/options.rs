@@ -40,7 +40,9 @@ pub struct ResolveOptions {
     /// Default `[]`
     pub alias_fields: Vec<Vec<String>>,
 
-    /// Condition names for exports field which defines entry points of a package.
+    /// Condition names for package `exports` and `imports` fields.
+    ///
+    /// When a tsconfig is active, its `compilerOptions.customConditions` are also matched.
     ///
     /// The key order in the exports field is significant. During condition matching, earlier entries have higher priority and take precedence over later entries.
     ///

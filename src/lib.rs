@@ -1607,8 +1607,38 @@ impl ResolverImpl {
             subpath: subpath.to_string(),
             package_path: package_url.path().to_path_buf(),
             package_json_path: package_url.path().join("package.json"),
-            conditions: self.options.condition_names.clone().into(),
+            conditions: self.package_condition_names(tsconfig).into(),
         })
+    }
+
+    /// Test a package condition without allocating a merged condition list on the resolution hot
+    /// path. Package-object insertion order, not condition-list order, determines precedence.
+    #[inline]
+    fn matches_package_condition(
+        condition_names: &[String],
+        tsconfig: Option<&TsConfig>,
+        condition: &str,
+    ) -> bool {
+        condition_names.iter().any(|name| name == condition)
+            || tsconfig
+                .and_then(|config| config.compiler_options.custom_conditions.as_ref())
+                .is_some_and(|names| names.iter().any(|name| name == condition))
+    }
+
+    /// Materialize active conditions only for an error that exposes them to the caller.
+    #[cold]
+    fn package_condition_names(&self, tsconfig: Option<&TsConfig>) -> Vec<String> {
+        let mut conditions = self.options.condition_names.clone();
+        if let Some(custom_conditions) =
+            tsconfig.and_then(|config| config.compiler_options.custom_conditions.as_ref())
+        {
+            for condition in custom_conditions {
+                if !conditions.contains(condition) {
+                    conditions.push(condition.clone());
+                }
+            }
+        }
+        conditions
     }
 
     /// PACKAGE_IMPORTS_RESOLVE(specifier, parentURL, conditions)
@@ -1842,7 +1872,7 @@ impl ResolverImpl {
             // 2. For each property p of target, in object insertion order as,
             for (key, target_value) in target.iter() {
                 // 1. If p equals "default" or conditions contains an entry for p, then
-                if key == "default" || conditions.iter().any(|condition| condition == key) {
+                if key == "default" || Self::matches_package_condition(conditions, tsconfig, key) {
                     // 1. Let targetValue be the value of the p property in target.
                     // 2. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions).
                     let resolved = self.package_target_resolve(
@@ -1874,7 +1904,7 @@ impl ResolverImpl {
                     subpath: pattern_match.unwrap_or(".").to_string(),
                     package_path: package_url.path().to_path_buf(),
                     package_json_path: package_url.path().join("package.json"),
-                    conditions: self.options.condition_names.clone().into(),
+                    conditions: self.package_condition_names(tsconfig).into(),
                 });
             }
             // 2. For each item targetValue in target, do

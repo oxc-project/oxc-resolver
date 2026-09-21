@@ -321,6 +321,7 @@ impl TsConfig {
         inherit!(declaration_dir, DECLARATION_DIR);
         inherit!(resolve_json_module, RESOLVE_JSON_MODULE);
         inherit!(check_js, CHECK_JS);
+        inherit!(custom_conditions, CUSTOM_CONDITIONS);
     }
 
     fn inherit_file_patterns(&mut self, tsconfig: &Self) {
@@ -597,6 +598,7 @@ const OUT_DIR: u32 = 1 << 19;
 const DECLARATION_DIR: u32 = 1 << 20;
 const RESOLVE_JSON_MODULE: u32 = 1 << 21;
 const CHECK_JS: u32 = 1 << 22;
+const CUSTOM_CONDITIONS: u32 = 1 << 23;
 
 #[derive(Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -647,6 +649,8 @@ struct RawCompilerOptions {
     resolve_json_module: ConfigField<bool>,
     #[serde(default)]
     check_js: ConfigField<bool>,
+    #[serde(default)]
+    custom_conditions: ConfigField<Vec<String>>,
 }
 
 /// Compiler Options
@@ -729,6 +733,11 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#checkJs>
     pub check_js: Option<bool>,
+
+    /// Additional package `exports` and `imports` conditions.
+    ///
+    /// <https://www.typescriptlang.org/tsconfig/#customConditions>
+    pub custom_conditions: Option<Vec<String>>,
 }
 
 impl<'de> Deserialize<'de> for CompilerOptions {
@@ -778,6 +787,7 @@ impl<'de> Deserialize<'de> for CompilerOptions {
             declaration_dir: field!(declaration_dir, DECLARATION_DIR),
             resolve_json_module: field!(resolve_json_module, RESOLVE_JSON_MODULE),
             check_js: field!(check_js, CHECK_JS),
+            custom_conditions: field!(custom_conditions, CUSTOM_CONDITIONS),
             presence,
             ..Self::default()
         })
