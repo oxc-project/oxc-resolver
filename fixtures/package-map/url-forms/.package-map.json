@@ -11,6 +11,9 @@
     },
     "file-absolute": {
       "url": "file:/tmp/package-map"
+    },
+    "percent-encoded": {
+      "url": "percent%20encoded"
     }
   }
 }
