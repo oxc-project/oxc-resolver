@@ -42,6 +42,7 @@ fn node_options(case: &str) -> String {
         "invalid-url" => fixture("package-map/invalid/invalid-url.package-map.json"),
         "invalid-percent" => fixture("package-map/invalid/invalid-percent.package-map.json"),
         "encoded-separator" => fixture("package-map/invalid/encoded-separator.package-map.json"),
+        "url-forms" => fixture("package-map/url-forms/.package-map.json"),
         "missing" => fixture("package-map/invalid/missing.package-map.json"),
         "no-map" => return "--trace-warnings".into(),
         "empty" => {
@@ -297,6 +298,15 @@ fn missing() {
     assert!(context.missing_dependencies.contains(&missing_path));
 }
 
+#[cfg(not(windows))]
+fn url_forms() {
+    let fixture = fixture("package-map/url-forms");
+    assert!(matches!(
+        resolver(ResolveOptions::default()).resolve(&fixture, "dependency"),
+        Err(ResolveError::PackageMapExternalFile { .. })
+    ));
+}
+
 fn child(case: &str) {
     match case {
         "resolution" => resolution(),
@@ -308,6 +318,8 @@ fn child(case: &str) {
         | "invalid-url"
         | "invalid-percent"
         | "encoded-separator" => invalid(case),
+        #[cfg(not(windows))]
+        "url-forms" => url_forms(),
         "missing" => missing(),
         "no-map" | "empty" | "unterminated" | "trailing-escape" => no_map(),
         _ => unreachable!(),
@@ -336,6 +348,8 @@ fn package_map() {
         "empty",
         "unterminated",
         "trailing-escape",
+        #[cfg(not(windows))]
+        "url-forms",
     ] {
         if cfg!(target_endian = "big") {
             // `cross` runs the test through an emulator, but a child would bypass that runner.

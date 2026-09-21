@@ -264,8 +264,16 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
     fn has_encoded_separator(value: &str) -> bool {
         value.as_bytes().windows(3).any(|bytes| {
             bytes[0] == b'%'
-                && ((bytes[1] == b'2' && bytes[2].eq_ignore_ascii_case(&b'f'))
-                    || (cfg!(windows) && bytes[1] == b'5' && bytes[2].eq_ignore_ascii_case(&b'c')))
+                && ((bytes[1] == b'2' && bytes[2].eq_ignore_ascii_case(&b'f')) || {
+                    #[cfg(windows)]
+                    {
+                        bytes[1] == b'5' && bytes[2].eq_ignore_ascii_case(&b'c')
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        false
+                    }
+                })
         })
     }
 

@@ -1,0 +1,16 @@
+{
+  "packages": {
+    "controls": {
+      "url": "relative\t\npath"
+    },
+    "protocol-relative": {
+      "url": "//localhost/tmp/package-map"
+    },
+    "file-authority": {
+      "url": "file://localhost/tmp/package-map"
+    },
+    "file-absolute": {
+      "url": "file:/tmp/package-map"
+    }
+  }
+}
