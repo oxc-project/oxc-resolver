@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { assert, test } from "vite-plus/test";
@@ -155,21 +154,4 @@ test("resolves tsconfig extends through package maps", () => {
     });
     assertResolution(result, path.join(importer, "index.js"));
   }
-});
-
-test("resolves package URLs from the canonical package-map path", () => {
-  const symlinkFixture = path.join(rootDir, "fixtures/integration/nested-symlink");
-  const toolingLink = path.join(symlinkFixture, "apps/tooling");
-  if (!fs.existsSync(toolingLink) || !fs.lstatSync(toolingLink).isSymbolicLink()) {
-    return;
-  }
-
-  assertResolution(
-    resolve(
-      path.join(toolingLink, "typescript-config"),
-      "dep",
-      path.join(toolingLink, ".package-map.json"),
-    ),
-    path.join(symlinkFixture, "nm/index.js"),
-  );
 });

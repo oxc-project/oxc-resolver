@@ -49,13 +49,7 @@ impl ResolverImpl {
     ) -> Result<CachedPath, ResolveError> {
         // Step 6.a: derive PARENT_PACKAGE_ID from dirname(Y). `cached_path` is already dirname(Y)
         // because the public resolve API accepts the importing directory, not the importing file.
-        let canonical_parent_path;
-        let parent_path = if self.options.symlinks {
-            canonical_parent_path = self.cache.canonicalize(cached_path)?;
-            canonical_parent_path.as_path()
-        } else {
-            cached_path.path()
-        };
+        let parent_path = cached_path.path();
         let parent_package_id =
             package_map.find_package_id(parent_path).map_err(|error| match error {
                 FindPackageIdError::AmbiguousResolution => {
@@ -159,9 +153,7 @@ impl ResolverImpl {
         let package_map = self.cache.package_map.get_or_init(|package_map_path| {
             tracing::debug!(path = ?package_map_path, "load_package_map");
             let json = self.cache.fs.read(package_map_path)?;
-            // Resolve URLs from the real map path to match canonical module paths.
-            let canonical_path = self.cache.canonicalize(&self.cache.value(package_map_path))?;
-            PackageMap::parse(canonical_path, json)
+            PackageMap::parse(package_map_path.to_path_buf(), json)
         });
 
         match package_map {
