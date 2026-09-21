@@ -309,3 +309,6 @@ export interface TsconfigOptions {
    */
   references?: 'auto'
 }
+
+/** The WASI flavor this loader instantiates. */
+export declare const __napiBindingTarget: 'wasm32-wasi'
