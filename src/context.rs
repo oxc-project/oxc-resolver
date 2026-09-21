@@ -23,6 +23,8 @@ pub struct ResolveContext {
     pub depth: u8,
 
     pub resolve_file: bool,
+
+    pub package_map_parent: Option<PathBuf>,
 }
 
 impl ResolveContext {

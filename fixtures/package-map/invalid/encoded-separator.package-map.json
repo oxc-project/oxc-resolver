@@ -1,0 +1,7 @@
+{
+  "packages": {
+    "dependency": {
+      "url": "package%2Fsubpath"
+    }
+  }
+}

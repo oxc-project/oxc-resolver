@@ -19,7 +19,7 @@ use super::{
 };
 use crate::{
     FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
-    context::ResolveContext as Ctx, path::PathUtil,
+    context::ResolveContext as Ctx, package_map::PackageMapCache, path::PathUtil,
 };
 
 /// Cache implementation used for caching filesystem access.
@@ -32,6 +32,7 @@ pub struct Cache {
     pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
+    pub(crate) package_map: Box<PackageMapCache>,
 }
 
 impl Cache {
@@ -39,6 +40,7 @@ impl Cache {
         self.paths.clear();
         self.tsconfigs_raw.clear();
         self.tsconfigs_built.clear();
+        self.package_map.clear();
     }
 
     /// The underlying filesystem as a trait object.
@@ -363,6 +365,7 @@ impl Cache {
             tsconfigs_built: DashMap::with_hasher(BuildHasherDefault::default()),
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp_manifest: OnceCell::new(),
+            package_map: Box::default(),
         }
     }
 

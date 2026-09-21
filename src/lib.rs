@@ -50,11 +50,11 @@ mod context;
 mod dts_resolver;
 mod error;
 mod file_system;
-#[cfg(not(target_arch = "wasm32"))]
 mod file_url;
 mod node_path;
 mod options;
 mod package_json;
+mod package_map;
 mod path;
 mod resolution;
 mod specifier;
@@ -263,7 +263,11 @@ impl ResolverImpl {
     }
 
     fn resolve_file_impl(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
-        let mut ctx = Ctx { resolve_file: true, ..Ctx::default() };
+        let mut ctx = Ctx {
+            resolve_file: true,
+            package_map_parent: Some(path.to_path_buf()),
+            ..Ctx::default()
+        };
         let Some(dir) = path.parent() else {
             return Err(Self::invalid_resolve_file_path_error(path));
         };
@@ -604,7 +608,37 @@ impl ResolverImpl {
         {
             return Ok(path);
         }
-        self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
+        self.load_bare_package(cached_path, specifier, tsconfig, ctx)
+    }
+
+    fn load_bare_package(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
+        let (package_name, subpath) = Self::parse_package_specifier(specifier);
+        if subpath.is_empty() {
+            ctx.with_fully_specified(false);
+        }
+        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
+        if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
+            return Ok(path);
+        }
+        if let Some(result) =
+            self.package_map_resolve(cached_path, specifier, package_name, subpath, tsconfig, ctx)
+        {
+            return result;
+        }
+        self.load_node_modules_or_not_found(
+            cached_path,
+            specifier,
+            package_name,
+            subpath,
+            tsconfig,
+            ctx,
+        )
     }
 
     /// enhanced-resolve: ParsePlugin.
@@ -653,6 +687,25 @@ impl ResolverImpl {
         if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
+        self.load_node_modules_or_not_found(
+            cached_path,
+            specifier,
+            package_name,
+            subpath,
+            tsconfig,
+            ctx,
+        )
+    }
+
+    fn load_node_modules_or_not_found(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        package_name: &str,
+        subpath: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> Result<CachedPath, ResolveError> {
         // 6. LOAD_NODE_MODULES(X, dirname(Y))
         if let Some(path) =
             self.load_node_modules(cached_path, specifier, package_name, subpath, tsconfig, ctx)?
@@ -1395,6 +1448,12 @@ impl ResolverImpl {
         // 3. If packageSpecifier is a Node.js builtin module name, then
         //   1. Return the string "node:" concatenated with packageSpecifier.
         self.require_core(package_name)?;
+
+        if let Some(result) =
+            self.package_map_resolve(cached_path, specifier, package_name, subpath, tsconfig, ctx)
+        {
+            return result.map(Some);
+        }
 
         // 11. While parentURL is not the file system root,
         for module_name in &self.options.modules {

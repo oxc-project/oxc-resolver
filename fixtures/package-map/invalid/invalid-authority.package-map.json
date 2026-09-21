@@ -1,0 +1,7 @@
+{
+  "packages": {
+    "root": {
+      "url": "file://user@host/package"
+    }
+  }
+}
