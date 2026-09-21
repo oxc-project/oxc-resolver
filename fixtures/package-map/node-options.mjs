@@ -5,17 +5,13 @@ if (!bindingPath || !payloadJson) {
   throw new Error("Expected binding path and operation payload");
 }
 
-const { options, operations } = JSON.parse(payloadJson);
+const { operations } = JSON.parse(payloadJson);
 if (operations[0]?.nodeOptions !== undefined) {
   process.env.NODE_OPTIONS = operations[0].nodeOptions;
 }
 const binding = await import(pathToFileURL(bindingPath));
 const ResolverFactory = binding.ResolverFactory ?? binding.default.ResolverFactory;
-const resolver = new ResolverFactory(
-  options ?? {
-    conditionNames: ["node", "require"],
-  },
-);
+const resolver = new ResolverFactory({ conditionNames: ["node", "require"] });
 const results = [];
 
 for (const { nodeOptions, clearCache, importer, specifier } of operations) {

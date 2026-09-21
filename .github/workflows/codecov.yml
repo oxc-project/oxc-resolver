@@ -10,12 +10,14 @@ on:
       - synchronize
     paths:
       - "src/**/*.rs"
+      - "tests/**/*.rs"
       - "Cargo.lock"
   push:
     branches:
       - main
     paths:
       - "src/**/*.rs"
+      - "tests/**/*.rs"
       - "Cargo.lock"
 
 concurrency:
