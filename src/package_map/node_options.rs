@@ -63,9 +63,12 @@ mod tests {
         let path = r"C:\package-map.json";
         #[cfg(not(windows))]
         let path = "/package-map.json";
+        let option_path = path.replace('\\', "\\\\");
 
         assert_eq!(
-            package_map_path_from_node_options(&format!(r#"--experimental-package-map="{path}""#)),
+            package_map_path_from_node_options(&format!(
+                r#"--experimental-package-map="{option_path}""#
+            )),
             Some(PathBuf::from(path)),
         );
     }

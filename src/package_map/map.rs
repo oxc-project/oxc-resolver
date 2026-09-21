@@ -229,10 +229,10 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
         let Some(Component::Prefix(prefix)) = base.components().next() else {
             return Err("an invalid configuration file path".to_string());
         };
-        let mut suffix = relative;
-        let mut path = match prefix.kind() {
+        match prefix.kind() {
             Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => {
                 let bytes = relative.as_bytes();
+                let mut suffix = relative;
                 let drive = if bytes.len() >= 4
                     && bytes[0] == b'/'
                     && bytes[1].is_ascii_alphabetic()
@@ -244,17 +244,20 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
                 } else {
                     drive
                 };
-                PathBuf::from(format!("{}:", char::from(drive)))
+                let mut path = PathBuf::from(format!("{}:", char::from(drive)));
+                path.push(suffix);
+                Ok(path.normalize())
             }
-            Prefix::UNC(server, _) | Prefix::VerbatimUNC(server, _) => {
-                PathBuf::from(format!(r"\\{}", server.to_string_lossy()))
-            }
+            Prefix::UNC(server, _) | Prefix::VerbatimUNC(server, _) => Ok(PathBuf::from(format!(
+                r"\\{}\{}",
+                server.to_string_lossy(),
+                relative.trim_start_matches('/')
+            ))
+            .normalize()),
             Prefix::DeviceNS(_) | Prefix::Verbatim(_) => {
-                return Err("an invalid configuration file path".to_string());
+                Err("an invalid configuration file path".to_string())
             }
-        };
-        path.push(suffix);
-        Ok(path.normalize())
+        }
     }
 
     fn file_url_to_path(url: &str, value: &str) -> Result<PathBuf, String> {
