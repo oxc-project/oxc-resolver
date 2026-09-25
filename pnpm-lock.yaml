@@ -25,7 +25,7 @@ importers:
         version: 2.0.0-alpha.5
       '@napi-rs/cli':
         specifier: ^3.8.6
-        version: 3.10.4(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@25.9.3)(emnapi@2.0.0-alpha.5)
+        version: 3.10.5(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@25.9.3)(emnapi@2.0.0-alpha.5)
       '@napi-rs/wasm-runtime':
         specifier: ^1.2.0
         version: 1.2.4(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)
@@ -292,8 +292,8 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@napi-rs/cli@3.10.4':
-    resolution: {integrity: sha512-7yvXpu/m4p1Re1/DViAooSYAyivYEhqDrjuq66a6haXLEAKrZSzndG7B850g1irngI1pAdZS5xL4tsu0xQ8P9Q==}
+  '@napi-rs/cli@3.10.5':
+    resolution: {integrity: sha512-GF4WXmLLQk3uQvkPuLCOSH50DN4GUKZw1zHlMDh4rRF5TWpfOj3a8DkZ2PWCTwpPDMD4ex05sAjrCEwNdukEjg==}
     engines: {node: ^20.17.0 || ^22.13.0 || >= 23.5.0}
     hasBin: true
     peerDependencies:
@@ -2335,7 +2335,7 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@napi-rs/cli@3.10.4(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@25.9.3)(emnapi@2.0.0-alpha.5)':
+  '@napi-rs/cli@3.10.5(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@25.9.3)(emnapi@2.0.0-alpha.5)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@25.9.3)
       '@napi-rs/cross-toolchain': 1.0.3
