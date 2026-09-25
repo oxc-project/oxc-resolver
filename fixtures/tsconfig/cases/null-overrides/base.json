@@ -1,0 +1,15 @@
+{
+  "files": ["base.ts"],
+  "include": ["base"],
+  "exclude": ["base-excluded"],
+  "compilerOptions": {
+    "baseUrl": "./base",
+    "paths": { "@base/*": ["*"] },
+    "strict": true,
+    "allowJs": true,
+    "rootDirs": ["./base-root"],
+    "outDir": "./base-out",
+    "declarationDir": "./base-types",
+    "target": "ES2020"
+  }
+}
