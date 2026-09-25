@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.25.0](https://github.com/oxc-project/oxc-resolver/compare/v11.24.3...v11.25.0) - 2026-09-25
+
+### <!-- 0 -->🚀 Features
+
+- support Node.js package maps ([#1331](https://github.com/oxc-project/oxc-resolver/pull/1331)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- *(dts)* try the `.json` file itself after `.d.json.ts` for json imports ([#1377](https://github.com/oxc-project/oxc-resolver/pull/1377)) (by @ocavue)
+
+### Contributors
+
+* @ocavue
+* @renovate[bot]
+* @Boshen
+
 ## [11.24.3](https://github.com/oxc-project/oxc-resolver/compare/v11.24.2...v11.24.3) - 2026-08-24
 
 ### <!-- 2 -->🚜 Refactor
