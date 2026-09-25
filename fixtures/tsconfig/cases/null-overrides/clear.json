@@ -1,0 +1,14 @@
+{
+  "files": null,
+  "include": null,
+  "exclude": null,
+  "compilerOptions": {
+    "baseUrl": null,
+    "paths": null,
+    "strict": null,
+    "allowJs": null,
+    "rootDirs": null,
+    "outDir": null,
+    "declarationDir": null
+  }
+}

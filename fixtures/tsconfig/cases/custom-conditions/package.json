@@ -1,0 +1,11 @@
+{
+  "name": "custom-conditions-fixture",
+  "imports": {
+    "#fixture": {
+      "tsconfig": "./targets/tsconfig.js",
+      "override": "./targets/override.js",
+      "global": "./targets/global.js",
+      "default": "./targets/default.js"
+    }
+  }
+}
