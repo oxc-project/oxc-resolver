@@ -60,12 +60,12 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
             Err(ResolveError::NotFound("ts-path".to_string())),
         ),
         (
+            // A missing `extends` target is non-fatal: the config loads, so the
+            // alias it would have provided is just a normal `NotFound`.
             f.join("cases/extends-not-found"),
             "ts-path",
             f.join("cases").join("extends-not-found").join("tsconfig.json"),
-            Err(ResolveError::TsconfigNotFound(
-                f.join("cases").join("extends-not-found").join("not-found"),
-            )),
+            Err(ResolveError::NotFound("ts-path".to_string())),
         ),
         // no `base_url` <https://github.com/microsoft/TypeScript/issues/62207>
         (
@@ -300,6 +300,39 @@ fn test_parent_base_url() {
 }
 
 #[test]
+fn test_dot_prefixed_non_relative_specifiers() {
+    let f = super::fixture_root().join("tsconfig/cases/dot-prefixed-paths");
+
+    #[rustfmt::skip]
+    let pass = [
+        (".exact", f.join("exact.ts")),
+        (".storybook/preview", f.join(".storybook/preview.ts")),
+        ("..alias/module", f.join("alias/module.ts")),
+        (".base-url", f.join(".base-url.ts")),
+    ];
+
+    for tsconfig_discovery in [false, true] {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(if tsconfig_discovery {
+                TsconfigDiscovery::Auto
+            } else {
+                TsconfigDiscovery::Manual(TsconfigOptions {
+                    config_file: f.join("tsconfig.json"),
+                    references: TsconfigReferences::Auto,
+                })
+            }),
+            ..ResolveOptions::default().with_extension(String::from(".ts"))
+        });
+
+        for (request, expected) in &pass {
+            let resolved_path =
+                resolver.resolve_file(f.join("index.ts"), request).map(|f| f.full_path());
+            assert_eq!(resolved_path, Ok(expected.clone()), "{request} {tsconfig_discovery}");
+        }
+    }
+}
+
+#[test]
 fn test_tsconfig_mixed_root_non_root_cache() {
     let f = super::fixture_root().join("tsconfig");
     let f2 = f.join("cases").join("simple-paths");
@@ -311,7 +344,7 @@ fn test_tsconfig_mixed_root_non_root_cache() {
         tsconfig: Some(TsconfigDiscovery::Auto),
         ..ResolveOptions::default()
     });
-    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
+    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_, _| Ok(())).unwrap();
     let resolved_path =
         resolver.resolve_file(f2.join("foo.ts"), "bar/index.ts").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f2.join("bar/index.ts")));
@@ -326,7 +359,7 @@ fn test_tsconfig_mixed_root_non_root_cache2() {
         tsconfig: Some(TsconfigDiscovery::Auto),
         ..ResolveOptions::default()
     });
-    resolver.cache.get_tsconfig(true, &f2.join("tsconfig.base.json"), |_| Ok(())).unwrap();
+    resolver.cache.get_tsconfig(true, &f2.join("tsconfig.base.json"), |_, _| Ok(())).unwrap();
     let resolved_path =
         resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f2.join("src/index.js")));
@@ -341,7 +374,7 @@ fn test_tsconfig_mixed_root_non_root_cache3() {
         tsconfig: Some(TsconfigDiscovery::Auto),
         ..ResolveOptions::default()
     });
-    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
+    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_, _| Ok(())).unwrap();
     let resolved_path =
         resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
     assert_eq!(resolved_path, Ok(f2.join("src/index.js")));

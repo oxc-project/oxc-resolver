@@ -1,0 +1,9 @@
+{
+  "files": ["../shared/deep.ts", "../shared/bfs.ts"],
+  "compilerOptions": {
+    "paths": {
+      "@deep/*": ["../leaf/*"],
+      "@pick/*": ["../leaf/*"]
+    }
+  }
+}
