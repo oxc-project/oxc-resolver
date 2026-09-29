@@ -16,6 +16,7 @@ use std::{borrow::Cow, path::Path};
 use crate::{
     CachedPath, PackageJson, ResolveError, ResolverImpl,
     context::ResolveContext as Ctx,
+    path::is_path_relative,
     resolution::{ModuleType, Resolution},
     specifier::Specifier,
 };
@@ -115,7 +116,7 @@ impl ResolverImpl {
         let specifier = parsed.path();
 
         // 1. tsconfig paths (non-relative only)
-        if !specifier.starts_with('.')
+        if !is_path_relative(specifier)
             && !specifier.starts_with('/')
             && let Some(path) = self.dts_resolve_tsconfig_paths(specifier, &mut ctx)?
         {
@@ -123,7 +124,7 @@ impl ResolverImpl {
         }
 
         // 2. Route by specifier type
-        let result = if specifier.starts_with('.') || specifier.starts_with('/') {
+        let result = if is_path_relative(specifier) || specifier.starts_with('/') {
             // Relative or absolute
             let candidate = cached_dir.normalize_with(specifier, &self.cache);
             self.dts_resolve_relative(extensions, &candidate, &mut ctx)?
