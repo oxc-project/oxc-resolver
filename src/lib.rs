@@ -789,10 +789,24 @@ impl ResolverImpl {
         // 3. If X.json is a file, parse X.json to a JavaScript Object. STOP
         // 4. If X.node is a file, load X.node as binary addon. STOP
         if !ctx.fully_specified {
-            for extension in &self.options.extensions {
-                let cached_path = cached_path.add_extension(extension, &self.cache);
-                if let Some(path) = self.load_alias_or_file(&cached_path, tsconfig, ctx)? {
-                    return Ok(Some(path));
+            if let Some(module_suffixes) =
+                tsconfig.and_then(|config| config.compiler_options.module_suffixes.as_deref())
+            {
+                for suffix in module_suffixes {
+                    let suffixed_path = cached_path.add_extension(suffix, &self.cache);
+                    for extension in &self.options.extensions {
+                        let candidate = suffixed_path.add_extension(extension, &self.cache);
+                        if let Some(path) = self.load_alias_or_file(&candidate, tsconfig, ctx)? {
+                            return Ok(Some(path));
+                        }
+                    }
+                }
+            } else {
+                for extension in &self.options.extensions {
+                    let candidate = cached_path.add_extension(extension, &self.cache);
+                    if let Some(path) = self.load_alias_or_file(&candidate, tsconfig, ctx)? {
+                        return Ok(Some(path));
+                    }
                 }
             }
         }
@@ -932,15 +946,34 @@ impl ResolverImpl {
         ctx: &mut Ctx,
     ) -> ResolveResult {
         if !ctx.fully_specified {
-            for main_file in &self.options.main_files {
-                // 1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
-                // 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-                // 3. If X/index.node is a file, load X/index.node as binary addon. STOP
-                for extension in &self.options.extensions {
-                    let cached_path =
-                        cached_path.add_name_and_extension(main_file, extension, &self.cache);
-                    if let Some(path) = self.load_alias_or_file(&cached_path, tsconfig, ctx)? {
-                        return Ok(Some(path));
+            if let Some(module_suffixes) =
+                tsconfig.and_then(|config| config.compiler_options.module_suffixes.as_deref())
+            {
+                for suffix in module_suffixes {
+                    for main_file in &self.options.main_files {
+                        let suffixed_path =
+                            cached_path.add_name_and_extension(main_file, suffix, &self.cache);
+                        for extension in &self.options.extensions {
+                            let candidate = suffixed_path.add_extension(extension, &self.cache);
+                            if let Some(path) =
+                                self.load_alias_or_file(&candidate, tsconfig, ctx)?
+                            {
+                                return Ok(Some(path));
+                            }
+                        }
+                    }
+                }
+            } else {
+                for main_file in &self.options.main_files {
+                    // 1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
+                    // 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
+                    // 3. If X/index.node is a file, load X/index.node as binary addon. STOP
+                    for extension in &self.options.extensions {
+                        let candidate =
+                            cached_path.add_name_and_extension(main_file, extension, &self.cache);
+                        if let Some(path) = self.load_alias_or_file(&candidate, tsconfig, ctx)? {
+                            return Ok(Some(path));
+                        }
                     }
                 }
             }
