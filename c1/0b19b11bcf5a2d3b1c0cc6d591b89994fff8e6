@@ -1,0 +1,29 @@
+.cargo/config.toml
+  s_7d83e1add255a7::t_438837f74bd605 8-12
+Cargo.lock
+  s_3648633c07221a::t_2480f8be016347 1113,1115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c10b19b11bcf5a2d3b1c0cc6d591b89994fff8e6",
+  "prompts": {},
+  "sessions": {
+    "s_3648633c07221a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ec22-1649-7642-b7c2-ef28d2b40c9f",
+        "model": "unknown"
+      },
+      "human_author": "sapphi-red <green@sapphi.red>"
+    },
+    "s_7d83e1add255a7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ec1a-679b-7292-891f-e726695326f6",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "sapphi-red <green@sapphi.red>"
+    }
+  }
+}
