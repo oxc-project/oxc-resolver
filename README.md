@@ -91,6 +91,27 @@ When resolving from a specific file (e.g., in bundlers, linters, or language ser
 - Honoring `include`, `exclude`, and `files` fields to determine which tsconfig applies
 - Ensuring tsconfig `paths` aliases work correctly based on the file's context
 
+#### Tsconfig Resolution
+
+Use `findTsconfigSync` or `findTsconfigAsync` to load the tsconfig associated with a source
+file. The resolver reuses its internal cache across lookups:
+
+```javascript
+import { ResolverFactory } from "oxc-resolver";
+
+const resolver = new ResolverFactory({ tsconfig: "auto" });
+const result = resolver.findTsconfigSync("/path/to/file.ts");
+const asyncResult = await resolver.findTsconfigAsync("/path/to/file.ts");
+
+if (result) console.log(result.tsconfigFilePaths, result.tsconfig);
+
+// In watch mode, after a tsconfig file changes:
+resolver.clearCache();
+```
+
+Pass `tsconfig: { configFile: path }` to use a specific configuration instead of automatic
+discovery. Files inside `node_modules` are not associated with a tsconfig.
+
 #### Supports WASM
 
 See https://stackblitz.com/edit/oxc-resolver for usage example.
