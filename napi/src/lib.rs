@@ -21,6 +21,8 @@ use self::options::{NapiResolveOptions, StrOrStrList};
 mod options;
 #[cfg(feature = "tracing-subscriber")]
 mod tracing;
+mod tsconfig;
+use tsconfig::TsconfigResult;
 
 #[napi(object)]
 pub struct ResolveResult {
@@ -143,6 +145,25 @@ impl Task for ResolveDtsTask {
     }
 }
 
+pub struct FindTsconfigTask {
+    resolver: Arc<Resolver>,
+    filename: PathBuf,
+}
+
+#[napi]
+impl Task for FindTsconfigTask {
+    type JsValue = Option<TsconfigResult>;
+    type Output = Option<TsconfigResult>;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        find_tsconfig(&self.resolver, &self.filename)
+    }
+
+    fn resolve(&mut self, _: napi::Env, result: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(result)
+    }
+}
+
 #[napi]
 pub struct ResolverFactory {
     resolver: Arc<Resolver>,
@@ -169,7 +190,8 @@ impl ResolverFactory {
         Self { resolver: Arc::new(Resolver::new(ResolveOptions::default())) }
     }
 
-    /// Clone the resolver using the same underlying cache.
+    /// Clone the resolver, reusing the underlying cache when tsconfig and Yarn PnP options are
+    /// unchanged.
     #[napi]
     pub fn clone_with_options(&self, options: NapiResolveOptions) -> napi::Result<Self> {
         Ok(Self {
@@ -183,6 +205,23 @@ impl ResolverFactory {
     #[napi]
     pub fn clear_cache(&self) {
         self.resolver.clear_cache();
+    }
+
+    /// Synchronously find the tsconfig associated with an absolute source file path.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn find_tsconfig_sync(&self, filename: String) -> napi::Result<Option<TsconfigResult>> {
+        find_tsconfig(&self.resolver, Path::new(&filename))
+    }
+
+    /// Asynchronously find the tsconfig associated with an absolute source file path.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn find_tsconfig_async(&self, filename: String) -> AsyncTask<FindTsconfigTask> {
+        AsyncTask::new(FindTsconfigTask {
+            resolver: Arc::clone(&self.resolver),
+            filename: PathBuf::from(filename),
+        })
     }
 
     /// Synchronously resolve `specifier` at an absolute path to a `directory`.
@@ -357,6 +396,13 @@ impl ResolverFactory {
     }
 }
 
+impl ResolverFactory {
+    /// Clone the underlying resolver for reuse by Rust consumers of the N-API crate.
+    pub fn resolver(&self) -> Arc<Resolver> {
+        Arc::clone(&self.resolver)
+    }
+}
+
 fn map_resolution_to_result(result: Result<Resolution, ResolveError>) -> ResolveResult {
     match result {
         Ok(resolution) => ResolveResult {
@@ -397,4 +443,16 @@ fn resolve_file(resolver: &Resolver, path: &Path, request: &str) -> ResolveResul
 
 fn resolve_dts(resolver: &Resolver, file: &Path, request: &str) -> ResolveResult {
     map_resolution_to_result(resolver.resolve_dts(file, request))
+}
+
+fn find_tsconfig(resolver: &Resolver, filename: &Path) -> napi::Result<Option<TsconfigResult>> {
+    resolver
+        .find_tsconfig(filename)
+        .map(|tsconfig| tsconfig.as_deref().map(TsconfigResult::from))
+        .map_err(|err| {
+            napi::Error::from_reason(format!(
+                "Failed to find tsconfig for {}: {err}",
+                filename.display()
+            ))
+        })
 }
