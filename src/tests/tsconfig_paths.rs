@@ -99,6 +99,26 @@ pub fn tsconfig_resolve() {
 }
 
 #[test]
+fn clone_with_different_tsconfig_options_resolves_file_with_separate_cache() {
+    let f = super::fixture_root().join("tsconfig");
+    let importer = f.join("main.ts");
+
+    let resolver = Resolver::default();
+    assert_eq!(
+        resolver.resolve_file(&importer, "ts-path"),
+        Err(ResolveError::NotFound("ts-path".into()))
+    );
+
+    let auto_resolver = resolver.clone_with_options(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+    let resolved_path =
+        auto_resolver.resolve_file(importer, "ts-path").map(|resolution| resolution.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/foo.js")));
+}
+
+#[test]
 fn tsconfig_fallthrough() {
     let f = super::fixture_root().join("tsconfig");
 

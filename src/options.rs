@@ -514,7 +514,7 @@ impl std::fmt::Debug for Restriction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TsconfigDiscovery {
     Auto,
     Manual(TsconfigOptions),
@@ -523,7 +523,7 @@ pub enum TsconfigDiscovery {
 /// Tsconfig Options for [ResolveOptions::tsconfig]
 ///
 /// Derived from [tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin#options)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TsconfigOptions {
     /// Allows you to specify where to find the TypeScript configuration file.
     /// You may provide
@@ -536,7 +536,7 @@ pub struct TsconfigOptions {
 }
 
 /// Configuration for [TsconfigOptions::references]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TsconfigReferences {
     Disabled,
     /// Use the `references` field from tsconfig of `config_file`.
