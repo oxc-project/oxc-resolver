@@ -103,7 +103,7 @@ const resolver = new ResolverFactory({ tsconfig: "auto" });
 const result = resolver.findTsconfigSync("/path/to/file.ts");
 const asyncResult = await resolver.findTsconfigAsync("/path/to/file.ts");
 
-if (result) console.log(result.tsconfigPaths, result.tsconfig);
+if (result) console.log(result.tsconfigFilePaths, result.tsconfig);
 
 // In watch mode, after a tsconfig file changes:
 resolver.clearCache();

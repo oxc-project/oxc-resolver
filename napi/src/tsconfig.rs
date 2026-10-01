@@ -10,14 +10,14 @@ fn pathbufs_into_strings(paths: Option<Vec<PathBuf>>) -> Option<Vec<String>> {
 
 #[napi(object, object_from_js = false)]
 pub struct TsconfigResult {
-    pub tsconfig_paths: Vec<String>,
+    pub tsconfig_file_paths: Vec<String>,
     pub tsconfig: Tsconfig,
 }
 
 impl From<&TsConfig> for TsconfigResult {
     fn from(tsconfig: &TsConfig) -> Self {
         Self {
-            tsconfig_paths: vec![tsconfig.path.to_string_lossy().into_owned()],
+            tsconfig_file_paths: vec![tsconfig.path.to_string_lossy().into_owned()],
             tsconfig: tsconfig.into(),
         }
     }

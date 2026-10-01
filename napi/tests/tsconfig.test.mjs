@@ -15,7 +15,7 @@ test("resolves the tsconfig for a source file", () => {
   assert.deepEqual(result.tsconfig.compilerOptions.paths, {
     "ts-path": [join(fixturesDir, "src", "foo.js")],
   });
-  assert.deepEqual(result.tsconfigPaths, [join(fixturesDir, "tsconfig.json")]);
+  assert.deepEqual(result.tsconfigFilePaths, [join(fixturesDir, "tsconfig.json")]);
 });
 
 test("asynchronously uses an explicit tsconfig", async () => {
@@ -29,7 +29,7 @@ test("asynchronously uses an explicit tsconfig", async () => {
   assert.equal(result.tsconfig.compilerOptions.experimentalDecorators, true);
   assert.equal(result.tsconfig.compilerOptions.target, "ES2022");
   assert.equal(result.tsconfig.compilerOptions.module, "ESNext");
-  assert.deepEqual(result.tsconfigPaths, [tsconfigPath]);
+  assert.deepEqual(result.tsconfigFilePaths, [tsconfigPath]);
 });
 
 test("returns supported compiler options", () => {

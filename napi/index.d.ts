@@ -360,6 +360,6 @@ export interface TsconfigOptions {
 }
 
 export interface TsconfigResult {
-  tsconfigPaths: Array<string>
+  tsconfigFilePaths: Array<string>
   tsconfig: Tsconfig
 }
