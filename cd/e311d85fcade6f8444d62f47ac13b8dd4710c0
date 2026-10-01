@@ -1,0 +1,39 @@
+src/cache/cached_path.rs
+  s_6a8f1deb4d5a71::t_b60c064ff35b62 14
+src/tsconfig_resolver.rs
+  s_df51e8667b9719::t_197d922e8a70c9 77-79,115-129,131-132,134-135,165-166,209,250-251,438-444
+src/cache/cache_impl.rs
+  s_df51e8667b9719::t_0eeb01d7aebfc8 14,35-53,268-269,271-327,333,339,348-350,362,372-373,390,394,399
+src/cache/mod.rs
+  s_df51e8667b9719::t_9d0f453b8dbddc 8
+src/lib.rs
+  s_df51e8667b9719::t_b5d4cbbc34543d 83,131,173-174,183-184,188-189,197,200,203-210,212,228,233,236-241
+src/tests/tsconfig_discovery.rs
+  s_df51e8667b9719::t_e45ec1a8a532c4 15,26-27
+src/tests/tsconfig_paths.rs
+  s_df51e8667b9719::t_fe4ae004c2f052 102,116-117,336-339,354-357,372-375
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cde311d85fcade6f8444d62f47ac13b8dd4710c0",
+  "prompts": {},
+  "sessions": {
+    "s_6a8f1deb4d5a71": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d81c-e6bd-7523-923c-5071c95bcc02",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "sapphi-red <green@sapphi.red>"
+    },
+    "s_df51e8667b9719": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f6b2-930d-78b1-8a26-1b52fd14fcfc",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "sapphi-red <green@sapphi.red>"
+    }
+  }
+}
