@@ -1,0 +1,19 @@
+src/tests/tsconfig_paths.rs
+  s_b0e011f68982c9::t_5ff8e7d7d9fb02 101-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fa864f6f6c38edf734bb54b6e729fe559b708a2b",
+  "prompts": {},
+  "sessions": {
+    "s_b0e011f68982c9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f134-b8aa-7620-a4b3-defb15387747",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "sapphi-red <green@sapphi.red>"
+    }
+  }
+}
