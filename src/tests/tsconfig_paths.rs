@@ -147,6 +147,57 @@ fn with_bom() {
 }
 
 #[test]
+fn module_suffixes_from_tsconfig() {
+    let f = super::fixture_root().join("tsconfig/cases/module-suffixes");
+    let resolver = |config_file| {
+        Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file,
+                references: TsconfigReferences::Auto,
+            })),
+            extensions: vec![".ts".into()],
+            ..ResolveOptions::default()
+        })
+    };
+
+    let resolver_with_suffixes = resolver(f.join("tsconfig.json"));
+    let resolved_path = resolver_with_suffixes
+        .resolve_file(f.join("src/index.ts"), "./foo")
+        .map(|resolution| resolution.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/foo.ios.ts")));
+
+    // The empty suffix must be listed explicitly to retain the unsuffixed candidate.
+    let resolved_path = resolver_with_suffixes
+        .resolve_file(f.join("src/index.ts"), "./baz")
+        .map(|resolution| resolution.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/baz.ts")));
+
+    let resolved_path = resolver_with_suffixes
+        .resolve_file(f.join("src/index.ts"), "./directory")
+        .map(|resolution| resolution.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/directory/index.ios.ts")));
+
+    let no_empty_suffix = f.join("no-empty-suffix");
+    let resolver_without_empty_suffix = resolver(no_empty_suffix.join("tsconfig.json"));
+    let resolved_path = resolver_without_empty_suffix
+        .resolve_file(no_empty_suffix.join("src/index.ts"), "./baz")
+        .map(|resolution| resolution.full_path());
+    assert_eq!(resolved_path, Err(ResolveError::NotFound("./baz".to_string())));
+
+    let inherited = f.join("inherited");
+    let resolved_path = resolver(inherited.join("tsconfig.json"))
+        .resolve_file(inherited.join("src/index.ts"), "./thing")
+        .map(|resolution| resolution.full_path());
+    assert_eq!(resolved_path, Ok(inherited.join("src/thing.ios.ts")));
+
+    let overridden = f.join("overridden");
+    let resolved_path = resolver(overridden.join("tsconfig.json"))
+        .resolve_file(overridden.join("src/index.ts"), "./thing")
+        .map(|resolution| resolution.full_path());
+    assert_eq!(resolved_path, Ok(overridden.join("src/thing.native.ts")));
+}
+
+#[test]
 fn broken() {
     let f = super::fixture_root().join("tsconfig");
 
