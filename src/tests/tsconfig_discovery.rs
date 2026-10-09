@@ -112,3 +112,21 @@ fn tsconfig_discovery_query_params() {
     let tsconfig = resolver.find_tsconfig(&path_with_both).unwrap().unwrap();
     assert_eq!(tsconfig.path, expected_tsconfig,);
 }
+
+#[test]
+fn tsconfig_discovery_with_inherited_include_from_subdirectory() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-include-from-subdirectory");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let importer = f.join("src/a.ts");
+    let tsconfig = resolver.find_tsconfig(&importer).unwrap().unwrap();
+    assert_eq!(tsconfig.path, f.join("tsconfig.json"));
+
+    let resolved_path = resolver.resolve_file(&importer, "@/b").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/b.ts")));
+}
