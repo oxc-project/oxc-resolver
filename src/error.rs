@@ -10,7 +10,7 @@ use thiserror::Error;
 /// All resolution errors
 ///
 /// `thiserror` is used to display meaningful error messages.
-#[derive(Debug, Clone, PartialEq, Error)]
+#[derive(Clone, PartialEq, Error)]
 #[non_exhaustive]
 pub enum ResolveError {
     /// Ignored path
@@ -175,6 +175,105 @@ impl ResolveError {
     }
 }
 
+// Written by hand because `#[derive(Debug)]` marks `fmt` as `#[inline]`, so every crate that
+// formats this error keeps its own copy. The output is the same as the derived one.
+impl Debug for ResolveError {
+    #[inline(never)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ignored(path) => f.debug_tuple("Ignored").field(path).finish(),
+            Self::NotFound(specifier) => f.debug_tuple("NotFound").field(specifier).finish(),
+            Self::PackageMapAmbiguousResolution { specifier, parent_path, package_map_path } => f
+                .debug_struct("PackageMapAmbiguousResolution")
+                .field("specifier", specifier)
+                .field("parent_path", parent_path)
+                .field("package_map_path", package_map_path)
+                .finish(),
+            Self::PackageMapExternalFile { specifier, parent_path, package_map_path } => f
+                .debug_struct("PackageMapExternalFile")
+                .field("specifier", specifier)
+                .field("parent_path", parent_path)
+                .field("package_map_path", package_map_path)
+                .finish(),
+            Self::PackageMapInvalid { package_map_path, reason } => f
+                .debug_struct("PackageMapInvalid")
+                .field("package_map_path", package_map_path)
+                .field("reason", reason)
+                .finish(),
+            Self::PackageMapKeyNotFound { package_id, package_map_path } => f
+                .debug_struct("PackageMapKeyNotFound")
+                .field("package_id", package_id)
+                .field("package_map_path", package_map_path)
+                .finish(),
+            Self::MatchedAliasNotFound(specifier, alias_key) => {
+                f.debug_tuple("MatchedAliasNotFound").field(specifier).field(alias_key).finish()
+            }
+            Self::TsconfigNotFound(path) => f.debug_tuple("TsconfigNotFound").field(path).finish(),
+            Self::TsconfigSelfReference(path) => {
+                f.debug_tuple("TsconfigSelfReference").field(path).finish()
+            }
+            Self::TsconfigCircularExtend(paths) => {
+                f.debug_tuple("TsconfigCircularExtend").field(paths).finish()
+            }
+            Self::TsconfigLoadFailed { path, source } => f
+                .debug_struct("TsconfigLoadFailed")
+                .field("path", path)
+                .field("source", source)
+                .finish(),
+            Self::IOError(error) => f.debug_tuple("IOError").field(error).finish(),
+            Self::PathNotSupported(path) => f.debug_tuple("PathNotSupported").field(path).finish(),
+            Self::Builtin { resolved, is_runtime_module } => f
+                .debug_struct("Builtin")
+                .field("resolved", resolved)
+                .field("is_runtime_module", is_runtime_module)
+                .finish(),
+            Self::ExtensionAlias(file_name, tried, dir) => {
+                f.debug_tuple("ExtensionAlias").field(file_name).field(tried).field(dir).finish()
+            }
+            Self::Specifier(error) => f.debug_tuple("Specifier").field(error).finish(),
+            Self::Json(error) => f.debug_tuple("Json").field(error).finish(),
+            Self::InvalidModuleSpecifier(specifier, path) => {
+                f.debug_tuple("InvalidModuleSpecifier").field(specifier).field(path).finish()
+            }
+            Self::InvalidPackageTarget(target, key, path) => {
+                f.debug_tuple("InvalidPackageTarget").field(target).field(key).field(path).finish()
+            }
+            Self::PackagePathNotExported {
+                subpath,
+                package_path,
+                package_json_path,
+                conditions,
+            } => f
+                .debug_struct("PackagePathNotExported")
+                .field("subpath", subpath)
+                .field("package_path", package_path)
+                .field("package_json_path", package_json_path)
+                .field("conditions", conditions)
+                .finish(),
+            Self::InvalidPackageConfig(path) => {
+                f.debug_tuple("InvalidPackageConfig").field(path).finish()
+            }
+            Self::InvalidPackageConfigDefault(path) => {
+                f.debug_tuple("InvalidPackageConfigDefault").field(path).finish()
+            }
+            Self::InvalidPackageConfigDirectory(path) => {
+                f.debug_tuple("InvalidPackageConfigDirectory").field(path).finish()
+            }
+            Self::PackageImportNotDefined(specifier, path) => {
+                f.debug_tuple("PackageImportNotDefined").field(specifier).field(path).finish()
+            }
+            Self::Unimplemented(what) => f.debug_tuple("Unimplemented").field(what).finish(),
+            Self::Recursion => f.write_str("Recursion"),
+            #[cfg(feature = "yarn_pnp")]
+            Self::FailedToFindYarnPnpManifest(path) => {
+                f.debug_tuple("FailedToFindYarnPnpManifest").field(path).finish()
+            }
+            #[cfg(feature = "yarn_pnp")]
+            Self::YarnPnpError(error) => f.debug_tuple("YarnPnpError").field(error).finish(),
+        }
+    }
+}
+
 /// Error for [ResolveError::Specifier]
 #[derive(Debug, Clone, Eq, PartialEq, Error)]
 pub enum SpecifierError {
@@ -183,13 +282,26 @@ pub enum SpecifierError {
 }
 
 /// JSON error from [serde_json::Error]
-#[derive(Debug, Clone, Eq, PartialEq, Error)]
+#[derive(Clone, Eq, PartialEq, Error)]
 #[error("{message}")]
 pub struct JSONError {
     pub path: PathBuf,
     pub message: String,
     pub line: usize,
     pub column: usize,
+}
+
+// Written by hand for the same reason as `impl Debug for ResolveError`.
+impl Debug for JSONError {
+    #[inline(never)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JSONError")
+            .field("path", &self.path)
+            .field("message", &self.message)
+            .field("line", &self.line)
+            .field("column", &self.column)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Error)]
@@ -312,6 +424,22 @@ fn test_coverage() {
     let error = ResolveError::Specifier(SpecifierError::Empty("x".into()));
     assert_eq!(format!("{error:?}"), r#"Specifier(Empty("x"))"#);
     assert_eq!(error.clone(), error);
+
+    let error = ResolveError::Builtin { resolved: "node:fs".into(), is_runtime_module: true };
+    assert_eq!(format!("{error:?}"), r#"Builtin { resolved: "node:fs", is_runtime_module: true }"#);
+
+    let error = ResolveError::Json(JSONError {
+        path: PathBuf::from("/package.json"),
+        message: "x".into(),
+        line: 1,
+        column: 2,
+    });
+    assert_eq!(
+        format!("{error:?}"),
+        r#"Json(JSONError { path: "/package.json", message: "x", line: 1, column: 2 })"#
+    );
+
+    assert_eq!(format!("{:?}", ResolveError::Recursion), "Recursion");
 }
 
 #[test]
