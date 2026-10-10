@@ -30,7 +30,7 @@ fn clone() {
 fn debug() {
     let resolution = resolve("./package.json");
     let s = format!("{resolution:?}");
-    assert!(!s.is_empty());
+    assert_ne!(s, "");
 }
 
 #[test]
@@ -103,13 +103,13 @@ fn clear_cache() {
 fn options() {
     let resolver = Resolver::new(ResolveOptions::default());
     let options = resolver.options();
-    assert!(!format!("{options:?}").is_empty());
+    assert_ne!(format!("{options:?}"), "");
 }
 
 #[test]
 fn debug_resolver() {
     let resolver = Resolver::new(ResolveOptions::default());
-    assert!(!format!("{resolver:?}").is_empty());
+    assert_ne!(format!("{resolver:?}"), "");
 }
 
 #[test]
