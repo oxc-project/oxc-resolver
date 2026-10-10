@@ -255,7 +255,13 @@ impl ResolverFactory {
                 .tsconfig
                 .map(|value| -> napi::Result<_> {
                     match value {
-                        Either::A(_) => Ok(TsconfigDiscovery::Auto),
+                        Either::A(mode) if mode == "auto" => Ok(TsconfigDiscovery::Auto),
+                        Either::A(mode) if mode == "auto-nearest" => {
+                            Ok(TsconfigDiscovery::AutoNearest)
+                        }
+                        Either::A(mode) => Err(napi::Error::from_reason(format!(
+                            "`{mode}` is not a valid tsconfig discovery mode"
+                        ))),
                         Either::B(options) => {
                             Ok(TsconfigDiscovery::Manual(TsconfigOptions::try_from(options)?))
                         }

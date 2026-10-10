@@ -28,6 +28,11 @@ fn parse_invalid() {
     let dir = super::fixture_root().join("tsconfck").join("parse").join("invalid");
     let resolver = Resolver::default();
     for path in walk(&dir).into_iter().filter(|path| path.file_name().unwrap() == "tsconfig.json") {
+        // A missing `extends` target is non-fatal in oxc (TS6053), matching
+        // tsc/tsgo — unlike tsconfck, which classifies it as invalid.
+        if path.parent().is_some_and(|p| p.ends_with("extends-not-found")) {
+            continue;
+        }
         let tsconfig = resolver.resolve_tsconfig(&path);
         assert!(tsconfig.is_err(), "{} {tsconfig:?}", path.display());
     }
