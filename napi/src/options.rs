@@ -13,9 +13,10 @@ use regress::Regex;
 #[napi(object)]
 pub struct NapiResolveOptions {
     /// Discover tsconfig automatically or use the specified tsconfig.json path.
+    /// `'auto-nearest'` falls back to the nearest config for files no project owns.
     ///
     /// Default `None`
-    #[napi(ts_type = "'auto' | TsconfigOptions")]
+    #[napi(ts_type = "'auto' | 'auto-nearest' | TsconfigOptions")]
     pub tsconfig: Option<Either<String, TsconfigOptions>>,
 
     /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback].

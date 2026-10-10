@@ -73,6 +73,10 @@ pub enum ResolveError {
     #[error("Tsconfig extends configs circularly: {0}")]
     TsconfigCircularExtend(CircularPathBufs),
 
+    /// Occurs when tsconfig project references are circular.
+    #[error("Tsconfig project references are circular: {0}")]
+    TsconfigCircularReference(CircularPathBufs),
+
     /// Failed to read or parse a tsconfig file.
     ///
     /// Keeps tsconfig load failures distinguishable from package.json ones,
