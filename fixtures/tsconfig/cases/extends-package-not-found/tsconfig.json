@@ -1,0 +1,1 @@
+{ "extends": "@acme/not-installed/tsconfig.json", "compilerOptions": { "baseUrl": ".", "paths": { "@app/*": ["./src/*"] } } }
