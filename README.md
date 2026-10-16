@@ -36,6 +36,7 @@ Rust port of [enhanced-resolve], [tsconfig-paths-webpack-plugin] and [tsconfck]
 - Built-in [tsconfig-paths-webpack-plugin]
   - support extending tsconfig defined in `tsconfig.extends`
   - support paths alias defined in `tsconfig.compilerOptions.paths`
+  - support package conditions defined in `tsconfig.compilerOptions.customConditions`
   - support project references defined `tsconfig.references`
   - support [template variable ${configDir} for substitution of config files directory path](https://github.com/microsoft/TypeScript/pull/58042)
 - Built-in tsconfig discovery ([tsconfck])
@@ -224,7 +225,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | alias                                 | {}                        | A hash map of module alias configurations                                                                                                                 |
 | aliasFields                           | []                        | A list of alias fields in description files                                                                                                               |
 | extensionAlias                        | {}                        | An object which maps extension to extension aliases                                                                                                       |
-| conditionNames                        | []                        | A list of exports field condition names                                                                                                                   |
+| conditionNames                        | []                        | A list of package `exports` and `imports` conditions, combined with the active tsconfig's `customConditions`                                              |
 | enforceExtension                      | false                     | Enforce that an extension from extensions must be used                                                                                                    |
 | exportsFields                         | ["exports"]               | A list of exports fields in description files                                                                                                             |
 | extensions                            | [".js", ".json", ".node"] | A list of extensions which should be tried for files                                                                                                      |
