@@ -3,6 +3,8 @@
     "baseUrl": "./src",
     "allowJs": true,
     "emitDecoratorMetadata": true,
+    "strict": true,
+    "strictNullChecks": false,
     "useDefineForClassFields": true,
     "rewriteRelativeImportExtensions": true,
     "jsx": "react-jsx",
