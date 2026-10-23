@@ -101,6 +101,7 @@ pub use crate::{
     tsconfig::{
         CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
     },
+    tsconfig_resolver::{TsconfigDiagnostic, TsconfigLoad},
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
