@@ -1,17 +1,22 @@
 use std::{
     borrow::Cow,
+    collections::VecDeque,
     fmt::Debug,
     hash::BuildHasherDefault,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
 use compact_str::CompactString;
 use indexmap::IndexMap;
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashSet, FxHasher};
 use serde::Deserialize;
 
-use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
+use crate::{
+    TsconfigReferences,
+    path::{PathUtil, is_path_relative},
+    replace_bom_with_whitespace,
+};
 
 /// Template variable `${configDir}` for substitution of config files
 /// directory path.
@@ -25,6 +30,48 @@ const TEMPLATE_VARIABLE: &str = "${configDir}";
 
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<PathBuf>, BuildHasherDefault<FxHasher>>;
 
+#[derive(Clone, Debug)]
+struct ConfigField<T> {
+    present: bool,
+    value: Option<T>,
+}
+
+impl<T> Default for ConfigField<T> {
+    fn default() -> Self {
+        Self { present: false, value: None }
+    }
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for ConfigField<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(Self { present: true, value: Option::<T>::deserialize(deserializer)? })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TsConfigPresence {
+    files: bool,
+    include: bool,
+    exclude: bool,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawTsConfig {
+    #[serde(default)]
+    files: ConfigField<Vec<PathBuf>>,
+    #[serde(default)]
+    include: ConfigField<Vec<PathBuf>>,
+    #[serde(default)]
+    exclude: ConfigField<Vec<PathBuf>>,
+    #[serde(default)]
+    extends: Option<ExtendsField>,
+    #[serde(default)]
+    compiler_options: CompilerOptions,
+    #[serde(default)]
+    references: Vec<ProjectReference>,
+}
+
 /// Project Reference
 ///
 /// <https://www.typescriptlang.org/docs/handbook/project-references.html>
@@ -33,46 +80,57 @@ pub struct ProjectReference {
     pub path: PathBuf,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Default)]
 pub struct TsConfig {
     /// Whether this is the caller tsconfig.
     /// `false` for configs loaded through `extends`.
-    #[serde(skip)]
     pub root: bool,
 
     /// Whether `build()` should normalize paths.
     /// Set to true when caching to ensure paths are always normalized regardless of `root`.
-    #[serde(skip)]
     should_build: bool,
 
     /// Path to `tsconfig.json`. Contains the `tsconfig.json` filename.
-    #[serde(skip)]
     pub path: PathBuf,
 
-    #[serde(default)]
     pub files: Option<Vec<PathBuf>>,
 
-    #[serde(default)]
     pub include: Option<Vec<PathBuf>>,
 
-    #[serde(default)]
     pub exclude: Option<Vec<PathBuf>>,
 
-    #[serde(default)]
     pub extends: Option<ExtendsField>,
 
-    #[serde(default)]
     pub compiler_options: CompilerOptions,
 
-    #[serde(default)]
     pub references: Vec<ProjectReference>,
+
+    presence: TsConfigPresence,
 
     /// Resolved project references.
     ///
     /// Corresponds to each item in [TsConfig::references].
-    #[serde(skip)]
     pub references_resolved: Vec<Arc<Self>>,
+}
+
+impl<'de> Deserialize<'de> for TsConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = RawTsConfig::deserialize(deserializer)?;
+        Ok(Self {
+            files: raw.files.value,
+            include: raw.include.value,
+            exclude: raw.exclude.value,
+            extends: raw.extends,
+            compiler_options: raw.compiler_options,
+            references: raw.references,
+            presence: TsConfigPresence {
+                files: raw.files.present,
+                include: raw.include.present,
+                exclude: raw.exclude.present,
+            },
+            ..Self::default()
+        })
+    }
 }
 
 impl TsConfig {
@@ -202,173 +260,88 @@ impl TsConfig {
         !self.references.is_empty()
     }
 
-    /// Inherits settings from the given tsconfig into `self`.
-    #[expect(clippy::too_many_lines, reason = "field-by-field merge of every inherited setting")]
+    /// Inherits fields that were not declared in `self` from `tsconfig`.
+    ///
+    /// Presence is tracked independently from the public `Option` values so an explicit `null`
+    /// clears an inherited option. Callers apply multiple bases in reverse order, making the last
+    /// entry in an `extends` array win exactly as it does in TypeScript.
     pub(crate) fn extend_tsconfig(&mut self, tsconfig: &Self) {
-        if self.files.is_none()
-            && let Some(files) = &tsconfig.files
-        {
-            self.files = Some(files.clone());
-        }
-
-        if self.include.is_none()
-            && let Some(include) = &tsconfig.include
-        {
-            self.include = Some(include.clone());
-        }
-
-        if self.exclude.is_none()
-            && let Some(exclude) = &tsconfig.exclude
-        {
-            self.exclude = Some(exclude.clone());
-        }
+        self.inherit_file_patterns(tsconfig);
 
         let compiler_options = &mut self.compiler_options;
+        let inherited_options = &tsconfig.compiler_options;
 
-        if compiler_options.base_url.is_none() {
-            compiler_options.base_url.clone_from(&tsconfig.compiler_options.base_url);
-            if tsconfig.compiler_options.base_url.is_some() {
-                compiler_options.paths_base.clone_from(&tsconfig.compiler_options.paths_base);
-            }
-        }
-        if compiler_options.paths.is_none() {
-            if compiler_options.base_url.is_none() && tsconfig.compiler_options.base_url.is_none() {
-                compiler_options.paths_base.clone_from(&tsconfig.compiler_options.paths_base);
-            }
-            compiler_options.paths.clone_from(&tsconfig.compiler_options.paths);
+        macro_rules! inherit {
+            ($field:ident, $flag:ident) => {
+                if !compiler_options.presence.contains($flag)
+                    && inherited_options.presence.contains($flag)
+                {
+                    compiler_options.$field.clone_from(&inherited_options.$field);
+                    compiler_options.presence.insert($flag);
+                }
+            };
         }
 
-        if compiler_options.experimental_decorators.is_none()
-            && let Some(experimental_decorators) =
-                &tsconfig.compiler_options.experimental_decorators
+        let had_base_url = compiler_options.presence.contains(BASE_URL);
+        let had_paths = compiler_options.presence.contains(PATHS);
+        inherit!(base_url, BASE_URL);
+        if !had_base_url
+            && inherited_options.presence.contains(BASE_URL)
+            && inherited_options.base_url.is_some()
         {
-            compiler_options.experimental_decorators = Some(*experimental_decorators);
+            compiler_options.paths_base.clone_from(&inherited_options.paths_base);
+        }
+        inherit!(paths, PATHS);
+        if !had_paths
+            && inherited_options.presence.contains(PATHS)
+            && compiler_options.base_url.is_none()
+            && inherited_options.base_url.is_none()
+        {
+            compiler_options.paths_base.clone_from(&inherited_options.paths_base);
         }
 
-        if compiler_options.emit_decorator_metadata.is_none()
-            && let Some(emit_decorator_metadata) =
-                &tsconfig.compiler_options.emit_decorator_metadata
-        {
-            compiler_options.emit_decorator_metadata = Some(*emit_decorator_metadata);
+        inherit!(experimental_decorators, EXPERIMENTAL_DECORATORS);
+        inherit!(emit_decorator_metadata, EMIT_DECORATOR_METADATA);
+        inherit!(strict, STRICT);
+        inherit!(strict_null_checks, STRICT_NULL_CHECKS);
+        inherit!(use_define_for_class_fields, USE_DEFINE_FOR_CLASS_FIELDS);
+        inherit!(rewrite_relative_import_extensions, REWRITE_RELATIVE_IMPORT_EXTENSIONS);
+        inherit!(jsx, JSX);
+        inherit!(jsx_factory, JSX_FACTORY);
+        inherit!(jsx_fragment_factory, JSX_FRAGMENT_FACTORY);
+        inherit!(jsx_import_source, JSX_IMPORT_SOURCE);
+        inherit!(verbatim_module_syntax, VERBATIM_MODULE_SYNTAX);
+        inherit!(preserve_value_imports, PRESERVE_VALUE_IMPORTS);
+        inherit!(imports_not_used_as_values, IMPORTS_NOT_USED_AS_VALUES);
+        inherit!(target, TARGET);
+        inherit!(module, MODULE);
+        inherit!(allow_js, ALLOW_JS);
+        inherit!(root_dirs, ROOT_DIRS);
+        inherit!(out_dir, OUT_DIR);
+        inherit!(declaration_dir, DECLARATION_DIR);
+        inherit!(resolve_json_module, RESOLVE_JSON_MODULE);
+        inherit!(check_js, CHECK_JS);
+        inherit!(custom_conditions, CUSTOM_CONDITIONS);
+    }
+
+    fn inherit_file_patterns(&mut self, tsconfig: &Self) {
+        let inherited_directory = tsconfig.directory().to_path_buf();
+        let directory = self.directory().to_path_buf();
+
+        macro_rules! inherit {
+            ($field:ident) => {
+                if !self.presence.$field && tsconfig.presence.$field {
+                    self.$field = tsconfig.$field.as_ref().map(|patterns| {
+                        rebase_patterns(patterns, &inherited_directory, &directory)
+                    });
+                    self.presence.$field = true;
+                }
+            };
         }
 
-        if compiler_options.strict.is_none()
-            && let Some(strict) = &tsconfig.compiler_options.strict
-        {
-            compiler_options.strict = Some(*strict);
-        }
-
-        if compiler_options.strict_null_checks.is_none()
-            && let Some(strict_null_checks) = &tsconfig.compiler_options.strict_null_checks
-        {
-            compiler_options.strict_null_checks = Some(*strict_null_checks);
-        }
-
-        if compiler_options.use_define_for_class_fields.is_none()
-            && let Some(use_define_for_class_fields) =
-                &tsconfig.compiler_options.use_define_for_class_fields
-        {
-            compiler_options.use_define_for_class_fields = Some(*use_define_for_class_fields);
-        }
-
-        if compiler_options.rewrite_relative_import_extensions.is_none()
-            && let Some(rewrite_relative_import_extensions) =
-                &tsconfig.compiler_options.rewrite_relative_import_extensions
-        {
-            compiler_options.rewrite_relative_import_extensions =
-                Some(*rewrite_relative_import_extensions);
-        }
-
-        if compiler_options.jsx.is_none()
-            && let Some(jsx) = &tsconfig.compiler_options.jsx
-        {
-            compiler_options.jsx = Some(jsx.clone());
-        }
-
-        if compiler_options.jsx_factory.is_none()
-            && let Some(jsx_factory) = &tsconfig.compiler_options.jsx_factory
-        {
-            compiler_options.jsx_factory = Some(jsx_factory.clone());
-        }
-
-        if compiler_options.jsx_fragment_factory.is_none()
-            && let Some(jsx_fragment_factory) = &tsconfig.compiler_options.jsx_fragment_factory
-        {
-            compiler_options.jsx_fragment_factory = Some(jsx_fragment_factory.clone());
-        }
-
-        if compiler_options.jsx_import_source.is_none()
-            && let Some(jsx_import_source) = &tsconfig.compiler_options.jsx_import_source
-        {
-            compiler_options.jsx_import_source = Some(jsx_import_source.clone());
-        }
-
-        if compiler_options.verbatim_module_syntax.is_none()
-            && let Some(verbatim_module_syntax) = &tsconfig.compiler_options.verbatim_module_syntax
-        {
-            compiler_options.verbatim_module_syntax = Some(*verbatim_module_syntax);
-        }
-
-        if compiler_options.preserve_value_imports.is_none()
-            && let Some(preserve_value_imports) = &tsconfig.compiler_options.preserve_value_imports
-        {
-            compiler_options.preserve_value_imports = Some(*preserve_value_imports);
-        }
-
-        if compiler_options.imports_not_used_as_values.is_none()
-            && let Some(imports_not_used_as_values) =
-                &tsconfig.compiler_options.imports_not_used_as_values
-        {
-            compiler_options.imports_not_used_as_values = Some(imports_not_used_as_values.clone());
-        }
-
-        if compiler_options.target.is_none()
-            && let Some(target) = &tsconfig.compiler_options.target
-        {
-            compiler_options.target = Some(target.clone());
-        }
-
-        if compiler_options.module.is_none()
-            && let Some(module) = &tsconfig.compiler_options.module
-        {
-            compiler_options.module = Some(module.clone());
-        }
-
-        if compiler_options.allow_js.is_none()
-            && let Some(allow_js) = &tsconfig.compiler_options.allow_js
-        {
-            compiler_options.allow_js = Some(*allow_js);
-        }
-
-        if compiler_options.root_dirs.is_none()
-            && let Some(root_dirs) = &tsconfig.compiler_options.root_dirs
-        {
-            compiler_options.root_dirs = Some(root_dirs.clone());
-        }
-
-        if compiler_options.out_dir.is_none()
-            && let Some(out_dir) = &tsconfig.compiler_options.out_dir
-        {
-            compiler_options.out_dir = Some(out_dir.clone());
-        }
-
-        if compiler_options.declaration_dir.is_none()
-            && let Some(declaration_dir) = &tsconfig.compiler_options.declaration_dir
-        {
-            compiler_options.declaration_dir = Some(declaration_dir.clone());
-        }
-
-        if compiler_options.resolve_json_module.is_none()
-            && let Some(resolve_json_module) = &tsconfig.compiler_options.resolve_json_module
-        {
-            compiler_options.resolve_json_module = Some(*resolve_json_module);
-        }
-
-        if compiler_options.check_js.is_none()
-            && let Some(check_js) = &tsconfig.compiler_options.check_js
-        {
-            compiler_options.check_js = Some(*check_js);
-        }
+        inherit!(files);
+        inherit!(include);
+        inherit!(exclude);
     }
 
     /// "Build" the root tsconfig, resolve:
@@ -386,19 +359,15 @@ impl TsConfig {
 
         let config_dir = self.directory().to_path_buf();
 
-        // Substitute template variable in `tsconfig.files`.
+        // Inherited file patterns were rebased lexically to this config's directory while merging.
         if let Some(files) = self.files.take() {
-            self.files = Some(files.into_iter().map(|p| self.adjust_path(p)).collect());
+            self.files = Some(files.into_iter().map(|path| self.adjust_path(path)).collect());
         }
-
-        // Substitute template variable in `tsconfig.include`.
-        if let Some(includes) = self.include.take() {
-            self.include = Some(includes.into_iter().map(|p| self.adjust_path(p)).collect());
+        if let Some(include) = self.include.take() {
+            self.include = Some(include.into_iter().map(|path| self.adjust_path(path)).collect());
         }
-
-        // Substitute template variable in `tsconfig.exclude`.
-        if let Some(excludes) = self.exclude.take() {
-            self.exclude = Some(excludes.into_iter().map(|p| self.adjust_path(p)).collect());
+        if let Some(exclude) = self.exclude.take() {
+            self.exclude = Some(exclude.into_iter().map(|path| self.adjust_path(path)).collect());
         }
 
         if let Some(base_url) = &self.compiler_options.base_url {
@@ -474,10 +443,16 @@ impl TsConfig {
         path: &Path,
         specifier: &str,
     ) -> Vec<PathBuf> {
-        for tsconfig in &self.references_resolved {
-            if path.starts_with(&tsconfig.compiler_options.paths_base) {
-                return tsconfig.resolve_path_alias(specifier);
+        let mut queue = self.references_resolved.iter().cloned().collect::<VecDeque<_>>();
+        let mut visited = FxHashSet::default();
+        while let Some(config) = queue.pop_front() {
+            if !visited.insert(config.path.clone()) {
+                continue;
             }
+            if path.starts_with(&config.compiler_options.paths_base) {
+                return config.resolve_path_alias(specifier);
+            }
+            queue.extend(config.references_resolved.iter().cloned());
         }
         self.resolve_path_alias(specifier)
     }
@@ -490,7 +465,7 @@ impl TsConfig {
     // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/tsconfig.rs#L93>
     #[must_use]
     pub(crate) fn resolve_path_alias(&self, specifier: &str) -> Vec<PathBuf> {
-        if specifier.starts_with('.') {
+        if is_path_relative(specifier) {
             return Vec::new();
         }
 
@@ -544,11 +519,144 @@ impl TsConfig {
     }
 }
 
+fn rebase_patterns(patterns: &[PathBuf], from: &Path, to: &Path) -> Vec<PathBuf> {
+    patterns
+        .iter()
+        .map(|pattern| {
+            if pattern.is_absolute() || pattern.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                return pattern.clone();
+            }
+            let target = from.normalize_with(pattern);
+            relative_path(to, &target).unwrap_or(target)
+        })
+        .collect()
+}
+
+/// Returns `target` relative to `base` without resolving symlinks.
+fn relative_path(base: &Path, target: &Path) -> Option<PathBuf> {
+    let base = base.components().collect::<Vec<_>>();
+    let target = target.components().collect::<Vec<_>>();
+    let common = base.iter().zip(&target).take_while(|(left, right)| left == right).count();
+
+    // Different roots or Windows drive prefixes cannot be expressed as a relative path.
+    if common == 0
+        || base[common..]
+            .iter()
+            .any(|component| !matches!(component, Component::Normal(_) | Component::CurDir))
+    {
+        return None;
+    }
+
+    let mut relative = PathBuf::new();
+    for component in &base[common..] {
+        if matches!(component, Component::Normal(_)) {
+            relative.push(Component::ParentDir);
+        }
+    }
+    for component in &target[common..] {
+        relative.push(component.as_os_str());
+    }
+    if relative.as_os_str().is_empty() {
+        relative.push(Component::CurDir);
+    }
+    Some(relative)
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct CompilerOptionsPresence(u32);
+
+impl CompilerOptionsPresence {
+    fn contains(self, field: u32) -> bool {
+        self.0 & field != 0
+    }
+
+    fn insert(&mut self, field: u32) {
+        self.0 |= field;
+    }
+}
+
+const BASE_URL: u32 = 1 << 0;
+const PATHS: u32 = 1 << 1;
+const EXPERIMENTAL_DECORATORS: u32 = 1 << 2;
+const EMIT_DECORATOR_METADATA: u32 = 1 << 3;
+const STRICT: u32 = 1 << 4;
+const STRICT_NULL_CHECKS: u32 = 1 << 5;
+const USE_DEFINE_FOR_CLASS_FIELDS: u32 = 1 << 6;
+const REWRITE_RELATIVE_IMPORT_EXTENSIONS: u32 = 1 << 7;
+const JSX: u32 = 1 << 8;
+const JSX_FACTORY: u32 = 1 << 9;
+const JSX_FRAGMENT_FACTORY: u32 = 1 << 10;
+const JSX_IMPORT_SOURCE: u32 = 1 << 11;
+const VERBATIM_MODULE_SYNTAX: u32 = 1 << 12;
+const PRESERVE_VALUE_IMPORTS: u32 = 1 << 13;
+const IMPORTS_NOT_USED_AS_VALUES: u32 = 1 << 14;
+const TARGET: u32 = 1 << 15;
+const MODULE: u32 = 1 << 16;
+const ALLOW_JS: u32 = 1 << 17;
+const ROOT_DIRS: u32 = 1 << 18;
+const OUT_DIR: u32 = 1 << 19;
+const DECLARATION_DIR: u32 = 1 << 20;
+const RESOLVE_JSON_MODULE: u32 = 1 << 21;
+const CHECK_JS: u32 = 1 << 22;
+const CUSTOM_CONDITIONS: u32 = 1 << 23;
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawCompilerOptions {
+    #[serde(default)]
+    base_url: ConfigField<PathBuf>,
+    #[serde(default)]
+    paths: ConfigField<CompilerOptionsPathsMap>,
+    #[serde(default)]
+    experimental_decorators: ConfigField<bool>,
+    #[serde(default)]
+    emit_decorator_metadata: ConfigField<bool>,
+    #[serde(default)]
+    strict: ConfigField<bool>,
+    #[serde(default)]
+    strict_null_checks: ConfigField<bool>,
+    #[serde(default)]
+    use_define_for_class_fields: ConfigField<bool>,
+    #[serde(default)]
+    rewrite_relative_import_extensions: ConfigField<bool>,
+    #[serde(default)]
+    jsx: ConfigField<String>,
+    #[serde(default)]
+    jsx_factory: ConfigField<String>,
+    #[serde(default)]
+    jsx_fragment_factory: ConfigField<String>,
+    #[serde(default)]
+    jsx_import_source: ConfigField<String>,
+    #[serde(default)]
+    verbatim_module_syntax: ConfigField<bool>,
+    #[serde(default)]
+    preserve_value_imports: ConfigField<bool>,
+    #[serde(default)]
+    imports_not_used_as_values: ConfigField<String>,
+    #[serde(default)]
+    target: ConfigField<String>,
+    #[serde(default)]
+    module: ConfigField<String>,
+    #[serde(default)]
+    allow_js: ConfigField<bool>,
+    #[serde(default)]
+    root_dirs: ConfigField<Vec<PathBuf>>,
+    #[serde(default)]
+    out_dir: ConfigField<PathBuf>,
+    #[serde(default)]
+    declaration_dir: ConfigField<PathBuf>,
+    #[serde(default)]
+    resolve_json_module: ConfigField<bool>,
+    #[serde(default)]
+    check_js: ConfigField<bool>,
+    #[serde(default)]
+    custom_conditions: ConfigField<Vec<String>>,
+}
+
 /// Compiler Options
 ///
 /// <https://www.typescriptlang.org/tsconfig#compilerOptions>
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Default)]
 pub struct CompilerOptions {
     pub base_url: Option<PathBuf>,
 
@@ -556,12 +664,12 @@ pub struct CompilerOptions {
     pub paths: Option<CompilerOptionsPathsMap>,
 
     /// Pre-compiled wildcard path aliases for faster runtime matching.
-    #[serde(skip)]
     compiled_paths: Option<Arc<CompiledTsconfigPaths>>,
 
     /// The "base_url" at which this tsconfig is defined.
-    #[serde(skip)]
     pub(crate) paths_base: PathBuf,
+
+    presence: CompilerOptionsPresence,
 
     /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
     pub experimental_decorators: Option<bool>,
@@ -625,6 +733,65 @@ pub struct CompilerOptions {
 
     /// <https://www.typescriptlang.org/tsconfig/#checkJs>
     pub check_js: Option<bool>,
+
+    /// Additional package `exports` and `imports` conditions.
+    ///
+    /// <https://www.typescriptlang.org/tsconfig/#customConditions>
+    pub custom_conditions: Option<Vec<String>>,
+}
+
+impl<'de> Deserialize<'de> for CompilerOptions {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let raw = RawCompilerOptions::deserialize(deserializer)?;
+        let mut presence = CompilerOptionsPresence::default();
+
+        macro_rules! field {
+            ($name:ident, $flag:ident) => {{
+                if raw.$name.present {
+                    presence.insert($flag);
+                }
+                raw.$name.value
+            }};
+        }
+
+        Ok(Self {
+            base_url: field!(base_url, BASE_URL),
+            paths: field!(paths, PATHS),
+            experimental_decorators: field!(experimental_decorators, EXPERIMENTAL_DECORATORS),
+            emit_decorator_metadata: field!(emit_decorator_metadata, EMIT_DECORATOR_METADATA),
+            strict: field!(strict, STRICT),
+            strict_null_checks: field!(strict_null_checks, STRICT_NULL_CHECKS),
+            use_define_for_class_fields: field!(
+                use_define_for_class_fields,
+                USE_DEFINE_FOR_CLASS_FIELDS
+            ),
+            rewrite_relative_import_extensions: field!(
+                rewrite_relative_import_extensions,
+                REWRITE_RELATIVE_IMPORT_EXTENSIONS
+            ),
+            jsx: field!(jsx, JSX),
+            jsx_factory: field!(jsx_factory, JSX_FACTORY),
+            jsx_fragment_factory: field!(jsx_fragment_factory, JSX_FRAGMENT_FACTORY),
+            jsx_import_source: field!(jsx_import_source, JSX_IMPORT_SOURCE),
+            verbatim_module_syntax: field!(verbatim_module_syntax, VERBATIM_MODULE_SYNTAX),
+            preserve_value_imports: field!(preserve_value_imports, PRESERVE_VALUE_IMPORTS),
+            imports_not_used_as_values: field!(
+                imports_not_used_as_values,
+                IMPORTS_NOT_USED_AS_VALUES
+            ),
+            target: field!(target, TARGET),
+            module: field!(module, MODULE),
+            allow_js: field!(allow_js, ALLOW_JS),
+            root_dirs: field!(root_dirs, ROOT_DIRS),
+            out_dir: field!(out_dir, OUT_DIR),
+            declaration_dir: field!(declaration_dir, DECLARATION_DIR),
+            resolve_json_module: field!(resolve_json_module, RESOLVE_JSON_MODULE),
+            check_js: field!(check_js, CHECK_JS),
+            custom_conditions: field!(custom_conditions, CUSTOM_CONDITIONS),
+            presence,
+            ..Self::default()
+        })
+    }
 }
 
 /// Value for the "extends" field.
@@ -651,16 +818,25 @@ fn to_forward_slashes(s: Cow<'_, str>) -> Cow<'_, str> {
 /// Tsconfig resolver
 impl TsConfig {
     pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
-        if !tsconfig.references_resolved.is_empty()
-            && let Some(solution_tsconfig) = tsconfig
-                .references_resolved
-                .iter()
-                .find(|referenced| referenced.is_file_included_in_tsconfig(path))
-                .map(Arc::clone)
-        {
+        if let Some(solution_tsconfig) = tsconfig.find_referenced_config(path) {
             return solution_tsconfig;
         }
         tsconfig
+    }
+
+    fn find_referenced_config(&self, path: &Path) -> Option<Arc<Self>> {
+        let mut queue = self.references_resolved.iter().cloned().collect::<VecDeque<_>>();
+        let mut visited = FxHashSet::default();
+        while let Some(config) = queue.pop_front() {
+            if !visited.insert(config.path.clone()) {
+                continue;
+            }
+            if config.is_file_included_in_tsconfig(path) {
+                return Some(config);
+            }
+            queue.extend(config.references_resolved.iter().cloned());
+        }
+        None
     }
 
     /// Whether this tsconfig (directly or via a referenced sub-project) claims
@@ -671,7 +847,7 @@ impl TsConfig {
     pub(crate) fn claims_ownership_of(&self, path: &Path) -> bool {
         // Any matching reference claims ownership (consistent with
         // resolve_tsconfig_solution).
-        if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {
+        if self.find_referenced_config(path).is_some() {
             return true;
         }
         // Solution-style configs (have `references` and explicit empty
