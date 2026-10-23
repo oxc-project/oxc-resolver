@@ -6,7 +6,7 @@ use std::{
 use crate::{
     CachedPath, Ctx, ResolveError, ResolveOptions, ResolveResult, ResolverImpl, Specifier,
     SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-    path::PathUtil,
+    path::{PathUtil, is_path_relative},
 };
 
 #[derive(Default)]
@@ -294,8 +294,8 @@ impl ResolverImpl {
 
     /// Resolves
     /// * `compilerOptions.paths`
-    /// * `compilerOptions.rootDirs` (if specifier starts with `.`)
-    /// * `compilerOptions.baseUrl` (if specifier does not start with `.`)
+    /// * `compilerOptions.rootDirs` (if specifier is relative)
+    /// * `compilerOptions.baseUrl` (if specifier is non-relative)
     // <https://github.com/microsoft/TypeScript/blob/v5.9.3/src/compiler/moduleNameResolver.ts#L1550>
     pub(crate) fn resolve_tsconfig_compiler_options(
         &self,
@@ -338,7 +338,7 @@ impl ResolverImpl {
                 return Ok(Some(resolution));
             }
         }
-        if specifier.starts_with('.') {
+        if is_path_relative(specifier) {
             if let Some(path) =
                 self.load_tsconfig_root_dirs(cached_path, specifier, tsconfig, ctx)?
             {
@@ -362,7 +362,7 @@ impl ResolverImpl {
         tsconfig: &TsConfig,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        debug_assert!(specifier.starts_with('.'));
+        debug_assert!(is_path_relative(specifier));
         debug_assert!(!cached_path.inside_node_modules());
         let Some(root_dirs) = &tsconfig.compiler_options.root_dirs else { return Ok(None) };
 

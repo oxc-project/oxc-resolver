@@ -300,6 +300,39 @@ fn test_parent_base_url() {
 }
 
 #[test]
+fn test_dot_prefixed_non_relative_specifiers() {
+    let f = super::fixture_root().join("tsconfig/cases/dot-prefixed-paths");
+
+    #[rustfmt::skip]
+    let pass = [
+        (".exact", f.join("exact.ts")),
+        (".storybook/preview", f.join(".storybook/preview.ts")),
+        ("..alias/module", f.join("alias/module.ts")),
+        (".base-url", f.join(".base-url.ts")),
+    ];
+
+    for tsconfig_discovery in [false, true] {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(if tsconfig_discovery {
+                TsconfigDiscovery::Auto
+            } else {
+                TsconfigDiscovery::Manual(TsconfigOptions {
+                    config_file: f.join("tsconfig.json"),
+                    references: TsconfigReferences::Auto,
+                })
+            }),
+            ..ResolveOptions::default().with_extension(String::from(".ts"))
+        });
+
+        for (request, expected) in &pass {
+            let resolved_path =
+                resolver.resolve_file(f.join("index.ts"), request).map(|f| f.full_path());
+            assert_eq!(resolved_path, Ok(expected.clone()), "{request} {tsconfig_discovery}");
+        }
+    }
+}
+
+#[test]
 fn test_tsconfig_mixed_root_non_root_cache() {
     let f = super::fixture_root().join("tsconfig");
     let f2 = f.join("cases").join("simple-paths");
