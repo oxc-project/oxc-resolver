@@ -74,6 +74,8 @@ fn question_mark_in_specifier() {
         ("imports key containing `?`", "#question?mark", f.join("question-mark.js")),
         ("imports key containing `?` with fragment", "#question?mark#fragment", f.join("question-mark.js#fragment")),
         ("fall back to query when no key matches", "#question?other", f.join("question.js?other")),
+        ("imports key containing `?` and `&`", "#a?b&c", f.join("a-b-c.js")),
+        ("fall back to query containing `&`", "#question?mark&more", f.join("question.js?mark&more")),
         ("fall back to query for wildcard", "#wildcard/a?b", f.join("wildcard/a.js?b")),
     ];
 
