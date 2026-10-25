@@ -10,6 +10,25 @@ const fixtureDir = path.resolve(
 );
 
 describe("option", () => {
+  describe("tsconfig", () => {
+    it("supports the explicit nearest-config fallback mode", () => {
+      const root = path.resolve(
+        import.meta.dirname,
+        "../../fixtures/tsconfig/cases/solution-nearest-fallback",
+      );
+      const resolver = new ResolverFactory({ tsconfig: "auto-nearest", extensions: [".ts"] });
+      const result = resolver.resolveFileSync(path.join(root, "stories/story.ts"), "@app/util");
+      assert.equal(result.path, path.join(root, "src/libs/util.ts"));
+    });
+
+    it("rejects unknown discovery strings", () => {
+      assert.throws(
+        () => new ResolverFactory({ tsconfig: "nearest" }),
+        /not a valid tsconfig discovery mode/,
+      );
+    });
+  });
+
   describe("aliasFields", () => {
     it("should allow field string ", () => {
       const resolver = new ResolverFactory({ aliasFields: ["browser"] });
