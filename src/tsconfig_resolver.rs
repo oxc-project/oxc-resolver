@@ -6,8 +6,102 @@ use std::{
 use crate::{
     CachedPath, Ctx, ResolveError, ResolveOptions, ResolveResult, ResolverImpl, Specifier,
     SpecifierError, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-    path::PathUtil,
+    path::{PathUtil, is_path_relative},
 };
+
+/// A non-fatal problem encountered while loading a config from `extends`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TsconfigDiagnostic {
+    /// The config containing the failing `extends` entry.
+    pub config_path: PathBuf,
+
+    /// The error raised while resolving or loading the extended config.
+    pub error: ResolveError,
+}
+
+/// A loaded tsconfig together with diagnostics and files needed to invalidate it.
+#[derive(Debug, Clone)]
+pub struct TsconfigLoad {
+    /// The usable config, including every base config that loaded successfully.
+    pub config: Arc<TsConfig>,
+
+    /// Non-fatal errors from missing or malformed extended configs.
+    pub diagnostics: Arc<[TsconfigDiagnostic]>,
+
+    /// Config files read while producing [`Self::config`].
+    pub file_dependencies: Arc<[PathBuf]>,
+
+    /// Config files or resolution candidates that were not found.
+    pub missing_dependencies: Arc<[PathBuf]>,
+}
+
+impl TsconfigLoad {
+    pub(crate) fn from_context(config: Arc<TsConfig>, context: TsconfigLoadContext) -> Self {
+        Self {
+            config,
+            diagnostics: context.diagnostics.into(),
+            file_dependencies: context.file_dependencies.into(),
+            missing_dependencies: context.missing_dependencies.into(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct TsconfigLoadContext {
+    diagnostics: Vec<TsconfigDiagnostic>,
+    file_dependencies: Vec<PathBuf>,
+    missing_dependencies: Vec<PathBuf>,
+}
+
+impl TsconfigLoadContext {
+    pub fn add_file_dependency(&mut self, path: &Path) {
+        push_unique(&mut self.file_dependencies, path);
+    }
+
+    fn add_missing_dependency(&mut self, path: &Path) {
+        push_unique(&mut self.missing_dependencies, path);
+    }
+
+    fn add_diagnostic(&mut self, config_path: &Path, error: ResolveError) {
+        let diagnostic = TsconfigDiagnostic { config_path: config_path.to_path_buf(), error };
+        if !self.diagnostics.contains(&diagnostic) {
+            self.diagnostics.push(diagnostic);
+        }
+    }
+
+    fn extend_load(&mut self, load: &TsconfigLoad) {
+        for diagnostic in load.diagnostics.iter().cloned() {
+            if !self.diagnostics.contains(&diagnostic) {
+                self.diagnostics.push(diagnostic);
+            }
+        }
+        for dependency in load.file_dependencies.iter() {
+            self.add_file_dependency(dependency);
+        }
+        for dependency in load.missing_dependencies.iter() {
+            self.add_missing_dependency(dependency);
+        }
+    }
+
+    fn extend_resolve_context(&mut self, context: &Ctx) {
+        if let Some(dependencies) = &context.file_dependencies {
+            for dependency in dependencies {
+                self.add_file_dependency(dependency);
+            }
+        }
+        if let Some(dependencies) = &context.missing_dependencies {
+            for dependency in dependencies {
+                self.add_missing_dependency(dependency);
+            }
+        }
+    }
+}
+
+fn push_unique(paths: &mut Vec<PathBuf>, path: &Path) {
+    if !paths.iter().any(|candidate| candidate == path) {
+        paths.push(path.to_path_buf());
+    }
+}
 
 #[derive(Default)]
 pub struct TsconfigResolveContext {
@@ -170,7 +264,7 @@ impl ResolverImpl {
                     tsconfig_options.references,
                     &mut ctx,
                 )
-                .map(Some)
+                .map(|load| Some(Arc::clone(&load.config)))
             })
             .cloned()
     }
@@ -187,6 +281,22 @@ impl ResolverImpl {
     ///
     /// * See [ResolveError]
     pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<Arc<TsConfig>, ResolveError> {
+        self.resolve_tsconfig_with_context(path).map(|load| load.config)
+    }
+
+    /// Resolve `tsconfig`, retaining non-fatal `extends` diagnostics and watch dependencies.
+    ///
+    /// A missing or malformed root config remains an error. Missing and malformed configs loaded
+    /// through `extends` are reported in [`TsconfigLoad::diagnostics`], while the successfully
+    /// parsed local options and bases remain available in [`TsconfigLoad::config`].
+    ///
+    /// # Errors
+    ///
+    /// * See [ResolveError]
+    pub fn resolve_tsconfig_with_context<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<TsconfigLoad, ResolveError> {
         let path = path.as_ref();
         let references = match &self.options.tsconfig {
             Some(TsconfigDiscovery::Manual(o)) => o.references,
@@ -194,6 +304,7 @@ impl ResolverImpl {
             None => TsconfigReferences::Disabled,
         };
         self.load_tsconfig(true, path, references, &mut TsconfigResolveContext::default())
+            .map(|load| load.as_ref().clone())
     }
 
     fn load_tsconfig(
@@ -202,8 +313,8 @@ impl ResolverImpl {
         path: &Path,
         references: TsconfigReferences,
         ctx: &mut TsconfigResolveContext,
-    ) -> Result<Arc<TsConfig>, ResolveError> {
-        self.cache.get_tsconfig(root, path, |tsconfig| {
+    ) -> Result<Arc<TsconfigLoad>, ResolveError> {
+        self.cache.get_tsconfig(root, path, |tsconfig, load_context| {
             let directory = self.cache.value(tsconfig.directory());
             tracing::trace!(tsconfig = ?tsconfig, "load_tsconfig");
 
@@ -213,31 +324,7 @@ impl ResolverImpl {
                 ));
             }
 
-            // Extend tsconfig.
-            //
-            // Per TypeScript spec, when the `extends` field is an array later
-            // configurations take precedence over earlier ones. Since
-            // `extend_tsconfig` only fills `None` fields, we iterate in reverse
-            // so that the last base sets fields first and earlier bases can no
-            // longer override them — net effect: later wins.
-            let extended_tsconfig_paths = tsconfig
-                .extends()
-                .map(|specifier| self.get_extended_tsconfig_path(&directory, tsconfig, specifier))
-                .collect::<Result<Vec<_>, _>>()?;
-            if !extended_tsconfig_paths.is_empty() {
-                ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
-                    for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
-                        let extended_tsconfig = self.load_tsconfig(
-                            /* root */ false,
-                            &extended_tsconfig_path,
-                            TsconfigReferences::Disabled,
-                            ctx,
-                        )?;
-                        tsconfig.extend_tsconfig(&extended_tsconfig);
-                    }
-                    Result::Ok::<(), ResolveError>(())
-                })?;
-            }
+            self.extend_tsconfig(&directory, tsconfig, ctx, load_context)?;
 
             if tsconfig.load_references(references) {
                 let path = tsconfig.path().to_path_buf();
@@ -247,7 +334,7 @@ impl ResolverImpl {
                     let referenced_tsconfig = self.cache.get_tsconfig(
                         /* root */ true,
                         &reference_tsconfig_path,
-                        |reference_tsconfig| {
+                        |reference_tsconfig, reference_load_context| {
                             if reference_tsconfig.path() == path {
                                 return Err(ResolveError::TsconfigSelfReference(
                                     reference_tsconfig.path().to_path_buf(),
@@ -257,11 +344,13 @@ impl ResolverImpl {
                                 &self.cache.value(reference_tsconfig.directory()),
                                 reference_tsconfig,
                                 ctx,
+                                reference_load_context,
                             )?;
                             Ok(())
                         },
                     )?;
-                    tsconfig.references_resolved.push(referenced_tsconfig);
+                    load_context.extend_load(&referenced_tsconfig);
+                    tsconfig.references_resolved.push(Arc::clone(&referenced_tsconfig.config));
                 }
             }
             Ok(())
@@ -273,29 +362,78 @@ impl ResolverImpl {
         directory: &CachedPath,
         tsconfig: &mut TsConfig,
         ctx: &mut TsconfigResolveContext,
+        load_context: &mut TsconfigLoadContext,
     ) -> Result<(), ResolveError> {
-        let extended_tsconfig_paths = tsconfig
-            .extends()
-            .map(|specifier| self.get_extended_tsconfig_path(directory, tsconfig, specifier))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut extended_tsconfig_paths = Vec::new();
+        for specifier in tsconfig.extends() {
+            let mut resolve_context = Ctx::default();
+            resolve_context.init_file_dependencies();
+            let result = self.get_extended_tsconfig_path(
+                directory,
+                tsconfig,
+                specifier,
+                &mut resolve_context,
+            );
+            load_context.extend_resolve_context(&resolve_context);
+            match result {
+                Ok(path) => extended_tsconfig_paths.push(path),
+                Err(error)
+                    if Self::recover_extended_tsconfig_error(tsconfig, load_context, &error) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
         // Iterate in reverse so that later `extends` entries take precedence —
         // see comment in `load_tsconfig`.
-        for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
-            let extended_tsconfig = self.load_tsconfig(
-                /* root */ false,
-                &extended_tsconfig_path,
-                TsconfigReferences::Disabled,
-                ctx,
-            )?;
-            tsconfig.extend_tsconfig(&extended_tsconfig);
+        ctx.with_extended_file(tsconfig.path().to_owned(), |ctx| {
+            for extended_tsconfig_path in extended_tsconfig_paths.into_iter().rev() {
+                match self.load_tsconfig(
+                    /* root */ false,
+                    &extended_tsconfig_path,
+                    TsconfigReferences::Disabled,
+                    ctx,
+                ) {
+                    Ok(extended_tsconfig) => {
+                        load_context.extend_load(&extended_tsconfig);
+                        tsconfig.extend_tsconfig(&extended_tsconfig.config);
+                    }
+                    Err(error)
+                        if Self::recover_extended_tsconfig_error(
+                            tsconfig,
+                            load_context,
+                            &error,
+                        ) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+            Ok(())
+        })
+    }
+
+    fn recover_extended_tsconfig_error(
+        tsconfig: &TsConfig,
+        load_context: &mut TsconfigLoadContext,
+        error: &ResolveError,
+    ) -> bool {
+        match error {
+            ResolveError::TsconfigNotFound(path) => {
+                load_context.add_missing_dependency(path);
+            }
+            ResolveError::TsconfigLoadFailed { path, source }
+                if matches!(source.as_ref(), ResolveError::Json(_)) =>
+            {
+                load_context.add_file_dependency(path);
+            }
+            _ => return false,
         }
-        Ok(())
+        load_context.add_diagnostic(tsconfig.path(), error.clone());
+        true
     }
 
     /// Resolves
     /// * `compilerOptions.paths`
-    /// * `compilerOptions.rootDirs` (if specifier starts with `.`)
-    /// * `compilerOptions.baseUrl` (if specifier does not start with `.`)
+    /// * `compilerOptions.rootDirs` (if specifier is relative)
+    /// * `compilerOptions.baseUrl` (if specifier is non-relative)
     // <https://github.com/microsoft/TypeScript/blob/v5.9.3/src/compiler/moduleNameResolver.ts#L1550>
     pub(crate) fn resolve_tsconfig_compiler_options(
         &self,
@@ -338,7 +476,7 @@ impl ResolverImpl {
                 return Ok(Some(resolution));
             }
         }
-        if specifier.starts_with('.') {
+        if is_path_relative(specifier) {
             if let Some(path) =
                 self.load_tsconfig_root_dirs(cached_path, specifier, tsconfig, ctx)?
             {
@@ -362,7 +500,7 @@ impl ResolverImpl {
         tsconfig: &TsConfig,
         ctx: &mut Ctx,
     ) -> ResolveResult {
-        debug_assert!(specifier.starts_with('.'));
+        debug_assert!(is_path_relative(specifier));
         debug_assert!(!cached_path.inside_node_modules());
         let Some(root_dirs) = &tsconfig.compiler_options.root_dirs else { return Ok(None) };
 
@@ -439,6 +577,7 @@ impl ResolverImpl {
         directory: &CachedPath,
         tsconfig: &TsConfig,
         specifier: &str,
+        ctx: &mut Ctx,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
             None => Err(ResolveError::Specifier(SpecifierError::Empty(specifier.to_string()))),
@@ -450,7 +589,7 @@ impl ResolverImpl {
             Some(b'#') => {
                 let resolved = self
                     .tsconfig_extends_resolver()
-                    .load_package_imports(directory, specifier, Some(tsconfig), &mut Ctx::default())
+                    .load_package_imports(directory, specifier, Some(tsconfig), ctx)
                     .map_err(|err| match err {
                         ResolveError::PackageImportNotDefined(..) | ResolveError::NotFound(..) => {
                             ResolveError::TsconfigNotFound(PathBuf::from(specifier))
@@ -463,7 +602,7 @@ impl ResolverImpl {
             }
             _ => self
                 .tsconfig_extends_resolver()
-                .load_bare_package(directory, specifier, None, &mut Ctx::default())
+                .load_bare_package(directory, specifier, None, ctx)
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
                     ResolveError::NotFound(_) => {
