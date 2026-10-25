@@ -376,3 +376,86 @@ fn solution_style_nested_non_ts_walks_up() {
     // config for it (it would land in an inferred project).
     assert!(resolver.find_tsconfig(f.join("src/feature/legacy.js")).unwrap().is_none());
 }
+
+#[test]
+fn recursive_references_use_breadth_first_ownership() {
+    let f = super::fixture_root().join("tsconfig/cases/project-references-recursive");
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let deep_importer = f.join("shared/deep.ts");
+    let deep_config = resolver.find_tsconfig(&deep_importer).unwrap().unwrap();
+    assert_eq!(deep_config.path(), f.join("configs/leaf.json"));
+    let deep = resolver.resolve_file(&deep_importer, "@deep/value").map(|r| r.full_path());
+    assert_eq!(deep, Ok(f.join("leaf/value.ts")));
+
+    let manual = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: TsconfigReferences::Auto,
+        })),
+        ..ResolveOptions::default()
+    });
+    let manual_deep = manual.resolve_file(&deep_importer, "@deep/value").map(|r| r.full_path());
+    assert_eq!(manual_deep, Ok(f.join("leaf/value.ts")));
+
+    // `leaf.json` also owns this file, but `sibling.json` is one reference level closer to the
+    // solution root and therefore wins the breadth-first search.
+    let bfs_importer = f.join("shared/bfs.ts");
+    let bfs_config = resolver.find_tsconfig(&bfs_importer).unwrap().unwrap();
+    assert_eq!(bfs_config.path(), f.join("configs/sibling.json"));
+    let bfs = resolver.resolve_file(&bfs_importer, "@pick/value").map(|r| r.full_path());
+    assert_eq!(bfs, Ok(f.join("sibling/value.ts")));
+}
+
+#[test]
+fn project_reference_cycles_are_reported() {
+    let f = super::fixture_root().join("tsconfig/cases/project-references-cycle");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(result, Err(ResolveError::TsconfigCircularReference(_))),
+        "expected a project-reference cycle, got {result:?}"
+    );
+}
+
+#[test]
+fn auto_nearest_is_an_explicit_orphan_file_compatibility_mode() {
+    let f = super::fixture_root().join("tsconfig/cases/solution-nearest-fallback");
+    let importer = f.join("stories/story.ts");
+
+    let strict = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+    let strict_config = strict.find_tsconfig(&importer).unwrap();
+    assert!(
+        strict_config.as_ref().is_none_or(|config| config.path() != f.join("tsconfig.json")),
+        "strict auto must not fall back to the unowned solution root"
+    );
+    assert_eq!(
+        strict.resolve_file(&importer, "@app/util").map(|r| r.full_path()),
+        Err(ResolveError::NotFound("@app/util".into()))
+    );
+
+    let compatible = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(TsconfigDiscovery::AutoNearest),
+        ..ResolveOptions::default()
+    });
+    let config = compatible.find_tsconfig(&importer).unwrap().unwrap();
+    assert_eq!(config.path(), f.join("tsconfig.json"));
+    assert_eq!(
+        compatible.resolve_file(&importer, "@app/util").map(|r| r.full_path()),
+        Ok(f.join("src/libs/util.ts"))
+    );
+}

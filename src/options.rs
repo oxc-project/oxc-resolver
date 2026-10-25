@@ -40,7 +40,9 @@ pub struct ResolveOptions {
     /// Default `[]`
     pub alias_fields: Vec<Vec<String>>,
 
-    /// Condition names for exports field which defines entry points of a package.
+    /// Condition names for package `exports` and `imports` fields.
+    ///
+    /// When a tsconfig is active, its `compilerOptions.customConditions` are also matched.
     ///
     /// The key order in the exports field is significant. During condition matching, earlier entries have higher priority and take precedence over later entries.
     ///
@@ -516,7 +518,12 @@ impl std::fmt::Debug for Restriction {
 
 #[derive(Debug, Clone)]
 pub enum TsconfigDiscovery {
+    /// Match TypeScript project ownership. Files owned by no config use no tsconfig.
     Auto,
+    /// Search the nearest config and its reference graph, falling back to that nearest config when
+    /// no project owns the file. This compatibility mode is useful for orphan Storybook or Angular
+    /// files that rely on solution-root path aliases.
+    AutoNearest,
     Manual(TsconfigOptions),
 }
 
