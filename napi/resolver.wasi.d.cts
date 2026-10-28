@@ -7,7 +7,10 @@ export declare const __napiBindingTarget: 'wasm32-wasi'
 export declare class ResolverFactory {
   constructor(options?: NapiResolveOptions | undefined | null)
   static default(): ResolverFactory
-  /** Clone the resolver using the same underlying cache. */
+  /**
+   * Clone the resolver, reusing the underlying cache when tsconfig and Yarn PnP options are
+   * unchanged.
+   */
   cloneWithOptions(options: NapiResolveOptions): ResolverFactory
   /**
    * Clear the underlying cache.
@@ -15,6 +18,10 @@ export declare class ResolverFactory {
    * Warning: The caller must ensure that there're no ongoing resolution operations when calling this method. Otherwise, it may cause those operations to return an incorrect result.
    */
   clearCache(): void
+  /** Synchronously find the tsconfig associated with an absolute source file path. */
+  findTsconfigSync(filename: string): TsconfigResult | null
+  /** Asynchronously find the tsconfig associated with an absolute source file path. */
+  findTsconfigAsync(filename: string): Promise<TsconfigResult | null>
   /** Synchronously resolve `specifier` at an absolute path to a `directory`. */
   sync(directory: string, request: string): ResolveResult
   /** Asynchronously resolve `specifier` at an absolute path to a `directory`. */
@@ -293,6 +300,39 @@ export interface Restriction {
 
 export declare function sync(path: string, request: string): ResolveResult
 
+export interface Tsconfig {
+  files?: Array<string>
+  include?: Array<string>
+  exclude?: Array<string>
+  compilerOptions: TsconfigCompilerOptions
+}
+
+export interface TsconfigCompilerOptions {
+  baseUrl?: string
+  paths?: Record<string, Array<string>>
+  experimentalDecorators?: boolean
+  emitDecoratorMetadata?: boolean
+  strict?: boolean
+  strictNullChecks?: boolean
+  useDefineForClassFields?: boolean
+  rewriteRelativeImportExtensions?: boolean
+  jsx?: string
+  jsxFactory?: string
+  jsxFragmentFactory?: string
+  jsxImportSource?: string
+  verbatimModuleSyntax?: boolean
+  preserveValueImports?: boolean
+  importsNotUsedAsValues?: string
+  target?: string
+  module?: string
+  allowJs?: boolean
+  rootDirs?: Array<string>
+  outDir?: string
+  declarationDir?: string
+  resolveJsonModule?: boolean
+  checkJs?: boolean
+}
+
 /**
  * Tsconfig Options
  *
@@ -312,4 +352,9 @@ export interface TsconfigOptions {
    * * `'auto'`: use the `references` field from tsconfig of `config_file`.
    */
   references?: 'auto'
+}
+
+export interface TsconfigResult {
+  tsconfigFilePaths: Array<string>
+  tsconfig: Tsconfig
 }
