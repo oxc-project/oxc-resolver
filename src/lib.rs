@@ -58,6 +58,7 @@ mod package_map;
 mod path;
 mod resolution;
 mod specifier;
+mod ts_semver;
 mod tsconfig;
 mod tsconfig_resolver;
 #[cfg(target_os = "windows")]
@@ -90,7 +91,7 @@ pub use crate::{
     file_system::{FileMetadata, FileSystem, FileSystemOs},
     options::{
         Alias, AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
-        TsconfigOptions, TsconfigReferences,
+        TsconfigOptions, TsconfigReferences, TypesVersions,
     },
     package_json::{
         ImportsExportsArray, ImportsExportsEntry, ImportsExportsKind, ImportsExportsMap,

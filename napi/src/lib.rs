@@ -14,6 +14,7 @@ use napi::{Either, Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
 use oxc_resolver::{
     Resolution, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
+    TypesVersions,
 };
 
 use self::options::{NapiResolveOptions, StrOrStrList};
@@ -351,6 +352,13 @@ impl ResolverFactory {
             allow_package_exports_in_directory_resolve: op
                 .allow_package_exports_in_directory_resolve
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
+            types_versions: match op.types_versions {
+                None => default.types_versions,
+                Some(Either::A(true)) => TypesVersions::First,
+                Some(Either::A(false)) => TypesVersions::Ignore,
+                Some(Either::B(version)) if version == "latest" => TypesVersions::Latest,
+                Some(Either::B(version)) => TypesVersions::Version(version),
+            },
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: default.yarn_pnp,
         })

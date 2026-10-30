@@ -241,6 +241,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | roots                                 | []                        | A list of root paths                                                                                                                                      |
 | symlinks                              | true                      | Whether to resolve symlinks to their symlinked location                                                                                                   |
 | allowPackageExportsInDirectoryResolve | false                     | Allow `exports` field in `require('../directory')`. Not part of `enhanced-resolve`.                                                                       |
+| typesVersions                         | true                      | `typesVersions` entry used by `resolveDts*`: `true` first, `false` ignore, `'latest'`, or a TypeScript version like `'6.0.3'`.                            |
 
 ### TypeScript Configuration
 

@@ -1,4 +1,6 @@
-use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
+use crate::{
+    ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TypesVersions,
+};
 
 fn dts_fixture() -> std::path::PathBuf {
     super::fixture_root().join("dts-resolver")
@@ -155,6 +157,58 @@ fn types_versions_subpath() {
     let r = resolver();
     let result = r.resolve_dts(containing_file(), "with-types-versions/sub").unwrap();
     assert_eq!(result.path(), dts_fixture().join("node_modules/with-types-versions/dist/sub.d.ts"));
+}
+
+#[test]
+fn types_versions_ranges() {
+    // Modeled after `@types/node`, which keeps legacy typings for old compilers
+    let pkg = dts_fixture().join("node_modules/ranged-types-versions");
+    let cases = [
+        (TypesVersions::First, "ts5.6/"),
+        (TypesVersions::Ignore, ""),
+        (TypesVersions::Latest, ""),
+        (TypesVersions::Version("5.5.0".into()), "ts5.6/"),
+        (TypesVersions::Version("5.6.3".into()), "ts5.6/"),
+        (TypesVersions::Version("5.7.2".into()), "ts5.7/"),
+        (TypesVersions::Version("5.8.0-beta".into()), ""),
+        (TypesVersions::Version("6.0.3".into()), ""),
+        // Invalid version, no entry matches
+        (TypesVersions::Version("next".into()), ""),
+    ];
+    for (types_versions, dir) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        for (specifier, file) in
+            [("ranged-types-versions", "index.d.ts"), ("ranged-types-versions/fs", "fs.d.ts")]
+        {
+            let result = r.resolve_dts(containing_file(), specifier).unwrap();
+            assert_eq!(
+                result.path(),
+                pkg.join(format!("{dir}{file}")),
+                "{types_versions:?} {specifier}"
+            );
+        }
+    }
+}
+
+#[test]
+fn types_versions_wildcard_range() {
+    // The `*` range matches any version
+    for types_versions in [TypesVersions::Latest, TypesVersions::Version("6.0.3".into())] {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions,
+            ..ResolveOptions::default()
+        });
+        let result = r.resolve_dts(containing_file(), "with-types-versions/sub").unwrap();
+        assert_eq!(
+            result.path(),
+            dts_fixture().join("node_modules/with-types-versions/dist/sub.d.ts")
+        );
+    }
 }
 
 // -------- node_modules: typings field --------
