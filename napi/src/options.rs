@@ -170,6 +170,20 @@ pub struct NapiResolveOptions {
     ///
     /// Default: `false`
     pub allow_package_exports_in_directory_resolve: Option<bool>,
+
+    /// How `resolveDtsSync` / `resolveDtsAsync` select an entry from the package.json
+    /// `typesVersions` field.
+    ///
+    /// * `true`: use the first entry regardless of its version range.
+    /// * `false`: ignore the `typesVersions` field.
+    /// * `'latest'`: match as if the compiler were newer than any version range,
+    ///   e.g. `*` and `>=3.1` match, `<=5.6` doesn't.
+    /// * a TypeScript version such as `'6.0.3'`: match version ranges against it,
+    ///   the same as `ts.resolveModuleName` running on that version.
+    ///
+    /// Default `true`
+    #[napi(ts_type = "boolean | 'latest' | (string & {})")]
+    pub types_versions: Option<Either<bool, String>>,
 }
 
 #[napi]

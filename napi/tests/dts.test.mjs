@@ -18,3 +18,18 @@ test("magic-string resolves to .d.mts", () => {
   assert.isUndefined(result.error);
   assert.match(result.path, /magic-string\.es\.d\.mts$/);
 });
+
+test("typesVersions option", () => {
+  const containingFile = join(rootDir, "fixtures", "dts-resolver", "index.ts");
+  const resolve = (typesVersions) =>
+    new ResolverFactory({ typesVersions })
+      .resolveDtsSync(containingFile, "ranged-types-versions")
+      .path.replaceAll("\\", "/")
+      .split("/ranged-types-versions/")[1];
+  assert.equal(resolve(undefined), "ts5.6/index.d.ts");
+  assert.equal(resolve(true), "ts5.6/index.d.ts");
+  assert.equal(resolve(false), "index.d.ts");
+  assert.equal(resolve("latest"), "index.d.ts");
+  assert.equal(resolve("5.7.2"), "ts5.7/index.d.ts");
+  assert.equal(resolve("6.0.3"), "index.d.ts");
+});
