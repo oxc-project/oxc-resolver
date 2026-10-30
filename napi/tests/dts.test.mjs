@@ -24,7 +24,8 @@ test("typesVersions option", () => {
   const resolve = (typesVersions) =>
     new ResolverFactory({ typesVersions })
       .resolveDtsSync(containingFile, "ranged-types-versions")
-      .path.split(/[\\/]ranged-types-versions[\\/]/)[1];
+      .path.replaceAll("\\", "/")
+      .split("/ranged-types-versions/")[1];
   assert.equal(resolve(undefined), "ts5.6/index.d.ts");
   assert.equal(resolve(true), "ts5.6/index.d.ts");
   assert.equal(resolve(false), "index.d.ts");
