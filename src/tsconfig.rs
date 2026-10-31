@@ -476,7 +476,14 @@ impl TsConfig {
     ) -> Vec<PathBuf> {
         for tsconfig in &self.references_resolved {
             if path.starts_with(&tsconfig.compiler_options.paths_base) {
-                return tsconfig.resolve_path_alias(specifier);
+                // A referenced project that has no mapping for this specifier must not
+                // shadow its parent's `paths`. A reference commonly lives in the same
+                // directory as the parent (e.g. `tsconfig.json` + `tsconfig.node.json`),
+                // so `paths_base` alone does not establish ownership.
+                let paths = tsconfig.resolve_path_alias(specifier);
+                if !paths.is_empty() {
+                    return paths;
+                }
             }
         }
         self.resolve_path_alias(specifier)
