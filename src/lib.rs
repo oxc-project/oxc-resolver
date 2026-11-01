@@ -848,9 +848,14 @@ impl ResolverImpl {
             // * <https://github.com/nodejs/node/issues/58827>
             if self.options.allow_package_exports_in_directory_resolve {
                 for exports in package_json.exports_fields(&self.options.exports_fields) {
-                    if let Some(path) =
-                        self.package_exports_resolve(cached_path, ".", &exports, tsconfig, ctx)?
-                    {
+                    if let Some(path) = self.package_exports_resolve(
+                        cached_path,
+                        ".",
+                        &exports,
+                        Some(&package_json),
+                        tsconfig,
+                        ctx,
+                    )? {
                         return Ok(Some(path));
                     }
                 }
@@ -1223,6 +1228,7 @@ impl ResolverImpl {
                 cached_path,
                 dot_subpath.as_ref(),
                 &exports,
+                Some(&package_json),
                 tsconfig,
                 ctx,
             )? {
@@ -1264,6 +1270,7 @@ impl ResolverImpl {
                     &package_url,
                     dot_subpath.as_ref(),
                     &exports,
+                    Some(&package_json),
                     tsconfig,
                     ctx,
                 )? {
@@ -1481,6 +1488,7 @@ impl ResolverImpl {
                                 &cached_path,
                                 dot_subpath.as_ref(),
                                 &exports,
+                                Some(&package_json),
                                 tsconfig,
                                 ctx,
                             )? {
@@ -1519,24 +1527,21 @@ impl ResolverImpl {
         package_url: &CachedPath,
         subpath: &str,
         exports: &ImportsExportsEntry<'_>,
+        package_json: Option<&PackageJson>,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> ResolveResult {
         let conditions = &self.options.condition_names;
         // 1. If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
-        if let Some(map) = exports.as_map() {
-            let mut has_dot = false;
-            let mut without_dot = false;
-            for key in map.keys() {
-                let starts_with_dot_or_hash = key.starts_with(['.', '#']);
-                has_dot = has_dot || starts_with_dot_or_hash;
-                without_dot = without_dot || !starts_with_dot_or_hash;
-                if has_dot && without_dot {
-                    return Err(ResolveError::InvalidPackageConfig(
-                        package_url.path().join("package.json"),
-                    ));
-                }
-            }
+        // `package_json` caches the check for its top-level "exports" field.
+        let has_mixed_keys = package_json.map_or_else(
+            || exports.has_mixed_keys(),
+            |package_json| package_json.exports_has_mixed_keys(exports),
+        );
+        if has_mixed_keys {
+            return Err(ResolveError::InvalidPackageConfig(
+                package_url.path().join("package.json"),
+            ));
         }
         // 2. If subpath is equal to ".", then
         // Note: subpath is not prepended with a dot when passed in.

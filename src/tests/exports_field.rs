@@ -210,6 +210,30 @@ fn shared_resolvers() {
 }
 
 #[test]
+fn invalid_exports_field_cached() {
+    let f = super::fixture().join("exports-field");
+    let p = f.join("node_modules/invalid-exports-field/package.json");
+
+    // The second resolve reads the cached check of the top-level "exports" field.
+    let resolver = Resolver::new(ResolveOptions::default());
+    for _ in 0..2 {
+        let resolution = resolver.resolve(&f, "invalid-exports-field");
+        assert_eq!(resolution, Err(ResolveError::InvalidPackageConfig(p.clone())));
+    }
+
+    // A resolver that shares the cache checks its own exports field, not the cached result.
+    let resolver = resolver.clone_with_options(ResolveOptions {
+        exports_fields: vec![vec!["browser".into()]],
+        ..ResolveOptions::default()
+    });
+    let resolution = resolver.resolve(&f, "invalid-exports-field");
+    assert!(
+        matches!(resolution, Err(ResolveError::PackagePathNotExported { .. })),
+        "{resolution:?}"
+    );
+}
+
+#[test]
 fn extension_alias_1_2() {
     let f = super::fixture().join("exports-field-and-extension-alias");
 
@@ -2555,6 +2579,7 @@ fn test_cases() {
                 &cached_path,
                 case.request,
                 &case.exports_field,
+                None,
                 None,
                 &mut Ctx::default(),
             )

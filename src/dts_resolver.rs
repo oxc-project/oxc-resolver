@@ -555,7 +555,7 @@ impl ResolverImpl {
 
             for exports in pkg.exports_fields(&self.options.exports_fields) {
                 if let Ok(Some(path)) =
-                    self.package_exports_resolve(&pkg_dir, &subpath, &exports, None, ctx)
+                    self.package_exports_resolve(&pkg_dir, &subpath, &exports, Some(pkg), None, ctx)
                 {
                     // Try to resolve the ESM match (file may need extension)
                     if let Some(resolved) = self.dts_resolve_esm_match(&path, ctx) {
