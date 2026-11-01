@@ -334,6 +334,12 @@ impl TsConfig {
             compiler_options.module = Some(module.clone());
         }
 
+        if compiler_options.module_suffixes.is_none()
+            && let Some(module_suffixes) = &tsconfig.compiler_options.module_suffixes
+        {
+            compiler_options.module_suffixes = Some(module_suffixes.clone());
+        }
+
         if compiler_options.allow_js.is_none()
             && let Some(allow_js) = &tsconfig.compiler_options.allow_js
         {
@@ -554,6 +560,9 @@ pub struct CompilerOptions {
 
     /// Path aliases.
     pub paths: Option<CompilerOptionsPathsMap>,
+
+    /// <https://www.typescriptlang.org/tsconfig/#moduleSuffixes>
+    pub module_suffixes: Option<Vec<String>>,
 
     /// Pre-compiled wildcard path aliases for faster runtime matching.
     #[serde(skip)]
