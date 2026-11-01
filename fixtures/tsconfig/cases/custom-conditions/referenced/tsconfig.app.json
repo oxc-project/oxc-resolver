@@ -1,0 +1,4 @@
+{
+  "extends": "../base.json",
+  "files": ["app/main.ts"]
+}

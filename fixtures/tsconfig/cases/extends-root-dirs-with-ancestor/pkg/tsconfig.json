@@ -1,0 +1,1 @@
+{ "extends": "./gen/tsconfig.json" }
