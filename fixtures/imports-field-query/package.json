@@ -1,0 +1,10 @@
+{
+  "name": "imports-field-query",
+  "version": "1.0.0",
+  "imports": {
+    "#question?mark": "./question-mark.js",
+    "#a?b&c": "./a-b-c.js",
+    "#question": "./question.js",
+    "#wildcard/*": "./wildcard/*.js"
+  }
+}

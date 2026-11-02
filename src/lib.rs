@@ -659,6 +659,17 @@ impl ResolverImpl {
         let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
         ctx.with_query_fragment(parsed.query, parsed.fragment);
 
+        // Node.js matches subpath imports literally, so `#a?b` can be an `imports` key -> try it
+        // as path first, then fall back to `#a` with the `?b` query.
+        if ctx.query.is_some() && specifier.starts_with('#') {
+            let query = ctx.query.take().unwrap();
+            let path = format!("{}{query}", parsed.path());
+            if let Ok(path) = self.require_without_parse(cached_path, &path, tsconfig, ctx) {
+                return Ok((parsed, Some(path)));
+            }
+            ctx.query.replace(query);
+        }
+
         // There is an edge-case where a request with # can be a path or a fragment -> try both
         if ctx.fragment.is_some() && ctx.query.is_none() {
             let specifier = parsed.path();
