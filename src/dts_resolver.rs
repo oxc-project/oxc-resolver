@@ -621,6 +621,31 @@ impl ResolverImpl {
 
     // -------- typesVersions --------
 
+    /// Whether `key` is a versioned types condition such as `types@>=5.2` in `exports` /
+    /// `imports` that matches the TypeScript version from
+    /// [`ResolveOptions::types_versions`](crate::ResolveOptions::types_versions).
+    ///
+    /// TS: `isApplicableVersionedTypesKey`
+    pub(crate) fn is_applicable_versioned_types_key(
+        &self,
+        conditions: &[String],
+        key: &str,
+    ) -> bool {
+        let version = match &self.options.types_versions {
+            // Without a known compiler version these keys never match.
+            TypesVersions::First | TypesVersions::Ignore => return false,
+            TypesVersions::Latest => Version::LATEST,
+            TypesVersions::Version(version) => {
+                let Some(version) = Version::parse(version) else { return false };
+                version
+            }
+        };
+        key.strip_prefix("types@").is_some_and(|range| {
+            conditions.iter().any(|condition| condition == "types")
+                && VersionRange::parse(range).is_some_and(|range| range.test(&version))
+        })
+    }
+
     /// Get the path mappings of the `typesVersions` entry selected by
     /// [`ResolveOptions::types_versions`](crate::ResolveOptions::types_versions).
     ///

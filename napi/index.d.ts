@@ -278,6 +278,10 @@ export interface NapiResolveOptions {
    * * a TypeScript version such as `'6.0.3'`: match version ranges against it,
    *   the same as `ts.resolveModuleName` running on that version.
    *
+   * With `'latest'` or a version, versioned types conditions such as `types@>=5.2` in
+   * `exports` / `imports` also match when their range matches and `types` is in
+   * `conditionNames`.
+   *
    * Default `true`
    */
   typesVersions?: boolean | 'latest' | (string & {})

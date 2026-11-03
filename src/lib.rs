@@ -1841,7 +1841,11 @@ impl ResolverImpl {
             // 2. For each property p of target, in object insertion order as,
             for (key, target_value) in target.iter() {
                 // 1. If p equals "default" or conditions contains an entry for p, then
-                if key == "default" || conditions.iter().any(|condition| condition == key) {
+                // TypeScript also matches versioned types conditions like `types@>=5.2`.
+                if key == "default"
+                    || conditions.iter().any(|condition| condition == key)
+                    || self.is_applicable_versioned_types_key(conditions, key)
+                {
                     // 1. Let targetValue be the value of the p property in target.
                     // 2. Let resolved be the result of PACKAGE_TARGET_RESOLVE( packageURL, targetValue, patternMatch, isImports, conditions).
                     let resolved = self.package_target_resolve(

@@ -211,6 +211,50 @@ fn types_versions_wildcard_range() {
     }
 }
 
+#[test]
+fn versioned_types_condition() {
+    // https://www.typescriptlang.org/docs/handbook/modules/reference.html#example-versioned-types-condition
+    let pkg = dts_fixture().join("node_modules/versioned-types-condition");
+    let cases = [
+        // Versioned conditions never match without a known compiler version
+        (TypesVersions::First, "tsold"),
+        (TypesVersions::Ignore, "tsold"),
+        (TypesVersions::Latest, "ts5.2"),
+        (TypesVersions::Version("6.0.3".into()), "ts5.2"),
+        (TypesVersions::Version("5.2.0".into()), "ts5.2"),
+        (TypesVersions::Version("5.2.0-beta".into()), "ts5.2"),
+        (TypesVersions::Version("5.1.6".into()), "ts4.6"),
+        (TypesVersions::Version("4.9.5".into()), "ts4.6"),
+        (TypesVersions::Version("4.5.0".into()), "tsold"),
+    ];
+    for (types_versions, dir) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        let result = r.resolve_dts(containing_file(), "versioned-types-condition").unwrap();
+        assert_eq!(result.path(), pkg.join(dir).join("index.d.ts"), "{types_versions:?}");
+
+        let internal_dir = if dir == "ts4.6" { "tsold" } else { dir };
+        let result = r.resolve_dts(pkg.join("index.js"), "#internal").unwrap();
+        assert_eq!(
+            result.path(),
+            pkg.join(internal_dir).join("internal.d.ts"),
+            "{types_versions:?} #internal"
+        );
+    }
+
+    // Versioned conditions require the `types` condition
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into()],
+        types_versions: TypesVersions::Latest,
+        ..ResolveOptions::default()
+    });
+    let result = r.resolve(dts_fixture(), "versioned-types-condition").unwrap();
+    assert_eq!(result.path(), pkg.join("index.js"));
+}
+
 // -------- node_modules: typings field --------
 
 #[test]

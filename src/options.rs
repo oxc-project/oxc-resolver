@@ -205,6 +205,10 @@ pub struct ResolveOptions {
     /// How [crate::ResolverImpl::resolve_dts] selects an entry from the package.json
     /// `typesVersions` field.
     ///
+    /// With [TypesVersions::Latest] or [TypesVersions::Version], versioned types conditions
+    /// such as `types@>=5.2` in `exports` / `imports` also match when their range matches and
+    /// `types` is in [ResolveOptions::condition_names].
+    ///
     /// Default: [TypesVersions::First]
     pub types_versions: TypesVersions,
 
@@ -486,6 +490,9 @@ impl EnforceExtension {
 ///
 /// TypeScript uses the first `typesVersions` entry whose version range matches the running
 /// compiler, and falls back to `types` / `typings` when no entry matches.
+/// It also matches versioned types conditions like `types@>=5.2` in `exports` / `imports`
+/// against the compiler version. Those only match with [TypesVersions::Latest] or
+/// [TypesVersions::Version].
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum TypesVersions {
     /// Use the first entry regardless of its version range.

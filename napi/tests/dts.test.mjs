@@ -33,3 +33,15 @@ test("typesVersions option", () => {
   assert.equal(resolve("5.7.2"), "ts5.7/index.d.ts");
   assert.equal(resolve("6.0.3"), "index.d.ts");
 });
+
+test("versioned types condition", () => {
+  const containingFile = join(rootDir, "fixtures", "dts-resolver", "index.ts");
+  const resolve = (typesVersions) =>
+    new ResolverFactory({ conditionNames: ["import", "types"], typesVersions })
+      .resolveDtsSync(containingFile, "versioned-types-condition")
+      .path.replaceAll("\\", "/")
+      .split("/versioned-types-condition/")[1];
+  assert.equal(resolve(undefined), "tsold/index.d.ts");
+  assert.equal(resolve("latest"), "ts5.2/index.d.ts");
+  assert.equal(resolve("4.9.5"), "ts4.6/index.d.ts");
+});
