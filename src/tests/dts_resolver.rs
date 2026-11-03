@@ -255,6 +255,38 @@ fn versioned_types_condition() {
     assert_eq!(result.path(), pkg.join("index.js"));
 }
 
+#[test]
+fn versioned_types_condition_jotai_style() {
+    // `jotai` maps the plain `types` condition to a stub that tells users to upgrade TypeScript.
+    // `exports` takes precedence over its `typesVersions`.
+    let pkg = dts_fixture().join("node_modules/jotai-style");
+    let stub = "dist/ts_version_5.5_and_above_is_required.d.ts";
+    let cases = [
+        (TypesVersions::First, false),
+        (TypesVersions::Ignore, false),
+        (TypesVersions::Latest, true),
+        (TypesVersions::Version("6.0.3".into()), true),
+        (TypesVersions::Version("5.5.0".into()), true),
+        (TypesVersions::Version("5.4.5".into()), false),
+    ];
+    for (types_versions, matches) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        for (specifier, file) in [
+            ("jotai-style", "dist/index.d.ts"),
+            ("jotai-style/utils", "dist/utils.d.ts"),
+            ("jotai-style/vanilla/utils", "dist/vanilla/utils.d.ts"),
+        ] {
+            let result = r.resolve_dts(containing_file(), specifier).unwrap();
+            let expected = if matches { file } else { stub };
+            assert_eq!(result.path(), pkg.join(expected), "{types_versions:?} {specifier}");
+        }
+    }
+}
+
 // -------- node_modules: typings field --------
 
 #[test]
