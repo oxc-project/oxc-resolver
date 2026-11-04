@@ -672,6 +672,7 @@ dependencies = [
  "bitflags",
  "ctor",
  "futures",
+ "indexmap",
  "libc",
  "napi-build",
  "napi-sys",
@@ -822,6 +823,7 @@ dependencies = [
 name = "oxc_resolver_napi"
 version = "11.24.3"
 dependencies = [
+ "indexmap",
  "mimalloc-safe",
  "napi",
  "napi-build",
