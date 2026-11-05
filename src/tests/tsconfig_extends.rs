@@ -144,6 +144,34 @@ fn test_extend_tsconfig_multiple_inheritance() {
 }
 
 #[test]
+fn test_extended_paths() {
+    let resolve = |case: &str| {
+        let f = super::fixture_root().join("tsconfig/cases").join(case);
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: f.join("tsconfig.json"),
+                references: TsconfigReferences::Auto,
+            })),
+            ..ResolveOptions::default()
+        });
+        let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+        (f, resolution)
+    };
+
+    // Transitive chain: tsconfig.json -> intermediate-tsconfig.json -> base-tsconfig.json
+    let (f, resolution) = resolve("extends-chain");
+    assert_eq!(
+        resolution.extended_paths(),
+        [f.join("base-tsconfig.json"), f.join("intermediate-tsconfig.json")]
+    );
+
+    // Diamond: tsconfig.json -> [b.json, c.json], both extend d.json.
+    // Each file is recorded exactly once.
+    let (f, resolution) = resolve("extends-diamond");
+    assert_eq!(resolution.extended_paths(), [f.join("d.json"), f.join("c.json"), f.join("b.json")]);
+}
+
+#[test]
 fn test_extend_tsconfig_preserves_child_settings() {
     let f = super::fixture_root().join("tsconfig/cases/extends-preserve-child");
 
