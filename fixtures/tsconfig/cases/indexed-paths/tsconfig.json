@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "lib/*": ["src/general/*"],
+      "lib/special/*": ["src/specific/*"],
+      "equal/*x": ["src/first/*"],
+      "equal/*yx": ["src/second/*"],
+      "exact": ["src/exact.ts"],
+      "ex*": ["src/wild/*"],
+      "é/*": ["src/unicode/*"],
+      "x*": ["src/exact.ts"],
+      "z*z": ["src/overlap.ts"],
+      "empt*": [],
+      "static/*": ["src/exact.ts"],
+      "*": ["src/fallback.ts"]
+    }
+  }
+}

@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     fmt::Debug,
     hash::BuildHasherDefault,
+    ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -793,6 +794,7 @@ impl TsConfig {
 #[derive(Clone, Debug, Default)]
 struct CompiledTsconfigPaths {
     wildcard_patterns: Vec<CompiledTsconfigPathPattern>,
+    prefix_groups: Vec<Range<usize>>,
 }
 
 #[derive(Clone, Debug)]
@@ -839,28 +841,71 @@ impl CompiledTsconfigPaths {
                 targets,
             };
 
-            // Match longer prefixes first. Equal-length prefixes keep insertion order.
-            let index = wildcard_patterns
-                .iter()
-                .position(|existing| existing.prefix_len < pattern.prefix_len)
-                .unwrap_or(wildcard_patterns.len());
+            // Different prefixes of the same length cannot match the same specifier.
+            // Keep insertion order for identical prefixes so suffix ties retain their priority.
+            let index = wildcard_patterns.partition_point(|existing| {
+                existing.prefix_len > pattern.prefix_len
+                    || (existing.prefix_len == pattern.prefix_len
+                        && existing.prefix <= pattern.prefix)
+            });
             wildcard_patterns.insert(index, pattern);
         }
 
-        Self { wildcard_patterns }
+        let mut prefix_groups = Vec::new();
+        if wildcard_patterns.len() > 8 {
+            let mut start = 0;
+            for end in 1..=wildcard_patterns.len() {
+                if end == wildcard_patterns.len()
+                    || wildcard_patterns[end].prefix_len != wildcard_patterns[start].prefix_len
+                {
+                    prefix_groups.push(start..end);
+                    start = end;
+                }
+            }
+        }
+
+        Self { wildcard_patterns, prefix_groups }
     }
 
     fn resolve(&self, specifier: &str) -> Option<Vec<PathBuf>> {
-        self.wildcard_patterns.iter().find_map(|pattern| {
-            if !specifier.starts_with(pattern.prefix.as_str())
-                || !specifier.ends_with(pattern.suffix.as_str())
-                || specifier.len() < pattern.prefix_len + pattern.suffix_len
-            {
-                return None;
-            }
-            let wildcard = &specifier[pattern.prefix_len..specifier.len() - pattern.suffix_len];
-            Some(pattern.targets.iter().map(|target| target.resolve(wildcard)).collect())
+        if self.prefix_groups.is_empty() {
+            return self
+                .wildcard_patterns
+                .iter()
+                .filter(|pattern| specifier.starts_with(pattern.prefix.as_str()))
+                .find_map(|pattern| pattern.resolve(specifier));
+        }
+
+        // Preserve the constant-time hit for the leading pattern.
+        let first = self.wildcard_patterns.first()?;
+        if specifier.starts_with(first.prefix.as_str())
+            && let Some(targets) = first.resolve(specifier)
+        {
+            return Some(targets);
+        }
+
+        self.prefix_groups.iter().find_map(|range| {
+            let patterns = &self.wildcard_patterns[range.clone()];
+            let prefix = specifier.get(..patterns[0].prefix_len)?;
+            let start = patterns.partition_point(|pattern| pattern.prefix.as_str() < prefix);
+            patterns[start..]
+                .iter()
+                .take_while(|pattern| pattern.prefix.as_str() == prefix)
+                .find_map(|pattern| pattern.resolve(specifier))
         })
+    }
+}
+
+impl CompiledTsconfigPathPattern {
+    fn resolve(&self, specifier: &str) -> Option<Vec<PathBuf>> {
+        debug_assert!(specifier.starts_with(self.prefix.as_str()));
+        if !specifier.ends_with(self.suffix.as_str())
+            || specifier.len() < self.prefix_len + self.suffix_len
+        {
+            return None;
+        }
+        let wildcard = &specifier[self.prefix_len..specifier.len() - self.suffix_len];
+        Some(self.targets.iter().map(|target| target.resolve(wildcard)).collect())
     }
 }
 
