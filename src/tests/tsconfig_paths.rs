@@ -99,6 +99,40 @@ pub fn tsconfig_resolve() {
 }
 
 #[test]
+fn indexed_paths() {
+    let root = super::fixture_root().join("tsconfig/cases/indexed-paths");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: root.join("tsconfig.json"),
+            references: TsconfigReferences::Disabled,
+        })),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+    let importer = root.join("app/main.ts");
+    let cases = [
+        ("lib/value", "src/general/value.ts"),
+        ("lib/special/value", "src/specific/value.ts"),
+        ("equal/valueyx", "src/first/valuey.ts"),
+        ("equal/value", "src/fallback.ts"),
+        ("exact", "src/exact.ts"),
+        ("é/value", "src/unicode/value.ts"),
+        ("évalue", "src/fallback.ts"),
+        ("z", "src/fallback.ts"),
+        ("xvalue", "src/exact.ts"),
+        ("static/value", "src/exact.ts"),
+    ];
+    for (specifier, expected) in cases {
+        let actual = resolver.resolve_file(&importer, specifier).map(|path| path.full_path());
+        assert_eq!(actual, Ok(root.join(expected)), "{specifier}");
+    }
+    assert_eq!(
+        resolver.resolve_file(&importer, "empty"),
+        Err(ResolveError::NotFound("empty".into()))
+    );
+}
+
+#[test]
 fn tsconfig_fallthrough() {
     let f = super::fixture_root().join("tsconfig");
 

@@ -446,6 +446,26 @@ fn bench_tsconfig_paths_aliases(c: &mut Criterion) {
             });
         },
     );
+
+    for (name, request) in [
+        ("first alias", requests.first().unwrap().as_str()),
+        ("last alias", requests.last().unwrap().as_str()),
+        ("missing alias", "@missing/file"),
+    ] {
+        group.bench_function(name, |b| {
+            b.iter(|| {
+                let _ = std::hint::black_box(resolver.resolve_file(&importer, request));
+            });
+        });
+    }
+    group.bench_function("cold first alias", |b| {
+        b.iter_with_setup_wrapper(|runner| {
+            resolver.clear_cache();
+            runner.run(|| {
+                std::hint::black_box(resolver.resolve_file(&importer, &requests[0])).unwrap();
+            });
+        });
+    });
 }
 
 criterion_group!(
