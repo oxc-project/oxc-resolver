@@ -181,21 +181,31 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         Self { inner, _marker: std::marker::PhantomData }
     }
 
-    /// Clone the resolver using the same underlying cache.
+    /// Clone the resolver, reusing the underlying cache when tsconfig and Yarn PnP options are
+    /// unchanged.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
+        let can_share_cache = options.tsconfig == self.inner.options.tsconfig;
         let cache = cfg_select! {
             feature = "yarn_pnp" => {
-                if options.yarn_pnp == self.inner.options.yarn_pnp {
+                if options.yarn_pnp != self.inner.options.yarn_pnp {
+                    Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
+                } else if can_share_cache {
                     Arc::clone(&self.inner.cache)
                 } else {
-                    Arc::new(Cache::new(Arc::new(Fs::new(options.yarn_pnp)) as Arc<dyn FileSystem>))
+                    Arc::new(Cache::new(Arc::clone(&self.inner.cache.fs)))
                 }
             }
-            _ => Arc::clone(&self.inner.cache),
+            _ => {
+                if can_share_cache {
+                    Arc::clone(&self.inner.cache)
+                } else {
+                    Arc::new(Cache::new(Arc::clone(&self.inner.cache.fs)))
+                }
+            },
         };
         let inner = ResolverImpl { options, cache, alias, fallback };
         Self { inner, _marker: std::marker::PhantomData }

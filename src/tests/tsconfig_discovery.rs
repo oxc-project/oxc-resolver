@@ -11,6 +11,22 @@ fn tsconfig_discovery() {
     super::tsconfig_paths::tsconfig_resolve_impl(/* tsconfig_discovery */ true);
 }
 
+#[test]
+fn clone_with_different_tsconfig_options_uses_separate_cache() {
+    let f = super::fixture_root().join("tsconfig");
+    let importer = f.join("main.ts");
+
+    let resolver = Resolver::default();
+    assert!(resolver.find_tsconfig(&importer).unwrap().is_none());
+
+    let auto_resolver = resolver.clone_with_options(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        ..ResolveOptions::default()
+    });
+    let tsconfig = auto_resolver.find_tsconfig(importer).unwrap().unwrap();
+    assert_eq!(tsconfig.path, f.join("tsconfig.json"));
+}
+
 /// An extensionless file is owned through a `files` entry — a literal exact-path
 /// match — even when a *nearer* `tsconfig.json` exists that does not list it (an
 /// `include` glob cannot match an extensionless path). Ownership belongs to the
