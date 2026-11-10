@@ -18,8 +18,9 @@ use super::{
     hasher::IdentityHasher,
 };
 use crate::{
-    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig,
+    FileMetadata, FileSystem, PackageJson, ResolveError, ResolveOptions, TsConfig, TsconfigLoad,
     context::ResolveContext as Ctx, package_map::PackageMapCache, path::PathUtil,
+    tsconfig_resolver::TsconfigLoadContext,
 };
 
 /// Cache implementation used for caching filesystem access.
@@ -27,9 +28,9 @@ pub struct Cache {
     pub(crate) fs: Arc<dyn FileSystem>,
     pub(crate) paths: DashMap<CachedPath, (), BuildHasherDefault<IdentityHasher>>,
     /// Cache for raw/unbuilt tsconfigs (used when extending).
-    pub(crate) tsconfigs_raw: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    pub(crate) tsconfigs_raw: DashMap<PathBuf, Arc<TsconfigLoad>, BuildHasherDefault<FxHasher>>,
     /// Cache for built/resolved tsconfigs (used for resolution).
-    pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsConfig>, BuildHasherDefault<FxHasher>>,
+    pub(crate) tsconfigs_built: DashMap<PathBuf, Arc<TsconfigLoad>, BuildHasherDefault<FxHasher>>,
     #[cfg(feature = "yarn_pnp")]
     pub(crate) yarn_pnp_manifest: OnceCell<pnp::Manifest>,
     pub(crate) package_map: Box<PackageMapCache>,
@@ -251,12 +252,14 @@ impl Cache {
             .cloned()
     }
 
-    pub(crate) fn get_tsconfig<F: FnOnce(&mut TsConfig) -> Result<(), ResolveError>>(
+    pub(crate) fn get_tsconfig<
+        F: FnOnce(&mut TsConfig, &mut TsconfigLoadContext) -> Result<(), ResolveError>,
+    >(
         &self,
         root: bool,
         path: &Path,
         callback: F, // callback for modifying tsconfig with `extends`
-    ) -> Result<Arc<TsConfig>, ResolveError> {
+    ) -> Result<Arc<TsconfigLoad>, ResolveError> {
         // For root=true (caller tsconfig), check built cache first
         if root && let Some(tsconfig) = self.tsconfigs_built.get(path) {
             return Ok(Arc::clone(tsconfig.value()));
@@ -282,6 +285,10 @@ impl Cache {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_dir) {
             Cow::Owned(path.join("tsconfig.json"))
+        } else if path.extension().is_some_and(|extension| extension == "json") {
+            // A missing explicit JSON path is still a file path. Besides avoiding a misleading
+            // `.json.json` lookup, this gives watchers the exact file that needs to appear.
+            Cow::Borrowed(path)
         } else {
             let mut os_string = path.to_path_buf().into_os_string();
             os_string.push(".json");
@@ -289,7 +296,7 @@ impl Cache {
         };
         let tsconfig_string = self.fs.read_to_string(&tsconfig_path).map_err(|err| {
             if err.kind() == io::ErrorKind::NotFound {
-                ResolveError::TsconfigNotFound(path.to_path_buf())
+                ResolveError::TsconfigNotFound(tsconfig_path.to_path_buf())
             } else {
                 ResolveError::TsconfigLoadFailed {
                     path: tsconfig_path.to_path_buf(),
@@ -309,23 +316,28 @@ impl Cache {
                 )),
             })?;
 
-        // Run callback (extends/references processing)
-        callback(&mut tsconfig)?;
+        let mut context = TsconfigLoadContext::default();
+        context.add_file_dependency(tsconfig_path.as_ref());
+
+        // Run callback (extends/references processing).
+        callback(&mut tsconfig, &mut context)?;
 
         // Cache raw version (callback applied, not built)
         tsconfig.set_should_build(false);
         if root {
-            self.tsconfigs_raw.insert(path.to_path_buf(), Arc::new(tsconfig.clone()));
+            let raw =
+                Arc::new(TsconfigLoad::from_context(Arc::new(tsconfig.clone()), context.clone()));
+            self.tsconfigs_raw.insert(path.to_path_buf(), raw);
             // Build and cache built version
             tsconfig.set_should_build(true);
-            let tsconfig = Arc::new(tsconfig.build());
-            self.tsconfigs_built.insert(path.to_path_buf(), Arc::clone(&tsconfig));
-            Ok(tsconfig)
+            let load = Arc::new(TsconfigLoad::from_context(Arc::new(tsconfig.build()), context));
+            self.tsconfigs_built.insert(path.to_path_buf(), Arc::clone(&load));
+            Ok(load)
         } else {
             // Return unbuilt version
-            let tsconfig = Arc::new(tsconfig);
-            self.tsconfigs_raw.insert(path.to_path_buf(), Arc::clone(&tsconfig));
-            Ok(tsconfig)
+            let load = Arc::new(TsconfigLoad::from_context(Arc::new(tsconfig), context));
+            self.tsconfigs_raw.insert(path.to_path_buf(), Arc::clone(&load));
+            Ok(load)
         }
     }
 

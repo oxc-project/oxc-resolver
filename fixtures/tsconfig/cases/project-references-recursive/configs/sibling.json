@@ -1,0 +1,6 @@
+{
+  "files": ["../shared/bfs.ts"],
+  "compilerOptions": {
+    "paths": { "@pick/*": ["../sibling/*"] }
+  }
+}
