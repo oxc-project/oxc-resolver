@@ -12,9 +12,6 @@ use oxc_resolver::{FileSystem as FileSystemTrait, FileSystemOs, PackageJson};
 #[cfg(not(feature = "codspeed"))]
 use rayon::prelude::*;
 
-#[cfg(feature = "codspeed")]
-mod support;
-
 fn data() -> Vec<(PathBuf, &'static str)> {
     let cwd = env::current_dir().unwrap();
     let f1 = cwd.join("fixtures/enhanced-resolve");

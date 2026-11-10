@@ -25,11 +25,9 @@ represent I/O latency.
 
 CI pins the Ubuntu version and CodSpeed CLI, and runs on one CPU using `taskset`.
 This also fixes `available_parallelism()`, which DashMap uses to choose its shard
-count. Simulation uses a benchmark-only System allocator wrapper whose realloc
-always allocates, copies, and frees, avoiding heap-dependent in-place growth.
-Allocation costs are still measured; native runs use the normal allocator.
+count.
 
-These workload and allocator changes require a new baseline on `main`. Compare
+These workload changes require a new baseline on `main`. Compare
 subsequent runs with that baseline, and rerun the same commit to check repeatability.
 Dependency, compiler, runner-image, or CPU-feature changes can still affect the
 results. Changes to benchmark fixtures should be assessed separately from resolver

@@ -4,9 +4,6 @@ use oxc_resolver::Resolver;
 use rayon::prelude::*;
 use workload::Combo;
 
-#[cfg(feature = "codspeed")]
-mod support;
-
 fn run_combo(c: &mut Criterion, combo: Combo) {
     let Some(root) = combo.fixture_root_if_installed() else {
         eprintln!(
