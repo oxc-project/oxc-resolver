@@ -1,13 +1,19 @@
+use std::{env, fs, path::PathBuf};
+
+#[cfg(not(feature = "codspeed"))]
 use std::{
-    env, fs,
     io::{self, Write},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use memory_fs::BenchMemoryFS;
 use oxc_resolver::{FileSystem as FileSystemTrait, FileSystemOs, PackageJson};
+#[cfg(not(feature = "codspeed"))]
 use rayon::prelude::*;
+
+#[cfg(feature = "codspeed")]
+mod support;
 
 fn data() -> Vec<(PathBuf, &'static str)> {
     let cwd = env::current_dir().unwrap();
@@ -68,6 +74,7 @@ fn data() -> Vec<(PathBuf, &'static str)> {
     ]
 }
 
+#[cfg(not(feature = "codspeed"))]
 fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(original: P, link: Q) -> io::Result<()> {
     #[cfg(target_family = "unix")]
     {
@@ -80,6 +87,7 @@ fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(original: P, link: Q) -> io::Result<(
     }
 }
 
+#[cfg(not(feature = "codspeed"))]
 fn create_symlinks() -> io::Result<PathBuf> {
     let root = env::current_dir()?.join("fixtures/enhanced-resolve");
     let dirname = root.join("test");
@@ -151,20 +159,21 @@ fn oxc_resolver_memory() -> oxc_resolver::ResolverGeneric<BenchMemoryFS> {
     ResolverGeneric::new_with_file_system(fs, resolve_options())
 }
 
+#[cfg(not(feature = "codspeed"))]
 fn oxc_resolver_real() -> oxc_resolver::Resolver {
     use oxc_resolver::Resolver;
     Resolver::new(resolve_options())
 }
 
-/// Pin rayon's global pool to a fixed thread count so the `multi-thread` benches are deterministic.
-/// Rayon otherwise sizes the pool to the host core count, which varies across CI runners and makes
-/// CodSpeed's instrumented instruction count flaky. Idempotent: the first call wins, the rest are
-/// no-ops, so it's safe to call from every parallel bench regardless of run order or filtering.
+/// Use four workers for local throughput comparisons. These benchmarks are excluded from CPU
+/// simulation because a fixed pool size does not make thread scheduling deterministic.
+#[cfg(not(feature = "codspeed"))]
 fn pin_rayon_threads() {
     let _ = rayon::ThreadPoolBuilder::new().num_threads(4).build_global();
 }
 
 fn bench_resolver_memory(c: &mut Criterion) {
+    #[cfg(not(feature = "codspeed"))]
     pin_rayon_threads();
     let data = data();
     let cwd = env::current_dir().unwrap();
@@ -192,6 +201,9 @@ fn bench_resolver_memory(c: &mut Criterion) {
 
     group.bench_with_input(BenchmarkId::from_parameter("single-thread"), &data, |b, data| {
         let oxc_resolver = oxc_resolver_memory();
+        for (path, request) in data {
+            oxc_resolver.resolve(path, request).unwrap();
+        }
         b.iter(|| {
             for (path, request) in data {
                 _ = oxc_resolver.resolve(path, request);
@@ -199,17 +211,25 @@ fn bench_resolver_memory(c: &mut Criterion) {
         });
     });
 
-    group.bench_with_input(BenchmarkId::from_parameter("drop"), &data, |b, data| {
-        b.iter(|| {
-            let oxc_resolver = oxc_resolver_memory(); // Measure `Drop` performance.
-            for (path, request) in data {
-                _ = oxc_resolver.resolve(path, request);
-            }
-        });
-    });
+    group.bench_with_input(
+        BenchmarkId::from_parameter("cold-resolve-and-drop"),
+        &data,
+        |b, data| {
+            b.iter(|| {
+                let oxc_resolver = oxc_resolver_memory();
+                for (path, request) in data {
+                    _ = oxc_resolver.resolve(path, request);
+                }
+            });
+        },
+    );
 
+    #[cfg(not(feature = "codspeed"))]
     group.bench_with_input(BenchmarkId::from_parameter("multi-thread"), &data, |b, data| {
         let oxc_resolver = oxc_resolver_memory();
+        for (path, request) in data {
+            oxc_resolver.resolve(path, request).unwrap();
+        }
         b.iter(|| {
             data.par_iter().for_each(|(path, request)| {
                 _ = oxc_resolver.resolve(path, request);
@@ -222,6 +242,9 @@ fn bench_resolver_memory(c: &mut Criterion) {
         &symlink_specifiers,
         |b, specifiers| {
             let oxc_resolver = oxc_resolver_memory();
+            for specifier in specifiers {
+                oxc_resolver.resolve(&symlink_test_dir, specifier).unwrap();
+            }
             b.iter(|| {
                 for specifier in specifiers {
                     _ = oxc_resolver.resolve(&symlink_test_dir, specifier);
@@ -236,6 +259,9 @@ fn bench_resolver_memory(c: &mut Criterion) {
             .iter()
             .map(|(path, request)| oxc_resolver.resolve(path, request).unwrap().into_path_buf())
             .collect::<Vec<_>>();
+        for path in &paths {
+            let _ = oxc_resolver.find_tsconfig(path);
+        }
         b.iter(|| {
             for path in &paths {
                 let _ = oxc_resolver.find_tsconfig(path);
@@ -244,6 +270,7 @@ fn bench_resolver_memory(c: &mut Criterion) {
     });
 }
 
+#[cfg(not(feature = "codspeed"))]
 fn bench_resolver_real(c: &mut Criterion) {
     pin_rayon_threads();
     let data = data();
@@ -448,10 +475,18 @@ fn bench_tsconfig_paths_aliases(c: &mut Criterion) {
     );
 }
 
+#[cfg(not(feature = "codspeed"))]
 criterion_group!(
     resolver,
     bench_resolver_memory,
     bench_resolver_real,
+    bench_package_json_deserialization,
+    bench_tsconfig_paths_aliases
+);
+#[cfg(feature = "codspeed")]
+criterion_group!(
+    resolver,
+    bench_resolver_memory,
     bench_package_json_deserialization,
     bench_tsconfig_paths_aliases
 );
@@ -462,12 +497,12 @@ mod memory_fs {
     //!
     //! This module provides an in-memory file system that loads all fixture data
     //! and node_modules packages at initialization time, eliminating filesystem I/O
-    //! variance during benchmark execution. This ensures stable, reproducible benchmark results.
+    //! variance during benchmark execution.
 
     use std::{
         fs, io,
         path::{Path, PathBuf},
-        sync::LazyLock,
+        sync::{Arc, LazyLock},
     };
 
     use oxc_resolver::{FileMetadata, FileSystem, ResolveError};
@@ -477,26 +512,29 @@ mod memory_fs {
     /// Memory-based file system for benchmarks to eliminate I/O variance
     #[derive(Clone)]
     pub struct BenchMemoryFS {
+        snapshot: Arc<Snapshot>,
+    }
+
+    struct Snapshot {
         files: FxHashMap<PathBuf, Vec<u8>>,
         directories: FxHashSet<PathBuf>,
         symlinks: FxHashMap<PathBuf, PathBuf>,
     }
 
-    static BENCH_FS: LazyLock<BenchMemoryFS> = LazyLock::new(|| {
-        let mut fs = BenchMemoryFS {
+    static BENCH_FS: LazyLock<Arc<Snapshot>> = LazyLock::new(|| {
+        let mut fs = Snapshot {
             files: FxHashMap::default(),
             directories: FxHashSet::default(),
             symlinks: FxHashMap::default(),
         };
         fs.load_fixtures();
-        fs
+        Arc::new(fs)
     });
 
     impl BenchMemoryFS {
-        /// Create a new memory file system and load all fixtures
+        /// Share the immutable fixtures; resolver construction must not copy the entire filesystem.
         pub fn new() -> Self {
-            // Return a clone of the pre-loaded static FS
-            BENCH_FS.clone()
+            Self { snapshot: Arc::clone(&BENCH_FS) }
         }
 
         pub fn with_large_tsconfig_paths_fixture(
@@ -508,19 +546,21 @@ mod memory_fs {
             let importer = root.join("app/main.ts");
             let tsconfig_path = root.join("tsconfig.json");
             assert!(
-                fs.files.contains_key(&importer),
+                fs.snapshot.files.contains_key(&importer),
                 "missing benchmark fixture: {}",
                 importer.display()
             );
             assert!(
-                fs.files.contains_key(&tsconfig_path),
+                fs.snapshot.files.contains_key(&tsconfig_path),
                 "missing benchmark fixture: {}",
                 tsconfig_path.display()
             );
             let requests = (0..alias_count).map(|i| format!("@pkg{i:04}/file")).collect();
             (fs, importer, tsconfig_path, requests)
         }
+    }
 
+    impl Snapshot {
         fn add_parent_directories(&mut self, path: &Path) {
             // Add all parent directories of a path
             for ancestor in path.ancestors().skip(1) {
@@ -549,7 +589,15 @@ mod memory_fs {
             if !root.exists() {
                 return;
             }
-            for entry in WalkDir::new(root).follow_links(false).into_iter().filter_map(Result::ok) {
+            let generated_symlinks = root.join("test/temp_symlinks");
+            for entry in WalkDir::new(root)
+                .follow_links(false)
+                .sort_by_file_name()
+                .into_iter()
+                // Local OS benchmarks may have run first. Always use the synthetic symlink fixture.
+                .filter_entry(|entry| entry.path() != generated_symlinks)
+                .filter_map(Result::ok)
+            {
                 let path = entry.path();
                 let Ok(metadata) = fs::symlink_metadata(path) else { continue };
 
@@ -635,6 +683,7 @@ mod memory_fs {
             for entry in WalkDir::new(package_root)
                 .follow_links(true) // Follow symlinks within the package
                 .max_depth(5) // Load a bit deeper to get dist/ and lib/ directories
+                .sort_by_file_name()
                 .into_iter()
                 .filter_map(Result::ok)
             {
@@ -706,7 +755,7 @@ mod memory_fs {
 
         fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
             // Try direct lookup first
-            if let Some(bytes) = self.files.get(path) {
+            if let Some(bytes) = self.snapshot.files.get(path) {
                 return Ok(bytes.clone());
             }
 
@@ -714,7 +763,7 @@ mod memory_fs {
             let mut current = path.to_path_buf();
             let mut visited = FxHashSet::default();
 
-            while let Some(target) = self.symlinks.get(&current) {
+            while let Some(target) = self.snapshot.symlinks.get(&current) {
                 if !visited.insert(current.clone()) {
                     return Err(io::Error::other("Circular symlink"));
                 }
@@ -725,7 +774,7 @@ mod memory_fs {
                     target.clone()
                 };
 
-                if let Some(bytes) = self.files.get(&current) {
+                if let Some(bytes) = self.snapshot.files.get(&current) {
                     return Ok(bytes.clone());
                 }
             }
@@ -743,12 +792,12 @@ mod memory_fs {
 
         fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
             // Check if it's a file (direct)
-            if self.files.contains_key(path) {
+            if self.snapshot.files.contains_key(path) {
                 return Ok(FileMetadata::new(true, false, false));
             }
 
             // Check if it's a directory (direct)
-            if self.directories.contains(path) {
+            if self.snapshot.directories.contains(path) {
                 return Ok(FileMetadata::new(false, true, false));
             }
 
@@ -756,7 +805,7 @@ mod memory_fs {
             let mut current = path.to_path_buf();
             let mut visited = FxHashSet::default();
 
-            while let Some(target) = self.symlinks.get(&current) {
+            while let Some(target) = self.snapshot.symlinks.get(&current) {
                 if !visited.insert(current.clone()) {
                     return Err(io::Error::other("Circular symlink"));
                 }
@@ -767,9 +816,9 @@ mod memory_fs {
                     target.clone()
                 };
 
-                if self.files.contains_key(&current) {
+                if self.snapshot.files.contains_key(&current) {
                     return Ok(FileMetadata::new(true, false, false));
-                } else if self.directories.contains(&current) {
+                } else if self.snapshot.directories.contains(&current) {
                     return Ok(FileMetadata::new(false, true, false));
                 }
             }
@@ -782,7 +831,7 @@ mod memory_fs {
 
         fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
             // Check if it's a symlink first (before resolving)
-            if self.symlinks.contains_key(path) {
+            if self.snapshot.symlinks.contains_key(path) {
                 return Ok(FileMetadata::new(false, false, true));
             }
 
@@ -791,7 +840,7 @@ mod memory_fs {
         }
 
         fn read_link(&self, path: &Path) -> Result<PathBuf, ResolveError> {
-            self.symlinks.get(path).cloned().ok_or_else(|| {
+            self.snapshot.symlinks.get(path).cloned().ok_or_else(|| {
                 ResolveError::from(io::Error::new(
                     io::ErrorKind::NotFound,
                     format!("Not a symlink: {}", path.display()),
@@ -804,7 +853,7 @@ mod memory_fs {
             let mut current = path.to_path_buf();
             let mut visited = FxHashSet::default();
 
-            while let Some(target) = self.symlinks.get(&current) {
+            while let Some(target) = self.snapshot.symlinks.get(&current) {
                 if !visited.insert(current.clone()) {
                     return Err(io::Error::other("Circular symlink"));
                 }
@@ -817,7 +866,9 @@ mod memory_fs {
             }
 
             // Verify the final path exists
-            if self.files.contains_key(&current) || self.directories.contains(&current) {
+            if self.snapshot.files.contains_key(&current)
+                || self.snapshot.directories.contains(&current)
+            {
                 Ok(current)
             } else {
                 Err(io::Error::new(

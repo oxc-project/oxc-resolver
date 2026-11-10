@@ -1,7 +1,11 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use oxc_resolver::Resolver;
+#[cfg(not(feature = "codspeed"))]
 use rayon::prelude::*;
 use workload::Combo;
+
+#[cfg(feature = "codspeed")]
+mod support;
 
 fn run_combo(c: &mut Criterion, combo: Combo) {
     let Some(root) = combo.fixture_root_if_installed() else {
@@ -39,10 +43,19 @@ fn run_combo(c: &mut Criterion, combo: Combo) {
         );
     }
 
-    // One bench per combo, modelling a bundler-style build: one Resolver, the
-    // workload's 16 requests fanned out across worker threads. Resolver creation
-    // is inside the timed body so the .pnp.cjs parse, store discovery, and
-    // initial cache warmup all count.
+    // Keep cold-cache insertion order fixed in CPU simulation. Creation, initial
+    // resolution (including PnP parsing and store discovery), and destruction count.
+    c.bench_function(&format!("pm-cold-single-thread/{}", combo.slug()), |b| {
+        b.iter(|| {
+            let resolver = Resolver::new(opts.clone());
+            for req in &reqs {
+                _ = resolver.resolve(&req.importer, req.specifier);
+            }
+        });
+    });
+
+    // Retain parallel throughput measurements for native runs on controlled hardware.
+    #[cfg(not(feature = "codspeed"))]
     c.bench_function(&format!("pm/{}", combo.slug()), |b| {
         b.iter(|| {
             let resolver = Resolver::new(opts.clone());
@@ -54,9 +67,7 @@ fn run_combo(c: &mut Criterion, combo: Combo) {
 }
 
 fn bench_package_managers(c: &mut Criterion) {
-    // Pin rayon's pool to a fixed thread count so the parallel fan-out is deterministic across
-    // machines / CI runners; otherwise the pool sizes to the host core count, which varies and
-    // makes CodSpeed's instrumented instruction count flaky.
+    #[cfg(not(feature = "codspeed"))]
     let _ = rayon::ThreadPoolBuilder::new().num_threads(4).build_global();
     for &combo in Combo::ALL {
         #[cfg(not(feature = "yarn_pnp"))]

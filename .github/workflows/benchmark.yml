@@ -19,7 +19,7 @@ concurrency:
 jobs:
   benchmark:
     name: Benchmark
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write # required for OIDC authentication with CodSpeed
     steps:
@@ -29,7 +29,7 @@ jobs:
         with:
           cache-key: benchmark
           save-cache: ${{ github.ref_name == 'main' }}
-          tools: cargo-codspeed,just
+          tools: cargo-codspeed@6.0.0,just
 
       - uses: ./.github/actions/pnpm
 
@@ -40,7 +40,7 @@ jobs:
       - name: Install bench-pm fixtures
         run: just install-bench-fixtures
 
-      - run: cargo codspeed build --features codspeed,yarn_pnp
+      - run: cargo codspeed build --locked --features codspeed,yarn_pnp
         env:
           RUSTFLAGS: "-C debuginfo=1 -C strip=none"
 
@@ -48,4 +48,6 @@ jobs:
         timeout-minutes: 30
         with:
           mode: simulation
-          run: cargo codspeed run
+          # Fix available_parallelism() as well as execution order. DashMap uses
+          # the available CPU count to size the resolver's caches.
+          run: taskset --cpu-list 0 cargo codspeed run
