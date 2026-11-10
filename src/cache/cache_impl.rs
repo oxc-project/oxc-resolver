@@ -142,7 +142,12 @@ impl Cache {
         path.meta.followed_or_init(|| match path.link_metadata(self.fs()) {
             Some(meta) if meta.is_symlink() => {
                 let followed = if symlinks {
-                    self.canonicalize_impl(path).ok().and_then(|c| c.link_metadata(self.fs()))
+                    self.canonicalize_impl(path)
+                        .ok()
+                        .and_then(|c| c.link_metadata(self.fs()))
+                        // Still a symlink: canonicalization kept a link it cannot follow
+                        // (see `canonicalize_with_visited`), so let the OS follow it below.
+                        .filter(|meta| !meta.is_symlink())
                 } else {
                     None
                 };
@@ -445,21 +450,34 @@ impl Cache {
                 };
 
                 if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
-                    let link = self.fs.read_link(normalized.path())?;
-                    if link.is_absolute() {
-                        return self
-                            .canonicalize_with_visited(&self.value(&link.normalize()), visited);
-                    } else if let Some(dir) = normalized.parent(self) {
-                        // Symlink is relative `../../foo.js`, use the path directory
-                        // to resolve this symlink.
-                        return self
-                            .canonicalize_with_visited(&dir.normalize_with(&link, self), visited);
+                    match self.fs.read_link(normalized.path()) {
+                        Ok(link) => {
+                            if link.is_absolute() {
+                                return self.canonicalize_with_visited(
+                                    &self.value(&link.normalize()),
+                                    visited,
+                                );
+                            } else if let Some(dir) = normalized.parent(self) {
+                                // Symlink is relative `../../foo.js`, use the path directory
+                                // to resolve this symlink.
+                                return self.canonicalize_with_visited(
+                                    &dir.normalize_with(&link, self),
+                                    visited,
+                                );
+                            }
+                            debug_assert!(
+                                false,
+                                "Failed to get path parent for {}.",
+                                normalized.path().display()
+                            );
+                        }
+                        // The target has no path Node.js can consume, e.g. a Windows volume
+                        // mount point (`\\?\Volume{GUID}\`) such as a Dev Drive mounted into a
+                        // folder. Keep the link as an ordinary path component instead of
+                        // following it, as documented on `ResolveOptions::symlinks`.
+                        Err(ResolveError::PathNotSupported(_)) => {}
+                        Err(err) => return Err(err),
                     }
-                    debug_assert!(
-                        false,
-                        "Failed to get path parent for {}.",
-                        normalized.path().display()
-                    );
                 }
 
                 Ok(normalized)
