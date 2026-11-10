@@ -24,6 +24,15 @@ fn chinese() {
 }
 
 #[test]
+fn unicode_path_with_escaped_fragment() {
+    let dir = fixture().join("misc/中文");
+    let resolution = Resolver::default().resolve(&dir, "./中\0#文.js?query#fragment").unwrap();
+    assert_eq!(resolution.path(), dir.join("中#文.js"));
+    assert_eq!(resolution.query(), Some("?query"));
+    assert_eq!(resolution.fragment(), Some("#fragment"));
+}
+
+#[test]
 fn package_json_with_bom() {
     let dir = dir().join("fixtures/integration/misc");
     assert_eq!(
