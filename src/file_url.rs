@@ -72,7 +72,9 @@ fn has_invalid_authority(authority: &str, allow_drive: bool) -> bool {
         return true;
     }
     if let Some(ipv6) = authority.strip_prefix('[') {
-        return ipv6.split_once(']').is_none_or(|(_, suffix)| !suffix.is_empty());
+        return ipv6
+            .strip_suffix(']')
+            .is_none_or(|address| address.parse::<std::net::Ipv6Addr>().is_err());
     }
     authority.contains(':')
 }
@@ -258,6 +260,10 @@ mod tests {
             resolve_file_protocol("file://server/share/file.js").unwrap(),
             "\\\\server\\share\\file.js"
         );
+        assert_eq!(
+            resolve_file_protocol("file://[::1]/share/file.js").unwrap(),
+            "\\\\[::1]\\share\\file.js"
+        );
     }
 
     #[cfg(windows)]
@@ -301,10 +307,22 @@ mod tests {
             "file://host%3A123/path",
             "file://C%3A/path",
             "file://[::1]:123/path",
+            "file://[not-an-ip]/path",
+            "file://[:::1]/path",
             "file://host\\share/path",
             "file://host name/path",
         ] {
             resolve_file_protocol(specifier).unwrap_err();
+        }
+    }
+
+    #[test]
+    fn ipv6_authorities() {
+        for authority in ["[::1]", "[2001:db8::1]", "[::ffff:192.0.2.1]"] {
+            assert!(!has_invalid_authority(authority, false), "{authority}");
+        }
+        for authority in ["[]", "[not-an-ip]", "[:::1]", "[::1]extra"] {
+            assert!(has_invalid_authority(authority, false), "{authority}");
         }
     }
 
