@@ -22,7 +22,12 @@ doctest = false
 [dependencies]
 oxc_resolver = { workspace = true }
 
-napi = { version = "3.8", default-features = false, features = ["napi3", "serde-json"] }
+indexmap = "2"
+napi = { version = "3.8", default-features = false, features = [
+  "napi3",
+  "object_indexmap",
+  "serde-json",
+] }
 napi-derive = { version = "3" }
 regress = { version = "0.12" } # ECMAScript regex engine for `Restriction` regex
 tracing-subscriber = { version = "0.3.23", optional = true, default-features = false, features = [
