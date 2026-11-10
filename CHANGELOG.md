@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.25.0](https://github.com/oxc-project/oxc-resolver/compare/v11.24.3...v11.25.0) - 2026-11-10
+
+### <!-- 0 -->🚀 Features
+
+- support Node.js package maps ([#1331](https://github.com/oxc-project/oxc-resolver/pull/1331)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- isolate tsconfig caches across resolver clones ([#1402](https://github.com/oxc-project/oxc-resolver/pull/1402)) (by @sapphi-red)
+- reject invalid IPv6 file URL hosts ([#1434](https://github.com/oxc-project/oxc-resolver/pull/1434)) (by @Boshen)
+- preserve unicode in escaped fragment paths ([#1433](https://github.com/oxc-project/oxc-resolver/pull/1433)) (by @Boshen)
+- *(dts)* try the `.json` file itself after `.d.json.ts` for json imports ([#1377](https://github.com/oxc-project/oxc-resolver/pull/1377)) (by @ocavue)
+
+### <!-- 4 -->⚡ Performance
+
+- enable Wasm 128bit SIMD Extension ([#1400](https://github.com/oxc-project/oxc-resolver/pull/1400)) (by @sapphi-red)
+
+### Contributors
+
+* @sapphi-red
+* @Boshen
+* @renovate[bot]
+* @ocavue
+
 ## [11.24.3](https://github.com/oxc-project/oxc-resolver/compare/v11.24.2...v11.24.3) - 2026-08-24
 
 ### <!-- 2 -->🚜 Refactor
