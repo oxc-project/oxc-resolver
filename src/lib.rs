@@ -101,6 +101,7 @@ pub use crate::{
     tsconfig::{
         CompilerOptions, CompilerOptionsPathsMap, ExtendsField, ProjectReference, TsConfig,
     },
+    tsconfig_resolver::{TsconfigDiagnostic, TsconfigLoad},
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
@@ -230,7 +231,8 @@ impl ResolverImpl {
     /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
     /// For ECMAScript modules, it is the value of `import.meta.url`.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] does not work for this API, use [ResolverImpl::resolve_file] instead.
+    /// NOTE: Automatic tsconfig discovery does not work for this API; use
+    /// [ResolverImpl::resolve_file] instead.
     ///
     /// # Errors
     ///
@@ -248,7 +250,7 @@ impl ResolverImpl {
 
     /// Resolve `specifier` for an absolute path to a file.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] only work for this API.
+    /// NOTE: Automatic tsconfig discovery only works for this API.
     ///
     /// # Errors
     ///
