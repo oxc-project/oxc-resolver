@@ -90,14 +90,14 @@ install-bench-fixtures:
     cp -R fixtures/bench-pm/template/. fixtures/bench-pm/installs/$combo/; \
     cp -R fixtures/bench-pm/configs/$combo/. fixtures/bench-pm/installs/$combo/; \
   done
-  cd fixtures/bench-pm/installs/npm-flat       && npm install --no-audit --no-fund
-  cd fixtures/bench-pm/installs/pnpm-isolated  && pnpm install
-  cd fixtures/bench-pm/installs/pnpm-hoisted   && pnpm install
-  cd fixtures/bench-pm/installs/yarn-flat      && yarn install
-  cd fixtures/bench-pm/installs/yarn-isolated  && yarn install
-  cd fixtures/bench-pm/installs/yarn-pnp       && yarn install
-  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-flat     && bun install; else echo 'skip bun-flat: bun not installed';     fi
-  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-isolated && bun install; else echo 'skip bun-isolated: bun not installed'; fi
+  cd fixtures/bench-pm/installs/npm-flat       && npm ci --no-audit --no-fund
+  cd fixtures/bench-pm/installs/pnpm-isolated  && pnpm install --frozen-lockfile
+  cd fixtures/bench-pm/installs/pnpm-hoisted   && pnpm install --frozen-lockfile
+  cd fixtures/bench-pm/installs/yarn-flat      && yarn install --immutable
+  cd fixtures/bench-pm/installs/yarn-isolated  && yarn install --immutable
+  cd fixtures/bench-pm/installs/yarn-pnp       && yarn install --immutable
+  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-flat     && bun install --frozen-lockfile; else echo 'skip bun-flat: bun not installed';     fi
+  if command -v bun >/dev/null; then cd fixtures/bench-pm/installs/bun-isolated && bun install --frozen-lockfile; else echo 'skip bun-isolated: bun not installed'; fi
 
 # Run the package-manager benchmarks. Each combo skips itself if its fixture is not installed.
 benchmark-pm:
