@@ -1,0 +1,7 @@
+{
+  "extends": ["./valid.json", "./missing", "./malformed.json"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@app/*": ["src/*"] }
+  }
+}
