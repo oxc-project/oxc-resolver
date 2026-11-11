@@ -40,7 +40,7 @@ jobs:
       - name: Install bench-pm fixtures
         run: just install-bench-fixtures
 
-      - run: cargo codspeed build --locked --features codspeed,yarn_pnp --bench resolver --bench package_managers
+      - run: cargo codspeed build --locked --features codspeed,yarn_pnp
         env:
           RUSTFLAGS: "-C debuginfo=1 -C strip=none"
 
@@ -48,6 +48,6 @@ jobs:
         timeout-minutes: 30
         with:
           mode: simulation
-          # Fix available_parallelism() as well as execution order. DashMap uses
+          # Fix available_parallelism(). DashMap uses
           # the available CPU count to size the resolver's caches.
           run: taskset --cpu-list 0 cargo codspeed run

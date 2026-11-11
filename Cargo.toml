@@ -38,15 +38,7 @@ name = "resolver"
 harness = false
 
 [[bench]]
-name = "resolver_native"
-harness = false
-
-[[bench]]
 name = "package_managers"
-harness = false
-
-[[bench]]
-name = "package_managers_native"
 harness = false
 
 [lints.clippy]

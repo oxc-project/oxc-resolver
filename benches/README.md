@@ -1,36 +1,27 @@
 # Benchmarks
 
-`just benchmark` runs native resolver benchmarks. `just install-bench-fixtures`
-followed by `just benchmark-pm` also measures the eight package-manager layouts.
-Native runs include OS filesystem and four-worker parallel throughput benchmarks;
-compare these on the same idle machine.
+`just benchmark` runs the resolver benchmarks. `just install-bench-fixtures`
+followed by `just benchmark-pm` runs the eight package-manager layouts. CI runs the
+same two targets with CodSpeed CPU simulation on `ubuntu-latest`.
 
-CI selects the `resolver` and `package_managers` targets for CodSpeed CPU simulation.
-The `resolver_native` and `package_managers_native` targets contain OS-backed resolver
-and parallel workloads, and are included by the local commands above. Thread scheduling
-changes cache insertion order even with a fixed worker count, and simulation does
-not measure filesystem syscall time, so `resolver_real` and parallel workloads are
-kept out of simulation. Package-manager layouts still exercise OS-backed cold
-resolution, but requests run in a fixed order; their simulated CPU cost does not
-represent I/O latency.
+The workloads control setup and execution order to reduce variance:
 
-- `resolver_memory/single-thread`, symlink resolution, and tsconfig discovery use
-  explicitly warmed resolver caches. The tsconfig alias benchmark also warms each
-  request before measurement.
-- `resolver_memory/cold-resolve-and-drop` includes resolver construction, cold
-  resolution, and destruction. Fixture contents are shared through an immutable
-  snapshot loaded in sorted order, outside measurement.
-- `pm-cold-single-thread/*` includes resolver construction, cold resolution of the
-  16 requests, and destruction, including PnP parsing and package-store discovery.
-- JSON parsing prepares input bytes outside measurement and includes parsing and
-  destruction of the parsed result.
+- Warm-cache benchmarks resolve their inputs before measurement, including the
+  OS-backed and symlink cases.
+- Four-worker benchmarks assign each worker a fixed subset of requests and warm
+  each worker before measurement. Each measured dispatch resolves 32 rounds of
+  the complete input set to amortize scheduling overhead.
+- Cold package-manager requests run in a fixed serial order so cache insertion
+  and allocation order do not depend on worker scheduling.
+- The in-memory filesystem loads fixtures in sorted order and shares an immutable
+  snapshot. `cold-resolve-and-drop` measures resolver creation, resolution, and
+  destruction without copying the fixture filesystem.
+- Package-manager fixtures install from frozen lockfiles. CI also pins the
+  CodSpeed CLI and uses one CPU via `taskset`, fixing the CPU count DashMap uses
+  to size the resolver's caches.
 
-CI uses `ubuntu-latest`, pins the CodSpeed CLI, and runs on one CPU using `taskset`.
-This also fixes `available_parallelism()`, which DashMap uses to choose its shard
-count.
-
-These workload changes require a new baseline on `main`. Compare subsequent runs
-with that baseline, and rerun the same commit to check repeatability.
-Dependency, compiler, runner-image, or CPU-feature changes can still affect the
-results. Changes to benchmark fixtures should be assessed separately from resolver
-performance changes.
+The changed workloads need a fresh baseline on `main`. Compare repeated runs of
+the same commit when checking variance. CPU simulation excludes filesystem syscall
+time; use local timings on the same idle machine to assess I/O and parallel
+throughput. Compiler, runner-image, dependency, and CPU-feature changes can still
+affect results.
