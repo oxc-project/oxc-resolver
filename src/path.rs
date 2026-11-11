@@ -10,6 +10,22 @@ use std::{
 
 pub const SLASH_START: &[char; 2] = &['/', '\\'];
 
+/// Whether a path starts with a relative path component (`.` or `..`).
+///
+/// Matches TypeScript's `pathIsRelative` helper.
+#[inline]
+pub fn is_path_relative(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    if bytes.first() != Some(&b'.') {
+        return false;
+    }
+    match bytes.get(1) {
+        None | Some(b'/' | b'\\') => true,
+        Some(b'.') => matches!(bytes.get(2), None | Some(b'/' | b'\\')),
+        _ => false,
+    }
+}
+
 /// Extension trait to add path normalization to std's [`Path`].
 pub trait PathUtil {
     /// Normalize this path without performing I/O.
@@ -166,6 +182,16 @@ fn is_invalid_exports_target() {
 
     assert!(!Path::new("C:").is_invalid_exports_target());
     assert!(!Path::new("/").is_invalid_exports_target());
+}
+
+#[test]
+fn path_relative() {
+    for path in [".", "..", "./foo", ".\\foo", "../foo", "..\\foo"] {
+        assert!(is_path_relative(path), "{path}");
+    }
+    for path in ["", "foo", ".storybook", "..alias", ".../foo"] {
+        assert!(!is_path_relative(path), "{path}");
+    }
 }
 
 #[test]
