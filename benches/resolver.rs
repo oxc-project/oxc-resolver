@@ -483,12 +483,49 @@ fn bench_tsconfig_paths_aliases(c: &mut Criterion) {
     );
 }
 
+fn bench_tsconfig_extends_shared_paths(c: &mut Criterion) {
+    use oxc_resolver::{ResolveOptions, ResolverGeneric, TsconfigDiscovery};
+
+    let mut group = c.benchmark_group("tsconfig_extends_shared_paths_memory");
+    let (fs, requests) = BenchMemoryFS::with_tsconfig_extends_fixture();
+    let resolver = ResolverGeneric::new_with_file_system(
+        fs,
+        ResolveOptions {
+            tsconfig: Some(TsconfigDiscovery::Auto),
+            extensions: vec![".ts".into()],
+            ..ResolveOptions::default()
+        },
+    );
+
+    // Check validity by resolving every request once.
+    for (importer, request) in &requests {
+        assert!(
+            resolver.resolve_file(importer, request).is_ok(),
+            "{} {request}",
+            importer.display()
+        );
+    }
+
+    // A cold cache loads every package tsconfig, each inheriting the base's `paths`.
+    group.bench_function("cold", |b| {
+        b.iter_with_setup_wrapper(|runner| {
+            resolver.clear_cache();
+            runner.run(|| {
+                for (importer, request) in &requests {
+                    _ = resolver.resolve_file(importer, request);
+                }
+            });
+        });
+    });
+}
+
 criterion_group!(
     resolver,
     bench_resolver_memory,
     bench_resolver_real,
     bench_package_json_deserialization,
-    bench_tsconfig_paths_aliases
+    bench_tsconfig_paths_aliases,
+    bench_tsconfig_extends_shared_paths
 );
 criterion_main!(resolver);
 
@@ -558,6 +595,29 @@ mod memory_fs {
             let requests = (0..alias_count).map(|i| format!("@pkg{i:04}/file")).collect();
             (fs, importer, tsconfig_path, requests)
         }
+
+        /// One `(importer, request)` per package of `fixtures/tsconfig/bench-tsconfig-extends`,
+        /// whose tsconfigs all extend one base with 512 `paths` aliases.
+        pub fn with_tsconfig_extends_fixture() -> (Self, Vec<(PathBuf, String)>) {
+            const PACKAGES: usize = 32;
+            let fs = Self::new();
+            let root =
+                std::env::current_dir().unwrap().join("fixtures/tsconfig/bench-tsconfig-extends");
+            let requests: Vec<_> = (0..PACKAGES)
+                .map(|i| {
+                    let importer = root.join(format!("packages/pkg-{i:02}/index.ts"));
+                    (importer, format!("@pkg{:04}/file", i * 16))
+                })
+                .collect();
+            for (importer, _) in &requests {
+                assert!(
+                    fs.snapshot.files.contains_key(importer),
+                    "missing benchmark fixture: {}",
+                    importer.display()
+                );
+            }
+            (fs, requests)
+        }
     }
 
     impl Snapshot {
@@ -577,6 +637,7 @@ mod memory_fs {
             // Load fixtures from enhanced-resolve
             self.load_directory_tree(&cwd.join("fixtures/enhanced-resolve"));
             self.load_directory_tree(&cwd.join("fixtures/tsconfig/bench-tsconfig-paths"));
+            self.load_directory_tree(&cwd.join("fixtures/tsconfig/bench-tsconfig-extends"));
 
             // Load specific node_modules packages for benchmarks
             self.load_node_modules_packages(&cwd);
