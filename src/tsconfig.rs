@@ -817,7 +817,6 @@ struct CompiledTsconfigPaths {
 struct CompiledTsconfigPathPattern {
     prefix: CompactString,
     suffix: CompactString,
-    prefix_len: usize,
     targets: Vec<CompiledTsconfigPathTarget>,
 }
 
@@ -843,7 +842,7 @@ impl CompiledTsconfigPaths {
 
         let prefix_groups = if wildcard_patterns.len() > LINEAR_SCAN_MAX_PATTERNS {
             wildcard_patterns
-                .chunk_by(|a, b| a.prefix_len == b.prefix_len)
+                .chunk_by(|a, b| a.prefix.len() == b.prefix.len())
                 .scan(0, |start, group| {
                     let range = *start..*start + group.len();
                     *start = range.end;
@@ -873,7 +872,7 @@ impl CompiledTsconfigPaths {
             let patterns = &self.wildcard_patterns[group.clone()];
             // Distinct prefixes of equal length cannot both match, so the only candidates are
             // the patterns whose prefix equals the specifier's leading bytes.
-            let (prefix, rest) = specifier.split_at_checked(patterns[0].prefix_len)?;
+            let (prefix, rest) = specifier.split_at_checked(patterns[0].prefix.len())?;
             let start = patterns.partition_point(|pattern| pattern.prefix.as_str() < prefix);
             patterns[start..]
                 .iter()
@@ -889,14 +888,13 @@ impl CompiledTsconfigPathPattern {
         Some(Self {
             prefix: prefix.into(),
             suffix: suffix.into(),
-            prefix_len: prefix.len(),
             targets: paths.iter().map(|path| CompiledTsconfigPathTarget::new(path)).collect(),
         })
     }
 
     /// Longest prefix first, then lexicographic so that identical prefixes are adjacent.
     fn order_key(&self) -> (Reverse<usize>, &str) {
-        (Reverse(self.prefix_len), self.prefix.as_str())
+        (Reverse(self.prefix.len()), self.prefix.as_str())
     }
 
     fn resolve(&self, specifier: &str) -> Option<Vec<PathBuf>> {
