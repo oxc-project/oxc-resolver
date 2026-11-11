@@ -80,7 +80,7 @@ codecov:
 
 # Run the benchmarks.
 benchmark:
-  cargo bench --bench resolver
+  cargo bench --bench resolver --bench resolver_native
 
 # Materialize fixtures/bench-pm/installs/<combo>/ from template + per-combo configs, then install each. Heavy; not part of `just install`.
 install-bench-fixtures:
@@ -101,7 +101,7 @@ install-bench-fixtures:
 
 # Run the package-manager benchmarks. Each combo skips itself if its fixture is not installed.
 benchmark-pm:
-  cargo bench --bench package_managers --features yarn_pnp
+  cargo bench --bench package_managers --bench package_managers_native --features yarn_pnp
 
 # Run cargo-fuzz
 fuzz:

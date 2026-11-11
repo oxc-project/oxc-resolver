@@ -5,7 +5,9 @@ followed by `just benchmark-pm` also measures the eight package-manager layouts.
 Native runs include OS filesystem and four-worker parallel throughput benchmarks;
 compare these on the same idle machine.
 
-CI uses CodSpeed CPU simulation for single-thread workloads. Thread scheduling
+CI selects the `resolver` and `package_managers` targets for CodSpeed CPU simulation.
+The `resolver_native` and `package_managers_native` targets contain OS-backed resolver
+and parallel workloads, and are included by the local commands above. Thread scheduling
 changes cache insertion order even with a fixed worker count, and simulation does
 not measure filesystem syscall time, so `resolver_real` and parallel workloads are
 kept out of simulation. Package-manager layouts still exercise OS-backed cold
@@ -23,12 +25,12 @@ represent I/O latency.
 - JSON parsing prepares input bytes outside measurement and includes parsing and
   destruction of the parsed result.
 
-CI pins the Ubuntu version and CodSpeed CLI, and runs on one CPU using `taskset`.
+CI uses `ubuntu-latest`, pins the CodSpeed CLI, and runs on one CPU using `taskset`.
 This also fixes `available_parallelism()`, which DashMap uses to choose its shard
 count.
 
-These workload changes require a new baseline on `main`. Compare
-subsequent runs with that baseline, and rerun the same commit to check repeatability.
+These workload changes require a new baseline on `main`. Compare subsequent runs
+with that baseline, and rerun the same commit to check repeatability.
 Dependency, compiler, runner-image, or CPU-feature changes can still affect the
 results. Changes to benchmark fixtures should be assessed separately from resolver
 performance changes.
