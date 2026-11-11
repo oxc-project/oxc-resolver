@@ -9,7 +9,7 @@ use std::{
 use compact_str::CompactString;
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use crate::{TsconfigReferences, path::PathUtil, replace_bom_with_whitespace};
 
@@ -438,11 +438,13 @@ impl TsConfig {
         let inherited_paths = self.compiler_options.inherited_paths.take();
         let options = &mut self.compiler_options;
         if let Some(paths_map) = &mut options.paths {
+            // Copies the map only if the raw tsconfig still shares it.
+            let paths_map = Arc::make_mut(paths_map);
             resolve_path_targets(paths_map, &options.paths_base, &config_dir);
             options.compiled_paths = Some(Arc::new(CompiledTsconfigPaths::new(paths_map)));
         } else if let Some(shared) = inherited_paths {
             if let Some(built) = shared.built_for(&options.paths_base) {
-                options.paths = Some(built.paths.clone());
+                options.paths = Some(Arc::clone(&built.paths));
                 options.compiled_paths = Some(Arc::clone(&built.compiled));
             } else {
                 let built = BuiltPaths::new(&shared.raw, &options.paths_base, &config_dir);
@@ -461,7 +463,7 @@ impl TsConfig {
         let options = &self.compiler_options;
         if let Some(paths) = &options.paths {
             let shared = options.shared_paths.get_or_init(|| {
-                Arc::new(SharedPaths::new(Arc::new(paths.clone()), options.paths_base.clone()))
+                Arc::new(SharedPaths::new(Arc::clone(paths), options.paths_base.clone()))
             });
             return Some(Arc::clone(shared));
         }
@@ -589,7 +591,10 @@ pub struct CompilerOptions {
     pub base_url: Option<PathBuf>,
 
     /// Path aliases.
-    pub paths: Option<CompilerOptionsPathsMap>,
+    ///
+    /// Tsconfigs that inherit the same `paths` through `extends` share one map.
+    #[serde(default, deserialize_with = "deserialize_paths")]
+    pub paths: Option<Arc<CompilerOptionsPathsMap>>,
 
     /// Pre-compiled wildcard path aliases for faster runtime matching.
     #[serde(skip)]
@@ -834,6 +839,12 @@ impl TsConfig {
     }
 }
 
+fn deserialize_paths<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Arc<CompilerOptionsPathsMap>>, D::Error> {
+    Ok(Option::<CompilerOptionsPathsMap>::deserialize(deserializer)?.map(Arc::new))
+}
+
 /// Resolves `${configDir}` and `paths_base` in every `paths` target, in place.
 fn resolve_path_targets(paths: &mut CompilerOptionsPathsMap, paths_base: &Path, config_dir: &Path) {
     for path in paths.values_mut().flatten() {
@@ -886,7 +897,7 @@ impl Debug for SharedPaths {
 
 /// `paths` with their targets resolved, and the matcher compiled from them.
 struct BuiltPaths {
-    paths: CompilerOptionsPathsMap,
+    paths: Arc<CompilerOptionsPathsMap>,
     compiled: Arc<CompiledTsconfigPaths>,
 }
 
@@ -895,7 +906,7 @@ impl BuiltPaths {
         let mut paths = raw.clone();
         resolve_path_targets(&mut paths, paths_base, config_dir);
         let compiled = Arc::new(CompiledTsconfigPaths::new(&paths));
-        Self { paths, compiled }
+        Self { paths: Arc::new(paths), compiled }
     }
 }
 

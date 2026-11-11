@@ -3,7 +3,10 @@
 //! Tests the `extend_tsconfig` method which is responsible for inheriting
 //! settings from one tsconfig into another.
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use crate::{
     ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
@@ -96,10 +99,11 @@ fn test_extend_tsconfig_shared_paths() {
     let pkg_b = tsconfig("pkg-b");
     let pkg_c = tsconfig("pkg-c");
     let pkg_d = tsconfig("pkg-d");
-    // `paths` stays a regular, fully resolved map on every tsconfig.
+    // Every tsconfig exposes fully resolved `paths`; those inheriting the same ones share the map.
     let shared_paths = pkg_a.compiler_options.paths.as_ref().unwrap();
     assert_eq!(shared_paths["@shared/*"], vec![f.join("shared/*")]);
-    assert_eq!(pkg_b.compiler_options.paths.as_ref(), Some(shared_paths));
+    assert!(Arc::ptr_eq(shared_paths, pkg_b.compiler_options.paths.as_ref().unwrap()));
+    assert!(Arc::ptr_eq(shared_paths, pkg_d.compiler_options.paths.as_ref().unwrap()));
     assert_eq!(
         pkg_c.compiler_options.paths.as_ref().unwrap()["@shared/*"],
         vec![f.join("pkg-c/shared/*")]
