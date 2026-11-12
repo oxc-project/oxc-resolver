@@ -512,10 +512,10 @@ impl TsConfig {
     /// Whether both tsconfigs use the same compiled `paths` matcher.
     #[cfg(test)]
     pub(crate) fn shares_compiled_paths_with(&self, other: &Self) -> bool {
-        match (&self.compiler_options.compiled_paths, &other.compiler_options.compiled_paths) {
-            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
-            _ => false,
-        }
+        matches!(
+            (&self.compiler_options.compiled_paths, &other.compiler_options.compiled_paths),
+            (Some(a), Some(b)) if Arc::ptr_eq(a, b)
+        )
     }
 
     /// Resolves the given `specifier` within the project configured by this
@@ -846,6 +846,7 @@ fn resolve_path_targets(paths: &mut CompilerOptionsPathsMap, paths_base: &Path, 
 
 /// `paths` shared by every tsconfig that inherits them through `extends`, so that large
 /// monorepo `paths` maps are stored and resolved once instead of once per tsconfig.
+#[derive(Debug)]
 struct SharedPaths {
     /// As written in the defining tsconfig, before targets are resolved.
     raw: Arc<CompilerOptionsPathsMap>,
@@ -875,16 +876,8 @@ impl SharedPaths {
     }
 }
 
-impl Debug for SharedPaths {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SharedPaths")
-            .field("paths", &self.raw.len())
-            .field("paths_base", &self.paths_base)
-            .finish_non_exhaustive()
-    }
-}
-
 /// `paths` with their targets resolved, and the matcher compiled from them.
+#[derive(Debug)]
 struct BuiltPaths {
     paths: CompilerOptionsPathsMap,
     compiled: Arc<CompiledTsconfigPaths>,
