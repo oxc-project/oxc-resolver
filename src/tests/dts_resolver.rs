@@ -266,6 +266,35 @@ fn tsconfig_paths_in_dts() {
     assert_eq!(result.path(), dts_fixture().join("with-tsconfig/lib/utils.ts"));
 }
 
+#[test]
+fn dot_prefixed_tsconfig_paths_in_dts() {
+    let f = super::fixture_root().join("tsconfig/cases/dot-prefixed-paths");
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into(), "types".into()],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: crate::TsconfigReferences::Disabled,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    #[rustfmt::skip]
+    let pass = [
+        (".exact", f.join("exact.ts")),
+        (".storybook/preview", f.join("alias/preview.ts")),
+        ("..alias/module", f.join("alias/module.ts")),
+        (".base-url", f.join(".base-url.ts")),
+        (".../module", f.join("alias/module.ts")),
+        // Relative specifiers must bypass the deliberately conflicting paths mappings.
+        ("./alias/module", f.join("alias/module.ts")),
+        ("../dot-prefixed-paths/alias/module", f.join("alias/module.ts")),
+    ];
+    for (request, expected) in pass {
+        let result = r.resolve_dts(f.join("index.ts"), request).map(|r| r.full_path());
+        assert_eq!(result, Ok(expected), "{request}");
+    }
+}
+
 // -------- Extension substitution: .mjs → .mts priority --------
 
 #[test]
