@@ -3,8 +3,11 @@
     "baseUrl": ".",
     "paths": {
       ".exact": ["./exact.ts"],
-      ".storybook/*": ["./.storybook/*"],
-      "..alias/*": ["./alias/*"]
+      ".storybook/*": ["./alias/*"],
+      "..alias/*": ["./alias/*"],
+      ".../*": ["./alias/*"],
+      "./alias/*": ["./exact.ts"],
+      "../dot-prefixed-paths/alias/*": ["./exact.ts"]
     }
   }
 }

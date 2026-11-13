@@ -326,9 +326,13 @@ fn test_dot_prefixed_non_relative_specifiers() {
     #[rustfmt::skip]
     let pass = [
         (".exact", f.join("exact.ts")),
-        (".storybook/preview", f.join(".storybook/preview.ts")),
+        (".storybook/preview", f.join("alias/preview.ts")),
         ("..alias/module", f.join("alias/module.ts")),
         (".base-url", f.join(".base-url.ts")),
+        (".../module", f.join("alias/module.ts")),
+        // Relative specifiers must bypass the deliberately conflicting paths mappings.
+        ("./alias/module", f.join("alias/module.ts")),
+        ("../dot-prefixed-paths/alias/module", f.join("alias/module.ts")),
     ];
 
     for tsconfig_discovery in [false, true] {
@@ -348,6 +352,10 @@ fn test_dot_prefixed_non_relative_specifiers() {
             let resolved_path =
                 resolver.resolve_file(f.join("index.ts"), request).map(|f| f.full_path());
             assert_eq!(resolved_path, Ok(expected.clone()), "{request} {tsconfig_discovery}");
+            if !tsconfig_discovery {
+                let resolved_path = resolver.resolve(&f, request).map(|f| f.full_path());
+                assert_eq!(resolved_path, Ok(expected.clone()), "{request}");
+            }
         }
     }
 }

@@ -1,6 +1,4 @@
-use crate::{
-    Resolution, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
-};
+use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
 
 fn dts_fixture() -> std::path::PathBuf {
     super::fixture_root().join("dts-resolver")
@@ -283,12 +281,16 @@ fn dot_prefixed_tsconfig_paths_in_dts() {
     #[rustfmt::skip]
     let pass = [
         (".exact", f.join("exact.ts")),
-        (".storybook/preview", f.join(".storybook/preview.ts")),
+        (".storybook/preview", f.join("alias/preview.ts")),
         ("..alias/module", f.join("alias/module.ts")),
         (".base-url", f.join(".base-url.ts")),
+        (".../module", f.join("alias/module.ts")),
+        // Relative specifiers must bypass the deliberately conflicting paths mappings.
+        ("./alias/module", f.join("alias/module.ts")),
+        ("../dot-prefixed-paths/alias/module", f.join("alias/module.ts")),
     ];
     for (request, expected) in pass {
-        let result = r.resolve_dts(f.join("index.ts"), request).map(Resolution::into_path_buf);
+        let result = r.resolve_dts(f.join("index.ts"), request).map(|r| r.full_path());
         assert_eq!(result, Ok(expected), "{request}");
     }
 }

@@ -12,7 +12,7 @@ pub const SLASH_START: &[char; 2] = &['/', '\\'];
 
 /// Whether a path starts with a relative path component (`.` or `..`).
 ///
-/// Matches TypeScript's `pathIsRelative` helper.
+/// Matches TypeScript's `pathIsRelative` helper (`/^\.\.?(?:$|[\\/])/`).
 #[inline]
 pub fn is_path_relative(path: &str) -> bool {
     let bytes = path.as_bytes();
@@ -189,7 +189,7 @@ fn path_relative() {
     for path in [".", "..", "./foo", ".\\foo", "../foo", "..\\foo"] {
         assert!(is_path_relative(path), "{path}");
     }
-    for path in ["", "foo", ".storybook", "..alias", ".../foo"] {
+    for path in ["", "foo", ".storybook", "..alias", ".../foo", ".é/foo", "..é/foo"] {
         assert!(!is_path_relative(path), "{path}");
     }
 }
