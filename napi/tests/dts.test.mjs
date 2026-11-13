@@ -26,8 +26,8 @@ test("typesVersions option", () => {
       .resolveDtsSync(containingFile, "ranged-types-versions")
       .path.replaceAll("\\", "/")
       .split("/ranged-types-versions/")[1];
-  assert.equal(resolve(undefined), "ts5.6/index.d.ts");
-  assert.equal(resolve(true), "ts5.6/index.d.ts");
+  assert.equal(resolve(undefined), "index.d.ts");
+  assert.equal(resolve(true), "index.d.ts");
   assert.equal(resolve(false), "index.d.ts");
   assert.equal(resolve("latest"), "index.d.ts");
   assert.equal(resolve("5.7.2"), "ts5.7/index.d.ts");
@@ -41,7 +41,8 @@ test("versioned types condition", () => {
       .resolveDtsSync(containingFile, "versioned-types-condition")
       .path.replaceAll("\\", "/")
       .split("/versioned-types-condition/")[1];
-  assert.equal(resolve(undefined), "tsold/index.d.ts");
+  assert.equal(resolve(undefined), "ts5.2/index.d.ts");
+  assert.equal(resolve(false), "tsold/index.d.ts");
   assert.equal(resolve("latest"), "ts5.2/index.d.ts");
   assert.equal(resolve("4.9.5"), "ts4.6/index.d.ts");
 });

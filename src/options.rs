@@ -214,11 +214,11 @@ pub struct ResolveOptions {
     /// How [crate::ResolverImpl::resolve_dts] selects an entry from the package.json
     /// `typesVersions` field.
     ///
-    /// With [TypesVersions::Latest] or [TypesVersions::Version], versioned types conditions
-    /// such as `types@>=5.2` in `exports` / `imports` also match when their range matches and
-    /// `types` is in [ResolveOptions::condition_names].
+    /// Unless it is [TypesVersions::Ignore], versioned types conditions such as `types@>=5.2`
+    /// in `exports` / `imports` also match when their range matches and `types` is in
+    /// [ResolveOptions::condition_names].
     ///
-    /// Default: [TypesVersions::First]
+    /// Default: [TypesVersions::Latest]
     pub types_versions: TypesVersions,
 
     /// Enable Yarn Plug'n'Play?.
@@ -500,21 +500,18 @@ impl EnforceExtension {
 /// TypeScript uses the first `typesVersions` entry whose version range matches the running
 /// compiler, and falls back to `types` / `typings` when no entry matches.
 /// It also matches versioned types conditions like `types@>=5.2` in `exports` / `imports`
-/// against the compiler version. Those only match with [TypesVersions::Latest] or
-/// [TypesVersions::Version].
+/// against the compiler version.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum TypesVersions {
-    /// Use the first entry regardless of its version range.
-    #[default]
-    First,
     /// Match as if the compiler were newer than any version range,
     /// e.g. `*` and `>=3.1` match, `<=5.6` doesn't.
+    #[default]
     Latest,
     /// Match version ranges against this TypeScript version (e.g. `"6.0.3"`),
     /// using TypeScript's semver range semantics.
     /// No entry matches if the version is invalid.
     Version(String),
-    /// Ignore the `typesVersions` field.
+    /// Ignore the `typesVersions` field. Versioned types conditions never match.
     Ignore,
 }
 
@@ -614,7 +611,7 @@ impl Default for ResolveOptions {
             builtin_modules: false,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
-            types_versions: TypesVersions::First,
+            types_versions: TypesVersions::Latest,
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: std::env::var("OXC_RESOLVER_YARN_PNP").is_ok(),
         }
@@ -700,7 +697,7 @@ impl fmt::Display for ResolveOptions {
                 self.allow_package_exports_in_directory_resolve
             )?;
         }
-        if self.types_versions != TypesVersions::First {
+        if self.types_versions != TypesVersions::Latest {
             write!(f, "types_versions:{:?},", self.types_versions)?;
         }
         Ok(())
@@ -754,11 +751,11 @@ mod test {
             roots: vec![PathBuf::from("roots")],
             builtin_modules: true,
             allow_package_exports_in_directory_resolve: true,
-            types_versions: TypesVersions::Latest,
+            types_versions: TypesVersions::Ignore,
             ..ResolveOptions::default()
         };
 
-        let expected = r#"tsconfig:Manual(TsconfigOptions { config_file: "tsconfig.json", references: Auto }),alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,types_versions:Latest,"#;
+        let expected = r#"tsconfig:Manual(TsconfigOptions { config_file: "tsconfig.json", references: Auto }),alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,types_versions:Ignore,"#;
         assert_eq!(format!("{options}"), expected);
 
         let options = ResolveOptions {
@@ -790,7 +787,7 @@ mod test {
             tsconfig: None,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
-            types_versions: TypesVersions::First,
+            types_versions: TypesVersions::Latest,
         };
 
         assert_eq!(format!("{options}"), "");
