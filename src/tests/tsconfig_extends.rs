@@ -65,6 +65,50 @@ fn test_extend_tsconfig_paths() {
     assert_eq!(resolved_path, Ok(f.join("src/test.ts")));
 }
 
+/// Tsconfigs inheriting the same `paths` share one build of them, unless their own `baseUrl`
+/// resolves the targets differently.
+#[test]
+fn test_extend_tsconfig_shared_paths() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-shared-paths");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let cases = [
+        ("pkg-a", "shared/value.ts"),
+        ("pkg-b", "shared/value.ts"),
+        // Its own `baseUrl` resolves the inherited targets against `pkg-c`.
+        ("pkg-c", "pkg-c/shared/value.ts"),
+        // Inherited through `middle/tsconfig.json`.
+        ("pkg-d", "shared/value.ts"),
+    ];
+    for (package, expected) in cases {
+        let importer = f.join(package).join("index.ts");
+        let resolution = resolver.resolve_file(&importer, "@shared/value").map(|r| r.full_path());
+        assert_eq!(resolution, Ok(f.join(expected)), "{package}");
+    }
+
+    let tsconfig =
+        |package: &str| resolver.find_tsconfig(f.join(package).join("index.ts")).unwrap().unwrap();
+    let pkg_a = tsconfig("pkg-a");
+    let pkg_b = tsconfig("pkg-b");
+    let pkg_c = tsconfig("pkg-c");
+    let pkg_d = tsconfig("pkg-d");
+    // `paths` stays a regular, fully resolved map on every tsconfig.
+    let shared_paths = pkg_a.compiler_options.paths.as_ref().unwrap();
+    assert_eq!(shared_paths["@shared/*"], vec![f.join("shared/*")]);
+    assert_eq!(pkg_b.compiler_options.paths.as_ref(), Some(shared_paths));
+    assert_eq!(
+        pkg_c.compiler_options.paths.as_ref().unwrap()["@shared/*"],
+        vec![f.join("pkg-c/shared/*")]
+    );
+    assert!(pkg_a.shares_compiled_paths_with(&pkg_b));
+    assert!(pkg_a.shares_compiled_paths_with(&pkg_d));
+    assert!(!pkg_a.shares_compiled_paths_with(&pkg_c));
+}
+
 #[test]
 fn test_extend_tsconfig_override_behavior() {
     let f = super::fixture_root().join("tsconfig/cases/extends-override");

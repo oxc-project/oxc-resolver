@@ -3,7 +3,7 @@ use std::{
     fmt::Debug,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use compact_str::CompactString;
@@ -235,11 +235,12 @@ impl TsConfig {
                 compiler_options.paths_base.clone_from(&tsconfig.compiler_options.paths_base);
             }
         }
-        if compiler_options.paths.is_none() {
+        if compiler_options.paths.is_none() && compiler_options.inherited_paths.is_none() {
             if compiler_options.base_url.is_none() && tsconfig.compiler_options.base_url.is_none() {
                 compiler_options.paths_base.clone_from(&tsconfig.compiler_options.paths_base);
             }
-            compiler_options.paths.clone_from(&tsconfig.compiler_options.paths);
+            // Shared rather than copied; `build` materializes `paths` from it.
+            compiler_options.inherited_paths = tsconfig.paths_to_inherit();
         }
 
         if compiler_options.experimental_decorators.is_none()
@@ -438,26 +439,45 @@ impl TsConfig {
             *declaration_dir = config_dir.join(stripped_path.trim_start_matches('/'));
         }
 
-        if let Some(paths_map) = &mut self.compiler_options.paths {
-            // Substitute template variable in `tsconfig.compilerOptions.paths`.
-            for paths in paths_map.values_mut() {
-                for path in paths {
-                    *path = if let Some(stripped_path) =
-                        path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
-                    {
-                        config_dir.join(stripped_path.trim_start_matches('/'))
-                    } else {
-                        self.compiler_options.paths_base.normalize_with(&path)
-                    };
-                }
+        let inherited_paths = self.compiler_options.inherited_paths.take();
+        let options = &mut self.compiler_options;
+        if let Some(paths_map) = &mut options.paths {
+            resolve_path_targets(paths_map, &options.paths_base, &config_dir);
+            options.compiled_paths = Some(Arc::new(CompiledTsconfigPaths::new(paths_map)));
+        } else if let Some(shared) = inherited_paths {
+            if let Some(built) = shared.built_for(&options.paths_base) {
+                options.paths = Some(built.paths.clone());
+                options.compiled_paths = Some(Arc::clone(&built.compiled));
+            } else {
+                let built = BuiltPaths::new(&shared.raw, &options.paths_base, &config_dir);
+                options.paths = Some(built.paths);
+                options.compiled_paths = Some(built.compiled);
             }
-            self.compiler_options.compiled_paths =
-                Some(Arc::new(CompiledTsconfigPaths::new(paths_map)));
         } else {
-            self.compiler_options.compiled_paths = None;
+            options.compiled_paths = None;
         }
 
         self
+    }
+
+    /// The `paths` that tsconfigs extending this one inherit, shared instead of copied.
+    fn paths_to_inherit(&self) -> Option<Arc<SharedPaths>> {
+        let options = &self.compiler_options;
+        if let Some(paths) = &options.paths {
+            let shared = options.shared_paths.get_or_init(|| {
+                Arc::new(SharedPaths::new(Arc::new(paths.clone()), options.paths_base.clone()))
+            });
+            return Some(Arc::clone(shared));
+        }
+        let inherited = options.inherited_paths.as_ref()?;
+        if inherited.paths_base == options.paths_base {
+            return Some(Arc::clone(inherited));
+        }
+        // Inherited `paths` resolved against this tsconfig's own `baseUrl`.
+        let shared = options.shared_paths.get_or_init(|| {
+            Arc::new(SharedPaths::new(Arc::clone(&inherited.raw), options.paths_base.clone()))
+        });
+        Some(Arc::clone(shared))
     }
 
     #[expect(clippy::option_if_let_else, reason = "the if/else reads clearer than `map_or_else`")]
@@ -491,6 +511,15 @@ impl TsConfig {
             }
         }
         self.resolve_path_alias(specifier)
+    }
+
+    /// Whether both tsconfigs use the same compiled `paths` matcher.
+    #[cfg(test)]
+    pub(crate) fn shares_compiled_paths_with(&self, other: &Self) -> bool {
+        matches!(
+            (&self.compiler_options.compiled_paths, &other.compiler_options.compiled_paths),
+            (Some(a), Some(b)) if Arc::ptr_eq(a, b)
+        )
     }
 
     /// Resolves the given `specifier` within the project configured by this
@@ -569,6 +598,14 @@ pub struct CompilerOptions {
     /// Pre-compiled wildcard path aliases for faster runtime matching.
     #[serde(skip)]
     compiled_paths: Option<Arc<CompiledTsconfigPaths>>,
+
+    /// `paths` inherited through `extends`, until [`TsConfig::build`] resolves them into `paths`.
+    #[serde(skip)]
+    inherited_paths: Option<Arc<SharedPaths>>,
+
+    /// This tsconfig's `paths`, shared with the tsconfigs that extend it.
+    #[serde(skip)]
+    shared_paths: OnceLock<Arc<SharedPaths>>,
 
     /// The "base_url" at which this tsconfig is defined.
     #[serde(skip)]
@@ -798,6 +835,64 @@ impl TsConfig {
         path.extension()
             .and_then(|ext| ext.to_str())
             .is_none_or(|ext| !allow_js && matches!(ext, "js" | "jsx" | "mjs" | "cjs"))
+    }
+}
+
+/// Resolves `${configDir}` and `paths_base` in every `paths` target, in place.
+fn resolve_path_targets(paths: &mut CompilerOptionsPathsMap, paths_base: &Path, config_dir: &Path) {
+    for path in paths.values_mut().flatten() {
+        *path = path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE).map_or_else(
+            || paths_base.normalize_with(&path),
+            |stripped| config_dir.join(stripped.trim_start_matches('/')),
+        );
+    }
+}
+
+/// `paths` shared by every tsconfig that inherits them through `extends`, so that large
+/// monorepo `paths` maps are stored and resolved once instead of once per tsconfig.
+#[derive(Debug)]
+struct SharedPaths {
+    /// As written in the defining tsconfig, before targets are resolved.
+    raw: Arc<CompilerOptionsPathsMap>,
+    /// The `paths_base` of inheriting tsconfigs that don't set their own `baseUrl`.
+    paths_base: PathBuf,
+    /// Whether any target uses `${configDir}`, which resolves per inheriting tsconfig.
+    uses_config_dir: bool,
+    /// `raw` resolved against `paths_base`, built on first use.
+    built: OnceLock<BuiltPaths>,
+}
+
+impl SharedPaths {
+    fn new(raw: Arc<CompilerOptionsPathsMap>, paths_base: PathBuf) -> Self {
+        let uses_config_dir = raw
+            .values()
+            .flatten()
+            .any(|path| path.to_string_lossy().starts_with(TEMPLATE_VARIABLE));
+        Self { raw, paths_base, uses_config_dir, built: OnceLock::new() }
+    }
+
+    /// The shared build, if it is valid for a tsconfig resolving `paths` against `paths_base`.
+    fn built_for(&self, paths_base: &Path) -> Option<&BuiltPaths> {
+        (!self.uses_config_dir && self.paths_base == paths_base).then(|| {
+            // Without `${configDir}` targets, the config directory doesn't affect the result.
+            self.built.get_or_init(|| BuiltPaths::new(&self.raw, &self.paths_base, Path::new("")))
+        })
+    }
+}
+
+/// `paths` with their targets resolved, and the matcher compiled from them.
+#[derive(Debug)]
+struct BuiltPaths {
+    paths: CompilerOptionsPathsMap,
+    compiled: Arc<CompiledTsconfigPaths>,
+}
+
+impl BuiltPaths {
+    fn new(raw: &CompilerOptionsPathsMap, paths_base: &Path, config_dir: &Path) -> Self {
+        let mut paths = raw.clone();
+        resolve_path_targets(&mut paths, paths_base, config_dir);
+        let compiled = Arc::new(CompiledTsconfigPaths::new(&paths));
+        Self { paths, compiled }
     }
 }
 
