@@ -1,7 +1,9 @@
 use std::{
     borrow::Cow,
+    cmp::Reverse,
     fmt::Debug,
     hash::BuildHasherDefault,
+    ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -801,17 +803,48 @@ impl TsConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+/// Minimum average number of patterns per prefix length for the binary-searched index to beat
+/// scanning prefix heads. Measured crossover is around 15 on real and synthetic `paths` maps.
+const MIN_PATTERNS_PER_INDEXED_LENGTH: usize = 16;
+
+#[derive(Clone, Debug)]
 struct CompiledTsconfigPaths {
+    /// Ordered by [`CompiledTsconfigPathPattern::order_key`]; patterns sharing a prefix keep
+    /// their declaration order.
     wildcard_patterns: Vec<CompiledTsconfigPathPattern>,
+    lookup: PatternLookup,
+}
+
+/// How [`CompiledTsconfigPaths::resolve`] finds candidate patterns.
+#[derive(Clone, Debug)]
+enum PatternLookup {
+    /// Scan all patterns, rejecting most by their leading bytes without touching their strings.
+    Scan(Box<[PrefixHead]>),
+    /// Binary-search the patterns of each prefix length, longest first. Used when many
+    /// patterns share each length, as in large monorepo `paths` maps.
+    Index(Box<[PrefixLengthGroup]>),
+}
+
+/// The first (up to) 8 bytes of a pattern prefix, so a specifier can be checked against them
+/// with one integer comparison.
+#[derive(Clone, Copy, Debug)]
+struct PrefixHead {
+    bytes: u64,
+    /// Selects the bytes of `bytes` that belong to the prefix.
+    mask: u64,
+}
+
+/// The run of `wildcard_patterns` whose prefixes are `prefix_len` bytes long.
+#[derive(Clone, Debug)]
+struct PrefixLengthGroup {
+    prefix_len: usize,
+    patterns: Range<usize>,
 }
 
 #[derive(Clone, Debug)]
 struct CompiledTsconfigPathPattern {
     prefix: CompactString,
     suffix: CompactString,
-    prefix_len: usize,
-    suffix_len: usize,
     targets: Vec<CompiledTsconfigPathTarget>,
 }
 
@@ -823,59 +856,145 @@ enum CompiledTsconfigPathTarget {
 
 impl CompiledTsconfigPaths {
     fn new(paths_map: &CompilerOptionsPathsMap) -> Self {
-        let mut wildcard_patterns =
-            Vec::<CompiledTsconfigPathPattern>::with_capacity(paths_map.len());
-        for (key, paths) in paths_map {
-            let Some((prefix, suffix)) = key.split_once('*') else {
-                continue;
-            };
-            let targets = paths
-                .iter()
-                .map(|path| {
-                    let path_str = path.to_string_lossy();
-                    path_str.split_once('*').map_or_else(
-                        || CompiledTsconfigPathTarget::Static(path.clone()),
-                        |(target_prefix, target_suffix)| CompiledTsconfigPathTarget::Wildcard {
-                            prefix: CompactString::new(target_prefix),
-                            suffix: CompactString::new(target_suffix),
-                        },
-                    )
-                })
-                .collect::<Vec<_>>();
-            let pattern = CompiledTsconfigPathPattern {
-                prefix: CompactString::new(prefix),
-                suffix: CompactString::new(suffix),
-                prefix_len: prefix.len(),
-                suffix_len: suffix.len(),
-                targets,
-            };
-
-            // Match longer prefixes first. Equal-length prefixes keep insertion order.
+        let mut wildcard_patterns: Vec<CompiledTsconfigPathPattern> =
+            Vec::with_capacity(paths_map.len());
+        for pattern in
+            paths_map.iter().filter_map(|(key, paths)| CompiledTsconfigPathPattern::new(key, paths))
+        {
+            // Binary insertion keeps declaration order among equal keys without instantiating
+            // a stable sort, which costs binary size.
             let index = wildcard_patterns
-                .iter()
-                .position(|existing| existing.prefix_len < pattern.prefix_len)
-                .unwrap_or(wildcard_patterns.len());
+                .partition_point(|existing| existing.order_key() <= pattern.order_key());
             wildcard_patterns.insert(index, pattern);
         }
 
-        Self { wildcard_patterns }
+        let same_prefix_len = |a: &CompiledTsconfigPathPattern, b: &CompiledTsconfigPathPattern| {
+            a.prefix.len() == b.prefix.len()
+        };
+        let length_count = wildcard_patterns.chunk_by(same_prefix_len).count();
+        let lookup = if length_count > 0
+            && wildcard_patterns.len() >= length_count * MIN_PATTERNS_PER_INDEXED_LENGTH
+        {
+            PatternLookup::Index(
+                wildcard_patterns
+                    .chunk_by(same_prefix_len)
+                    .scan(0, |start, group| {
+                        let patterns = *start..*start + group.len();
+                        *start = patterns.end;
+                        Some(PrefixLengthGroup { prefix_len: group[0].prefix.len(), patterns })
+                    })
+                    .collect(),
+            )
+        } else {
+            PatternLookup::Scan(
+                wildcard_patterns.iter().map(|pattern| PrefixHead::new(&pattern.prefix)).collect(),
+            )
+        };
+
+        Self { wildcard_patterns, lookup }
+    }
+
+    /// Returns the targets of the pattern with the longest matching prefix, preferring the
+    /// earliest declared pattern on ties, as TypeScript does.
+    fn resolve(&self, specifier: &str) -> Option<Vec<PathBuf>> {
+        match &self.lookup {
+            PatternLookup::Scan(heads) => {
+                // A lone pattern (the common `@/*`) gains nothing from the prefilter.
+                if let [pattern] = self.wildcard_patterns.as_slice() {
+                    return pattern.resolve(specifier);
+                }
+                let specifier_head = leading_bytes(specifier);
+                heads
+                    .iter()
+                    .zip(&self.wildcard_patterns)
+                    .filter(|(head, _)| head.may_start(specifier_head))
+                    .find_map(|(_, pattern)| pattern.resolve(specifier))
+            }
+            PatternLookup::Index(groups) => {
+                // Groups are ordered by descending prefix length; skip those longer than the
+                // specifier.
+                let fitting = groups.partition_point(|group| group.prefix_len > specifier.len());
+                groups[fitting..].iter().find_map(|group| {
+                    let (prefix, rest) = specifier.split_at_checked(group.prefix_len)?;
+                    let patterns = &self.wildcard_patterns[group.patterns.clone()];
+                    // Distinct prefixes of equal length cannot both match, so the only
+                    // candidates are the patterns whose prefix equals the specifier's leading
+                    // bytes. Identical prefixes are rare; step back to the first of them to keep
+                    // declaration order.
+                    let mut index = patterns
+                        .binary_search_by(|pattern| pattern.prefix.as_str().cmp(prefix))
+                        .ok()?;
+                    while index > 0 && patterns[index - 1].prefix == prefix {
+                        index -= 1;
+                    }
+                    patterns[index..]
+                        .iter()
+                        .take_while(|pattern| pattern.prefix == prefix)
+                        .find_map(|pattern| pattern.resolve_rest(rest))
+                })
+            }
+        }
+    }
+}
+
+impl PrefixHead {
+    fn new(prefix: &str) -> Self {
+        let len = prefix.len().min(8);
+        let mask = if len == 0 { 0 } else { u64::MAX << (64 - 8 * len) };
+        Self { bytes: leading_bytes(prefix), mask }
+    }
+
+    /// Whether a specifier whose [`leading_bytes`] are `specifier_head` may start with this
+    /// prefix. `false` is definitive; `true` must be confirmed by comparing the strings.
+    fn may_start(self, specifier_head: u64) -> bool {
+        specifier_head & self.mask == self.bytes
+    }
+}
+
+/// The first (up to) 8 bytes of `s` as a big-endian integer, zero-padded.
+fn leading_bytes(s: &str) -> u64 {
+    let mut bytes = [0; 8];
+    let len = s.len().min(8);
+    bytes[..len].copy_from_slice(&s.as_bytes()[..len]);
+    u64::from_be_bytes(bytes)
+}
+
+impl CompiledTsconfigPathPattern {
+    fn new(key: &str, paths: &[PathBuf]) -> Option<Self> {
+        let (prefix, suffix) = key.split_once('*')?;
+        Some(Self {
+            prefix: prefix.into(),
+            suffix: suffix.into(),
+            targets: paths.iter().map(|path| CompiledTsconfigPathTarget::new(path)).collect(),
+        })
+    }
+
+    /// Longest prefix first, then lexicographic so that identical prefixes are adjacent.
+    fn order_key(&self) -> (Reverse<usize>, &str) {
+        (Reverse(self.prefix.len()), self.prefix.as_str())
     }
 
     fn resolve(&self, specifier: &str) -> Option<Vec<PathBuf>> {
-        self.wildcard_patterns.iter().find_map(|pattern| {
-            if !specifier.starts_with(pattern.prefix.as_str())
-                || !specifier.ends_with(pattern.suffix.as_str())
-                || specifier.len() < pattern.prefix_len + pattern.suffix_len
-            {
-                return None;
-            }
-            let wildcard = &specifier[pattern.prefix_len..specifier.len() - pattern.suffix_len];
-            Some(pattern.targets.iter().map(|target| target.resolve(wildcard)).collect())
-        })
+        self.resolve_rest(specifier.strip_prefix(self.prefix.as_str())?)
+    }
+
+    /// Resolves `rest`, the specifier with this pattern's prefix already removed.
+    fn resolve_rest(&self, rest: &str) -> Option<Vec<PathBuf>> {
+        let wildcard = rest.strip_suffix(self.suffix.as_str())?;
+        Some(self.targets.iter().map(|target| target.resolve(wildcard)).collect())
     }
 }
 
 impl CompiledTsconfigPathTarget {
+    fn new(path: &Path) -> Self {
+        match path.to_string_lossy().split_once('*') {
+            Some((prefix, suffix)) => {
+                Self::Wildcard { prefix: prefix.into(), suffix: suffix.into() }
+            }
+            None => Self::Static(path.to_path_buf()),
+        }
+    }
+
     fn resolve(&self, wildcard: &str) -> PathBuf {
         match self {
             Self::Static(path) => path.clone(),

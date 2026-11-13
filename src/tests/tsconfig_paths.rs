@@ -119,6 +119,72 @@ fn clone_with_different_tsconfig_options_resolves_file_with_separate_cache() {
 }
 
 #[test]
+fn indexed_paths() {
+    let root = super::fixture_root().join("tsconfig/cases/indexed-paths");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: root.join("tsconfig.json"),
+            references: TsconfigReferences::Disabled,
+        })),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+    let importer = root.join("app/main.ts");
+    let cases = [
+        ("lib/value", "src/general/value.ts"),
+        ("lib/special/value", "src/specific/value.ts"),
+        ("equal/valueyx", "src/first/valuey.ts"),
+        ("equal/value", "src/fallback.ts"),
+        ("exact", "src/exact.ts"),
+        ("é/value", "src/unicode/value.ts"),
+        ("évalue", "src/fallback.ts"),
+        ("z", "src/fallback.ts"),
+        ("xvalue", "src/exact.ts"),
+        ("static/value", "src/exact.ts"),
+    ];
+    for (specifier, expected) in cases {
+        let actual = resolver.resolve_file(&importer, specifier).map(|path| path.full_path());
+        assert_eq!(actual, Ok(root.join(expected)), "{specifier}");
+    }
+    assert_eq!(
+        resolver.resolve_file(&importer, "empty"),
+        Err(ResolveError::NotFound("empty".into()))
+    );
+}
+
+/// 32 patterns share one prefix length, dense enough for the binary-searched index.
+#[test]
+fn indexed_paths_dense() {
+    let root = super::fixture_root().join("tsconfig/cases/indexed-paths-dense");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: root.join("tsconfig.json"),
+            references: TsconfigReferences::Disabled,
+        })),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+    let importer = root.join("app/main.ts");
+    let cases = [
+        ("@p00/value", "src/first-alias/value.ts"),
+        ("@p15/value", "src/shared/value.ts"),
+        ("@p29/value", "src/last-alias/value.ts"),
+        // Three patterns share the `@p07/` prefix; the earliest matching declaration wins.
+        ("@p07/valuex", "src/tie-first/value.ts"),
+        ("@p07/valuez", "src/tie-second/valuez.ts"),
+        ("@p07/value", "src/tie-second/value.ts"),
+        // No pattern of this length matches, or the specifier is too short for it.
+        ("@p99/value", "src/fallback.ts"),
+        ("@p", "src/fallback.ts"),
+        ("react", "src/fallback.ts"),
+    ];
+    for (specifier, expected) in cases {
+        let actual = resolver.resolve_file(&importer, specifier).map(|path| path.full_path());
+        assert_eq!(actual, Ok(root.join(expected)), "{specifier}");
+    }
+}
+
+#[test]
 fn tsconfig_fallthrough() {
     let f = super::fixture_root().join("tsconfig");
 
