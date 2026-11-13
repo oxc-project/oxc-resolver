@@ -129,8 +129,9 @@ See [docs.rs/oxc_resolver](https://docs.rs/oxc_resolver/latest/oxc_resolver).
 
 ### [Node.js package maps](https://nodejs.org/api/packages.html#package-maps)
 
-Package-map resolution is enabled automatically when `NODE_OPTIONS` contains Node's
-`--experimental-package-map` option. No resolver option is required. Package managers can generate
+Package-map resolution is enabled automatically when Node's `--experimental-package-map` option is
+passed on the command line or through `NODE_OPTIONS`. Command-line options take precedence.
+Rust callers can supply the map through `ResolveOptions::package_map`. Package managers can generate
 the map and inject the option by enabling
 [`nodeExperimentalPackageMap` in pnpm](https://pnpm.io/settings#nodeexperimentalpackagemap) or
 [`nodeExperimentalPackageMap` in Yarn](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).

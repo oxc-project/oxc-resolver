@@ -158,11 +158,14 @@ impl ResolverImpl {
 
     fn package_map(&self, ctx: &mut Ctx) -> Result<Option<Arc<PackageMap>>, ResolveError> {
         // Resolver construction cannot surface map errors, so cache the first lazy load result.
-        let package_map = self.cache.package_map.get_or_init(|package_map_path| {
-            tracing::debug!(path = ?package_map_path, "load_package_map");
-            let json = self.cache.fs.read(package_map_path)?;
-            PackageMap::parse(package_map_path.to_path_buf(), json)
-        });
+        let package_map = self.cache.package_map.get_or_init(
+            self.options.package_map.as_deref(),
+            |package_map_path| {
+                tracing::debug!(path = ?package_map_path, "load_package_map");
+                let json = self.cache.fs.read(package_map_path)?;
+                PackageMap::parse(package_map_path.to_path_buf(), json)
+            },
+        );
 
         match package_map {
             Ok(Some(package_map)) => {

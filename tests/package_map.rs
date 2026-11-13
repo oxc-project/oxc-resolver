@@ -45,7 +45,7 @@ fn node_options(case: &str) -> String {
         "encoded-separator" => fixture("package-map/invalid/encoded-separator.package-map.json"),
         "url-forms" => fixture("package-map/url-forms/.package-map.json"),
         "missing" => fixture("package-map/invalid/missing.package-map.json"),
-        "no-map" => return "--trace-warnings".into(),
+        "no-map" | "explicit" => return "--trace-warnings".into(),
         "empty" => {
             return "--experimental-package-map=valid.json --experimental-package-map=".into();
         }
@@ -322,6 +322,24 @@ fn no_map() {
     );
 }
 
+fn explicit_package_map_and_clone_cache() {
+    let root = fixture("package-map/resolution");
+    let importer = root.join("apps/web/src");
+    let options = ResolveOptions {
+        package_map: Some(root.join("node_modules/.package-map.json")),
+        ..ResolveOptions::default()
+    };
+    let resolver = Resolver::new(options.clone());
+    let expected = root.join("node_modules/store/plain-file.js");
+    assert_resolution(&resolver, &importer, "plain-file", &expected);
+
+    let without_map = resolver.clone_with_options(ResolveOptions::default());
+    assert_not_found(&without_map, &importer, "plain-file");
+    let with_map = without_map.clone_with_options(options);
+    assert_resolution(&with_map, &importer, "plain-file", &expected);
+    assert_resolution(&resolver, &importer, "plain-file", &expected);
+}
+
 fn missing() {
     let fixture = fixture("package-map/invalid");
     let missing_path = fixture.join("missing.package-map.json");
@@ -344,6 +362,7 @@ fn url_forms() {
 fn child(case: &str) {
     match case {
         "resolution" => resolution(),
+        "explicit" => explicit_package_map_and_clone_cache(),
         "owners" => owners(),
         "invalid-json"
         | "invalid-shape"
@@ -370,6 +389,7 @@ fn package_map() {
 
     for case in [
         "resolution",
+        "explicit",
         "owners",
         "invalid-json",
         "invalid-shape",

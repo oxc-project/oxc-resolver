@@ -19,6 +19,7 @@ use oxc_resolver::{
 use self::options::{NapiResolveOptions, StrOrStrList};
 
 mod options;
+mod package_map;
 #[cfg(feature = "tracing-subscriber")]
 mod tracing;
 mod tsconfig;
@@ -79,10 +80,10 @@ impl From<oxc_resolver::ModuleType> for ModuleType {
 
 #[allow(clippy::needless_pass_by_value)]
 #[napi]
-pub fn sync(path: String, request: String) -> ResolveResult {
+pub fn sync(env: napi::Env, path: String, request: String) -> napi::Result<ResolveResult> {
     let path = PathBuf::from(path);
-    let resolver = Resolver::new(ResolveOptions::default());
-    resolve(&resolver, &path, &request)
+    let resolver = Resolver::new(package_map::with_exec_argv(env, ResolveOptions::default())?);
+    Ok(resolve(&resolver, &path, &request))
 }
 
 pub struct ResolveTask {
@@ -172,7 +173,7 @@ pub struct ResolverFactory {
 #[napi]
 impl ResolverFactory {
     #[napi(constructor)]
-    pub fn new(options: Option<NapiResolveOptions>) -> napi::Result<Self> {
+    pub fn new(env: napi::Env, options: Option<NapiResolveOptions>) -> napi::Result<Self> {
         #[cfg(feature = "tracing-subscriber")]
         {
             tracing::init_tracing();
@@ -181,22 +182,27 @@ impl ResolverFactory {
             Some(op) => Self::normalize_options(op)?,
             None => ResolveOptions::default(),
         };
+        let options = package_map::with_exec_argv(env, options)?;
         Ok(Self { resolver: Arc::new(Resolver::new(options)) })
     }
 
     #[napi]
     #[allow(clippy::should_implement_trait)]
-    pub fn default() -> Self {
-        Self { resolver: Arc::new(Resolver::new(ResolveOptions::default())) }
+    pub fn default(env: napi::Env) -> napi::Result<Self> {
+        let options = package_map::with_exec_argv(env, ResolveOptions::default())?;
+        Ok(Self { resolver: Arc::new(Resolver::new(options)) })
     }
 
-    /// Clone the resolver, reusing the underlying cache when tsconfig and Yarn PnP options are
-    /// unchanged.
+    /// Clone the resolver, reusing the underlying cache when tsconfig, package map, and Yarn PnP
+    /// options are unchanged.
     #[napi]
-    pub fn clone_with_options(&self, options: NapiResolveOptions) -> napi::Result<Self> {
-        Ok(Self {
-            resolver: Arc::new(self.resolver.clone_with_options(Self::normalize_options(options)?)),
-        })
+    pub fn clone_with_options(
+        &self,
+        env: napi::Env,
+        options: NapiResolveOptions,
+    ) -> napi::Result<Self> {
+        let options = package_map::with_exec_argv(env, Self::normalize_options(options)?)?;
+        Ok(Self { resolver: Arc::new(self.resolver.clone_with_options(options)) })
     }
 
     /// Clear the underlying cache.
@@ -289,6 +295,7 @@ impl ResolverFactory {
         let default = ResolveOptions::default();
         // merging options
         Ok(ResolveOptions {
+            package_map: None,
             cwd: None,
             tsconfig: op
                 .tsconfig

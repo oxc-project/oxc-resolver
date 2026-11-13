@@ -13,8 +13,8 @@ export declare class ResolverFactory {
   constructor(options?: NapiResolveOptions | undefined | null)
   static default(): ResolverFactory
   /**
-   * Clone the resolver, reusing the underlying cache when tsconfig and Yarn PnP options are
-   * unchanged.
+   * Clone the resolver, reusing the underlying cache when tsconfig, package map, and Yarn PnP
+   * options are unchanged.
    */
   cloneWithOptions(options: NapiResolveOptions): ResolverFactory
   /**

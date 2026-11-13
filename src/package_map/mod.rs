@@ -1,4 +1,5 @@
-//! Experimental [Node.js package map] resolution selected through `NODE_OPTIONS`.
+//! Experimental [Node.js package map] resolution selected through
+//! [`ResolveOptions::package_map`](crate::ResolveOptions::package_map) or `NODE_OPTIONS`.
 //!
 //! A package map contains a `packages` object whose opaque package IDs map to a required `url` and
 //! an optional `dependencies` object. Entry URLs are resolved from the configured map path.

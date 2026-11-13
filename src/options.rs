@@ -181,6 +181,15 @@ pub struct ResolveOptions {
     /// Default `true`
     pub node_path: bool,
 
+    /// Path to a Node.js package map, overriding `NODE_OPTIONS`.
+    ///
+    /// The Node.js binding sets this from `process.execArgv` automatically. Rust callers
+    /// embedding the resolver can pass their host's package-map option here.
+    /// Relative paths are resolved against the current working directory.
+    ///
+    /// Default `None`, which reads `--experimental-package-map` from `NODE_OPTIONS`.
+    pub package_map: Option<PathBuf>,
+
     /// Whether to parse [module.builtinModules](https://nodejs.org/api/module.html#modulebuiltinmodules) or not.
     /// For example, "zlib" will throw [crate::ResolveError::Builtin] when set to true.
     ///
@@ -568,6 +577,7 @@ impl Default for ResolveOptions {
             roots: vec![],
             symlinks: true,
             node_path: true,
+            package_map: None,
             builtin_modules: false,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
@@ -643,6 +653,9 @@ impl fmt::Display for ResolveOptions {
         if !self.node_path {
             write!(f, "node_path:{:?},", self.node_path)?;
         }
+        if let Some(package_map) = &self.package_map {
+            write!(f, "package_map:{},", package_map.display())?;
+        }
         if self.builtin_modules {
             write!(f, "builtin_modules:{:?},", self.builtin_modules)?;
         }
@@ -715,6 +728,7 @@ mod test {
             alias: vec![],
             alias_fields: vec![],
             node_path: true,
+            package_map: None,
             builtin_modules: false,
             condition_names: vec![],
             enforce_extension: EnforceExtension::Disabled,

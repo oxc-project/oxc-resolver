@@ -181,14 +181,15 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         Self { inner, _marker: std::marker::PhantomData }
     }
 
-    /// Clone the resolver, reusing the underlying cache when tsconfig and Yarn PnP options are
-    /// unchanged.
+    /// Clone the resolver, reusing the underlying cache when tsconfig, package map, and Yarn PnP
+    /// options are unchanged.
     #[must_use]
     pub fn clone_with_options(&self, options: ResolveOptions) -> Self {
         let options = options.sanitize();
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
-        let can_share_cache = options.tsconfig == self.inner.options.tsconfig;
+        let can_share_cache = options.tsconfig == self.inner.options.tsconfig
+            && options.package_map == self.inner.options.package_map;
         let cache = cfg_select! {
             feature = "yarn_pnp" => {
                 if options.yarn_pnp != self.inner.options.yarn_pnp {
