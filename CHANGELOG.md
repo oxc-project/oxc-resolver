@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.25.0](https://github.com/oxc-project/oxc-resolver/compare/v11.24.3...v11.25.0) - 2026-11-13
+
+### <!-- 0 -->🚀 Features
+
+- *(dts)* add `typesVersions` option to select entries by TypeScript version ([#1422](https://github.com/oxc-project/oxc-resolver/pull/1422)) (by @sxzzbot)
+- *(napi)* expose findTsconfig methods in Node API ([#1403](https://github.com/oxc-project/oxc-resolver/pull/1403)) (by @sapphi-red)
+- support Node.js package maps ([#1331](https://github.com/oxc-project/oxc-resolver/pull/1331)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- align subpath imports containing `?` and `#` with Vite ([#1443](https://github.com/oxc-project/oxc-resolver/pull/1443)) (by @Boshen)
+- honor Node's package-map CLI option ([#1441](https://github.com/oxc-project/oxc-resolver/pull/1441)) (by @Boshen)
+- *(tsconfig)* resolve dot-prefixed path aliases ([#1388](https://github.com/oxc-project/oxc-resolver/pull/1388)) (by @Boshen)
+- *(bench)* stabilize CodSpeed workloads ([#1435](https://github.com/oxc-project/oxc-resolver/pull/1435)) (by @Boshen)
+- *(cache)* keep links to unsupported DOS device paths instead of failing ([#1428](https://github.com/oxc-project/oxc-resolver/pull/1428)) (by @shulaoda)
+- *(tsconfig)* do not let a reference without paths shadow the parent ([#1424](https://github.com/oxc-project/oxc-resolver/pull/1424)) (by @JounQin)
+- isolate tsconfig caches across resolver clones ([#1402](https://github.com/oxc-project/oxc-resolver/pull/1402)) (by @sapphi-red)
+- reject invalid IPv6 file URL hosts ([#1434](https://github.com/oxc-project/oxc-resolver/pull/1434)) (by @Boshen)
+- preserve unicode in escaped fragment paths ([#1433](https://github.com/oxc-project/oxc-resolver/pull/1433)) (by @Boshen)
+- *(dts)* try the `.json` file itself after `.d.json.ts` for json imports ([#1377](https://github.com/oxc-project/oxc-resolver/pull/1377)) (by @ocavue)
+
+### <!-- 4 -->⚡ Performance
+
+- *(tsconfig)* index wildcard path prefixes ([#1430](https://github.com/oxc-project/oxc-resolver/pull/1430)) (by @Dunqing)
+- enable Wasm 128bit SIMD Extension ([#1400](https://github.com/oxc-project/oxc-resolver/pull/1400)) (by @sapphi-red)
+
+### Contributors
+
+* @sxzzbot
+* @Dunqing
+* @renovate[bot]
+* @Boshen
+* @sapphi-red
+* @shulaoda
+* @JounQin
+* @ocavue
+
 ## [11.24.3](https://github.com/oxc-project/oxc-resolver/compare/v11.24.2...v11.24.3) - 2026-08-24
 
 ### <!-- 2 -->🚜 Refactor
