@@ -61,6 +61,31 @@ fn test_simple() {
 }
 
 #[test]
+fn question_mark_in_specifier() {
+    let f = super::fixture_root().join("imports-field-query");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    #[rustfmt::skip]
+    let pass = [
+        ("imports key containing `?`", "#question?mark", f.join("question-mark.js")),
+        ("imports key containing `?` with fragment", "#question?mark#fragment", f.join("question-mark.js#fragment")),
+        ("fall back to query when no key matches", "#question?other", f.join("question.js?other")),
+        ("imports key containing `?` and `&`", "#a?b&c", f.join("a-b-c.js")),
+        ("fall back to query containing `&`", "#question?mark&more", f.join("question.js?mark&more")),
+        ("fall back to query for wildcard", "#wildcard/a?b", f.join("wildcard/a.js?b")),
+    ];
+
+    for (comment, request, expected) in pass {
+        let resolved_path = resolver.resolve(&f, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {request}");
+    }
+}
+
+#[test]
 fn shared_resolvers() {
     let f = super::fixture().join("imports-field");
 
