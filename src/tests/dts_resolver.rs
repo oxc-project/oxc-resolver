@@ -326,6 +326,27 @@ fn exports_esm_match_finds_declaration() {
     );
 }
 
+#[test]
+fn exports_falls_back_to_types_after_js_target() {
+    // https://github.com/oxc-project/oxc-resolver/issues/1436
+    // `import` matches `./lib/esm/index.js` but there is no declaration next to it,
+    // so the `types` condition listed after it should be used, like TypeScript.
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "exports-types-after-import").unwrap();
+    assert_eq!(
+        result.path(),
+        dts_fixture().join("node_modules/exports-types-after-import/lib/types/index.d.ts")
+    );
+}
+
+#[test]
+fn exports_js_target_without_declaration() {
+    // Without any declaration, the JavaScript target is resolved in the second pass.
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "exports-js-only").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("node_modules/exports-js-only/index.js"));
+}
+
 // -------- package.json types field (not typings) --------
 
 #[test]

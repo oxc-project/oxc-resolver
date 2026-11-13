@@ -26,7 +26,7 @@ type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
 /// Extension categories for DTS resolution, using bitflag pattern.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Extensions(u8);
+pub struct Extensions(u8);
 
 impl Extensions {
     /// `.d.ts`, `.d.mts`, `.d.cts`
@@ -552,19 +552,22 @@ impl ResolverImpl {
         {
             let subpath = if rest.is_empty() { ".".to_string() } else { format!(".{rest}") };
 
+            // Each target is checked by `dts_resolve_exports_target` while matching, so that a
+            // target without a file of the requested extensions falls through to the next
+            // condition (e.g. `import` -> `./index.js` without `./index.d.ts`, then `types`).
+            let prev = ctx.dts_exports_extensions.replace(extensions);
+            let mut result = None;
             for exports in pkg.exports_fields(&self.options.exports_fields) {
                 if let Ok(Some(path)) =
                     self.package_exports_resolve(&pkg_dir, &subpath, &exports, None, ctx)
                 {
-                    // Try to resolve the ESM match (file may need extension)
-                    if let Some(resolved) = self.dts_resolve_esm_match(&path, ctx) {
-                        return Ok(Some(resolved));
-                    }
-                    return Ok(Some(path));
+                    result = Some(path);
+                    break;
                 }
             }
+            ctx.dts_exports_extensions = prev;
             // exports blocks types/typings/main
-            return Ok(None);
+            return Ok(result);
         }
 
         // PRIORITY 2: typesVersions (for subpath imports: rest != "")
@@ -598,14 +601,21 @@ impl ResolverImpl {
         self.dts_resolve_as_directory(extensions, &pkg_dir, ctx)
     }
 
-    fn dts_resolve_esm_match(&self, cached_path: &CachedPath, ctx: &mut Ctx) -> Option<CachedPath> {
-        // Try declaration/TS extension substitution first (e.g. .mjs -> .d.mts)
-        let extensions = Extensions::TYPESCRIPT.union(Extensions::DECLARATION);
+    /// TS: `loadModuleFromTargetExportOrImport` for a string target.
+    ///
+    /// Returns `None` when the target does not resolve to a file with one of `extensions`.
+    pub(crate) fn dts_resolve_exports_target(
+        &self,
+        extensions: Extensions,
+        cached_path: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Option<CachedPath> {
+        // Extension substitution, e.g. `./index.mjs` -> `./index.d.mts`.
         if let Some(path) = self.dts_resolve_as_file(extensions, cached_path, ctx) {
             return Some(path);
         }
-        // Fall back to original file if it exists
-        if self.is_file(cached_path, ctx) {
+        // Fall back to the target itself (e.g. `.css`) only in the JavaScript pass.
+        if extensions.contains(Extensions::JAVASCRIPT) && self.is_file(cached_path, ctx) {
             return Some(cached_path.clone());
         }
         None

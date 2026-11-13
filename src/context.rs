@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::error::ResolveError;
+use crate::{dts_resolver::Extensions, error::ResolveError};
 
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
@@ -28,6 +28,10 @@ pub struct ResolveContext {
 
     /// Matching an "imports" key that can end with the query or fragment of the request.
     pub imports_postfix: bool,
+
+    /// `resolve_dts`: an `exports` target must resolve to a file with one of these extensions,
+    /// otherwise the next condition or array item is tried, like TypeScript.
+    pub dts_exports_extensions: Option<Extensions>,
 }
 
 impl ResolveContext {
