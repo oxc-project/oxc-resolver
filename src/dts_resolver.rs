@@ -495,7 +495,7 @@ impl ResolverImpl {
                     let at_types_dir = nm.push("@types", &self.cache);
                     if self.is_dir(&at_types_dir, ctx) {
                         let at_types_specifier = if rest.is_empty() {
-                            mangled.clone()
+                            mangled
                         } else {
                             format!("{mangled}{rest}")
                         };
