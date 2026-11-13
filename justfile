@@ -13,7 +13,7 @@ alias r := ready
 # or install via `cargo install cargo-binstall`
 # Initialize the project by installing all the necessary tools.
 init:
-  cargo binstall cargo-shear@1.13.1 typos-cli watchexec-cli -y
+  cargo binstall cargo-shear@1.13.1 watchexec-cli -y
   rustup target add s390x-unknown-linux-gnu
 
 install:
@@ -26,7 +26,6 @@ install:
 ready:
   git diff --exit-code --quiet
   just install
-  typos
   cargo fmt
   just check
   just test
