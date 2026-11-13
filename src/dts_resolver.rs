@@ -619,6 +619,16 @@ impl ResolverImpl {
 
     // -------- typesVersions --------
 
+    /// The TypeScript version to match version ranges against.
+    /// `None` for [`TypesVersions::Ignore`] or an invalid version, so no range matches.
+    fn dts_typescript_version(&self) -> Option<Version> {
+        match &self.options.types_versions {
+            TypesVersions::Latest => Some(Version::LATEST),
+            TypesVersions::Version(version) => Version::parse(version),
+            TypesVersions::Ignore => None,
+        }
+    }
+
     /// Whether `key` is a versioned types condition such as `types@>=5.2` in `exports` /
     /// `imports` that matches the TypeScript version from
     /// [`ResolveOptions::types_versions`](crate::ResolveOptions::types_versions).
@@ -629,15 +639,7 @@ impl ResolverImpl {
         conditions: &[String],
         key: &str,
     ) -> bool {
-        let version = match &self.options.types_versions {
-            // Without a known compiler version these keys never match.
-            TypesVersions::First | TypesVersions::Ignore => return false,
-            TypesVersions::Latest => Version::LATEST,
-            TypesVersions::Version(version) => {
-                let Some(version) = Version::parse(version) else { return false };
-                version
-            }
-        };
+        let Some(version) = self.dts_typescript_version() else { return false };
         key.strip_prefix("types@").is_some_and(|range| {
             conditions.iter().any(|condition| condition == "types")
                 && VersionRange::parse(range).is_some_and(|range| range.test(&version))
@@ -653,18 +655,7 @@ impl ResolverImpl {
         pkg: &PackageJson,
     ) -> Option<Vec<(String, Vec<String>)>> {
         let types_versions = pkg.types_versions()?;
-        let version = match &self.options.types_versions {
-            TypesVersions::Ignore => return None,
-            TypesVersions::First => None,
-            TypesVersions::Latest => Some(Version::LATEST),
-            TypesVersions::Version(version) => Some(Version::parse(version)?),
-        };
-
-        let Some(version) = version else {
-            return types_versions
-                .iter()
-                .find_map(|(_version_range, paths_value)| Self::dts_version_paths(&paths_value));
-        };
+        let version = self.dts_typescript_version()?;
 
         // TypeScript picks the first entry whose range matches, skipping invalid ranges.
         let (_, paths_value) = types_versions.iter().find(|(version_range, _)| {

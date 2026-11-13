@@ -400,7 +400,7 @@ impl ResolverFactory {
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
             types_versions: match op.types_versions {
                 None => default.types_versions,
-                Some(Either::A(true)) => TypesVersions::First,
+                Some(Either::A(true)) => TypesVersions::Latest,
                 Some(Either::A(false)) => TypesVersions::Ignore,
                 Some(Either::B(version)) if version == "latest" => TypesVersions::Latest,
                 Some(Either::B(version)) => TypesVersions::Version(version),
