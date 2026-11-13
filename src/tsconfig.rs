@@ -66,6 +66,10 @@ pub struct TsConfig {
     #[serde(default)]
     pub extends: Option<ExtendsField>,
 
+    /// Tsconfig files loaded transitively through the `extends` chain.
+    #[serde(skip)]
+    pub extended_paths: Vec<PathBuf>,
+
     #[serde(default)]
     pub compiler_options: CompilerOptions,
 
@@ -177,6 +181,12 @@ impl TsConfig {
     pub fn directory(&self) -> &Path {
         debug_assert!(self.path.file_name().is_some());
         self.path.parent().unwrap()
+    }
+
+    /// Tsconfig files loaded transitively through the `extends` chain.
+    #[must_use]
+    pub fn extended_paths(&self) -> &[PathBuf] {
+        &self.extended_paths
     }
 
     /// Returns any paths to tsconfigs that should be extended by this tsconfig.

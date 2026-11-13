@@ -233,6 +233,18 @@ impl ResolverImpl {
                             TsconfigReferences::Disabled,
                             ctx,
                         )?;
+                        // Record the loaded base and its own extends chain,
+                        // deduplicated for diamond-shaped chains.
+                        for base_path in extended_tsconfig
+                            .extended_paths
+                            .iter()
+                            .cloned()
+                            .chain(std::iter::once(extended_tsconfig.path().to_path_buf()))
+                        {
+                            if !tsconfig.extended_paths.contains(&base_path) {
+                                tsconfig.extended_paths.push(base_path);
+                            }
+                        }
                         tsconfig.extend_tsconfig(&extended_tsconfig);
                     }
                     Result::Ok::<(), ResolveError>(())
