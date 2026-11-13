@@ -7,7 +7,7 @@ use std::path::Path;
 use serde_json::json;
 
 use crate::{
-    Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver,
+    AliasValue, Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver,
     package_json::ImportsExportsMapGeneric,
 };
 
@@ -84,6 +84,57 @@ fn shared_resolvers() {
 
     let resolved_path = resolver2.resolve(&f, "#b").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("a.js")));
+}
+
+// https://github.com/vitejs/vite/pull/23631
+#[test]
+fn vite_subpath_imports() {
+    let f = super::fixture_root().join("vite/resolve");
+    let p = f.join("imports-path");
+    let f2 = super::fixture_root().join("vite/resolve-subpath-imports");
+
+    let resolver = Resolver::default();
+
+    #[rustfmt::skip]
+    let pass = [
+        ("Resolving ## prefixed pattern with imports field", f.clone(), "##double/index.js", p.join("double-hash/index.js")),
+        ("Resolving key containing # with imports field", f.clone(), "#mid#hash", p.join("mid-hash.js")),
+        ("Resolving key containing ? with imports field", f.clone(), "#question?mark", p.join("question-mark.js")),
+        // Imported from `imports-path/importer-hash-hash.js`.
+        ("Resolving with hash postfix with imports field", p.clone(), "#hash#hash", p.join("hash.js#hash")),
+        ("Resolving #hash?query with imports field", f.clone(), "#hash?query", p.join("hash.js?query")),
+        ("Resolving #mid#hash#fragment?query with imports field", f.clone(), "#mid#hash#fragment?query", p.join("mid-hash.js#fragment?query")),
+        ("Resolving #question?mark?query#fragment with imports field", f.clone(), "#question?mark?query#fragment", p.join("question-mark.js?query#fragment")),
+        // Note added:
+        ("should resolve query in pattern match", f.clone(), "#star/index.js?raw", p.join("star/index.js?raw")),
+        ("should not split escaped #", f.clone(), "#mid\0#hash", p.join("mid-hash.js")),
+        ("should resolve escaped leading #", f.clone(), "\0#hash", p.join("hash.js")),
+        ("should not split escaped # in pattern match", f, "#star/a\0#b.js", p.join("star/a#b.js")),
+    ];
+
+    for (comment, path, request, expected) in pass {
+        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+
+    #[rustfmt::skip]
+    let fail = [
+        ("does not fall back from explicitly blocked imports key #hash#blocked", f2.clone(), "#hash#blocked", ResolveError::PackageImportNotDefined("#hash#blocked".to_string(), f2.join("package.json"))),
+        ("does not fall back from explicitly blocked imports key #hash?blocked", f2.clone(), "#hash?blocked", ResolveError::PackageImportNotDefined("#hash?blocked".to_string(), f2.join("package.json"))),
+    ];
+
+    for (comment, path, request, error) in fail {
+        let resolution = resolver.resolve(&path, request);
+        assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
+    }
+
+    // The query of a blocked key is not kept for the alias tried after it.
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![("#hash".into(), vec![AliasValue::from(p.join("hash.js").to_string_lossy())])],
+        ..ResolveOptions::default()
+    });
+    let resolved_path = resolver.resolve(&f2, "#hash#blocked?c").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(p.join("hash.js#blocked?c")));
 }
 
 // Small script for generating the test cases from enhanced_resolve

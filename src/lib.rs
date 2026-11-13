@@ -444,13 +444,16 @@ impl ResolverImpl {
             return Ok(path);
         }
 
-        self.require_without_parse(cached_path, parsed.path(), tsconfig, ctx)
+        self.require_without_parse(cached_path, parsed.path(), specifier, tsconfig, ctx)
     }
 
+    /// `specifier` has its query and fragment removed, `request` is the original specifier,
+    /// which is matched against the "imports" field for `#` specifiers.
     fn require_without_parse(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
+        request: &str,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
@@ -482,7 +485,7 @@ impl ResolverImpl {
             }
             // 4. If X begins with '#'
             Some(Component::Normal(_)) if specifier.as_bytes()[0] == b'#' => {
-                self.require_hash(cached_path, specifier, tsconfig, ctx)
+                self.require_hash(cached_path, specifier, request, tsconfig, ctx)
             }
             _ => {
                 // 1. If X is a core module,
@@ -591,13 +594,23 @@ impl ResolverImpl {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
+        request: &str,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         debug_assert_eq!(specifier.chars().next(), Some('#'));
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
-        self.load_package_imports(cached_path, specifier, tsconfig, ctx)?
-            .ok_or_else(|| ResolveError::NotFound(specifier.to_string()))
+        // `request` keeps its query and fragment, which can be part of an "imports" key.
+        // Requests with `\0` escapes use the unescaped `specifier` as before.
+        let result = if request.starts_with('#')
+            && memchr::memchr2(b'?', b'#', &request.as_bytes()[1..]).is_some()
+            && !request.contains('\0')
+        {
+            self.load_package_imports_with_postfix(cached_path, request, tsconfig, ctx)
+        } else {
+            self.load_package_imports(cached_path, specifier, tsconfig, ctx)
+        };
+        result?.ok_or_else(|| ResolveError::NotFound(specifier.to_string()))
     }
 
     fn require_bare(
@@ -675,7 +688,7 @@ impl ResolverImpl {
             let specifier = parsed.path();
             let fragment = ctx.fragment.take().unwrap();
             let path = format!("{specifier}{fragment}");
-            if let Ok(path) = self.require_without_parse(cached_path, &path, tsconfig, ctx) {
+            if let Ok(path) = self.require_without_parse(cached_path, &path, &path, tsconfig, ctx) {
                 return Ok((parsed, Some(path)));
             }
             ctx.fragment.replace(fragment);
@@ -778,6 +791,79 @@ impl ResolverImpl {
             return self.resolve_esm_match(specifier, &path, tsconfig, ctx);
         }
         Ok(None)
+    }
+
+    /// LOAD_PACKAGE_IMPORTS(X, DIR) for X containing `?` or `#`.
+    ///
+    /// Vite: try X, then X up to each `?` or `#` from right to left with the rest as query and
+    /// fragment, e.g. `#a?b#c`, `#a?b` + `#c`, `#a` + `?b#c`.
+    /// Do not fall back from a key defined in "imports", e.g. `"#a?b": null`.
+    ///
+    /// <https://github.com/vitejs/vite/pull/23631>
+    fn load_package_imports_with_postfix(
+        &self,
+        cached_path: &CachedPath,
+        specifier: &str,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
+        // 1. Find the closest package scope SCOPE to DIR.
+        // 2. If no scope was found, return.
+        let Some(package_json) = self.cache.find_package_json(cached_path, &self.options, ctx)?
+        else {
+            return Ok(None);
+        };
+
+        // Replace the query and fragment applied by `load_parse`, restore them if nothing resolves.
+        let (query, fragment) = (ctx.query.clone(), ctx.fragment.clone());
+        let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
+        let base_query = if parsed.query.is_some() { None } else { query.clone() };
+        let base_fragment = if parsed.fragment.is_some() { None } else { fragment.clone() };
+
+        let bytes = specifier.as_bytes();
+        let mut end = specifier.len();
+        let result = loop {
+            let (key, postfix) = specifier.split_at(end);
+            let (postfix_query, postfix_fragment) = match postfix.find('#') {
+                Some(0) => (None, Some(postfix)),
+                Some(i) => (Some(&postfix[..i]), Some(&postfix[i..])),
+                None => ((!postfix.is_empty()).then_some(postfix), None),
+            };
+            ctx.query = postfix_query.map(str::to_string).or_else(|| base_query.clone());
+            ctx.fragment = postfix_fragment.map(str::to_string).or_else(|| base_fragment.clone());
+
+            // 3. If the SCOPE/package.json "imports" is null or undefined, return.
+            // 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE), ["node", "require"]) defined in the ESM resolver.
+            let imports_postfix = std::mem::replace(&mut ctx.imports_postfix, true);
+            let resolved = self.package_imports_resolve(key, &package_json, tsconfig, ctx);
+            ctx.imports_postfix = imports_postfix;
+            match resolved {
+                // 5. RESOLVE_ESM_MATCH(MATCH).
+                Ok(Some(path)) => break self.resolve_esm_match(key, &path, tsconfig, ctx),
+                Ok(None) => break Ok(None),
+                Err(ResolveError::PackageImportNotDefined(..))
+                    if !package_json
+                        .imports_fields(&self.options.imports_fields)
+                        .any(|imports| imports.get(key).is_some()) => {}
+                Err(err) => break Err(err),
+            }
+
+            // Next key: up to the last `?` or `#`, but not `#` alone.
+            match memchr::memrchr2(b'?', b'#', &bytes[2..end]) {
+                Some(i) => end = i + 2,
+                None => {
+                    break Err(ResolveError::PackageImportNotDefined(
+                        specifier.to_string(),
+                        package_json.path().to_path_buf(),
+                    ));
+                }
+            }
+        };
+        if !matches!(result, Ok(Some(_))) {
+            ctx.query = query;
+            ctx.fragment = fragment;
+        }
+        result
     }
 
     fn load_as_file(
@@ -1781,20 +1867,34 @@ impl ResolverImpl {
             target: &'a str,
             pattern_match: Option<&'a str>,
             package_url: &CachedPath,
+            is_imports: bool,
+            ctx: &mut Ctx,
         ) -> Result<Cow<'a, str>, ResolveError> {
             let target = if let Some(pattern_match) = pattern_match {
-                if !target_key.contains('*') && !target.contains('*') {
+                let target = if !target_key.contains('*') && !target.contains('*') {
                     // enhanced-resolve behaviour
                     // TODO: [DEP0148] DeprecationWarning: Use of deprecated folder mapping "./dist/" in the "exports" field module resolution of the package at xxx/package.json.
                     if target_key.ends_with('/') && target.ends_with('/') {
-                        Cow::Owned(format!("{target}{pattern_match}"))
+                        format!("{target}{pattern_match}")
                     } else {
                         return Err(ResolveError::InvalidPackageConfigDirectory(
                             package_url.path().join("package.json"),
                         ));
                     }
                 } else {
-                    Cow::Owned(target.replace('*', pattern_match))
+                    target.replace('*', pattern_match)
+                };
+                // Vite: `patternMatch` of "imports" can carry a query or fragment of the request,
+                // e.g. `#dir/a.js?raw` for `"#dir/*"`, split them off after "*" is replaced.
+                if is_imports
+                    && ctx.imports_postfix
+                    && memchr::memchr2(b'?', b'#', pattern_match.as_bytes()).is_some()
+                {
+                    let parsed = Specifier::parse(&target).map_err(ResolveError::Specifier)?;
+                    ctx.with_query_fragment(parsed.query, parsed.fragment);
+                    Cow::Owned(parsed.path().to_string())
+                } else {
+                    Cow::Owned(target)
                 }
             } else {
                 Cow::Borrowed(target)
@@ -1823,8 +1923,14 @@ impl ResolverImpl {
                 }
                 // 2. If patternMatch is a String, then
                 //   1. Return PACKAGE_RESOLVE(target with every instance of "*" replaced by patternMatch, packageURL + "/").
-                let target =
-                    normalize_string_target(target_key, target, pattern_match, package_url)?;
+                let target = normalize_string_target(
+                    target_key,
+                    target,
+                    pattern_match,
+                    package_url,
+                    is_imports,
+                    ctx,
+                )?;
                 // // 3. Return PACKAGE_RESOLVE(target, packageURL + "/").
                 return self.package_resolve(package_url, &target, tsconfig, ctx);
             }
@@ -1833,7 +1939,14 @@ impl ResolverImpl {
             // 3. Let resolvedTarget be the URL resolution of the concatenation of packageURL and target.
             // 4. Assert: resolvedTarget is contained in packageURL.
             // 5. If patternMatch is null, then
-            let target = normalize_string_target(target_key, target, pattern_match, package_url)?;
+            let target = normalize_string_target(
+                target_key,
+                target,
+                pattern_match,
+                package_url,
+                is_imports,
+                ctx,
+            )?;
             if Path::new(target.as_ref()).is_invalid_exports_target() {
                 return Err(ResolveError::InvalidPackageTarget(
                     target.to_string(),
