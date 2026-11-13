@@ -274,6 +274,24 @@ export interface NapiResolveOptions {
    * Default: `false`
    */
   allowPackageExportsInDirectoryResolve?: boolean
+  /**
+   * How `resolveDtsSync` / `resolveDtsAsync` select an entry from the package.json
+   * `typesVersions` field.
+   *
+   * * `true`: use the first entry regardless of its version range.
+   * * `false`: ignore the `typesVersions` field.
+   * * `'latest'`: match as if the compiler were newer than any version range,
+   *   e.g. `*` and `>=3.1` match, `<=5.6` doesn't.
+   * * a TypeScript version such as `'6.0.3'`: match version ranges against it,
+   *   the same as `ts.resolveModuleName` running on that version.
+   *
+   * With `'latest'` or a version, versioned types conditions such as `types@>=5.2` in
+   * `exports` / `imports` also match when their range matches and `types` is in
+   * `conditionNames`.
+   *
+   * Default `true`
+   */
+  typesVersions?: boolean | 'latest' | (string & {})
 }
 
 export interface ResolveResult {

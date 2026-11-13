@@ -1,4 +1,6 @@
-use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
+use crate::{
+    ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TypesVersions,
+};
 
 fn dts_fixture() -> std::path::PathBuf {
     super::fixture_root().join("dts-resolver")
@@ -155,6 +157,134 @@ fn types_versions_subpath() {
     let r = resolver();
     let result = r.resolve_dts(containing_file(), "with-types-versions/sub").unwrap();
     assert_eq!(result.path(), dts_fixture().join("node_modules/with-types-versions/dist/sub.d.ts"));
+}
+
+#[test]
+fn types_versions_ranges() {
+    // Modeled after `@types/node`, which keeps legacy typings for old compilers
+    let pkg = dts_fixture().join("node_modules/ranged-types-versions");
+    let cases = [
+        (TypesVersions::First, "ts5.6/"),
+        (TypesVersions::Ignore, ""),
+        (TypesVersions::Latest, ""),
+        (TypesVersions::Version("5.5.0".into()), "ts5.6/"),
+        (TypesVersions::Version("5.6.3".into()), "ts5.6/"),
+        (TypesVersions::Version("5.7.2".into()), "ts5.7/"),
+        (TypesVersions::Version("5.8.0-beta".into()), ""),
+        (TypesVersions::Version("6.0.3".into()), ""),
+        // Invalid version, no entry matches
+        (TypesVersions::Version("next".into()), ""),
+    ];
+    for (types_versions, dir) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        for (specifier, file) in
+            [("ranged-types-versions", "index.d.ts"), ("ranged-types-versions/fs", "fs.d.ts")]
+        {
+            let result = r.resolve_dts(containing_file(), specifier).unwrap();
+            assert_eq!(
+                result.path(),
+                pkg.join(format!("{dir}{file}")),
+                "{types_versions:?} {specifier}"
+            );
+        }
+    }
+}
+
+#[test]
+fn types_versions_wildcard_range() {
+    // The `*` range matches any version
+    for types_versions in [TypesVersions::Latest, TypesVersions::Version("6.0.3".into())] {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions,
+            ..ResolveOptions::default()
+        });
+        let result = r.resolve_dts(containing_file(), "with-types-versions/sub").unwrap();
+        assert_eq!(
+            result.path(),
+            dts_fixture().join("node_modules/with-types-versions/dist/sub.d.ts")
+        );
+    }
+}
+
+#[test]
+fn versioned_types_condition() {
+    // https://www.typescriptlang.org/docs/handbook/modules/reference.html#example-versioned-types-condition
+    let pkg = dts_fixture().join("node_modules/versioned-types-condition");
+    let cases = [
+        // Versioned conditions never match without a known compiler version
+        (TypesVersions::First, "tsold"),
+        (TypesVersions::Ignore, "tsold"),
+        (TypesVersions::Latest, "ts5.2"),
+        (TypesVersions::Version("6.0.3".into()), "ts5.2"),
+        (TypesVersions::Version("5.2.0".into()), "ts5.2"),
+        (TypesVersions::Version("5.2.0-beta".into()), "ts5.2"),
+        (TypesVersions::Version("5.1.6".into()), "ts4.6"),
+        (TypesVersions::Version("4.9.5".into()), "ts4.6"),
+        (TypesVersions::Version("4.5.0".into()), "tsold"),
+    ];
+    for (types_versions, dir) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        let result = r.resolve_dts(containing_file(), "versioned-types-condition").unwrap();
+        assert_eq!(result.path(), pkg.join(dir).join("index.d.ts"), "{types_versions:?}");
+
+        let internal_dir = if dir == "ts4.6" { "tsold" } else { dir };
+        let result = r.resolve_dts(pkg.join("index.js"), "#internal").unwrap();
+        assert_eq!(
+            result.path(),
+            pkg.join(internal_dir).join("internal.d.ts"),
+            "{types_versions:?} #internal"
+        );
+    }
+
+    // Versioned conditions require the `types` condition
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into()],
+        types_versions: TypesVersions::Latest,
+        ..ResolveOptions::default()
+    });
+    let result = r.resolve(dts_fixture(), "versioned-types-condition").unwrap();
+    assert_eq!(result.path(), pkg.join("index.js"));
+}
+
+#[test]
+fn versioned_types_condition_jotai_style() {
+    // `jotai` maps the plain `types` condition to a stub that tells users to upgrade TypeScript.
+    // `exports` takes precedence over its `typesVersions`.
+    let pkg = dts_fixture().join("node_modules/jotai-style");
+    let stub = "dist/ts_version_5.5_and_above_is_required.d.ts";
+    let cases = [
+        (TypesVersions::First, false),
+        (TypesVersions::Ignore, false),
+        (TypesVersions::Latest, true),
+        (TypesVersions::Version("6.0.3".into()), true),
+        (TypesVersions::Version("5.5.0".into()), true),
+        (TypesVersions::Version("5.4.5".into()), false),
+    ];
+    for (types_versions, matches) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        for (specifier, file) in [
+            ("jotai-style", "dist/index.d.ts"),
+            ("jotai-style/utils", "dist/utils.d.ts"),
+            ("jotai-style/vanilla/utils", "dist/vanilla/utils.d.ts"),
+        ] {
+            let result = r.resolve_dts(containing_file(), specifier).unwrap();
+            let expected = if matches { file } else { stub };
+            assert_eq!(result.path(), pkg.join(expected), "{types_versions:?} {specifier}");
+        }
+    }
 }
 
 // -------- node_modules: typings field --------
