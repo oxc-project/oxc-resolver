@@ -494,11 +494,8 @@ impl ResolverImpl {
                     let mangled = Self::dts_mangle_scoped_name(package_name);
                     let at_types_dir = nm.push("@types", &self.cache);
                     if self.is_dir(&at_types_dir, ctx) {
-                        let at_types_specifier = if rest.is_empty() {
-                            mangled.clone()
-                        } else {
-                            format!("{mangled}{rest}")
-                        };
+                        let at_types_specifier =
+                            if rest.is_empty() { mangled } else { format!("{mangled}{rest}") };
                         if let Some(path) = self.dts_resolve_in_node_modules_dir(
                             Extensions::DECLARATION,
                             &at_types_specifier,
