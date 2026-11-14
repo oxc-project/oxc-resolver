@@ -11,12 +11,13 @@
 //! - `typesVersions` package.json field support (see [`crate::TypesVersions`])
 //! - When `exports` exists, `types`/`typings`/`main` are ignored
 
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, ops::ControlFlow, path::Path};
 
 use crate::{
     CachedPath, ImportsExportsEntry, PackageJson, ResolveError, ResolverImpl, TypesVersions,
     context::ResolveContext as Ctx,
-    path::is_path_relative,
+    package_json::ImportsExportsMap,
+    path::{PathUtil, is_path_relative},
     resolution::{ModuleType, Resolution},
     specifier::Specifier,
     ts_semver::{Version, VersionRange},
@@ -26,7 +27,7 @@ type ResolveResult = Result<Option<CachedPath>, ResolveError>;
 
 /// Extension categories for DTS resolution, using bitflag pattern.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Extensions(u8);
+struct Extensions(u8);
 
 impl Extensions {
     /// `.d.ts`, `.d.mts`, `.d.cts`
@@ -552,22 +553,15 @@ impl ResolverImpl {
         {
             let subpath = if rest.is_empty() { ".".to_string() } else { format!(".{rest}") };
 
-            // Each target is checked by `dts_resolve_exports_target` while matching, so that a
-            // target without a file of the requested extensions falls through to the next
-            // condition (e.g. `import` -> `./index.js` without `./index.d.ts`, then `types`).
-            let prev = ctx.dts_exports_extensions.replace(extensions);
-            let mut result = None;
             for exports in pkg.exports_fields(&self.options.exports_fields) {
-                if let Ok(Some(path)) =
-                    self.package_exports_resolve(&pkg_dir, &subpath, &exports, None, ctx)
+                if let Some(path) =
+                    self.dts_load_module_from_exports(extensions, &pkg_dir, &subpath, &exports, ctx)
                 {
-                    result = Some(path);
-                    break;
+                    return Ok(Some(path));
                 }
             }
-            ctx.dts_exports_extensions = prev;
             // exports blocks types/typings/main
-            return Ok(result);
+            return Ok(None);
         }
 
         // PRIORITY 2: typesVersions (for subpath imports: rest != "")
@@ -601,24 +595,171 @@ impl ResolverImpl {
         self.dts_resolve_as_directory(extensions, &pkg_dir, ctx)
     }
 
-    /// TS: `loadModuleFromTargetExportOrImport` for a string target.
+    // -------- exports --------
+
+    /// TS: `loadModuleFromExports`
     ///
-    /// Returns `None` when the target does not resolve to a file with one of `extensions`.
-    pub(crate) fn dts_resolve_exports_target(
+    /// Unlike `package_exports_resolve`, every string target is loaded with `extensions`, and a
+    /// target that does not load falls through to the next condition or array item, e.g.
+    /// `{ "import": "./index.js", "types": "./index.d.ts" }` without `./index.d.ts`
+    /// resolves to `./index.d.ts`.
+    fn dts_load_module_from_exports(
         &self,
         extensions: Extensions,
-        cached_path: &CachedPath,
+        pkg_dir: &CachedPath,
+        subpath: &str,
+        exports: &ImportsExportsEntry<'_>,
         ctx: &mut Ctx,
     ) -> Option<CachedPath> {
-        // Extension substitution, e.g. `./index.mjs` -> `./index.d.mts`.
-        if let Some(path) = self.dts_resolve_as_file(extensions, cached_path, ctx) {
-            return Some(path);
+        let map = exports.as_map();
+        if subpath == "." {
+            let main_export = match &map {
+                Some(map) if map.keys().any(|key| key.starts_with('.')) => map.get("."),
+                _ => Some(exports.clone()),
+            };
+            if let Some(main_export) = main_export {
+                return self
+                    .dts_load_exports_target(extensions, pkg_dir, &main_export, "", false, ctx)
+                    .break_value()
+                    .flatten();
+            }
         }
-        // Fall back to the target itself (e.g. `.css`) only in the JavaScript pass.
-        if extensions.contains(Extensions::JAVASCRIPT) && self.is_file(cached_path, ctx) {
-            return Some(cached_path.clone());
+        let map = map?;
+        if !map.keys().all(|key| key.starts_with('.')) {
+            return None;
         }
-        None
+        self.dts_load_module_from_exports_map(extensions, pkg_dir, subpath, &map, ctx)
+    }
+
+    /// TS: `loadModuleFromExportsOrImports`
+    fn dts_load_module_from_exports_map(
+        &self,
+        extensions: Extensions,
+        pkg_dir: &CachedPath,
+        subpath: &str,
+        map: &ImportsExportsMap<'_>,
+        ctx: &mut Ctx,
+    ) -> Option<CachedPath> {
+        if !subpath.ends_with('/')
+            && !subpath.contains('*')
+            && let Some(target) = map.get(subpath)
+        {
+            return self
+                .dts_load_exports_target(extensions, pkg_dir, &target, "", false, ctx)
+                .break_value()
+                .flatten();
+        }
+        // The most specific matching `*` pattern or `/` folder key.
+        let mut best: Option<(&str, ImportsExportsEntry<'_>, &str, bool)> = None;
+        for (key, target) in map.iter() {
+            let matched = if let Some((base, trailer)) = key.split_once('*') {
+                (!trailer.contains('*')
+                    && subpath.len() >= base.len() + trailer.len()
+                    && subpath.starts_with(base)
+                    && subpath.ends_with(trailer))
+                .then(|| (&subpath[base.len()..subpath.len() - trailer.len()], true))
+            } else if key.ends_with('/') && subpath.starts_with(key) {
+                Some((&subpath[key.len()..], false))
+            } else {
+                None
+            };
+            if let Some((rest, pattern)) = matched
+                && best
+                    .as_ref()
+                    .is_none_or(|(best_key, ..)| Self::pattern_key_compare(best_key, key).is_gt())
+            {
+                best = Some((key, target, rest, pattern));
+            }
+        }
+        let (_, target, rest, pattern) = best?;
+        self.dts_load_exports_target(extensions, pkg_dir, &target, rest, pattern, ctx)
+            .break_value()
+            .flatten()
+    }
+
+    /// TS: `loadModuleFromTargetExportOrImport`
+    ///
+    /// Returns `Continue` when the target does not resolve so that the caller tries the next
+    /// one, and `Break` to stop the lookup, with `None` for a `null` target.
+    fn dts_load_exports_target(
+        &self,
+        extensions: Extensions,
+        pkg_dir: &CachedPath,
+        target: &ImportsExportsEntry<'_>,
+        subpath: &str,
+        pattern: bool,
+        ctx: &mut Ctx,
+    ) -> ControlFlow<Option<CachedPath>> {
+        if let Some(target) = target.as_string() {
+            if !pattern && !subpath.is_empty() && !target.ends_with('/') {
+                return ControlFlow::Continue(());
+            }
+            if !target.starts_with("./")
+                || Path::new(target).is_invalid_exports_target()
+                || subpath
+                    .split(['/', '\\'])
+                    .any(|part| matches!(part, "." | ".." | "node_modules"))
+            {
+                return ControlFlow::Continue(());
+            }
+            let target =
+                if pattern { target.replace('*', subpath) } else { format!("{target}{subpath}") };
+            let candidate = pkg_dir.normalize_with(&target, &self.cache);
+            return self
+                .dts_load_file_from_package_json_field(extensions, &candidate, ctx)
+                .map_or(ControlFlow::Continue(()), |path| ControlFlow::Break(Some(path)));
+        }
+        if let Some(map) = target.as_map() {
+            for (condition, target) in map.iter() {
+                // `types` is always a condition, like TypeScript.
+                if condition == "default"
+                    || condition == "types"
+                    || self.options.condition_names.iter().any(|c| c == condition)
+                    || self.is_applicable_types_version_key(condition)
+                {
+                    self.dts_load_exports_target(
+                        extensions, pkg_dir, &target, subpath, pattern, ctx,
+                    )?;
+                }
+            }
+            return ControlFlow::Continue(());
+        }
+        if let Some(targets) = target.as_array() {
+            for target in targets.iter() {
+                self.dts_load_exports_target(extensions, pkg_dir, &target, subpath, pattern, ctx)?;
+            }
+            return ControlFlow::Continue(());
+        }
+        // `null` blocks the lookup. Other non-string scalars are invalid targets.
+        ControlFlow::Break(None)
+    }
+
+    /// TS: `loadFileNameFromPackageJsonField`
+    fn dts_load_file_from_package_json_field(
+        &self,
+        extensions: Extensions,
+        candidate: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Option<CachedPath> {
+        let path = candidate.path().as_os_str().as_encoded_bytes();
+        let ts_ext =
+            [".ts", ".tsx", ".mts", ".cts"].iter().any(|ext| path.ends_with(ext.as_bytes()));
+        let dts_ext =
+            [".d.ts", ".d.mts", ".d.cts"].iter().any(|ext| path.ends_with(ext.as_bytes()));
+        if (extensions.contains(Extensions::TYPESCRIPT) && ts_ext)
+            || (extensions.contains(Extensions::DECLARATION) && dts_ext)
+        {
+            return self.is_file(candidate, ctx).then(|| candidate.clone());
+        }
+        // TS: `loadModuleFromFileNoImplicitExtensions`, e.g. `./index.mjs` -> `./index.d.mts`.
+        let file_name = candidate.path().file_name()?.to_string_lossy();
+        if !file_name.contains('.') {
+            return None;
+        }
+        let original_ext = Self::dts_get_known_extension(&file_name)?;
+        let path_str = candidate.path().to_string_lossy();
+        let base = self.cache.value(Path::new(&path_str[..path_str.len() - original_ext.len()]));
+        self.dts_try_extensions(&base, extensions, original_ext, ctx)
     }
 
     // -------- @types name mangling --------
@@ -639,6 +780,13 @@ impl ResolverImpl {
         conditions: &[String],
         key: &str,
     ) -> bool {
+        conditions.iter().any(|condition| condition == "types")
+            && self.is_applicable_types_version_key(key)
+    }
+
+    /// Whether `key` is `types@<range>` and the range matches the TypeScript version from
+    /// [`ResolveOptions::types_versions`](crate::ResolveOptions::types_versions).
+    fn is_applicable_types_version_key(&self, key: &str) -> bool {
         let version = match &self.options.types_versions {
             // Without a known compiler version these keys never match.
             TypesVersions::First | TypesVersions::Ignore => return false,
@@ -649,8 +797,7 @@ impl ResolverImpl {
             }
         };
         key.strip_prefix("types@").is_some_and(|range| {
-            conditions.iter().any(|condition| condition == "types")
-                && VersionRange::parse(range).is_some_and(|range| range.test(&version))
+            VersionRange::parse(range).is_some_and(|range| range.test(&version))
         })
     }
 

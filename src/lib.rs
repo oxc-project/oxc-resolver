@@ -1957,11 +1957,7 @@ impl ResolverImpl {
             }
             // 6. If patternMatch split on "/" or "\" contains any "", ".", "..", or "node_modules" segments, case insensitive and including percent encoded variants, throw an Invalid Module Specifier error.
             // 7. Return the URL resolution of resolvedTarget with every instance of "*" replaced with patternMatch.
-            let resolved = package_url.normalize_with(target.as_ref(), &self.cache);
-            if let Some(extensions) = ctx.dts_exports_extensions {
-                return Ok(self.dts_resolve_exports_target(extensions, &resolved, ctx));
-            }
-            return Ok(Some(resolved));
+            return Ok(Some(package_url.normalize_with(target.as_ref(), &self.cache)));
         }
         // 2. Otherwise, if target is a non-null Object, then
         else if let Some(target) = target.as_map() {

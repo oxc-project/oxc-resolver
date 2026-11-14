@@ -340,6 +340,27 @@ fn exports_falls_back_to_types_after_js_target() {
 }
 
 #[test]
+fn exports_pattern_falls_back_to_types_after_js_target() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "exports-types-after-import/sub/a").unwrap();
+    assert_eq!(
+        result.path(),
+        dts_fixture().join("node_modules/exports-types-after-import/lib/types/sub/a.d.ts")
+    );
+}
+
+#[test]
+fn exports_types_condition_is_always_used() {
+    // Like TypeScript, `types` is matched even if it is not in `condition_names`.
+    let r = Resolver::new(ResolveOptions::default());
+    let result = r.resolve_dts(containing_file(), "exports-types-after-import").unwrap();
+    assert_eq!(
+        result.path(),
+        dts_fixture().join("node_modules/exports-types-after-import/lib/types/index.d.ts")
+    );
+}
+
+#[test]
 fn exports_js_target_without_declaration() {
     // Without any declaration, the JavaScript target is resolved in the second pass.
     let r = resolver();
