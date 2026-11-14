@@ -214,21 +214,29 @@ impl ResolverImpl {
         candidate: &CachedPath,
         ctx: &mut Ctx,
     ) -> Option<CachedPath> {
-        let path_str = candidate.path().to_string_lossy();
-
         // Phase 1: Extension replacement (./foo.js -> ./foo.ts)
-        if let Some(original_ext) = Self::dts_get_known_extension(&path_str) {
-            // Strip the extension to get the extensionless base
-            let base_len = path_str.len() - original_ext.len();
-            let base_str = &path_str[..base_len];
-            let base = self.cache.value(Path::new(base_str));
-            if let Some(path) = self.dts_try_extensions(&base, extensions, original_ext, ctx) {
-                return Some(path);
-            }
+        if let Some(path) = self.dts_try_replace_extension(extensions, candidate, ctx) {
+            return Some(path);
         }
 
         // Phase 2: Extension addition (./foo -> ./foo.ts)
         self.dts_try_extensions(candidate, extensions, "", ctx)
+    }
+
+    /// TS: `loadModuleFromFileNoImplicitExtensions`
+    ///
+    /// Strips the extension of the file name and tries its substitutes, e.g. `./foo.mjs` ->
+    /// `./foo.mts`, `./foo.d.mts`, then `./foo.mjs`.
+    fn dts_try_replace_extension(
+        &self,
+        extensions: Extensions,
+        candidate: &CachedPath,
+        ctx: &mut Ctx,
+    ) -> Option<CachedPath> {
+        let original_ext = Self::dts_get_known_extension(candidate.path().file_name()?.to_str()?)?;
+        let path = candidate.path().to_str()?;
+        let base = self.cache.value(Path::new(&path[..path.len() - original_ext.len()]));
+        self.dts_try_extensions(&base, extensions, original_ext, ctx)
     }
 
     /// Get the known extension from a path, including compound extensions like `.d.ts`.
@@ -308,7 +316,11 @@ impl ResolverImpl {
                 {
                     return Some(p);
                 }
-                if let Some(p) = self.dts_try_file(base, ".json", ctx) {
+                // TS only adds `Extensions.Json` alongside JavaScript, so a `.json` target is not
+                // accepted in the TS/declaration pass.
+                if extensions.contains(Extensions::JAVASCRIPT)
+                    && let Some(p) = self.dts_try_file(base, ".json", ctx)
+                {
                     return Some(p);
                 }
             }
@@ -751,15 +763,7 @@ impl ResolverImpl {
         {
             return self.is_file(candidate, ctx).then(|| candidate.clone());
         }
-        // TS: `loadModuleFromFileNoImplicitExtensions`, e.g. `./index.mjs` -> `./index.d.mts`.
-        let file_name = candidate.path().file_name()?.to_string_lossy();
-        if !file_name.contains('.') {
-            return None;
-        }
-        let original_ext = Self::dts_get_known_extension(&file_name)?;
-        let path_str = candidate.path().to_string_lossy();
-        let base = self.cache.value(Path::new(&path_str[..path_str.len() - original_ext.len()]));
-        self.dts_try_extensions(&base, extensions, original_ext, ctx)
+        self.dts_try_replace_extension(extensions, candidate, ctx)
     }
 
     // -------- @types name mangling --------
@@ -787,6 +791,7 @@ impl ResolverImpl {
     /// Whether `key` is `types@<range>` and the range matches the TypeScript version from
     /// [`ResolveOptions::types_versions`](crate::ResolveOptions::types_versions).
     fn is_applicable_types_version_key(&self, key: &str) -> bool {
+        let Some(range) = key.strip_prefix("types@") else { return false };
         let version = match &self.options.types_versions {
             // Without a known compiler version these keys never match.
             TypesVersions::First | TypesVersions::Ignore => return false,
@@ -796,9 +801,7 @@ impl ResolverImpl {
                 version
             }
         };
-        key.strip_prefix("types@").is_some_and(|range| {
-            VersionRange::parse(range).is_some_and(|range| range.test(&version))
-        })
+        VersionRange::parse(range).is_some_and(|range| range.test(&version))
     }
 
     /// Get the path mappings of the `typesVersions` entry selected by

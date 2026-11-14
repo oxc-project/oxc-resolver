@@ -361,6 +361,17 @@ fn exports_types_condition_is_always_used() {
 }
 
 #[test]
+fn exports_json_target_is_not_a_declaration() {
+    // `.json` is only accepted in the JavaScript pass, so `types` is used.
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "exports-json-before-types").unwrap();
+    assert_eq!(
+        result.path(),
+        dts_fixture().join("node_modules/exports-json-before-types/index.d.ts")
+    );
+}
+
+#[test]
 fn exports_js_target_without_declaration() {
     // Without any declaration, the JavaScript target is resolved in the second pass.
     let r = resolver();
