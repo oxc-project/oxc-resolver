@@ -29,8 +29,7 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
     let (hostname, pathname) = path_with_host.strip_prefix('/').map_or_else(
         || {
             // Check for Windows drive letter in authority position (e.g. file://C:/path)
-            let bytes = path_with_host.as_bytes();
-            if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+            if starts_with_drive_letter(path_with_host.as_bytes()) {
                 return ("", path_with_host);
             }
             // file://host/... → hostname is everything before first /
@@ -54,9 +53,13 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
     file_url_to_path(specifier, hostname, pathname, query_fragment)
 }
 
+/// Whether `bytes` starts with a Windows drive letter and its colon, e.g. `C:`.
+pub fn starts_with_drive_letter(bytes: &[u8]) -> bool {
+    matches!(bytes, [drive, b':', ..] if drive.is_ascii_alphabetic())
+}
+
 fn is_drive_authority(authority: &str) -> bool {
-    let bytes = authority.as_bytes();
-    bytes.len() == 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+    authority.len() == 2 && starts_with_drive_letter(authority.as_bytes())
 }
 
 fn has_invalid_authority(authority: &str, allow_drive: bool) -> bool {
@@ -81,7 +84,7 @@ fn has_invalid_authority(authority: &str, allow_drive: bool) -> bool {
 
 /// Check if pathname contains a percent-encoded forbidden character.
 /// Returns true if `%2F` (encoded `/`) is found, or on Windows also `%5C` (encoded `\`).
-fn has_encoded_separators(pathname: &str) -> bool {
+pub fn has_encoded_separators(pathname: &str) -> bool {
     let bytes = pathname.as_bytes();
     let mut i = 0;
     while i + 2 < bytes.len() {
@@ -149,8 +152,7 @@ fn file_url_to_path(
     } else {
         // Strip leading backslash, validate drive letter
         let path = decoded.strip_prefix('\\').unwrap_or(&decoded);
-        let bytes = path.as_bytes();
-        if bytes.len() < 2 || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' {
+        if !starts_with_drive_letter(path.as_bytes()) {
             return Err(ResolveError::PathNotSupported(PathBuf::from(specifier)));
         }
         path.to_string()
