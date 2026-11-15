@@ -309,24 +309,7 @@ impl ResolverFactory {
                     }
                 })
                 .transpose()?,
-            alias: op
-                .alias
-                .map(|alias| {
-                    alias
-                        .into_iter()
-                        .map(|(k, v)| {
-                            let v = v
-                                .into_iter()
-                                .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::from(path),
-                                    None => oxc_resolver::AliasValue::Ignore,
-                                })
-                                .collect();
-                            (k, v)
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or(default.alias),
+            alias: op.alias.map(alias_from_js).unwrap_or(default.alias),
             alias_fields: op
                 .alias_fields
                 .map(|o| o.into_iter().map(|x| StrOrStrList(x).into()).collect::<Vec<_>>())
@@ -349,24 +332,7 @@ impl ResolverFactory {
                 .map(|extension_alias| extension_alias.into_iter().collect::<Vec<_>>())
                 .unwrap_or(default.extension_alias),
             extensions: op.extensions.unwrap_or(default.extensions),
-            fallback: op
-                .fallback
-                .map(|fallback| {
-                    fallback
-                        .into_iter()
-                        .map(|(k, v)| {
-                            let v = v
-                                .into_iter()
-                                .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::from(path),
-                                    None => oxc_resolver::AliasValue::Ignore,
-                                })
-                                .collect();
-                            (k, v)
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or(default.fallback),
+            fallback: op.fallback.map(alias_from_js).unwrap_or(default.fallback),
             fully_specified: op.fully_specified.unwrap_or(default.fully_specified),
             main_fields: op
                 .main_fields
@@ -416,6 +382,26 @@ impl ResolverFactory {
     pub fn resolver(&self) -> Arc<Resolver> {
         Arc::clone(&self.resolver)
     }
+}
+
+/// Converts the JS shape of `alias` and `fallback`, where a `null` or `undefined` entry means
+/// "ignore this request".
+fn alias_from_js(
+    alias: std::collections::HashMap<String, Vec<Option<String>>>,
+) -> oxc_resolver::Alias {
+    alias
+        .into_iter()
+        .map(|(k, v)| {
+            let v = v
+                .into_iter()
+                .map(|item| match item {
+                    Some(path) => oxc_resolver::AliasValue::from(path),
+                    None => oxc_resolver::AliasValue::Ignore,
+                })
+                .collect();
+            (k, v)
+        })
+        .collect()
 }
 
 fn map_resolution_to_result(result: Result<Resolution, ResolveError>) -> ResolveResult {
