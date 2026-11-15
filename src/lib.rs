@@ -944,14 +944,16 @@ impl ResolverImpl {
             // See
             // * <https://github.com/vitejs/vite/pull/20252>
             // * <https://github.com/nodejs/node/issues/58827>
-            if self.options.allow_package_exports_in_directory_resolve {
-                for exports in package_json.exports_fields(&self.options.exports_fields) {
-                    if let Some(path) =
-                        self.package_exports_resolve(cached_path, ".", &exports, tsconfig, ctx)?
-                    {
-                        return Ok(Some(path));
-                    }
-                }
+            if self.options.allow_package_exports_in_directory_resolve
+                && let Some(path) = self.package_exports_resolve_fields(
+                    cached_path,
+                    ".",
+                    &package_json,
+                    tsconfig,
+                    ctx,
+                )?
+            {
+                return Ok(Some(path));
             }
         }
 
@@ -1316,17 +1318,15 @@ impl ResolverImpl {
         //    `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
         // Note: The subpath is not prepended with a dot on purpose
         let dot_subpath = Self::dot_subpath(subpath);
-        for exports in package_json.exports_fields(&self.options.exports_fields) {
-            if let Some(path) = self.package_exports_resolve(
-                cached_path,
-                dot_subpath.as_ref(),
-                &exports,
-                tsconfig,
-                ctx,
-            )? {
-                // 6. RESOLVE_ESM_MATCH(MATCH)
-                return self.resolve_esm_match(specifier, &path, tsconfig, ctx);
-            }
+        if let Some(path) = self.package_exports_resolve_fields(
+            cached_path,
+            dot_subpath.as_ref(),
+            &package_json,
+            tsconfig,
+            ctx,
+        )? {
+            // 6. RESOLVE_ESM_MATCH(MATCH)
+            return self.resolve_esm_match(specifier, &path, tsconfig, ctx);
         }
         Ok(None)
     }
@@ -1357,17 +1357,15 @@ impl ResolverImpl {
             // because `package_exports_resolve` matches subpath without the leading dot.
             let package_url = self.cache.value(package_json.path.parent().unwrap());
             let dot_subpath = Self::dot_subpath(subpath);
-            for exports in package_json.exports_fields(&self.options.exports_fields) {
-                if let Some(cached_path) = self.package_exports_resolve(
-                    &package_url,
-                    dot_subpath.as_ref(),
-                    &exports,
-                    tsconfig,
-                    ctx,
-                )? {
-                    // 6. RESOLVE_ESM_MATCH(MATCH)
-                    return self.resolve_esm_match(specifier, &cached_path, tsconfig, ctx);
-                }
+            if let Some(cached_path) = self.package_exports_resolve_fields(
+                &package_url,
+                dot_subpath.as_ref(),
+                &package_json,
+                tsconfig,
+                ctx,
+            )? {
+                // 6. RESOLVE_ESM_MATCH(MATCH)
+                return self.resolve_esm_match(specifier, &cached_path, tsconfig, ctx);
             }
         }
         self.load_browser_field(cached_path, Some(specifier), &package_json, ctx)
@@ -1574,16 +1572,14 @@ impl ResolverImpl {
                     {
                         // 5. If pjson is not null and pjson.exports is not null or undefined, then
                         // 1. Return the result of PACKAGE_EXPORTS_RESOLVE(packageURL, packageSubpath, pjson.exports, defaultConditions).
-                        for exports in package_json.exports_fields(&self.options.exports_fields) {
-                            if let Some(path) = self.package_exports_resolve(
-                                &cached_path,
-                                dot_subpath.as_ref(),
-                                &exports,
-                                tsconfig,
-                                ctx,
-                            )? {
-                                return Ok(Some(path));
-                            }
+                        if let Some(path) = self.package_exports_resolve_fields(
+                            &cached_path,
+                            dot_subpath.as_ref(),
+                            &package_json,
+                            tsconfig,
+                            ctx,
+                        )? {
+                            return Ok(Some(path));
                         }
                         // 6. Otherwise, if packageSubpath is equal to ".", then
                         if subpath == "." {
@@ -1609,6 +1605,26 @@ impl ResolverImpl {
         }
 
         Err(ResolveError::NotFound(specifier.to_string()))
+    }
+
+    /// Runs [Self::package_exports_resolve] on each of the package's
+    /// [ResolveOptions::exports_fields] in order and returns the first match.
+    fn package_exports_resolve_fields(
+        &self,
+        package_url: &CachedPath,
+        subpath: &str,
+        package_json: &PackageJson,
+        tsconfig: Option<&TsConfig>,
+        ctx: &mut Ctx,
+    ) -> ResolveResult {
+        for exports in package_json.exports_fields(&self.options.exports_fields) {
+            if let Some(path) =
+                self.package_exports_resolve(package_url, subpath, &exports, tsconfig, ctx)?
+            {
+                return Ok(Some(path));
+            }
+        }
+        Ok(None)
     }
 
     /// PACKAGE_EXPORTS_RESOLVE(packageURL, subpath, exports, conditions)
