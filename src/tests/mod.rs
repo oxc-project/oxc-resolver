@@ -42,7 +42,10 @@ use std::{
     thread,
 };
 
-use crate::Resolver;
+use crate::{
+    Resolver,
+    package_json::{ImportsExportsEntry, ImportsExportsEntryGeneric},
+};
 
 pub fn fixture_root() -> PathBuf {
     // In WASI, the filesystem is mounted at `/` so we use `/fixtures`.
@@ -59,6 +62,27 @@ pub fn fixture_root() -> PathBuf {
 
 pub fn fixture() -> PathBuf {
     fixture_root().join("enhanced-resolve").join("test").join("fixtures")
+}
+
+/// Parses `value` with the JSON backend the resolver uses on this target and leaks it, so that
+/// test tables can hold `'static` "imports" / "exports" entries.
+#[cfg(target_endian = "little")]
+pub fn imports_exports_entry(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
+    // Serialize back to JSON string and parse with simd_json for little-endian
+    let json_str = serde_json::to_string(value).unwrap();
+    let bytes = Box::leak::<'static>(Box::new(json_str.into_bytes()));
+    let borrowed = simd_json::to_borrowed_value(bytes).unwrap();
+    let value = Box::leak::<'static>(Box::new(borrowed));
+    ImportsExportsEntryGeneric(value)
+}
+
+/// Parses `value` with the JSON backend the resolver uses on this target and leaks it, so that
+/// test tables can hold `'static` "imports" / "exports" entries.
+#[cfg(target_endian = "big")]
+pub fn imports_exports_entry(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
+    // Clone and leak the value to get a 'static reference for big-endian
+    let value = Box::leak::<'static>(Box::new(value.clone()));
+    ImportsExportsEntryGeneric(value)
 }
 
 /// A filesystem wrapper that returns `PermissionDenied` for `read_to_string`

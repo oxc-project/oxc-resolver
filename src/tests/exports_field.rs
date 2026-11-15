@@ -6,9 +6,9 @@ use std::path::Path;
 
 use serde_json::json;
 
+use super::imports_exports_entry as exports_field;
 use crate::{
-    Ctx, PathUtil, ResolveError, ResolveOptions, Resolver,
-    package_json::{ImportsExportsEntry, ImportsExportsEntryGeneric},
+    Ctx, PathUtil, ResolveError, ResolveOptions, Resolver, package_json::ImportsExportsEntry,
 };
 
 #[test]
@@ -318,23 +318,6 @@ struct TestCase {
     exports_field: ImportsExportsEntry<'static>,
     request: &'static str,
     condition_names: Vec<&'static str>,
-}
-
-#[cfg(target_endian = "little")]
-fn exports_field(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
-    // Serialize back to JSON string and parse with simd_json for little-endian
-    let json_str = serde_json::to_string(value).unwrap();
-    let bytes = Box::leak::<'static>(Box::new(json_str.into_bytes()));
-    let borrowed = simd_json::to_borrowed_value(bytes).unwrap();
-    let value = Box::leak::<'static>(Box::new(borrowed));
-    ImportsExportsEntryGeneric(value)
-}
-
-#[cfg(target_endian = "big")]
-fn exports_field(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
-    // Clone and leak the value to get a 'static reference for big-endian
-    let value = Box::leak::<'static>(Box::new(value.clone()));
-    ImportsExportsEntryGeneric(value)
 }
 
 #[test]

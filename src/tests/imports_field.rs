@@ -6,10 +6,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::{
-    AliasValue, Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver,
-    package_json::ImportsExportsMapGeneric,
-};
+use crate::{AliasValue, Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn test_simple() {
@@ -160,27 +157,8 @@ struct TestCase {
     condition_names: Vec<&'static str>,
 }
 
-#[cfg(target_endian = "little")]
 fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
-    // Serialize back to JSON string and parse with simd_json for little-endian
-    let json_str = serde_json::to_string(value).unwrap();
-    let bytes = Box::leak::<'static>(Box::new(json_str.into_bytes()));
-    let borrowed = simd_json::to_borrowed_value(bytes).unwrap();
-    let simd_json::BorrowedValue::Object(map) = borrowed else {
-        panic!("Expected an object");
-    };
-    let map = Box::leak::<'static>(Box::new(map));
-    ImportsExportsMapGeneric(map)
-}
-
-#[cfg(target_endian = "big")]
-fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
-    // Clone and leak the value to get a 'static reference for big-endian
-    let value = Box::leak::<'static>(Box::new(value.clone()));
-    let serde_json::Value::Object(map) = value else {
-        panic!("Expected an object");
-    };
-    ImportsExportsMapGeneric(map)
+    super::imports_exports_entry(value).as_map().expect("Expected an object")
 }
 
 #[expect(clippy::too_many_lines, reason = "test table ported from enhanced-resolve")]
