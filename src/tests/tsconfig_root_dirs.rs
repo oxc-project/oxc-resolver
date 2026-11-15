@@ -108,3 +108,17 @@ fn test_root_dirs_via_extends() {
     let expected = f.join(".svelte-kit/types/src/routes/$types.d.ts");
     assert_eq!(path, Ok(expected), "from {from:?} resolve ./$types");
 }
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: ${configDir} template substitution
+// ---------------------------------------------------------------------------
+
+#[test]
+fn config_dir_in_root_dirs() {
+    let f = super::fixture_root().join("tsconfig/cases/config-dir-root-dirs");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path =
+        resolver.resolve_file(f.join("src/index.ts"), "./gen").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("generated/gen.ts")));
+}
