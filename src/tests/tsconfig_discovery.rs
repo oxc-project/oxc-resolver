@@ -2,8 +2,6 @@
 //!
 //! Tests that tsconfig.json can be auto-discovered when no explicit tsconfig option is provided.
 
-use std::path::PathBuf;
-
 use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery};
 
 #[test]
@@ -77,32 +75,25 @@ fn tsconfig_discovery_virtual_file_importer() {
 /// When a tsconfig.json exists but is not readable (e.g. permission denied),
 /// auto-discovery should skip it and return `Ok(None)` instead of erroring.
 #[test]
-#[cfg(unix)]
 fn tsconfig_discovery_skips_unreadable_file() {
-    use std::{fs, os::unix::fs::PermissionsExt};
+    // Outside `fixtures/tsconfig`, whose root tsconfig.json would otherwise be discovered.
+    let dir = super::fixture_root().join("invalid").join("tsconfig-unreadable");
+    let options =
+        ResolveOptions { tsconfig: Some(TsconfigDiscovery::Auto), ..ResolveOptions::default() };
+    let file_path = dir.join("main.ts");
 
-    let dir =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("test_unreadable_tsconfig");
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).unwrap();
+    // Control: the tsconfig is discovered when it is readable.
+    let tsconfig = Resolver::new(options.clone()).find_tsconfig(&file_path).unwrap();
+    assert_eq!(
+        tsconfig.map(|tsconfig| tsconfig.path().to_path_buf()),
+        Some(dir.join("tsconfig.json"))
+    );
 
-    let tsconfig_path = dir.join("tsconfig.json");
-    fs::write(&tsconfig_path, r#"{"compilerOptions": {}}"#).unwrap();
-    fs::set_permissions(&tsconfig_path, fs::Permissions::from_mode(0o000)).unwrap();
-
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Auto),
-        ..ResolveOptions::default()
-    });
+    let fs = super::UnreadableFs { unreadable_path: dir.join("tsconfig.json") };
+    let resolver = crate::ResolverGeneric::new_with_file_system(fs, options);
 
     // Should return Ok(None), not an error
-    let file_path = dir.join("main.ts");
     let result = resolver.find_tsconfig(&file_path);
-
-    // Restore permissions before asserting so cleanup always works
-    fs::set_permissions(&tsconfig_path, fs::Permissions::from_mode(0o644)).unwrap();
-    let _ = fs::remove_dir_all(&dir);
-
     assert!(
         matches!(&result, Ok(None)),
         "expected Ok(None) for unreadable tsconfig, got {result:?}",
