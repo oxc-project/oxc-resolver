@@ -5,19 +5,15 @@
 
 use std::path::Path;
 
-use crate::{
-    ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-};
+use super::manual_tsconfig;
+use crate::{ResolveOptions, Resolver, TsConfig, TsconfigReferences};
 
 #[test]
 fn test_extend_tsconfig() {
     let f = super::fixture_root().join("tsconfig/cases/extends");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -51,10 +47,7 @@ fn test_extend_tsconfig_paths() {
     let f = super::fixture_root().join("tsconfig/cases/extends-paths-inheritance");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         extensions: vec![".ts".into(), ".js".into()],
         ..ResolveOptions::default()
     });
@@ -70,10 +63,7 @@ fn test_extend_tsconfig_override_behavior() {
     let f = super::fixture_root().join("tsconfig/cases/extends-override");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -90,10 +80,7 @@ fn test_extend_tsconfig_template_variables() {
     let f = super::fixture_root().join("tsconfig/cases/extends-template-vars");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         extensions: vec![".ts".into(), ".js".into()],
         ..ResolveOptions::default()
     });
@@ -111,10 +98,10 @@ fn test_extend_tsconfig_missing_file() {
     let f = super::fixture_root().join("tsconfig/cases");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("nonexistent-tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(
+            f.join("nonexistent-tsconfig.json"),
+            TsconfigReferences::Auto,
+        )),
         ..ResolveOptions::default()
     });
 
@@ -127,10 +114,7 @@ fn test_extend_tsconfig_multiple_inheritance() {
     let f = super::fixture_root().join("tsconfig/cases/extends-chain");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -148,10 +132,7 @@ fn test_extend_tsconfig_preserves_child_settings() {
     let f = super::fixture_root().join("tsconfig/cases/extends-preserve-child");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -212,10 +193,7 @@ fn test_extend_tsconfig_not_found() {
     let f = super::fixture_root().join("tsconfig/cases/extends-not-found");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -235,10 +213,7 @@ fn test_references_not_found() {
     let f = super::fixture_root().join("tsconfig/cases/references-not-found");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -262,10 +237,7 @@ fn test_extend_tsconfig_unreadable_file() {
     let resolver = crate::ResolverGeneric::new_with_file_system(
         fs,
         ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: f.join("tsconfig.json"),
-                references: TsconfigReferences::Disabled,
-            })),
+            tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
             ..ResolveOptions::default()
         },
     );
@@ -293,10 +265,7 @@ fn test_references_unreadable_file() {
     let resolver = crate::ResolverGeneric::new_with_file_system(
         fs,
         ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: f.join("tsconfig.json"),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
             ..ResolveOptions::default()
         },
     );
@@ -319,10 +288,7 @@ fn test_extend_package() {
     let data = ["extends-esm", "extends-main"];
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -338,10 +304,7 @@ fn test_extend_imports() {
     let f = super::fixture_root().join("tsconfig/cases/extends-imports");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -361,10 +324,7 @@ fn test_extend_imports() {
 fn assert_extends_symlink_resolves_to_canonical(config_file: &Path) {
     let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: config_file.to_path_buf(),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(config_file.to_path_buf(), TsconfigReferences::Disabled)),
         extensions: vec![".ts".into()],
         ..ResolveOptions::default()
     });

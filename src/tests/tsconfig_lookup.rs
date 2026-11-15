@@ -1,20 +1,9 @@
 //! Tests for tsconfig lookup scenarios ported from typescript-go.
 
+use super::manual_tsconfig;
 use crate::{
-    ResolveError, ResolveOptions, Resolver, SpecifierError, TsconfigDiscovery, TsconfigOptions,
-    TsconfigReferences,
+    ResolveError, ResolveOptions, Resolver, SpecifierError, TsconfigDiscovery, TsconfigReferences,
 };
-
-fn manual_resolver(config_file: std::path::PathBuf, extensions: Vec<String>) -> Resolver {
-    Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file,
-            references: TsconfigReferences::Auto,
-        })),
-        extensions,
-        ..ResolveOptions::default()
-    })
-}
 
 // ---------------------------------------------------------------------------
 // Group 1: tsconfig lookup error scenarios
@@ -25,10 +14,7 @@ fn extends_circular_two_files() {
     let f = super::fixture_root().join("tsconfig/cases/extends-circular");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -44,10 +30,7 @@ fn extends_self() {
     let f = super::fixture_root().join("tsconfig/cases/extends-self");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -63,10 +46,7 @@ fn references_self() {
     let f = super::fixture_root().join("tsconfig/cases/references-self");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -82,10 +62,7 @@ fn extends_empty_string() {
     let f = super::fixture_root().join("tsconfig/cases/extends-empty-string");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -105,10 +82,7 @@ fn extends_pkg_subpath() {
     let f = super::fixture_root().join("tsconfig/cases/extends-pkg-subpath");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -124,10 +98,7 @@ fn extends_scoped_pkg() {
     let f = super::fixture_root().join("tsconfig/cases/extends-scoped-pkg");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -141,10 +112,7 @@ fn extends_pkg_tsconfig_file() {
     let f = super::fixture_root().join("tsconfig/cases/extends-pkg-tsconfig-file");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -158,10 +126,7 @@ fn extends_with_json_extension() {
     let f = super::fixture_root().join("tsconfig/cases/extends-with-json");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -175,10 +140,7 @@ fn extends_folder_resolves_to_tsconfig_json() {
     let f = super::fixture_root().join("tsconfig/cases/extends-folder-tsconfig");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -197,10 +159,7 @@ fn extends_array_last_wins() {
     let f = super::fixture_root().join("tsconfig/cases/extends-array-last-wins");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -217,10 +176,7 @@ fn extends_diamond() {
     let f = super::fixture_root().join("tsconfig/cases/extends-diamond");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -240,7 +196,7 @@ fn extends_diamond() {
 #[test]
 fn paths_empty_array() {
     let f = super::fixture_root().join("tsconfig/cases/paths-empty-array");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "missing").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("missing.ts")));
@@ -249,7 +205,7 @@ fn paths_empty_array() {
 #[test]
 fn paths_exact_wins_over_wildcard() {
     let f = super::fixture_root().join("tsconfig/cases/paths-exact-vs-wildcard");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "foo").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("exact-foo.ts")));
@@ -261,7 +217,7 @@ fn paths_exact_wins_over_wildcard() {
 #[test]
 fn paths_longest_prefix_wins() {
     let f = super::fixture_root().join("tsconfig/cases/paths-longest-prefix");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "lib/foo").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("short/foo.ts")));
@@ -273,7 +229,7 @@ fn paths_longest_prefix_wins() {
 #[test]
 fn paths_multiple_substitutions_pick_first_existing() {
     let f = super::fixture_root().join("tsconfig/cases/paths-multiple-substitutions");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "lib/exists").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("second/exists.ts")));
@@ -285,7 +241,7 @@ fn paths_multiple_substitutions_pick_first_existing() {
 #[test]
 fn paths_child_overrides_extended() {
     let f = super::fixture_root().join("tsconfig/cases/paths-child-overrides-extended");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "@/x").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("child/x.ts")));
@@ -294,7 +250,7 @@ fn paths_child_overrides_extended() {
 #[test]
 fn paths_inherited_paths_base() {
     let f = super::fixture_root().join("tsconfig/cases/paths-inherited-paths-base");
-    let resolver = manual_resolver(f.join("child-dir/tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("child-dir/tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path =
         resolver.resolve_file(f.join("child-dir/index.ts"), "@/foo").map(|r| r.full_path());
@@ -304,7 +260,7 @@ fn paths_inherited_paths_base() {
 #[test]
 fn paths_no_base_url_anchors_at_config_dir() {
     let f = super::fixture_root().join("tsconfig/cases/paths-no-base-url");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "@/foo").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/foo.ts")));
@@ -368,8 +324,10 @@ fn resolve_path_alias_or_base_url_maps_without_file_check_falls_back_to_base_url
 #[test]
 fn paths_explicit_extension_target() {
     let f = super::fixture_root().join("tsconfig/cases/paths-explicit-extension");
-    let resolver =
-        manual_resolver(f.join("tsconfig.json"), vec![".ts".into(), ".json".into(), ".svg".into()]);
+    let resolver = super::manual_resolver(
+        f.join("tsconfig.json"),
+        vec![".ts".into(), ".json".into(), ".svg".into()],
+    );
 
     let resolved_path = resolver.resolve_file(&f, "data.json").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("data-file.json")));
@@ -381,7 +339,7 @@ fn paths_explicit_extension_target() {
 #[test]
 fn paths_wildcard_prefix_and_suffix() {
     let f = super::fixture_root().join("tsconfig/cases/paths-suffix-and-prefix");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "prefix-middle-suffix").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("lib/middle.ts")));
@@ -394,7 +352,7 @@ fn paths_wildcard_prefix_and_suffix() {
 #[test]
 fn config_dir_in_root_dirs() {
     let f = super::fixture_root().join("tsconfig/cases/config-dir-root-dirs");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path =
         resolver.resolve_file(f.join("src/index.ts"), "./gen").map(|r| r.full_path());
@@ -410,10 +368,7 @@ fn extends_empty_array() {
     let f = super::fixture_root().join("tsconfig/cases/extends-empty-array");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -427,10 +382,7 @@ fn extends_no_compiler_options_in_base() {
     let f = super::fixture_root().join("tsconfig/cases/extends-no-compiler-options");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -447,7 +399,7 @@ fn extends_no_compiler_options_in_base() {
 #[test]
 fn paths_star_only_pattern() {
     let f = super::fixture_root().join("tsconfig/cases/paths-star-only");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "anything").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("fallback-dir/anything.ts")));
@@ -456,7 +408,7 @@ fn paths_star_only_pattern() {
 #[test]
 fn base_url_only_resolves_bare_specifier() {
     let f = super::fixture_root().join("tsconfig/cases/base-url-only");
-    let resolver = manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
     let resolved_path = resolver.resolve_file(&f, "utils").map(|r| r.full_path());
     assert_eq!(resolved_path, Ok(f.join("src/utils.ts")));

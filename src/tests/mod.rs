@@ -43,7 +43,7 @@ use std::{
 };
 
 use crate::{
-    Resolver,
+    ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
     package_json::{ImportsExportsEntry, ImportsExportsEntryGeneric},
 };
 
@@ -78,6 +78,20 @@ pub fn on_disk(root: &Path, path: &str) -> PathBuf {
     let mut path = path.into_os_string();
     path.push(postfix);
     PathBuf::from(path)
+}
+
+/// The `tsconfig` option that reads one explicit `config_file`.
+pub fn manual_tsconfig(config_file: PathBuf, references: TsconfigReferences) -> TsconfigDiscovery {
+    TsconfigDiscovery::Manual(TsconfigOptions { config_file, references })
+}
+
+/// A resolver that reads `config_file`, follows its project references and tries `extensions`.
+pub fn manual_resolver(config_file: PathBuf, extensions: Vec<String>) -> Resolver {
+    Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(config_file, TsconfigReferences::Auto)),
+        extensions,
+        ..ResolveOptions::default()
+    })
 }
 
 /// Parses `value` with the JSON backend the resolver uses on this target and leaks it, so that

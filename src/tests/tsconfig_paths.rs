@@ -2,10 +2,21 @@
 //!
 //! Fixtures copied from <https://github.com/parcel-bundler/parcel/tree/v2/packages/utils/node-resolver-core/test/fixture/tsconfig>.
 
+use std::path::PathBuf;
+
+use super::manual_tsconfig;
 use crate::{
-    JSONError, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
-    TsconfigReferences,
+    JSONError, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigReferences,
 };
+
+/// Auto-discovery when `tsconfig_discovery` is set, the explicit `config_file` otherwise.
+fn discovered_or_manual(tsconfig_discovery: bool, config_file: PathBuf) -> TsconfigDiscovery {
+    if tsconfig_discovery {
+        TsconfigDiscovery::Auto
+    } else {
+        manual_tsconfig(config_file, TsconfigReferences::Auto)
+    }
+}
 
 // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/lib.rs#L2303>
 pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
@@ -34,14 +45,7 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
 
     for (dir, importer, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(if tsconfig_discovery {
-                TsconfigDiscovery::Auto
-            } else {
-                TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: dir.join("tsconfig.json"),
-                    references: TsconfigReferences::Auto,
-                })
-            }),
+            tsconfig: Some(discovered_or_manual(tsconfig_discovery, dir.join("tsconfig.json"))),
             extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
             ..ResolveOptions::default()
         });
@@ -76,14 +80,7 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
 
     for (path, request, tsconfig, expected) in data {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(if tsconfig_discovery {
-                TsconfigDiscovery::Auto
-            } else {
-                TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: tsconfig,
-                    references: TsconfigReferences::Auto,
-                })
-            }),
+            tsconfig: Some(discovered_or_manual(tsconfig_discovery, tsconfig)),
             ..ResolveOptions::default()
         });
         let resolution = resolver.resolve_file(&path, request).map(|f| f.full_path());
@@ -120,10 +117,7 @@ fn clone_with_different_tsconfig_options_resolves_file_with_separate_cache() {
 fn indexed_paths() {
     let root = super::fixture_root().join("tsconfig/cases/indexed-paths");
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: root.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(root.join("tsconfig.json"), TsconfigReferences::Disabled)),
         extensions: vec![".ts".into()],
         ..ResolveOptions::default()
     });
@@ -155,10 +149,7 @@ fn indexed_paths() {
 fn indexed_paths_dense() {
     let root = super::fixture_root().join("tsconfig/cases/indexed-paths-dense");
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: root.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(root.join("tsconfig.json"), TsconfigReferences::Disabled)),
         extensions: vec![".ts".into()],
         ..ResolveOptions::default()
     });
@@ -187,10 +178,7 @@ fn tsconfig_fallthrough() {
     let f = super::fixture_root().join("tsconfig");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -203,10 +191,7 @@ fn json_with_comments() {
     let f = super::fixture_root().join("tsconfig/cases/trailing-comma");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -219,10 +204,7 @@ fn with_bom() {
     let f = super::fixture_root().join("tsconfig/cases/with-bom");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -235,10 +217,7 @@ fn broken() {
     let f = super::fixture_root().join("tsconfig");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig_broken.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig_broken.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -260,10 +239,7 @@ fn empty() {
     let f = super::fixture_root().join("tsconfig/cases/empty");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -323,10 +299,7 @@ fn test_template_variable() {
 
     for (dir, tsconfig, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.join(tsconfig),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(dir.join(tsconfig), TsconfigReferences::Auto)),
             ..ResolveOptions::default()
         });
         let resolved_path =
@@ -348,10 +321,10 @@ fn test_paths_nested_base() {
 
     for (dir, tsconfig, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.parent().unwrap().join(tsconfig),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(
+                dir.parent().unwrap().join(tsconfig),
+                TsconfigReferences::Auto,
+            )),
             ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
         let resolved_path = resolver.resolve_file(&dir, request).map(|f| f.full_path());
@@ -372,10 +345,10 @@ fn test_parent_base_url() {
 
     for (dir, tsconfig, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.parent().unwrap().join(tsconfig),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(
+                dir.parent().unwrap().join(tsconfig),
+                TsconfigReferences::Auto,
+            )),
             ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
         let resolved_path = resolver.resolve_file(&dir, request).map(|f| f.full_path());
@@ -401,14 +374,7 @@ fn test_dot_prefixed_non_relative_specifiers() {
 
     for tsconfig_discovery in [false, true] {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(if tsconfig_discovery {
-                TsconfigDiscovery::Auto
-            } else {
-                TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: f.join("tsconfig.json"),
-                    references: TsconfigReferences::Auto,
-                })
-            }),
+            tsconfig: Some(discovered_or_manual(tsconfig_discovery, f.join("tsconfig.json"))),
             ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
 
@@ -507,10 +473,10 @@ impl OneTest {
     fn resolver(&self) -> Resolver {
         let mut options = ResolveOptions {
             extensions: self.extensions.clone(),
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: self.root().join("tsconfig.json"),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(
+                self.root().join("tsconfig.json"),
+                TsconfigReferences::Auto,
+            )),
             ..ResolveOptions::default()
         };
         if let Some(main_fields) = &self.main_fields {
