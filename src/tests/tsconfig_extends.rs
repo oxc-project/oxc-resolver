@@ -296,6 +296,34 @@ fn test_extend_tsconfig_via_symlink_relative() {
     assert_extends_symlink_resolves_to_canonical(&f.join("project/tsconfig.relative.json"));
 }
 
+#[test]
+fn test_merge_tsconfig() {
+    let resolver = Resolver::default();
+    let dir = super::fixture_root().join("tsconfig/cases/merge-compiler-options");
+    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
+    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
+    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
+    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
+    assert_eq!(compiler_options.target, Some("ESNext".to_string()));
+}
+
+#[test]
+fn test_no_merge_tsconfig() {
+    let resolver = Resolver::default();
+    let dir = super::fixture_root().join("tsconfig/cases/no-merge-compiler-options");
+    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
+    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
+    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
+    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+}
+
 // ---------------------------------------------------------------------------
 // Ported from typescript-go: extends error scenarios
 // ---------------------------------------------------------------------------
