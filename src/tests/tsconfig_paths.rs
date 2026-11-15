@@ -469,296 +469,192 @@ fn test_tsconfig_mixed_root_non_root_cache3() {
     assert_eq!(resolved_path, Ok(f2.join("src/index.js")));
 }
 
-#[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
-mod windows_test {
-    use std::path::{Path, PathBuf};
+struct OneTest {
+    name: &'static str,
+    /// Directory under `fixtures/tsconfig/cases/match-path` holding this case's `tsconfig.json`
+    /// and files. It stands in for `/root` in the upstream data.
+    dir: &'static str,
+    main_fields: Option<Vec<String>>,
+    requested_module: &'static str,
+    expected_path: &'static str,
+    extensions: Vec<String>,
+}
 
-    use super::super::memory_fs::MemoryFS;
-    use crate::{
-        ResolveError, ResolveOptions, ResolverGeneric, TsconfigDiscovery, TsconfigOptions,
-        TsconfigReferences,
-    };
-
-    struct OneTest {
-        name: &'static str,
-        tsconfig: String,
-        package_json: Option<(PathBuf, String)>,
-        main_fields: Option<Vec<String>>,
-        existing_files: Vec<&'static str>,
-        requested_module: &'static str,
-        expected_path: &'static str,
-        extensions: Vec<String>,
-    }
-
-    impl Default for OneTest {
-        fn default() -> Self {
-            Self {
-                name: "",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/*": ["location/*"]
-                        }
-                    }
-                })
-                .to_string(),
-                package_json: None,
-                main_fields: None,
-                existing_files: vec![],
-                requested_module: "",
-                expected_path: "",
-                extensions: vec![
-                    ".js".into(),
-                    ".json".into(),
-                    ".node".into(),
-                    ".ts".into(),
-                    ".tsx".into(),
-                ],
-            }
+impl Default for OneTest {
+    fn default() -> Self {
+        Self {
+            name: "",
+            dir: "",
+            main_fields: None,
+            requested_module: "",
+            expected_path: "",
+            extensions: vec![
+                ".js".into(),
+                ".json".into(),
+                ".node".into(),
+                ".ts".into(),
+                ".tsx".into(),
+            ],
         }
     }
+}
 
-    impl OneTest {
-        fn resolver(&self, root: &Path) -> ResolverGeneric<MemoryFS> {
-            let mut file_system = MemoryFS::default();
-
-            file_system.add_file(&root.join("tsconfig.json"), &self.tsconfig);
-            if let Some((path, package_json)) = &self.package_json {
-                file_system.add_file(&root.join(path).join("package.json"), package_json);
-            }
-            for path in &self.existing_files {
-                file_system.add_file(Path::new(path), "");
-            }
-
-            let mut options = ResolveOptions {
-                extensions: self.extensions.clone(),
-                tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: root.join("tsconfig.json"),
-                    references: TsconfigReferences::Auto,
-                })),
-                ..ResolveOptions::default()
-            };
-            if let Some(main_fields) = &self.main_fields {
-                options.main_fields.clone_from(main_fields);
-            }
-
-            ResolverGeneric::new_with_file_system(file_system, options)
-        }
+impl OneTest {
+    fn root(&self) -> std::path::PathBuf {
+        super::fixture_root().join("tsconfig").join("cases").join("match-path").join(self.dir)
     }
 
-    // Path matching tests from tsconfig-paths
-    // * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/match-path-sync.test.ts>
-    // * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/data/match-path-data.ts>
-    #[test]
-    fn match_path() {
-        let pass = [
-            OneTest {
-                name: "should locate path that matches with star and exists",
-                existing_files: vec!["/root/location/mylib/index.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve to correct path when many are specified",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/*": ["foo1/*", "foo2/*", "location/*", "foo3/*"],
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/location/mylib/index.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should locate path that matches with star and prioritize pattern with longest prefix",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "*": ["location/*"],
-                            "lib/*": ["location/*"],
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec![
-                    "/root/location/lib/mylib/index.ts",
-                    "/root/location/mylib/index.ts",
-                ],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should locate path that matches with star and exists with extension",
-                existing_files: vec!["/root/location/mylib.myext"],
-                requested_module: "lib/mylib",
-                extensions: vec![".js".into(), ".myext".into()],
-                expected_path: "/root/location/mylib.myext",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve request with extension specified",
-                existing_files: vec!["/root/location/test.jpg"],
-                requested_module: "lib/test.jpg",
-                expected_path: "/root/location/test.jpg",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should locate path that matches without star and exists",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/foo": ["location/foo"]
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/location/foo.ts"],
-                requested_module: "lib/foo",
-                expected_path: "/root/location/foo.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve to parent folder when filename is in subfolder",
-                existing_files: vec!["/root/location/mylib/index.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve from main field in package.json",
-                package_json: Some((
-                    PathBuf::from("/root/location/mylib"),
-                    serde_json::json!({
-                        "main": "./kalle.ts"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec!["/root/location/mylib/kalle.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/kalle.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve from main field in package.json (js)",
-                package_json: Some((
-                    PathBuf::from("/root/location/mylib.js"),
-                    serde_json::json!({
-                        "main": "./kalle.js"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec!["/root/location/mylib.js/kalle.js"],
-                extensions: vec![".ts".into(), ".js".into()],
-                requested_module: "lib/mylib.js",
-                expected_path: "/root/location/mylib.js/kalle.js",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve from list of fields by priority in package.json",
-                main_fields: Some(vec!["missing".into(), "browser".into(), "main".into()]),
-                package_json: Some((
-                    PathBuf::from("/root/location/mylibjs"),
-                    serde_json::json!({
-                        "main": "./main.js",
-                        "browser": "./browser.js"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec![
-                    "/root/location/mylibjs/main.js",
-                    "/root/location/mylibjs/browser.js",
-                ],
-                extensions: vec![".ts".into(), ".js".into()],
-                requested_module: "lib/mylibjs",
-                expected_path: "/root/location/mylibjs/browser.js",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should ignore field mappings to missing files in package.json",
-                main_fields: Some(vec!["browser".into(), "main".into()]),
-                package_json: Some((
-                    PathBuf::from("/root/location/mylibjs"),
-                    serde_json::json!({
-                        "main": "./kalle.js",
-                        "browser": "./nope.js"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec!["/root/location/mylibjs/kalle.js"],
-                extensions: vec![".ts".into(), ".js".into()],
-                requested_module: "lib/mylibjs",
-                expected_path: "/root/location/mylibjs/kalle.js",
-                ..OneTest::default()
-            },
-            // Tests that are not applicable:
-            // name: "should resolve nested main fields"
-            // name: "should ignore advanced field mappings in package.json"
-            // name: "should resolve to with the help of baseUrl when not explicitly set"
-            // name: "should not resolve with the help of baseUrl when asked not to"
-            // name: "should resolve main file with cjs file extension"
-            OneTest {
-                name: "should resolve .ts from .js alias",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "@/*": ["src/*"]
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/src/foo.ts"],
-                requested_module: "@/foo", // original data was "@/foo.ts" but I don't get why it is the case?
-                expected_path: "/root/src/foo.ts", // original data was "/root/src/foo"
-                ..OneTest::default()
-            },
-        ];
-
-        let root = PathBuf::from("/root");
-
-        for test in pass {
-            let resolved_path =
-                test.resolver(&root).resolve(&root, test.requested_module).map(|f| f.full_path());
-            assert_eq!(resolved_path, Ok(PathBuf::from(test.expected_path)), "{}", test.name);
+    fn resolver(&self) -> Resolver {
+        let mut options = ResolveOptions {
+            extensions: self.extensions.clone(),
+            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+                config_file: self.root().join("tsconfig.json"),
+                references: TsconfigReferences::Auto,
+            })),
+            ..ResolveOptions::default()
+        };
+        if let Some(main_fields) = &self.main_fields {
+            options.main_fields.clone_from(main_fields);
         }
+        Resolver::new(options)
+    }
+}
 
-        let fail = [
-            OneTest {
-                name: "should not locate path that does not match",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/*": ["location/*"]
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/location/mylib"],
-                requested_module: "lib/mylibjs",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should not resolve typings file (index.d.ts)",
-                existing_files: vec!["/root/location/mylib/index.d.ts"],
-                requested_module: "lib/mylib",
-                ..OneTest::default()
-            },
-        ];
+// Path matching tests from tsconfig-paths
+// * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/match-path-sync.test.ts>
+// * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/data/match-path-data.ts>
+#[expect(clippy::too_many_lines, reason = "test table ported from tsconfig-paths")]
+#[test]
+fn match_path() {
+    let pass = [
+        OneTest {
+            name: "should locate path that matches with star and exists",
+            dir: "star",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve to correct path when many are specified",
+            dir: "many-substitutions",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should locate path that matches with star and prioritize pattern with longest prefix",
+            dir: "longest-prefix",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should locate path that matches with star and exists with extension",
+            dir: "custom-extension",
+            requested_module: "lib/mylib",
+            extensions: vec![".js".into(), ".myext".into()],
+            expected_path: "/root/location/mylib.myext",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve request with extension specified",
+            dir: "explicit-extension",
+            requested_module: "lib/test.jpg",
+            expected_path: "/root/location/test.jpg",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should locate path that matches without star and exists",
+            dir: "exact",
+            requested_module: "lib/foo",
+            expected_path: "/root/location/foo.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve to parent folder when filename is in subfolder",
+            dir: "star",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve from main field in package.json",
+            dir: "main-field",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/kalle.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve from main field in package.json (js)",
+            dir: "main-field-js",
+            extensions: vec![".ts".into(), ".js".into()],
+            requested_module: "lib/mylib.js",
+            expected_path: "/root/location/mylib.js/kalle.js",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve from list of fields by priority in package.json",
+            dir: "main-fields-priority",
+            main_fields: Some(vec!["missing".into(), "browser".into(), "main".into()]),
+            extensions: vec![".ts".into(), ".js".into()],
+            requested_module: "lib/mylibjs",
+            expected_path: "/root/location/mylibjs/browser.js",
+        },
+        OneTest {
+            name: "should ignore field mappings to missing files in package.json",
+            dir: "main-fields-missing-file",
+            main_fields: Some(vec!["browser".into(), "main".into()]),
+            extensions: vec![".ts".into(), ".js".into()],
+            requested_module: "lib/mylibjs",
+            expected_path: "/root/location/mylibjs/kalle.js",
+        },
+        // Tests that are not applicable:
+        // name: "should resolve nested main fields"
+        // name: "should ignore advanced field mappings in package.json"
+        // name: "should resolve to with the help of baseUrl when not explicitly set"
+        // name: "should not resolve with the help of baseUrl when asked not to"
+        // name: "should resolve main file with cjs file extension"
+        OneTest {
+            name: "should resolve .ts from .js alias",
+            dir: "js-alias",
+            requested_module: "@/foo", // original data was "@/foo.ts" but I don't get why it is the case?
+            expected_path: "/root/src/foo.ts", // original data was "/root/src/foo"
+            ..OneTest::default()
+        },
+    ];
 
-        for test in fail {
-            let resolved_path =
-                test.resolver(&root).resolve(&root, test.requested_module).map(|f| f.full_path());
-            assert_eq!(
-                resolved_path,
-                Err(ResolveError::NotFound(test.requested_module.into())),
-                "{}",
-                test.name
-            );
-        }
+    for test in pass {
+        let root = test.root();
+        let resolved_path =
+            test.resolver().resolve(&root, test.requested_module).map(|f| f.full_path());
+        let expected_path =
+            super::on_disk(&root, test.expected_path.strip_prefix("/root").unwrap());
+        assert_eq!(resolved_path, Ok(expected_path), "{}", test.name);
+    }
+
+    let fail = [
+        OneTest {
+            name: "should not locate path that does not match",
+            dir: "no-match",
+            requested_module: "lib/mylibjs",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should not resolve typings file (index.d.ts)",
+            dir: "typings-only",
+            requested_module: "lib/mylib",
+            ..OneTest::default()
+        },
+    ];
+
+    for test in fail {
+        let resolved_path =
+            test.resolver().resolve(test.root(), test.requested_module).map(|f| f.full_path());
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::NotFound(test.requested_module.into())),
+            "{}",
+            test.name
+        );
     }
 }
