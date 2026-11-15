@@ -56,26 +56,10 @@ fn test_canonicalized_path_weak_reference() {
     // Get the cached path - this will be the only strong reference
     let path = resolver.cache.value(&new_path);
 
-    // Canonicalize a path that doesn't exist in the cache's hashmap yet
-    // This might fail with "Canonicalized path was dropped" if the implementation is wrong
-    match resolver.cache.canonicalize(&path) {
-        Ok(_) => {
-            // If canonicalization succeeded, try again to ensure consistency
-            let result2 = resolver.cache.canonicalize(&path);
-            assert_eq!(
-                resolver.cache.canonicalize(&path).ok(),
-                result2.ok(),
-                "Canonicalization results should be consistent"
-            );
-        }
-        Err(e) => {
-            // It's okay if canonicalization fails for other reasons (e.g., path doesn't exist)
-            // but it should NOT fail with "Canonicalized path was dropped"
-            let error_msg = e.to_string();
-            assert!(
-                !error_msg.contains("Canonicalized path was dropped"),
-                "Should not fail with 'Canonicalized path was dropped' error, got: {error_msg}"
-            );
-        }
-    }
+    // Canonicalize a path that doesn't exist in the cache's hashmap yet.
+    // A missing leaf still canonicalizes, and the result must stay reachable on repeated calls
+    // instead of failing with "Canonicalized path was dropped".
+    let first = resolver.cache.canonicalize(&path).expect("canonicalize a path not in the cache");
+    let second = resolver.cache.canonicalize(&path).expect("canonicalize the same path again");
+    assert_eq!(first, second);
 }
