@@ -14,7 +14,10 @@ use crate::node_path::NodePath;
 #[expect(clippy::struct_excessive_bools, reason = "options are ported 1:1 from enhanced-resolve")]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
-    /// Current working directory, used for testing purposes.
+    /// Directory to search for the Yarn Plug'n'Play manifest from.
+    ///
+    /// Only read when the `yarn_pnp` feature is enabled.
+    /// Defaults to the current working directory of the process.
     pub cwd: Option<PathBuf>,
 
     /// Discover tsconfig automatically or use the specified tsconfig.json path.
@@ -621,7 +624,7 @@ impl Default for ResolveOptions {
     }
 }
 
-// For tracing
+// Human-readable summary of the options. Tracing logs the `Debug` form instead.
 impl fmt::Display for ResolveOptions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(tsconfig) = &self.tsconfig {

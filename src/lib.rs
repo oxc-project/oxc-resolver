@@ -132,7 +132,7 @@ pub struct ResolverImpl {
     fallback: CompiledAlias,
 }
 
-/// Generic implementation of the resolver, can be configured by the [Cache] trait
+/// Generic implementation of the resolver, parameterized by its [FileSystem] implementation.
 pub struct ResolverGeneric<Fs> {
     inner: ResolverImpl,
     _marker: std::marker::PhantomData<Fs>,
@@ -223,7 +223,7 @@ impl ResolverImpl {
 
     /// Clear the underlying cache.
     ///
-    /// Warning: The caller must ensure that there're no ongoing resolution operations when calling this method. Otherwise, it may cause those operations to return an incorrect result.
+    /// Warning: The caller must ensure that there are no ongoing resolution operations when calling this method. Otherwise, it may cause those operations to return an incorrect result.
     pub fn clear_cache(&self) {
         self.cache.clear();
     }
@@ -1932,7 +1932,7 @@ impl ResolverImpl {
                     is_imports,
                     ctx,
                 )?;
-                // // 3. Return PACKAGE_RESOLVE(target, packageURL + "/").
+                // 3. Return PACKAGE_RESOLVE(target, packageURL + "/").
                 return self.package_resolve(package_url, &target, tsconfig, ctx);
             }
 
