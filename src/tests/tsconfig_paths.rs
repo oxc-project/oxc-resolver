@@ -21,8 +21,6 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
         (f.join("nested"), "main.ts", "ts-path", f.join("nested/test.js")),
         (f.join("cases/extends-paths-outside"), "src/index.js", "ts-path", f.join("src/foo.js")),
         (f.join("cases/index"), "main.ts", "foo", f.join("node_modules/tsconfig-index/foo.js")),
-        // This requires reading package.json.tsconfig field
-        // (f.join("cases/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
         (f.join("cases/exports"), "main.ts", "foo", f.join("node_modules/tsconfig-exports/foo.js")),
         (f.join("cases/extends-extension"), "main.ts", "foo", f.join("cases/extends-extension/foo.js")),
         (f.join("cases/extends-extensionless"), "main.ts", "foo", f.join("node_modules/tsconfig-field/foo.js")),
