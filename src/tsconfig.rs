@@ -29,6 +29,22 @@ use crate::{
 /// Allow list: <https://github.com/microsoft/TypeScript/issues/57485#issuecomment-2027787456>
 const TEMPLATE_VARIABLE: &str = "${configDir}";
 
+/// Whether `path` starts with the `${configDir}` template variable.
+///
+/// [TsConfig::parse] leaves such paths as they are; [TsConfig::build] substitutes them.
+fn is_template_path(path: &Path) -> bool {
+    path.to_string_lossy().starts_with(TEMPLATE_VARIABLE)
+}
+
+/// Replaces a leading `${configDir}` in `path` with `config_dir`.
+///
+/// Returns `None` when `path` does not start with the template variable.
+fn substitute_template(path: &Path, config_dir: &Path) -> Option<PathBuf> {
+    path.to_string_lossy()
+        .strip_prefix(TEMPLATE_VARIABLE)
+        .map(|stripped| config_dir.join(stripped.trim_start_matches('/')))
+}
+
 pub type CompilerOptionsPathsMap = IndexMap<String, Vec<PathBuf>, BuildHasherDefault<FxHasher>>;
 
 /// Project Reference
@@ -117,7 +133,7 @@ impl TsConfig {
             tsconfig.compiler_options.base_url.as_ref().map_or_else(
                 || canonical_directory.to_path_buf(),
                 |base_url| {
-                    if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                    if is_template_path(base_url) {
                         base_url.clone()
                     } else {
                         canonical_directory.normalize_with(base_url)
@@ -126,18 +142,18 @@ impl TsConfig {
             );
         if let Some(root_dirs) = &mut tsconfig.compiler_options.root_dirs {
             for root_dir in root_dirs.iter_mut() {
-                if !root_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
+                if !is_template_path(root_dir) {
                     *root_dir = canonical_directory.normalize_with(&root_dir);
                 }
             }
         }
         if let Some(out_dir) = &mut tsconfig.compiler_options.out_dir
-            && !out_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE)
+            && !is_template_path(out_dir)
         {
             *out_dir = canonical_directory.normalize_with(&out_dir);
         }
         if let Some(declaration_dir) = &mut tsconfig.compiler_options.declaration_dir
-            && !declaration_dir.to_string_lossy().starts_with(TEMPLATE_VARIABLE)
+            && !is_template_path(declaration_dir)
         {
             *declaration_dir = canonical_directory.normalize_with(&declaration_dir);
         }
@@ -411,46 +427,35 @@ impl TsConfig {
             self.compiler_options.base_url = Some(self.adjust_path(base_url.clone()));
         }
 
-        if let Some(stripped_path) =
-            self.compiler_options.paths_base.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
-        {
-            self.compiler_options.paths_base =
-                config_dir.join(stripped_path.trim_start_matches('/'));
+        if let Some(path) = substitute_template(&self.compiler_options.paths_base, &config_dir) {
+            self.compiler_options.paths_base = path;
         }
 
         if let Some(root_dirs) = &mut self.compiler_options.root_dirs {
             for root_dir in root_dirs.iter_mut() {
-                if let Some(stripped_path) =
-                    root_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
-                {
-                    *root_dir = config_dir.join(stripped_path.trim_start_matches('/'));
+                if let Some(path) = substitute_template(root_dir, &config_dir) {
+                    *root_dir = path;
                 }
             }
         }
 
         if let Some(out_dir) = &mut self.compiler_options.out_dir
-            && let Some(stripped_path) = out_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+            && let Some(path) = substitute_template(out_dir, &config_dir)
         {
-            *out_dir = config_dir.join(stripped_path.trim_start_matches('/'));
+            *out_dir = path;
         }
         if let Some(declaration_dir) = &mut self.compiler_options.declaration_dir
-            && let Some(stripped_path) =
-                declaration_dir.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
+            && let Some(path) = substitute_template(declaration_dir, &config_dir)
         {
-            *declaration_dir = config_dir.join(stripped_path.trim_start_matches('/'));
+            *declaration_dir = path;
         }
 
         if let Some(paths_map) = &mut self.compiler_options.paths {
             // Substitute template variable in `tsconfig.compilerOptions.paths`.
             for paths in paths_map.values_mut() {
                 for path in paths {
-                    *path = if let Some(stripped_path) =
-                        path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE)
-                    {
-                        config_dir.join(stripped_path.trim_start_matches('/'))
-                    } else {
-                        self.compiler_options.paths_base.normalize_with(&path)
-                    };
+                    *path = substitute_template(path, &config_dir)
+                        .unwrap_or_else(|| self.compiler_options.paths_base.normalize_with(&path));
                 }
             }
             self.compiler_options.compiled_paths =
@@ -462,13 +467,9 @@ impl TsConfig {
         self
     }
 
-    #[expect(clippy::option_if_let_else, reason = "the if/else reads clearer than `map_or_else`")]
     fn adjust_path(&self, path: PathBuf) -> PathBuf {
-        if let Some(stripped) = path.to_string_lossy().strip_prefix(TEMPLATE_VARIABLE) {
-            self.directory().join(stripped.trim_start_matches('/'))
-        } else {
-            self.directory().normalize_with(path)
-        }
+        substitute_template(&path, self.directory())
+            .unwrap_or_else(|| self.directory().normalize_with(path))
     }
 
     /// Resolves the given `specifier` within project references and then [CompilerOptions::paths].
