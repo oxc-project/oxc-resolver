@@ -431,9 +431,6 @@ fn test_tsconfig_mixed_root_non_root_cache() {
     let f = super::fixture_root().join("tsconfig");
     let f2 = f.join("cases").join("simple-paths");
 
-    // NOTE: should remove this line before merging as it's not thread safe
-    std::env::set_current_dir(&f2).unwrap();
-
     let resolver = Resolver::new(ResolveOptions {
         tsconfig: Some(TsconfigDiscovery::Auto),
         ..ResolveOptions::default()
