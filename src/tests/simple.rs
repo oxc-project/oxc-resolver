@@ -61,7 +61,7 @@ fn dashed_name() {
 }
 
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
-mod windows {
+mod in_memory {
     use super::super::memory_fs::MemoryFS;
     use crate::ResolveOptions;
 
