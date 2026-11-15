@@ -13,6 +13,7 @@ mod simd;
 use std::{
     fmt,
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
 #[cfg(target_endian = "big")]
@@ -151,6 +152,9 @@ pub struct PackageJsonGeneric<S> {
     pub realpath: PathBuf,
 
     pub(crate) store: S,
+
+    /// Cached [`ImportsExportsEntryGeneric::has_mixed_keys`] of the top-level `"exports"` field.
+    exports_has_mixed_keys: OnceLock<bool>,
 }
 
 impl<S: PackageJsonBackend> fmt::Debug for PackageJsonGeneric<S> {
@@ -165,6 +169,10 @@ impl<S: PackageJsonBackend> fmt::Debug for PackageJsonGeneric<S> {
 }
 
 impl<S: PackageJsonBackend> PackageJsonGeneric<S> {
+    fn new(path: PathBuf, realpath: PathBuf, store: S) -> Self {
+        Self { path, realpath, store, exports_has_mixed_keys: OnceLock::new() }
+    }
+
     /// Returns the path where the `package.json` was found.
     ///
     /// Contains the `package.json` filename.
@@ -252,6 +260,22 @@ impl<S: PackageJsonBackend> PackageJsonGeneric<S> {
     #[must_use]
     pub fn exports(&self) -> Option<ImportsExportsEntryGeneric<'_, S::Value<'_>>> {
         Some(ImportsExportsEntryGeneric(self.field("exports")?))
+    }
+
+    /// Returns whether `exports`, an exports field of this `package.json`, mixes keys starting
+    /// with "." with other keys.
+    ///
+    /// The result for the top-level `"exports"` field is computed once, because a map with
+    /// thousands of subpaths would otherwise be scanned on every resolve into the package.
+    pub(crate) fn exports_has_mixed_keys<V: JsonValue>(
+        &self,
+        exports: &ImportsExportsEntryGeneric<'_, V>,
+    ) -> bool {
+        if self.field("exports").is_some_and(|value| std::ptr::addr_eq(value, exports.0)) {
+            *self.exports_has_mixed_keys.get_or_init(|| exports.has_mixed_keys())
+        } else {
+            exports.has_mixed_keys()
+        }
     }
 
     /// The "types" field in package.json.
@@ -423,6 +447,19 @@ impl<'a, V: JsonValue> ImportsExportsEntryGeneric<'a, V> {
     #[must_use]
     pub fn as_map(&self) -> Option<ImportsExportsMapGeneric<'a, V::Object>> {
         self.0.as_object().map(ImportsExportsMapGeneric)
+    }
+
+    /// Returns whether this is an object with both a key starting with "." or "#" and a key
+    /// not starting with either.
+    pub(crate) fn has_mixed_keys(&self) -> bool {
+        self.as_map().is_some_and(|map| {
+            // Compare each key with the first key: one flag instead of two per key.
+            let mut keys = map.keys();
+            keys.next().is_some_and(|first| {
+                let first = first.starts_with(['.', '#']);
+                keys.any(|key| key.starts_with(['.', '#']) != first)
+            })
+        })
     }
 }
 

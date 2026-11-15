@@ -165,6 +165,6 @@ impl PackageJson {
             }
         })?;
 
-        Ok(Self { path, realpath, store: cell })
+        Ok(Self::new(path, realpath, cell))
     }
 }
