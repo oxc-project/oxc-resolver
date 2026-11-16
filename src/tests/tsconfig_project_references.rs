@@ -414,6 +414,50 @@ fn solution_style_nested_non_ts_walks_up() {
     assert!(resolver.find_tsconfig(f.join("src/feature/legacy.js")).unwrap().is_none());
 }
 
+/// When a tsconfig's `references` target does not exist,
+/// `resolve_tsconfig` should return `TsconfigNotFound`.
+#[test]
+fn test_references_not_found() {
+    let f = super::fixture_root().join("tsconfig/cases/references-not-found");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigNotFound(_))),
+        "expected TsconfigNotFound for missing references target, got {result:?}",
+    );
+}
+
+/// When a tsconfig's `references` target exists but is not readable (e.g. permission denied),
+/// `resolve_tsconfig` should return a `TsconfigLoadFailed` wrapping an `IOError`.
+#[test]
+fn test_references_unreadable_file() {
+    let f = super::fixture_root().join("tsconfig/cases/references-unreadable");
+
+    let fs = super::UnreadableFs { unreadable_path: f.join("referenced/tsconfig.json") };
+    let resolver = crate::ResolverGeneric::new_with_file_system(
+        fs,
+        ResolveOptions {
+            tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
+            ..ResolveOptions::default()
+        },
+    );
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(
+            &result,
+            Err(ResolveError::TsconfigLoadFailed { source, .. })
+                if matches!(source.as_ref(), ResolveError::IOError(_))
+        ),
+        "expected TsconfigLoadFailed wrapping IOError for unreadable references target, got {result:?}",
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Ported from typescript-go: self reference and multiple references
 // ---------------------------------------------------------------------------
