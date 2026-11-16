@@ -167,7 +167,10 @@ impl CachedPath {
             let slice_to_copy = self.path.extension().map_or(self_bytes, |previous_extension| {
                 &self_bytes[..self_len - previous_extension.len() - 1]
             });
-            // SAFETY: ???
+            // SAFETY: `slice_to_copy` is either all of `self_bytes` or a prefix of it that ends
+            // immediately before the `.` of the extension. The bytes come from
+            // `as_encoded_bytes`, which may be split next to any valid non-empty UTF-8
+            // substring, and `.` is one.
             s.push(unsafe { std::ffi::OsStr::from_encoded_bytes_unchecked(slice_to_copy) });
             s.push(ext);
             cache.value(path)
