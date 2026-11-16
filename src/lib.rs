@@ -546,8 +546,13 @@ impl ResolverImpl {
         );
         if !self.options.prefer_relative
             && self.options.prefer_absolute
-            && let Ok(path) =
-                self.load_package_self_or_node_modules(cached_path, specifier, tsconfig, ctx)
+            && let Ok(path) = self.load_bare_package(
+                cached_path,
+                specifier,
+                /* use_package_map */ false,
+                tsconfig,
+                ctx,
+            )
         {
             return Ok(path);
         }
@@ -633,13 +638,25 @@ impl ResolverImpl {
         {
             return Ok(path);
         }
-        self.load_bare_package(cached_path, specifier, tsconfig, ctx)
+        self.load_bare_package(
+            cached_path,
+            specifier,
+            /* use_package_map */ true,
+            tsconfig,
+            ctx,
+        )
     }
 
+    /// Resolves `specifier` as a package: the enclosing package's own exports, then the package
+    /// map, then `node_modules`.
+    ///
+    /// `use_package_map` is `false` for the `prefer_absolute` lookup of an absolute specifier,
+    /// which does not consult the package map.
     fn load_bare_package(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
+        use_package_map: bool,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
@@ -651,8 +668,15 @@ impl ResolverImpl {
         if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
             return Ok(path);
         }
-        if let Some(result) =
-            self.package_map_resolve(cached_path, specifier, package_name, subpath, tsconfig, ctx)
+        if use_package_map
+            && let Some(result) = self.package_map_resolve(
+                cached_path,
+                specifier,
+                package_name,
+                subpath,
+                tsconfig,
+                ctx,
+            )
         {
             return result;
         }
@@ -695,31 +719,6 @@ impl ResolverImpl {
             ctx.fragment.replace(fragment);
         }
         Ok((parsed, None))
-    }
-
-    fn load_package_self_or_node_modules(
-        &self,
-        cached_path: &CachedPath,
-        specifier: &str,
-        tsconfig: Option<&TsConfig>,
-        ctx: &mut Ctx,
-    ) -> Result<CachedPath, ResolveError> {
-        let (package_name, subpath) = Self::parse_package_specifier(specifier);
-        if subpath.is_empty() {
-            ctx.with_fully_specified(false);
-        }
-        // 5. LOAD_PACKAGE_SELF(X, dirname(Y))
-        if let Some(path) = self.load_package_self(cached_path, specifier, tsconfig, ctx)? {
-            return Ok(path);
-        }
-        self.load_node_modules_or_not_found(
-            cached_path,
-            specifier,
-            package_name,
-            subpath,
-            tsconfig,
-            ctx,
-        )
     }
 
     fn load_node_modules_or_not_found(

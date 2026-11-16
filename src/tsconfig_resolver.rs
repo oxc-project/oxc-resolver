@@ -463,7 +463,13 @@ impl ResolverImpl {
             }
             _ => self
                 .tsconfig_extends_resolver()
-                .load_bare_package(directory, specifier, None, &mut Ctx::default())
+                .load_bare_package(
+                    directory,
+                    specifier,
+                    /* use_package_map */ true,
+                    None,
+                    &mut Ctx::default(),
+                )
                 .map(|p| p.to_path_buf())
                 .map_err(|err| match err {
                     ResolveError::NotFound(_) => {
