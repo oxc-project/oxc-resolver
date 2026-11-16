@@ -203,7 +203,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
             value
         };
 
-        if Self::has_encoded_separator(relative) {
+        if crate::file_url::has_encoded_separators(relative) {
             return Err(format!("an invalid file URL {value:?}"));
         }
         let base = package_map_path
@@ -284,7 +284,7 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
 
     fn starts_with_windows_drive(value: &str) -> bool {
         let bytes = value.as_bytes();
-        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
+        crate::file_url::starts_with_drive_letter(bytes) && bytes.get(2) == Some(&b'/')
     }
 
     fn has_invalid_percent_encoding(value: &str) -> bool {
@@ -301,22 +301,6 @@ impl<S: PackageMapBackend> PackageMapGeneric<S> {
             index += if bytes[index] == b'%' { 3 } else { 1 };
         }
         false
-    }
-
-    fn has_encoded_separator(value: &str) -> bool {
-        value.as_bytes().windows(3).any(|bytes| {
-            bytes[0] == b'%'
-                && ((bytes[1] == b'2' && bytes[2].eq_ignore_ascii_case(&b'f')) || {
-                    #[cfg(windows)]
-                    {
-                        bytes[1] == b'5' && bytes[2].eq_ignore_ascii_case(&b'c')
-                    }
-                    #[cfg(not(windows))]
-                    {
-                        false
-                    }
-                })
-        })
     }
 
     fn invalid(package_map_path: &Path, reason: String) -> ResolveError {
