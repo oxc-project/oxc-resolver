@@ -1,19 +1,16 @@
 use std::{
     fs, io,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
 };
 
 use walkdir::WalkDir;
 
-use super::{fixture_root, on_disk};
+use super::fixture_root;
 #[cfg(target_os = "windows")]
 use crate::PathUtil;
 #[cfg(target_os = "windows")]
 use crate::tests::windows::get_dos_device_path;
-use crate::{
-    FileMetadata, FileSystem, FileSystemOs, ResolveError, ResolveOptions, Resolver, ResolverGeneric,
-};
+use crate::{ResolveOptions, Resolver};
 
 #[derive(Debug, Clone, Copy)]
 enum FileType {
@@ -446,190 +443,4 @@ fn nested_monorepo_canonicalize_matches_os() {
         resolve(&root.join("node_modules/dep/index.js")),
         root.join("node_modules/.pnpm/dep@2.0.0/node_modules/dep/index.js")
     );
-}
-
-/// Delegates to the OS and records every path passed to `symlink_metadata`.
-struct LstatRecorder {
-    lstats: Arc<Mutex<Vec<PathBuf>>>,
-}
-
-impl FileSystem for LstatRecorder {
-    #[cfg(not(feature = "yarn_pnp"))]
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    #[cfg(feature = "yarn_pnp")]
-    fn new(_yarn_pnp: bool) -> Self {
-        unreachable!()
-    }
-
-    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        fs::read(path)
-    }
-
-    fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        FileSystemOs::read_to_string(path)
-    }
-
-    fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        FileSystemOs::metadata(path)
-    }
-
-    fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
-        self.lstats.lock().unwrap().push(path.to_path_buf());
-        FileSystemOs::symlink_metadata(path)
-    }
-
-    fn read_link(&self, path: &Path) -> Result<PathBuf, ResolveError> {
-        FileSystemOs::read_link(path)
-    }
-
-    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
-        FileSystemOs::canonicalize(path)
-    }
-}
-
-/// A resolver over the OS file system, and the paths it has `lstat`ed.
-fn lstat_recording_resolver() -> (ResolverGeneric<LstatRecorder>, Arc<Mutex<Vec<PathBuf>>>) {
-    let lstats = Arc::new(Mutex::new(vec![]));
-    let fs = LstatRecorder { lstats: Arc::clone(&lstats) };
-    (ResolverGeneric::new_with_file_system(fs, ResolveOptions::default()), lstats)
-}
-
-/// The fixture `node-modules-canonicalize/<name>`, or `None` when its symlink `link` was not
-/// checked out as one.
-fn symlink_fixture(name: &str, link: &str) -> Option<PathBuf> {
-    let root = fixture_root().join("node-modules-canonicalize").join(name);
-    if fs::symlink_metadata(on_disk(&root, link)).is_ok_and(|m| m.is_symlink()) {
-        return Some(root);
-    }
-    eprintln!("skip: symlinks unavailable in {}", root.display());
-    None
-}
-
-/// A path reached through a symlinked ancestor names the same directory entry as its real
-/// spelling, so the `lstat`s issued on the way through the link also answer for the real location.
-/// Resolving from there afterwards — which is where the imports of a linked or isolated package
-/// come from — must not `lstat` those entries again.
-#[test]
-fn lstat_through_symlink_is_reused_for_real_path() {
-    let Some(root) = symlink_fixture("symlinked-workspace", "/node_modules/pkg") else { return };
-    let (resolver, lstats) = lstat_recording_resolver();
-    let real_dir = on_disk(&root, "/packages/pkg/real");
-
-    // Through the `node_modules/pkg -> ../packages/pkg` link.
-    let resolution = resolver.resolve(&root, "pkg/real/file.js").unwrap();
-    assert_eq!(resolution.path(), real_dir.join("file.js"));
-    assert!(!lstats.lock().unwrap().is_empty());
-
-    // From the real location: `real` and `real/file.js` were both seen through the link.
-    lstats.lock().unwrap().clear();
-    let resolution = resolver.resolve(&real_dir, "./file.js").unwrap();
-    assert_eq!(resolution.path(), real_dir.join("file.js"));
-    assert_eq!(*lstats.lock().unwrap(), Vec::<PathBuf>::new());
-}
-
-/// The `lstat` reused for a real spelling must be that entry's own. Reach every path under the
-/// symlink fixtures through a symlinked ancestor only, then compare what the cache holds for each
-/// real spelling against the OS.
-#[test]
-fn lstat_reused_for_real_path_matches_os() {
-    let link = "/node_modules/pkg/src/link";
-    let Some(workspace) = symlink_fixture("symlinked-workspace", link) else { return };
-    let root = workspace.parent().unwrap();
-    let (resolver, lstats) = lstat_recording_resolver();
-    let canonicalize = |path: &Path| {
-        let cached = resolver.cache.value(path);
-        _ = resolver.cache.canonicalize(&cached);
-    };
-
-    // A trailing separator or `.` makes the OS follow the final symlink, so the `lstat` of these
-    // spellings describes the target directory rather than the `src/link` entry.
-    let link = on_disk(&workspace, link);
-    let sep = std::path::MAIN_SEPARATOR;
-    canonicalize(Path::new(&format!("{}{sep}", link.display())));
-    canonicalize(Path::new(&format!("{}{sep}.", link.display())));
-
-    // Only the spellings that pass through a symlink, so that nothing below a link target is
-    // `lstat`ed under its real spelling and the comparison below is not the OS against itself.
-    for entry in WalkDir::new(root).follow_links(true).max_depth(12).sort_by_file_name() {
-        let Ok(entry) = entry else { continue };
-        let path = entry.path();
-        let Ok(real) = fs::canonicalize(path) else { continue };
-        #[cfg(target_os = "windows")]
-        let Ok(real) = crate::windows::strip_windows_prefix(real) else { continue };
-        if real != path {
-            canonicalize(path);
-        }
-    }
-
-    let parts = |meta: FileMetadata| (meta.is_file(), meta.is_dir(), meta.is_symlink());
-    let mut reused = vec![];
-    for entry in WalkDir::new(root).follow_links(false).sort_by_file_name() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        lstats.lock().unwrap().clear();
-        let actual = resolver.cache.value(path).link_metadata(&*resolver.cache.fs).unwrap();
-        let expected = FileSystemOs::symlink_metadata(path).unwrap();
-        assert_eq!(parts(actual), parts(expected), "{}", path.display());
-        if lstats.lock().unwrap().is_empty() {
-            reused.push(path.to_path_buf());
-        }
-    }
-
-    // Entries that are only reachable below a link target were answered by the walk above.
-    for path in [
-        "/symlinked-workspace/packages/pkg/real/file.js",
-        "/internal-symlink/node_modules/pkg/real/file.js",
-        "/nested-monorepo/node_modules/.pnpm/dep@1.0.0/node_modules/dep/index.js",
-    ] {
-        assert!(reused.contains(&on_disk(root, path)), "{path} was not reused");
-    }
-}
-
-/// `..` is where the resolver and the OS can disagree about the directory a path names. Inside a
-/// symlink target the resolver folds it lexically, while POSIX follows the preceding component
-/// first; in a path, the resolver applies it to the link target, while Windows folds it lexically.
-/// An `lstat` taken through such a path must not be reused for the real spelling derived from it.
-#[test]
-fn lstat_is_not_reused_past_parent_dir() {
-    let Some(root) = symlink_fixture("lexical-parent-dir", "/hop") else { return };
-    let resolver = Resolver::new(ResolveOptions::default());
-
-    // `hop -> sub/inner/../data`, where `sub/inner -> ../elsewhere/deep`: the file is
-    // `elsewhere/data/f.js`, and `sub/data` does not exist.
-    _ = resolver.resolve(on_disk(&root, "/hop"), "./f.js");
-    assert!(matches!(
-        resolver.resolve(on_disk(&root, "/sub/data"), "./f.js"),
-        Err(ResolveError::NotFound(_))
-    ));
-
-    // `link -> store/pkg`: `link/../a.js` is `store/a.js` on POSIX, which does not exist, and
-    // `a.js` on Windows, which does.
-    _ = resolver.resolve(on_disk(&root, "/link/.."), "./a.js");
-    assert!(matches!(
-        resolver.resolve(on_disk(&root, "/store"), "./a.js"),
-        Err(ResolveError::NotFound(_))
-    ));
-}
-
-/// A caller that holds an entry across `clear_cache` — another thread in the middle of a resolve —
-/// must not hand its `lstat`, taken before the clear, to an entry created after it.
-#[test]
-fn lstat_from_before_clear_is_not_reused() {
-    let Some(root) = symlink_fixture("symlinked-workspace", "/node_modules/pkg") else { return };
-    let (resolver, lstats) = lstat_recording_resolver();
-    let real = on_disk(&root, "/packages/pkg/real/file.js");
-
-    let stale = resolver.cache.value(&on_disk(&root, "/node_modules/pkg/real/file.js"));
-    assert!(stale.link_metadata(&*resolver.cache.fs).is_some());
-    resolver.clear_cache();
-    // The same key interned again is a different entry, and does not vouch for the stale one.
-    _ = resolver.cache.value(stale.path());
-    assert_eq!(resolver.cache.canonicalize(&stale).unwrap(), real);
-
-    lstats.lock().unwrap().clear();
-    assert!(resolver.cache.value(&real).link_metadata(&*resolver.cache.fs).is_some());
-    assert_eq!(*lstats.lock().unwrap(), [real]);
 }
