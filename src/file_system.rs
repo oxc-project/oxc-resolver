@@ -11,6 +11,10 @@ use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 use crate::ResolveError;
 
 /// File System abstraction used for `ResolverGeneric`
+///
+/// An implementation must describe one consistent tree: a path below a symbolic link and the same
+/// path below the target that [`FileSystem::read_link`] returns are one entry, so
+/// [`FileSystem::symlink_metadata`] must give the same answer for both.
 pub trait FileSystem: Send + Sync {
     #[cfg(feature = "yarn_pnp")]
     fn new(yarn_pnp: bool) -> Self

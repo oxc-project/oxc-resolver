@@ -4,7 +4,7 @@ use std::{
     hash::{Hash, Hasher},
     ops::Deref,
     path::{Component, Path, PathBuf},
-    sync::{Arc, Weak},
+    sync::{Arc, Weak, atomic::AtomicBool},
 };
 
 use once_cell::sync::OnceCell as OnceLock;
@@ -30,6 +30,9 @@ pub struct CachedPathImpl {
     /// Stored as `Box<Path>` (not `PathBuf`) to save 8 bytes per cached path entry —
     /// the canonical path is set once and never mutated.
     pub canonicalized: OnceLock<(Weak<Self>, Box<Path>)>,
+    /// Whether `canonicalized` is certain to name the same entry as `path`, so that an `lstat`
+    /// taken below one spelling answers for the other. See `Cache::canonicalize_with_visited`.
+    pub canonical_is_exact: AtomicBool,
     pub node_modules: OnceLock<Option<Weak<Self>>>,
     pub package_json: OnceLock<Option<Arc<PackageJson>>>,
     /// `tsconfig.json` found at path.
@@ -54,6 +57,7 @@ impl CachedPathImpl {
             inside_node_modules,
             meta: CachedMeta::new(),
             canonicalized: OnceLock::new(),
+            canonical_is_exact: AtomicBool::new(false),
             node_modules: OnceLock::new(),
             package_json: OnceLock::new(),
             tsconfig: OnceLock::new(),
@@ -230,6 +234,7 @@ impl CachedPath {
     ///
     /// Used both to answer `is_file`/`is_dir` for non-symlinks and by canonicalization to decide
     /// whether to follow a symlink — so the two share a single `lstat` syscall per path.
+    /// Canonicalization may also have filled it in from another spelling of the same entry.
     pub(crate) fn link_metadata(&self, fs: &dyn FileSystem) -> Option<FileMetadata> {
         self.meta.link_or_init(|| fs.symlink_metadata(&self.path).ok())
     }
