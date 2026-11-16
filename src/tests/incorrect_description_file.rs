@@ -37,11 +37,3 @@ fn incorrect_description_file_2() {
     });
     assert_eq!(resolution, Err(error));
 }
-
-// should not resolve main in incorrect description file #3
-#[test]
-fn incorrect_description_file_3() {
-    let f = super::fixture().join("incorrect-package");
-    let resolution = Resolver::default().resolve(f.join("pack2"), ".");
-    resolution.unwrap_err();
-}

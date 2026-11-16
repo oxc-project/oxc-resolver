@@ -112,16 +112,16 @@ impl crate::FileSystem for UnreadableFs {
 #[test]
 #[cfg_attr(target_os = "wasi", ignore)]
 fn threaded_environment() {
-    let cwd = fixture_root();
+    let cwd = fixture();
     let resolver = Arc::new(Resolver::default());
     for _ in 0..2 {
-        _ = thread::spawn({
+        let resolved_path = thread::spawn({
             let cwd = cwd.clone();
             let resolver = Arc::clone(&resolver);
-            move || {
-                _ = resolver.resolve(cwd, ".");
-            }
+            move || resolver.resolve(cwd, "./main1.js").map(|resolution| resolution.full_path())
         })
-        .join();
+        .join()
+        .unwrap();
+        assert_eq!(resolved_path, Ok(cwd.join("main1.js")));
     }
 }
