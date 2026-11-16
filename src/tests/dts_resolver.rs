@@ -164,7 +164,6 @@ fn types_versions_ranges() {
     // Modeled after `@types/node`, which keeps legacy typings for old compilers
     let pkg = dts_fixture().join("node_modules/ranged-types-versions");
     let cases = [
-        (TypesVersions::First, "ts5.6/"),
         (TypesVersions::Ignore, ""),
         (TypesVersions::Latest, ""),
         (TypesVersions::Version("5.5.0".into()), "ts5.6/"),
@@ -212,12 +211,27 @@ fn types_versions_wildcard_range() {
 }
 
 #[test]
+fn types_versions_default_latest() {
+    // By default, ranges are matched as if the compiler were the latest version
+    let r = resolver();
+    let node_modules = dts_fixture().join("node_modules");
+    for (specifier, expected) in [
+        ("ranged-types-versions", "ranged-types-versions/index.d.ts"),
+        ("ranged-types-versions/fs", "ranged-types-versions/fs.d.ts"),
+        ("versioned-types-condition", "versioned-types-condition/ts5.2/index.d.ts"),
+        ("jotai-style", "jotai-style/dist/index.d.ts"),
+    ] {
+        let result = r.resolve_dts(containing_file(), specifier).unwrap();
+        assert_eq!(result.path(), node_modules.join(expected), "{specifier}");
+    }
+}
+
+#[test]
 fn versioned_types_condition() {
     // https://www.typescriptlang.org/docs/handbook/modules/reference.html#example-versioned-types-condition
     let pkg = dts_fixture().join("node_modules/versioned-types-condition");
     let cases = [
-        // Versioned conditions never match without a known compiler version
-        (TypesVersions::First, "tsold"),
+        // Versioned conditions never match when `typesVersions` is ignored
         (TypesVersions::Ignore, "tsold"),
         (TypesVersions::Latest, "ts5.2"),
         (TypesVersions::Version("6.0.3".into()), "ts5.2"),
@@ -262,7 +276,6 @@ fn versioned_types_condition_jotai_style() {
     let pkg = dts_fixture().join("node_modules/jotai-style");
     let stub = "dist/ts_version_5.5_and_above_is_required.d.ts";
     let cases = [
-        (TypesVersions::First, false),
         (TypesVersions::Ignore, false),
         (TypesVersions::Latest, true),
         (TypesVersions::Version("6.0.3".into()), true),
