@@ -36,7 +36,11 @@ mod tsconfig_root_dirs;
 #[cfg(target_os = "windows")]
 mod windows;
 
-use std::{path::PathBuf, sync::Arc, thread};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread,
+};
 
 use crate::Resolver;
 
@@ -55,6 +59,54 @@ pub fn fixture_root() -> PathBuf {
 
 pub fn fixture() -> PathBuf {
     fixture_root().join("enhanced-resolve").join("test").join("fixtures")
+}
+
+/// A filesystem wrapper that returns `PermissionDenied` for `read_to_string`
+/// on a specific path, delegating everything else to the real OS filesystem.
+pub struct UnreadableFs {
+    pub unreadable_path: PathBuf,
+}
+
+impl crate::FileSystem for UnreadableFs {
+    #[cfg(not(feature = "yarn_pnp"))]
+    fn new() -> Self {
+        unreachable!()
+    }
+
+    #[cfg(feature = "yarn_pnp")]
+    fn new(_yarn_pnp: bool) -> Self {
+        unreachable!()
+    }
+
+    fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        std::fs::read(path)
+    }
+
+    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+        if path == self.unreadable_path {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "permission denied",
+            ));
+        }
+        crate::FileSystemOs::read_to_string(path)
+    }
+
+    fn metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
+        crate::FileSystemOs::metadata(path)
+    }
+
+    fn symlink_metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
+        crate::FileSystemOs::symlink_metadata(path)
+    }
+
+    fn read_link(&self, path: &Path) -> Result<PathBuf, crate::ResolveError> {
+        crate::FileSystemOs::read_link(path)
+    }
+
+    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        crate::FileSystemOs::canonicalize(path)
+    }
 }
 
 #[test]

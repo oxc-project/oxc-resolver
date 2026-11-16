@@ -3,7 +3,7 @@
 //! Tests the `extend_tsconfig` method which is responsible for inheriting
 //! settings from one tsconfig into another.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::{
     ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
@@ -249,54 +249,6 @@ fn test_references_not_found() {
     );
 }
 
-/// A filesystem wrapper that returns `PermissionDenied` for `read_to_string`
-/// on a specific path, delegating everything else to the real OS filesystem.
-struct UnreadableFs {
-    unreadable_path: PathBuf,
-}
-
-impl crate::FileSystem for UnreadableFs {
-    #[cfg(not(feature = "yarn_pnp"))]
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    #[cfg(feature = "yarn_pnp")]
-    fn new(_yarn_pnp: bool) -> Self {
-        unreachable!()
-    }
-
-    fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
-        std::fs::read(path)
-    }
-
-    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-        if path == self.unreadable_path {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "permission denied",
-            ));
-        }
-        crate::FileSystemOs::read_to_string(path)
-    }
-
-    fn metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
-        crate::FileSystemOs::metadata(path)
-    }
-
-    fn symlink_metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
-        crate::FileSystemOs::symlink_metadata(path)
-    }
-
-    fn read_link(&self, path: &Path) -> Result<PathBuf, crate::ResolveError> {
-        crate::FileSystemOs::read_link(path)
-    }
-
-    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
-        crate::FileSystemOs::canonicalize(path)
-    }
-}
-
 /// When a tsconfig's `extends` target exists but is not readable (e.g. permission denied),
 /// `resolve_tsconfig` should return a `TsconfigLoadFailed` wrapping an `IOError`
 /// (not silently skip it).
@@ -306,7 +258,7 @@ fn test_extend_tsconfig_unreadable_file() {
 
     let f = super::fixture_root().join("tsconfig/cases/extends-unreadable");
 
-    let fs = UnreadableFs { unreadable_path: f.join("base.json") };
+    let fs = super::UnreadableFs { unreadable_path: f.join("base.json") };
     let resolver = crate::ResolverGeneric::new_with_file_system(
         fs,
         ResolveOptions {
@@ -337,7 +289,7 @@ fn test_references_unreadable_file() {
 
     let f = super::fixture_root().join("tsconfig/cases/references-unreadable");
 
-    let fs = UnreadableFs { unreadable_path: f.join("referenced/tsconfig.json") };
+    let fs = super::UnreadableFs { unreadable_path: f.join("referenced/tsconfig.json") };
     let resolver = crate::ResolverGeneric::new_with_file_system(
         fs,
         ResolveOptions {
