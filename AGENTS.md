@@ -131,6 +131,7 @@ fixtures/
 ├── pnpm/                  # pnpm node_modules structure
 ├── tsconfck/              # tsconfck compatibility
 ├── tsconfig/              # TypeScript config resolution
+├── unit/                  # Fixtures for single unit tests, one directory per test file
 └── yarn/                  # Yarn monorepo fixtures
 ```
 

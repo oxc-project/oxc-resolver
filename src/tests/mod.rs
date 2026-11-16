@@ -64,6 +64,22 @@ pub fn fixture() -> PathBuf {
     fixture_root().join("enhanced-resolve").join("test").join("fixtures")
 }
 
+/// Maps a path written relative to `root` with a leading `/` onto disk, e.g. `/a/index.js?query`
+/// to `<root>/a/index.js?query`.
+///
+/// Tables ported from enhanced-resolve spell their paths this way; the result uses native
+/// separators, so it can also be passed to options that compare paths as strings.
+pub fn on_disk(root: &Path, path: &str) -> PathBuf {
+    let (path, postfix) = path.find(['?', '#']).map_or((path, ""), |index| path.split_at(index));
+    let path = path
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .fold(root.to_path_buf(), |path, part| path.join(part));
+    let mut path = path.into_os_string();
+    path.push(postfix);
+    PathBuf::from(path)
+}
+
 /// Parses `value` with the JSON backend the resolver uses on this target and leaks it, so that
 /// test tables can hold `'static` "imports" / "exports" entries.
 #[cfg(target_endian = "little")]

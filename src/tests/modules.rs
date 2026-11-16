@@ -1,75 +1,59 @@
 //! Tests for ResolveOptions.modules (custom module directories)
 
-#[cfg(not(target_os = "windows"))] // MemoryFS path separator is always `/`
-mod tests {
-    use std::path::PathBuf;
+use std::path::PathBuf;
 
-    use super::super::memory_fs::MemoryFS;
-    use crate::{ResolveOptions, ResolverGeneric};
+use crate::{ResolveError, ResolveOptions, Resolver};
 
-    #[test]
-    fn custom_module_directory_name() {
-        let fs =
-            MemoryFS::new(&[("/project/libs/my-lib/index.js", ""), ("/project/src/app.js", "")]);
-        let resolver = ResolverGeneric::new_with_file_system(
-            fs,
-            ResolveOptions { modules: vec!["libs".into()], ..ResolveOptions::default() },
-        );
-        let result = resolver.resolve("/project/src", "my-lib").map(|r| r.full_path());
-        assert_eq!(result, Ok(PathBuf::from("/project/libs/my-lib/index.js")));
-    }
+/// The fixture directory standing in for the filesystem root of one case.
+fn root(case: &str) -> PathBuf {
+    super::fixture_root().join("unit").join("modules").join(case)
+}
 
-    #[test]
-    fn absolute_module_directory() {
-        let fs =
-            MemoryFS::new(&[("/shared/modules/pkg/index.js", ""), ("/project/src/app.js", "")]);
-        let resolver = ResolverGeneric::new_with_file_system(
-            fs,
-            ResolveOptions { modules: vec!["/shared/modules".into()], ..ResolveOptions::default() },
-        );
-        let result = resolver.resolve("/project/src", "pkg").map(|r| r.full_path());
-        assert_eq!(result, Ok(PathBuf::from("/shared/modules/pkg/index.js")));
-    }
+#[test]
+fn custom_module_directory_name() {
+    let f = root("custom-name");
+    let resolver =
+        Resolver::new(ResolveOptions { modules: vec!["libs".into()], ..ResolveOptions::default() });
+    let result = resolver.resolve(f.join("project").join("src"), "my-lib").map(|r| r.full_path());
+    assert_eq!(result, Ok(super::on_disk(&f, "/project/libs/my-lib/index.js")));
+}
 
-    #[test]
-    fn multiple_module_directories_priority() {
-        let fs = MemoryFS::new(&[
-            ("/project/custom_modules/pkg/index.js", ""),
-            ("/project/node_modules/pkg/index.js", ""),
-        ]);
-        let resolver = ResolverGeneric::new_with_file_system(
-            fs,
-            ResolveOptions {
-                modules: vec!["custom_modules".into(), "node_modules".into()],
-                ..ResolveOptions::default()
-            },
-        );
-        let result = resolver.resolve("/project", "pkg").map(|r| r.full_path());
-        assert_eq!(result, Ok(PathBuf::from("/project/custom_modules/pkg/index.js")));
-    }
+#[test]
+fn absolute_module_directory() {
+    let f = root("absolute");
+    let modules = super::on_disk(&f, "/shared/modules").to_string_lossy().into_owned();
+    let resolver =
+        Resolver::new(ResolveOptions { modules: vec![modules], ..ResolveOptions::default() });
+    let result = resolver.resolve(f.join("project").join("src"), "pkg").map(|r| r.full_path());
+    assert_eq!(result, Ok(super::on_disk(&f, "/shared/modules/pkg/index.js")));
+}
 
-    #[test]
-    fn module_directory_fallback() {
-        let fs = MemoryFS::new(&[("/project/node_modules/pkg/index.js", "")]);
-        let resolver = ResolverGeneric::new_with_file_system(
-            fs,
-            ResolveOptions {
-                modules: vec!["custom_modules".into(), "node_modules".into()],
-                ..ResolveOptions::default()
-            },
-        );
-        let result = resolver.resolve("/project", "pkg").map(|r| r.full_path());
-        assert_eq!(result, Ok(PathBuf::from("/project/node_modules/pkg/index.js")));
-    }
+#[test]
+fn multiple_module_directories_priority() {
+    let f = root("priority");
+    let resolver = Resolver::new(ResolveOptions {
+        modules: vec!["custom_modules".into(), "node_modules".into()],
+        ..ResolveOptions::default()
+    });
+    let result = resolver.resolve(f.join("project"), "pkg").map(|r| r.full_path());
+    assert_eq!(result, Ok(super::on_disk(&f, "/project/custom_modules/pkg/index.js")));
+}
 
-    #[test]
-    fn empty_modules_list() {
-        let fs = MemoryFS::new(&[("/project/node_modules/pkg/index.js", "")]);
-        let resolver = ResolverGeneric::new_with_file_system(
-            fs,
-            ResolveOptions { modules: vec![], ..ResolveOptions::default() },
-        );
-        let result = resolver.resolve("/project", "pkg");
-        result.unwrap_err();
-    }
+#[test]
+fn module_directory_fallback() {
+    let f = root("fallback");
+    let resolver = Resolver::new(ResolveOptions {
+        modules: vec!["custom_modules".into(), "node_modules".into()],
+        ..ResolveOptions::default()
+    });
+    let result = resolver.resolve(f.join("project"), "pkg").map(|r| r.full_path());
+    assert_eq!(result, Ok(super::on_disk(&f, "/project/node_modules/pkg/index.js")));
+}
+
+#[test]
+fn empty_modules_list() {
+    let f = root("fallback");
+    let resolver = Resolver::new(ResolveOptions { modules: vec![], ..ResolveOptions::default() });
+    let result = resolver.resolve(f.join("project"), "pkg");
+    assert_eq!(result, Err(ResolveError::NotFound("pkg".into())));
 }
