@@ -1,8 +1,7 @@
 //! Tests for tsconfig project references
 
-use crate::{
-    ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-};
+use super::manual_tsconfig;
+use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigReferences};
 
 #[test]
 fn auto() {
@@ -11,10 +10,7 @@ fn auto() {
     // The following resolver's `config_file` has defined it's own paths alias which has higher priority
     // some cases will work without references
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("app"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -43,10 +39,10 @@ fn auto() {
 
     // The following resolver's `config_file` has no `paths` alias with `references` enabled
     let no_paths_resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app/tsconfig.nopaths.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(
+            f.join("app/tsconfig.nopaths.json"),
+            TsconfigReferences::Auto,
+        )),
         ..ResolveOptions::default()
     });
 
@@ -81,19 +77,16 @@ fn disabled() {
     // The following resolver's `config_file` has defined it's own paths alias which has higher priority
     // some cases will work without references
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("app"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
     // The following resolver's `config_file` has no `paths` alias with `references` enabled
     let no_paths_resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app/tsconfig.nopaths.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(
+            f.join("app/tsconfig.nopaths.json"),
+            TsconfigReferences::Disabled,
+        )),
         ..ResolveOptions::default()
     });
 
@@ -140,10 +133,7 @@ fn references_with_extends() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".ts".into(), ".tsx".into()],
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.clone(),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.clone(), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -178,10 +168,7 @@ fn sibling_reference_without_paths_does_not_shadow_parent() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".ts".into()],
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -205,10 +192,7 @@ fn directory_fallback_to_parent_paths_for_unmapped_reference() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".ts".into()],
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("app"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
