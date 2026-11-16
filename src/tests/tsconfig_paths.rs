@@ -624,3 +624,185 @@ fn match_path() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: paths semantics
+// ---------------------------------------------------------------------------
+
+#[test]
+fn paths_empty_array() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-empty-array");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "missing").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("missing.ts")));
+}
+
+#[test]
+fn paths_exact_wins_over_wildcard() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-exact-vs-wildcard");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("exact-foo.ts")));
+
+    let resolved_path = resolver.resolve_file(&f, "foo/bar").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("wildcard/bar.ts")));
+}
+
+#[test]
+fn paths_longest_prefix_wins() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-longest-prefix");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "lib/foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("short/foo.ts")));
+
+    let resolved_path = resolver.resolve_file(&f, "lib/sub/baz").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("long/baz.ts")));
+}
+
+#[test]
+fn paths_multiple_substitutions_pick_first_existing() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-multiple-substitutions");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "lib/exists").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("second/exists.ts")));
+
+    let resolved_path = resolver.resolve_file(&f, "lib/onlythird").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("third/onlythird.ts")));
+}
+
+#[test]
+fn paths_child_overrides_extended() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-child-overrides-extended");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "@/x").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("child/x.ts")));
+}
+
+#[test]
+fn paths_inherited_paths_base() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-inherited-paths-base");
+    let resolver = super::manual_resolver(f.join("child-dir/tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path =
+        resolver.resolve_file(f.join("child-dir/index.ts"), "@/foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("parent-dir/lib/foo.ts")));
+}
+
+#[test]
+fn paths_no_base_url_anchors_at_config_dir() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-no-base-url");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "@/foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/foo.ts")));
+}
+
+#[test]
+fn paths_explicit_extension_target() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-explicit-extension");
+    let resolver = super::manual_resolver(
+        f.join("tsconfig.json"),
+        vec![".ts".into(), ".json".into(), ".svg".into()],
+    );
+
+    let resolved_path = resolver.resolve_file(&f, "data.json").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("data-file.json")));
+
+    let resolved_path = resolver.resolve_file(&f, "image").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("image.svg")));
+}
+
+#[test]
+fn paths_wildcard_prefix_and_suffix() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-suffix-and-prefix");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "prefix-middle-suffix").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("lib/middle.ts")));
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: paths edge cases — `*` alone, baseUrl only
+// ---------------------------------------------------------------------------
+
+#[test]
+fn paths_star_only_pattern() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-star-only");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "anything").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("fallback-dir/anything.ts")));
+}
+
+#[test]
+fn base_url_only_resolves_bare_specifier() {
+    let f = super::fixture_root().join("tsconfig/cases/base-url-only");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "utils").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/utils.ts")));
+}
+
+// ---------------------------------------------------------------------------
+// `TsConfig::resolve_path_alias_or_base_url`
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resolve_path_alias_or_base_url_maps_without_file_check() {
+    // `@/*` -> `./src/*`. The mapping must be applied even when the target does not point at a real file,
+    // so glob-like specifiers (e.g. `import.meta.glob` patterns) can be aliased.
+    let f = super::fixture_root().join("tsconfig/cases/paths-no-base-url");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let map = |importer: &std::path::Path, specifier: &str| {
+        resolver
+            .find_tsconfig(importer)
+            .unwrap()
+            .map(|tsconfig| tsconfig.resolve_path_alias_or_base_url(specifier))
+            .unwrap_or_default()
+    };
+
+    let importer = f.join("src/foo.ts");
+
+    assert_eq!(map(&importer, "@/assets/**/*"), vec![f.join("src/assets/**/*")]);
+    assert_eq!(map(&importer, "@/foo"), vec![f.join("src/foo")]);
+    assert_eq!(map(&importer, "unmatched/bar"), Vec::<std::path::PathBuf>::new());
+    assert_eq!(map(&importer, "./assets/**/*"), Vec::<std::path::PathBuf>::new());
+    assert_eq!(
+        map(&f.join("node_modules/pkg/index.ts"), "@/assets/**/*"),
+        Vec::<std::path::PathBuf>::new()
+    );
+}
+
+#[test]
+fn resolve_path_alias_or_base_url_maps_without_file_check_falls_back_to_base_url() {
+    // `baseUrl: "./src"` with no `paths`, so a non-relative specifier resolves under `./src` even for a glob-like specifier.
+    let f = super::fixture_root().join("tsconfig/cases/base-url");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let map = |importer: &std::path::Path, specifier: &str| {
+        resolver
+            .find_tsconfig(importer)
+            .unwrap()
+            .map(|tsconfig| tsconfig.resolve_path_alias_or_base_url(specifier))
+            .unwrap_or_default()
+    };
+
+    let importer = f.join("index.ts");
+
+    assert_eq!(map(&importer, "assets/**/*"), vec![f.join("src/assets/**/*")]);
+    assert_eq!(map(&importer, "foo.js"), vec![f.join("src/foo.js")]);
+}

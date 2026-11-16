@@ -413,3 +413,42 @@ fn solution_style_nested_non_ts_walks_up() {
     // config for it (it would land in an inferred project).
     assert!(resolver.find_tsconfig(f.join("src/feature/legacy.js")).unwrap().is_none());
 }
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: self reference and multiple references
+// ---------------------------------------------------------------------------
+
+#[test]
+fn references_self() {
+    let f = super::fixture_root().join("tsconfig/cases/references-self");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigSelfReference(_))),
+        "expected TsconfigSelfReference, got {result:?}",
+    );
+}
+
+#[test]
+fn project_references_both_resolve_via_their_own_paths() {
+    let f = super::fixture_root().join("tsconfig/cases/references-multi");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path =
+        resolver.resolve_file(f.join("pkg-a/index.ts"), "@shared/lib").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("shared/lib.ts")));
+
+    let resolved_path =
+        resolver.resolve_file(f.join("pkg-b/index.ts"), "@shared/lib").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("shared/lib.ts")));
+}
