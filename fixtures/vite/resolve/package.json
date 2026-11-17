@@ -1,0 +1,10 @@
+{
+  "name": "@vitejs/test-resolve",
+  "imports": {
+    "#star/*": "./imports-path/star/*",
+    "##double/*": "./imports-path/double-hash/*",
+    "#mid#hash": "./imports-path/mid-hash.js",
+    "#question?mark": "./imports-path/question-mark.js",
+    "#hash": "./imports-path/hash.js"
+  }
+}

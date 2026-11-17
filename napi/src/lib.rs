@@ -14,13 +14,17 @@ use napi::{Either, Task, bindgen_prelude::AsyncTask};
 use napi_derive::napi;
 use oxc_resolver::{
     Resolution, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
+    TypesVersions,
 };
 
 use self::options::{NapiResolveOptions, StrOrStrList};
 
 mod options;
+mod package_map;
 #[cfg(feature = "tracing-subscriber")]
 mod tracing;
+mod tsconfig;
+use tsconfig::TsconfigResult;
 
 #[napi(object)]
 pub struct ResolveResult {
@@ -77,10 +81,10 @@ impl From<oxc_resolver::ModuleType> for ModuleType {
 
 #[allow(clippy::needless_pass_by_value)]
 #[napi]
-pub fn sync(path: String, request: String) -> ResolveResult {
+pub fn sync(env: napi::Env, path: String, request: String) -> napi::Result<ResolveResult> {
     let path = PathBuf::from(path);
-    let resolver = Resolver::new(ResolveOptions::default());
-    resolve(&resolver, &path, &request)
+    let resolver = Resolver::new(package_map::with_exec_argv(env, ResolveOptions::default())?);
+    Ok(resolve(&resolver, &path, &request))
 }
 
 pub struct ResolveTask {
@@ -143,6 +147,25 @@ impl Task for ResolveDtsTask {
     }
 }
 
+pub struct FindTsconfigTask {
+    resolver: Arc<Resolver>,
+    filename: PathBuf,
+}
+
+#[napi]
+impl Task for FindTsconfigTask {
+    type JsValue = Option<TsconfigResult>;
+    type Output = Option<TsconfigResult>;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        find_tsconfig(&self.resolver, &self.filename)
+    }
+
+    fn resolve(&mut self, _: napi::Env, result: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(result)
+    }
+}
+
 #[napi]
 pub struct ResolverFactory {
     resolver: Arc<Resolver>,
@@ -151,7 +174,7 @@ pub struct ResolverFactory {
 #[napi]
 impl ResolverFactory {
     #[napi(constructor)]
-    pub fn new(options: Option<NapiResolveOptions>) -> napi::Result<Self> {
+    pub fn new(env: napi::Env, options: Option<NapiResolveOptions>) -> napi::Result<Self> {
         #[cfg(feature = "tracing-subscriber")]
         {
             tracing::init_tracing();
@@ -160,21 +183,27 @@ impl ResolverFactory {
             Some(op) => Self::normalize_options(op)?,
             None => ResolveOptions::default(),
         };
+        let options = package_map::with_exec_argv(env, options)?;
         Ok(Self { resolver: Arc::new(Resolver::new(options)) })
     }
 
     #[napi]
     #[allow(clippy::should_implement_trait)]
-    pub fn default() -> Self {
-        Self { resolver: Arc::new(Resolver::new(ResolveOptions::default())) }
+    pub fn default(env: napi::Env) -> napi::Result<Self> {
+        let options = package_map::with_exec_argv(env, ResolveOptions::default())?;
+        Ok(Self { resolver: Arc::new(Resolver::new(options)) })
     }
 
-    /// Clone the resolver using the same underlying cache.
+    /// Clone the resolver, reusing the underlying cache when tsconfig, package map, and Yarn PnP
+    /// options are unchanged.
     #[napi]
-    pub fn clone_with_options(&self, options: NapiResolveOptions) -> napi::Result<Self> {
-        Ok(Self {
-            resolver: Arc::new(self.resolver.clone_with_options(Self::normalize_options(options)?)),
-        })
+    pub fn clone_with_options(
+        &self,
+        env: napi::Env,
+        options: NapiResolveOptions,
+    ) -> napi::Result<Self> {
+        let options = package_map::with_exec_argv(env, Self::normalize_options(options)?)?;
+        Ok(Self { resolver: Arc::new(self.resolver.clone_with_options(options)) })
     }
 
     /// Clear the underlying cache.
@@ -183,6 +212,23 @@ impl ResolverFactory {
     #[napi]
     pub fn clear_cache(&self) {
         self.resolver.clear_cache();
+    }
+
+    /// Synchronously find the tsconfig associated with an absolute source file path.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn find_tsconfig_sync(&self, filename: String) -> napi::Result<Option<TsconfigResult>> {
+        find_tsconfig(&self.resolver, Path::new(&filename))
+    }
+
+    /// Asynchronously find the tsconfig associated with an absolute source file path.
+    #[allow(clippy::needless_pass_by_value)]
+    #[napi]
+    pub fn find_tsconfig_async(&self, filename: String) -> AsyncTask<FindTsconfigTask> {
+        AsyncTask::new(FindTsconfigTask {
+            resolver: Arc::clone(&self.resolver),
+            filename: PathBuf::from(filename),
+        })
     }
 
     /// Synchronously resolve `specifier` at an absolute path to a `directory`.
@@ -250,6 +296,7 @@ impl ResolverFactory {
         let default = ResolveOptions::default();
         // merging options
         Ok(ResolveOptions {
+            package_map: None,
             cwd: None,
             tsconfig: op
                 .tsconfig
@@ -262,24 +309,7 @@ impl ResolverFactory {
                     }
                 })
                 .transpose()?,
-            alias: op
-                .alias
-                .map(|alias| {
-                    alias
-                        .into_iter()
-                        .map(|(k, v)| {
-                            let v = v
-                                .into_iter()
-                                .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::from(path),
-                                    None => oxc_resolver::AliasValue::Ignore,
-                                })
-                                .collect();
-                            (k, v)
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or(default.alias),
+            alias: op.alias.map(alias_from_js).unwrap_or(default.alias),
             alias_fields: op
                 .alias_fields
                 .map(|o| o.into_iter().map(|x| StrOrStrList(x).into()).collect::<Vec<_>>())
@@ -302,24 +332,7 @@ impl ResolverFactory {
                 .map(|extension_alias| extension_alias.into_iter().collect::<Vec<_>>())
                 .unwrap_or(default.extension_alias),
             extensions: op.extensions.unwrap_or(default.extensions),
-            fallback: op
-                .fallback
-                .map(|fallback| {
-                    fallback
-                        .into_iter()
-                        .map(|(k, v)| {
-                            let v = v
-                                .into_iter()
-                                .map(|item| match item {
-                                    Some(path) => oxc_resolver::AliasValue::from(path),
-                                    None => oxc_resolver::AliasValue::Ignore,
-                                })
-                                .collect();
-                            (k, v)
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or(default.fallback),
+            fallback: op.fallback.map(alias_from_js).unwrap_or(default.fallback),
             fully_specified: op.fully_specified.unwrap_or(default.fully_specified),
             main_fields: op
                 .main_fields
@@ -351,10 +364,44 @@ impl ResolverFactory {
             allow_package_exports_in_directory_resolve: op
                 .allow_package_exports_in_directory_resolve
                 .unwrap_or(default.allow_package_exports_in_directory_resolve),
+            types_versions: match op.types_versions {
+                None => default.types_versions,
+                Some(Either::A(true)) => TypesVersions::Latest,
+                Some(Either::A(false)) => TypesVersions::Ignore,
+                Some(Either::B(version)) if version == "latest" => TypesVersions::Latest,
+                Some(Either::B(version)) => TypesVersions::Version(version),
+            },
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: default.yarn_pnp,
         })
     }
+}
+
+impl ResolverFactory {
+    /// Clone the underlying resolver for reuse by Rust consumers of the N-API crate.
+    pub fn resolver(&self) -> Arc<Resolver> {
+        Arc::clone(&self.resolver)
+    }
+}
+
+/// Converts the JS shape of `alias` and `fallback`, where a `null` or `undefined` entry means
+/// "ignore this request".
+fn alias_from_js(
+    alias: std::collections::HashMap<String, Vec<Option<String>>>,
+) -> oxc_resolver::Alias {
+    alias
+        .into_iter()
+        .map(|(k, v)| {
+            let v = v
+                .into_iter()
+                .map(|item| match item {
+                    Some(path) => oxc_resolver::AliasValue::from(path),
+                    None => oxc_resolver::AliasValue::Ignore,
+                })
+                .collect();
+            (k, v)
+        })
+        .collect()
 }
 
 fn map_resolution_to_result(result: Result<Resolution, ResolveError>) -> ResolveResult {
@@ -397,4 +444,16 @@ fn resolve_file(resolver: &Resolver, path: &Path, request: &str) -> ResolveResul
 
 fn resolve_dts(resolver: &Resolver, file: &Path, request: &str) -> ResolveResult {
     map_resolution_to_result(resolver.resolve_dts(file, request))
+}
+
+fn find_tsconfig(resolver: &Resolver, filename: &Path) -> napi::Result<Option<TsconfigResult>> {
+    resolver
+        .find_tsconfig(filename)
+        .map(|tsconfig| tsconfig.as_deref().map(TsconfigResult::from))
+        .map_err(|err| {
+            napi::Error::from_reason(format!(
+                "Failed to find tsconfig for {}: {err}",
+                filename.display()
+            ))
+        })
 }

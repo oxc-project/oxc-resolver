@@ -16,6 +16,12 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
         .find(['?', '#'])
         .map_or((after_scheme, ""), |i| (&after_scheme[..i], &after_scheme[i..]));
 
+    let authority = path_with_host.split('/').next().unwrap_or_default();
+    let authority_is_drive = is_drive_authority(authority);
+    if has_invalid_authority(authority, true) {
+        return Err(ResolveError::PathNotSupported(PathBuf::from(specifier)));
+    }
+
     // Extract hostname and pathname
     // file:///path → hostname="" pathname="/path"
     // file://host/path → hostname="host" pathname="/path"
@@ -23,8 +29,7 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
     let (hostname, pathname) = path_with_host.strip_prefix('/').map_or_else(
         || {
             // Check for Windows drive letter in authority position (e.g. file://C:/path)
-            let bytes = path_with_host.as_bytes();
-            if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+            if starts_with_drive_letter(path_with_host.as_bytes()) {
                 return ("", path_with_host);
             }
             // file://host/... → hostname is everything before first /
@@ -36,19 +41,50 @@ pub fn resolve_file_protocol(specifier: &str) -> Result<Cow<'_, str>, ResolveErr
     );
 
     // WHATWG URL spec: "localhost" (including percent-encoded forms) is normalized to empty host
-    let decoded_host;
-    let hostname = {
-        decoded_host =
-            percent_encoding::percent_decode_str(hostname).decode_utf8_lossy().into_owned();
-        if decoded_host.eq_ignore_ascii_case("localhost") { "" } else { decoded_host.as_str() }
-    };
+    let decoded_host = percent_encoding::percent_decode_str(hostname)
+        .decode_utf8()
+        .map_err(|_| ResolveError::PathNotSupported(PathBuf::from(specifier)))?;
+    if has_invalid_authority(&decoded_host, authority_is_drive) {
+        return Err(ResolveError::PathNotSupported(PathBuf::from(specifier)));
+    }
+    let hostname =
+        if decoded_host.eq_ignore_ascii_case("localhost") { "" } else { decoded_host.as_ref() };
 
     file_url_to_path(specifier, hostname, pathname, query_fragment)
 }
 
+/// Whether `bytes` starts with a Windows drive letter and its colon, e.g. `C:`.
+pub fn starts_with_drive_letter(bytes: &[u8]) -> bool {
+    matches!(bytes, [drive, b':', ..] if drive.is_ascii_alphabetic())
+}
+
+fn is_drive_authority(authority: &str) -> bool {
+    authority.len() == 2 && starts_with_drive_letter(authority.as_bytes())
+}
+
+fn has_invalid_authority(authority: &str, allow_drive: bool) -> bool {
+    if authority.is_empty() {
+        return false;
+    }
+    if allow_drive && is_drive_authority(authority) {
+        return false;
+    }
+    if authority.contains(['@', '/', '\\'])
+        || authority.chars().any(|character| character <= '\u{20}')
+    {
+        return true;
+    }
+    if let Some(ipv6) = authority.strip_prefix('[') {
+        return ipv6
+            .strip_suffix(']')
+            .is_none_or(|address| address.parse::<std::net::Ipv6Addr>().is_err());
+    }
+    authority.contains(':')
+}
+
 /// Check if pathname contains a percent-encoded forbidden character.
 /// Returns true if `%2F` (encoded `/`) is found, or on Windows also `%5C` (encoded `\`).
-fn has_encoded_separators(pathname: &str) -> bool {
+pub fn has_encoded_separators(pathname: &str) -> bool {
     let bytes = pathname.as_bytes();
     let mut i = 0;
     while i + 2 < bytes.len() {
@@ -116,8 +152,7 @@ fn file_url_to_path(
     } else {
         // Strip leading backslash, validate drive letter
         let path = decoded.strip_prefix('\\').unwrap_or(&decoded);
-        let bytes = path.as_bytes();
-        if bytes.len() < 2 || !bytes[0].is_ascii_alphabetic() || bytes[1] != b':' {
+        if !starts_with_drive_letter(path.as_bytes()) {
             return Err(ResolveError::PathNotSupported(PathBuf::from(specifier)));
         }
         path.to_string()
@@ -146,6 +181,7 @@ mod tests {
             "/home/user/file.js"
         );
         assert_eq!(resolve_file_protocol("file:///tmp/test").unwrap(), "/tmp/test");
+        assert_eq!(resolve_file_protocol("file://C:/path").unwrap(), "/C:/path");
     }
 
     #[cfg(windows)]
@@ -226,6 +262,10 @@ mod tests {
             resolve_file_protocol("file://server/share/file.js").unwrap(),
             "\\\\server\\share\\file.js"
         );
+        assert_eq!(
+            resolve_file_protocol("file://[::1]/share/file.js").unwrap(),
+            "\\\\[::1]\\share\\file.js"
+        );
     }
 
     #[cfg(windows)]
@@ -257,6 +297,35 @@ mod tests {
     #[test]
     fn invalid_utf8_rejected() {
         resolve_file_protocol("file:///path/%FF").unwrap_err();
+        resolve_file_protocol("file://%FF/path").unwrap_err();
+    }
+
+    #[test]
+    fn invalid_authority_rejected() {
+        for specifier in [
+            "file://user@host/path",
+            "file://host:123/path",
+            "file://user%40host/path",
+            "file://host%3A123/path",
+            "file://C%3A/path",
+            "file://[::1]:123/path",
+            "file://[not-an-ip]/path",
+            "file://[:::1]/path",
+            "file://host\\share/path",
+            "file://host name/path",
+        ] {
+            resolve_file_protocol(specifier).unwrap_err();
+        }
+    }
+
+    #[test]
+    fn ipv6_authorities() {
+        for authority in ["[::1]", "[2001:db8::1]", "[::ffff:192.0.2.1]"] {
+            assert!(!has_invalid_authority(authority, false), "{authority}");
+        }
+        for authority in ["[]", "[not-an-ip]", "[:::1]", "[::1]extra"] {
+            assert!(has_invalid_authority(authority, false), "{authority}");
+        }
     }
 
     #[test]

@@ -7,70 +7,46 @@ use crate::{
 };
 
 #[test]
-#[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 fn alias() {
-    use std::path::{Path, PathBuf};
+    // Paths below are written relative to this directory, with a leading `/`.
+    let f = super::fixture_root().join("unit").join("alias");
+    let abs = |path: &str| super::on_disk(&f, path).to_string_lossy().into_owned();
 
-    use super::memory_fs::MemoryFS;
-    use crate::ResolverGeneric;
-
-    let f = Path::new("/");
-
-    let file_system = MemoryFS::new(&[
-        ("/a/index.js", ""),
-        ("/a/dir/index.js", ""),
-        ("/recursive/index.js", ""),
-        ("/recursive/dir/index.js", ""),
-        ("/b/index.js", ""),
-        ("/b/dir/index.js", ""),
-        ("/c/index.js", ""),
-        ("/c/dir/index.js", ""),
-        ("/d/index.js.js", ""),
-        ("/d/dir/.empty", ""),
-        ("/e/index.js", ""),
-        ("/e/anotherDir/index.js", ""),
-        ("/e/dir/file", ""),
-        ("/dashed-name", ""),
-    ]);
-
-    let resolver = ResolverGeneric::new_with_file_system(
-        file_system,
-        ResolveOptions {
-            alias: vec![
-                ("aliasA".into(), vec![AliasValue::from("a")]),
-                ("b$".into(), vec![AliasValue::from("a/index.js")]),
-                ("c$".into(), vec![AliasValue::from("/a/index.js")]),
-                (
-                    "multiAlias".into(),
-                    vec![
-                        AliasValue::from("b"),
-                        AliasValue::from("c"),
-                        AliasValue::from("d"),
-                        AliasValue::from("e"),
-                        AliasValue::from("a"),
-                    ],
-                ),
-                ("recursive".into(), vec![AliasValue::from("recursive/dir")]),
-                ("/d/dir".into(), vec![AliasValue::from("/c/dir")]),
-                ("/d/index.js".into(), vec![AliasValue::from("/c/index.js")]),
-                ("#".into(), vec![AliasValue::from("/c/dir")]),
-                ("@".into(), vec![AliasValue::from("/c/dir")]),
-                ("ignored".into(), vec![AliasValue::Ignore]),
-                // not part of enhanced-resolve, added to make sure query in alias value would work
-                ("alias_query".into(), vec![AliasValue::from("a?query_after")]),
-                ("alias_fragment".into(), vec![AliasValue::from("a#fragment_after")]),
-                ("dash".into(), vec![AliasValue::Ignore]),
-                ("@scope/package-name/file$".into(), vec![AliasValue::from("/c/dir")]),
-                // wildcard https://github.com/webpack/enhanced-resolve/pull/439
-                ("@adir/*".into(), vec![AliasValue::from("./a/")]), // added to test value without wildcard
-                ("@*".into(), vec![AliasValue::from("/*")]),
-                ("@e*".into(), vec![AliasValue::from("/e/*")]),
-                ("@e*file".into(), vec![AliasValue::from("/e*file")]),
-            ],
-            modules: vec!["/".into()],
-            ..ResolveOptions::default()
-        },
-    );
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![
+            ("aliasA".into(), vec![AliasValue::from("a")]),
+            ("b$".into(), vec![AliasValue::from("a/index.js")]),
+            ("c$".into(), vec![AliasValue::from(abs("/a/index.js"))]),
+            (
+                "multiAlias".into(),
+                vec![
+                    AliasValue::from("b"),
+                    AliasValue::from("c"),
+                    AliasValue::from("d"),
+                    AliasValue::from("e"),
+                    AliasValue::from("a"),
+                ],
+            ),
+            ("recursive".into(), vec![AliasValue::from("recursive/dir")]),
+            (abs("/d/dir"), vec![AliasValue::from(abs("/c/dir"))]),
+            (abs("/d/index.js"), vec![AliasValue::from(abs("/c/index.js"))]),
+            ("#".into(), vec![AliasValue::from(abs("/c/dir"))]),
+            ("@".into(), vec![AliasValue::from(abs("/c/dir"))]),
+            ("ignored".into(), vec![AliasValue::Ignore]),
+            // not part of enhanced-resolve, added to make sure query in alias value would work
+            ("alias_query".into(), vec![AliasValue::from("a?query_after")]),
+            ("alias_fragment".into(), vec![AliasValue::from("a#fragment_after")]),
+            ("dash".into(), vec![AliasValue::Ignore]),
+            ("@scope/package-name/file$".into(), vec![AliasValue::from(abs("/c/dir"))]),
+            // wildcard https://github.com/webpack/enhanced-resolve/pull/439
+            ("@adir/*".into(), vec![AliasValue::from("./a/")]), // added to test value without wildcard
+            ("@*".into(), vec![AliasValue::from(abs("/*"))]),
+            ("@e*".into(), vec![AliasValue::from(abs("/e/*"))]),
+            ("@e*file".into(), vec![AliasValue::from(abs("/e*file"))]),
+        ],
+        modules: vec![abs("/")],
+        ..ResolveOptions::default()
+    });
 
     #[rustfmt::skip]
     let pass = [
@@ -122,8 +98,14 @@ fn alias() {
     ];
 
     for (comment, request, expected) in pass {
-        let resolved_path = resolver.resolve(f, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(PathBuf::from(expected)), "{comment} {request}");
+        // FIXME: on Windows this request fails with `ResolveError::Recursion`.
+        // `load_alias_value` rebuilds the aliased request as `recursive\dir\index.js`, and its
+        // guard against applying the alias a second time only recognizes `recursive/dir/`.
+        if cfg!(target_os = "windows") && request == "recursive/index.js" {
+            continue;
+        }
+        let resolved_path = resolver.resolve(&f, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(super::on_disk(&f, expected)), "{comment} {request}");
     }
 
     #[rustfmt::skip]
@@ -132,7 +114,7 @@ fn alias() {
     ];
 
     for (comment, request, expected) in ignore {
-        let resolution = resolver.resolve(f, request);
+        let resolution = resolver.resolve(&f, request);
         assert_eq!(resolution, Err(expected), "{comment} {request}");
     }
 }

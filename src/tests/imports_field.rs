@@ -6,10 +6,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::{
-    Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver,
-    package_json::ImportsExportsMapGeneric,
-};
+use crate::{AliasValue, Ctx, ImportsExportsMap, PathUtil, ResolveError, ResolveOptions, Resolver};
 
 #[test]
 fn test_simple() {
@@ -86,6 +83,57 @@ fn shared_resolvers() {
     assert_eq!(resolved_path, Ok(f.join("a.js")));
 }
 
+// https://github.com/vitejs/vite/pull/23631
+#[test]
+fn vite_subpath_imports() {
+    let f = super::fixture_root().join("vite/resolve");
+    let p = f.join("imports-path");
+    let f2 = super::fixture_root().join("vite/resolve-subpath-imports");
+
+    let resolver = Resolver::default();
+
+    #[rustfmt::skip]
+    let pass = [
+        ("Resolving ## prefixed pattern with imports field", f.clone(), "##double/index.js", p.join("double-hash/index.js")),
+        ("Resolving key containing # with imports field", f.clone(), "#mid#hash", p.join("mid-hash.js")),
+        ("Resolving key containing ? with imports field", f.clone(), "#question?mark", p.join("question-mark.js")),
+        // Imported from `imports-path/importer-hash-hash.js`.
+        ("Resolving with hash postfix with imports field", p.clone(), "#hash#hash", p.join("hash.js#hash")),
+        ("Resolving #hash?query with imports field", f.clone(), "#hash?query", p.join("hash.js?query")),
+        ("Resolving #mid#hash#fragment?query with imports field", f.clone(), "#mid#hash#fragment?query", p.join("mid-hash.js#fragment?query")),
+        ("Resolving #question?mark?query#fragment with imports field", f.clone(), "#question?mark?query#fragment", p.join("question-mark.js?query#fragment")),
+        // Note added:
+        ("should resolve query in pattern match", f.clone(), "#star/index.js?raw", p.join("star/index.js?raw")),
+        ("should not split escaped #", f.clone(), "#mid\0#hash", p.join("mid-hash.js")),
+        ("should resolve escaped leading #", f.clone(), "\0#hash", p.join("hash.js")),
+        ("should not split escaped # in pattern match", f, "#star/a\0#b.js", p.join("star/a#b.js")),
+    ];
+
+    for (comment, path, request, expected) in pass {
+        let resolved_path = resolver.resolve(&path, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(expected), "{comment} {path:?} {request}");
+    }
+
+    #[rustfmt::skip]
+    let fail = [
+        ("does not fall back from explicitly blocked imports key #hash#blocked", f2.clone(), "#hash#blocked", ResolveError::PackageImportNotDefined("#hash#blocked".to_string(), f2.join("package.json"))),
+        ("does not fall back from explicitly blocked imports key #hash?blocked", f2.clone(), "#hash?blocked", ResolveError::PackageImportNotDefined("#hash?blocked".to_string(), f2.join("package.json"))),
+    ];
+
+    for (comment, path, request, error) in fail {
+        let resolution = resolver.resolve(&path, request);
+        assert_eq!(resolution, Err(error), "{comment} {path:?} {request}");
+    }
+
+    // The query of a blocked key is not kept for the alias tried after it.
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![("#hash".into(), vec![AliasValue::from(p.join("hash.js").to_string_lossy())])],
+        ..ResolveOptions::default()
+    });
+    let resolved_path = resolver.resolve(&f2, "#hash#blocked?c").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(p.join("hash.js#blocked?c")));
+}
+
 // Small script for generating the test cases from enhanced_resolve
 // for (c of testCases) {
 //  console.log("TestCase {")
@@ -109,27 +157,8 @@ struct TestCase {
     condition_names: Vec<&'static str>,
 }
 
-#[cfg(target_endian = "little")]
 fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
-    // Serialize back to JSON string and parse with simd_json for little-endian
-    let json_str = serde_json::to_string(value).unwrap();
-    let bytes = Box::leak::<'static>(Box::new(json_str.into_bytes()));
-    let borrowed = simd_json::to_borrowed_value(bytes).unwrap();
-    let simd_json::BorrowedValue::Object(map) = borrowed else {
-        panic!("Expected an object");
-    };
-    let map = Box::leak::<'static>(Box::new(map));
-    ImportsExportsMapGeneric(map)
-}
-
-#[cfg(target_endian = "big")]
-fn imports_field(value: &serde_json::Value) -> ImportsExportsMap<'static> {
-    // Clone and leak the value to get a 'static reference for big-endian
-    let value = Box::leak::<'static>(Box::new(value.clone()));
-    let serde_json::Value::Object(map) = value else {
-        panic!("Expected an object");
-    };
-    ImportsExportsMapGeneric(map)
+    super::imports_exports_entry(value).as_map().expect("Expected an object")
 }
 
 #[expect(clippy::too_many_lines, reason = "test table ported from enhanced-resolve")]

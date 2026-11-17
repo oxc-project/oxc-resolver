@@ -1,60 +1,37 @@
 //! https://github.com/webpack/enhanced-resolve/blob/main/test/fallback.test.js
 
 #[test]
-#[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 fn fallback() {
-    use std::path::{Path, PathBuf};
+    use crate::{AliasValue, ResolveError, ResolveOptions, Resolver};
 
-    use super::memory_fs::MemoryFS;
-    use crate::{AliasValue, ResolveError, ResolveOptions, ResolverGeneric};
+    // Paths below are written relative to this directory, with a leading `/`.
+    let f = super::fixture_root().join("unit").join("fallback");
+    let abs = |path: &str| super::on_disk(&f, path).to_string_lossy().into_owned();
 
-    let f = Path::new("/");
-
-    let file_system = MemoryFS::new(&[
-        ("/a/index.js", ""),
-        ("/a/dir/index.js", ""),
-        ("/recursive/index.js", ""),
-        ("/recursive/dir/index.js", ""),
-        ("/recursive/dir/file", ""),
-        ("/recursive/dir/dir/index.js", ""),
-        ("/b/index.js", ""),
-        ("/b/dir/index.js", ""),
-        ("/c/index.js", ""),
-        ("/c/dir/index.js", ""),
-        ("/d/index.js.js", ""),
-        ("/d/dir/.empty", ""),
-        ("/e/index.js", ""),
-        ("/e/anotherDir/index.js", ""),
-        ("/e/dir/file", ""),
-    ]);
-
-    let resolver = ResolverGeneric::new_with_file_system(
-        file_system,
-        ResolveOptions {
-            fallback: vec![
-                ("aliasA".into(), vec![AliasValue::Path("a".into())]),
-                ("b$".into(), vec![AliasValue::Path("a/index.js".into())]),
-                ("c$".into(), vec![AliasValue::Path("/a/index.js".into())]),
-                (
-                    "multiAlias".into(),
-                    vec![
-                        AliasValue::Path("b".into()),
-                        AliasValue::Path("c".into()),
-                        AliasValue::Path("d".into()),
-                        AliasValue::Path("e".into()),
-                        AliasValue::Path("a".into()),
-                    ],
-                ),
-                ("recursive".into(), vec![AliasValue::Path("recursive/dir".into())]),
-                ("/d/dir".into(), vec![AliasValue::Path("/c/dir".into())]),
-                ("/d/index.js.js".into(), vec![AliasValue::Path("/c/index.js".into())]),
-                ("ignored".into(), vec![AliasValue::Ignore]),
-                ("node:path".into(), vec![AliasValue::Ignore]),
-            ],
-            modules: vec!["/".into()],
-            ..ResolveOptions::default()
-        },
-    );
+    let resolver = Resolver::new(ResolveOptions {
+        fallback: vec![
+            ("aliasA".into(), vec![AliasValue::Path("a".into())]),
+            ("b$".into(), vec![AliasValue::Path("a/index.js".into())]),
+            ("c$".into(), vec![AliasValue::Path(abs("/a/index.js"))]),
+            (
+                "multiAlias".into(),
+                vec![
+                    AliasValue::Path("b".into()),
+                    AliasValue::Path("c".into()),
+                    AliasValue::Path("d".into()),
+                    AliasValue::Path("e".into()),
+                    AliasValue::Path("a".into()),
+                ],
+            ),
+            ("recursive".into(), vec![AliasValue::Path("recursive/dir".into())]),
+            (abs("/d/dir"), vec![AliasValue::Path(abs("/c/dir"))]),
+            (abs("/d/index.js.js"), vec![AliasValue::Path(abs("/c/index.js"))]),
+            ("ignored".into(), vec![AliasValue::Ignore]),
+            ("node:path".into(), vec![AliasValue::Ignore]),
+        ],
+        modules: vec![abs("/")],
+        ..ResolveOptions::default()
+    });
 
     #[rustfmt::skip]
     let pass = [
@@ -84,18 +61,18 @@ fn fallback() {
     ];
 
     for (comment, request, expected) in pass {
-        let resolved_path = resolver.resolve(f, request).map(|r| r.full_path());
-        assert_eq!(resolved_path, Ok(PathBuf::from(expected)), "{comment} {request}");
+        let resolved_path = resolver.resolve(&f, request).map(|r| r.full_path());
+        assert_eq!(resolved_path, Ok(super::on_disk(&f, expected)), "{comment} {request}");
     }
 
     #[rustfmt::skip]
     let ignore = [
         ("should resolve an ignore module", "ignored", ResolveError::Ignored(f.join("ignored"))),
-        ("should resolve node: builtin module", "node:path", ResolveError::Ignored(PathBuf::from("/node:path"))),
+        ("should resolve node: builtin module", "node:path", ResolveError::Ignored(f.join("node:path"))),
     ];
 
     for (comment, request, expected) in ignore {
-        let resolution = resolver.resolve(f, request);
+        let resolution = resolver.resolve(&f, request);
         assert_eq!(resolution, Err(expected), "{comment} {request}");
     }
 }

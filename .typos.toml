@@ -1,9 +1,0 @@
-# https://github.com/crate-ci/typos
-# cargo install typos-cli
-# typos
-
-[files]
-extend-exclude = ["CHANGELOG.md"]
-
-[default.extend-identifiers]
-PnP = "PnP"

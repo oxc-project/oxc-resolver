@@ -14,7 +14,10 @@ use crate::node_path::NodePath;
 #[expect(clippy::struct_excessive_bools, reason = "options are ported 1:1 from enhanced-resolve")]
 #[derive(Debug, Clone)]
 pub struct ResolveOptions {
-    /// Current working directory, used for testing purposes.
+    /// Directory to search for the Yarn Plug'n'Play manifest from.
+    ///
+    /// Only read when the `yarn_pnp` feature is enabled.
+    /// Defaults to the current working directory of the process.
     pub cwd: Option<PathBuf>,
 
     /// Discover tsconfig automatically or use the specified tsconfig.json path.
@@ -181,6 +184,15 @@ pub struct ResolveOptions {
     /// Default `true`
     pub node_path: bool,
 
+    /// Path to a Node.js package map, overriding `NODE_OPTIONS`.
+    ///
+    /// The Node.js binding sets this from `process.execArgv` automatically. Rust callers
+    /// embedding the resolver can pass their host's package-map option here.
+    /// Relative paths are resolved against the current working directory.
+    ///
+    /// Default `None`, which reads `--experimental-package-map` from `NODE_OPTIONS`.
+    pub package_map: Option<PathBuf>,
+
     /// Whether to parse [module.builtinModules](https://nodejs.org/api/module.html#modulebuiltinmodules) or not.
     /// For example, "zlib" will throw [crate::ResolveError::Builtin] when set to true.
     ///
@@ -201,6 +213,16 @@ pub struct ResolveOptions {
     ///
     /// Default: `false`
     pub allow_package_exports_in_directory_resolve: bool,
+
+    /// How [crate::ResolverImpl::resolve_dts] selects an entry from the package.json
+    /// `typesVersions` field.
+    ///
+    /// Unless it is [TypesVersions::Ignore], versioned types conditions such as `types@>=5.2`
+    /// in `exports` / `imports` also match when their range matches and `types` is in
+    /// [ResolveOptions::condition_names].
+    ///
+    /// Default: [TypesVersions::Latest]
+    pub types_versions: TypesVersions,
 
     /// Enable Yarn Plug'n'Play?.
     ///
@@ -476,6 +498,26 @@ impl EnforceExtension {
     }
 }
 
+/// Value for [ResolveOptions::types_versions]
+///
+/// TypeScript uses the first `typesVersions` entry whose version range matches the running
+/// compiler, and falls back to `types` / `typings` when no entry matches.
+/// It also matches versioned types conditions like `types@>=5.2` in `exports` / `imports`
+/// against the compiler version.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub enum TypesVersions {
+    /// Match as if the compiler were newer than any version range,
+    /// e.g. `*` and `>=3.1` match, `<=5.6` doesn't.
+    #[default]
+    Latest,
+    /// Match version ranges against this TypeScript version (e.g. `"6.0.3"`),
+    /// using TypeScript's semver range semantics.
+    /// No entry matches if the version is invalid.
+    Version(String),
+    /// Ignore the `typesVersions` field. Versioned types conditions never match.
+    Ignore,
+}
+
 /// Alias for [ResolveOptions::alias] and [ResolveOptions::fallback]
 pub type Alias = Vec<(String, Vec<AliasValue>)>;
 
@@ -514,7 +556,7 @@ impl std::fmt::Debug for Restriction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TsconfigDiscovery {
     Auto,
     Manual(TsconfigOptions),
@@ -523,7 +565,7 @@ pub enum TsconfigDiscovery {
 /// Tsconfig Options for [ResolveOptions::tsconfig]
 ///
 /// Derived from [tsconfig-paths-webpack-plugin](https://github.com/dividab/tsconfig-paths-webpack-plugin#options)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TsconfigOptions {
     /// Allows you to specify where to find the TypeScript configuration file.
     /// You may provide
@@ -536,7 +578,7 @@ pub struct TsconfigOptions {
 }
 
 /// Configuration for [TsconfigOptions::references]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TsconfigReferences {
     Disabled,
     /// Use the `references` field from tsconfig of `config_file`.
@@ -568,16 +610,18 @@ impl Default for ResolveOptions {
             roots: vec![],
             symlinks: true,
             node_path: true,
+            package_map: None,
             builtin_modules: false,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
+            types_versions: TypesVersions::Latest,
             #[cfg(feature = "yarn_pnp")]
             yarn_pnp: std::env::var("OXC_RESOLVER_YARN_PNP").is_ok(),
         }
     }
 }
 
-// For tracing
+// Human-readable summary of the options. Tracing logs the `Debug` form instead.
 impl fmt::Display for ResolveOptions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(tsconfig) = &self.tsconfig {
@@ -643,6 +687,9 @@ impl fmt::Display for ResolveOptions {
         if !self.node_path {
             write!(f, "node_path:{:?},", self.node_path)?;
         }
+        if let Some(package_map) = &self.package_map {
+            write!(f, "package_map:{},", package_map.display())?;
+        }
         if self.builtin_modules {
             write!(f, "builtin_modules:{:?},", self.builtin_modules)?;
         }
@@ -652,6 +699,9 @@ impl fmt::Display for ResolveOptions {
                 "allow_package_exports_in_directory_resolve:{:?},",
                 self.allow_package_exports_in_directory_resolve
             )?;
+        }
+        if self.types_versions != TypesVersions::Latest {
+            write!(f, "types_versions:{:?},", self.types_versions)?;
         }
         Ok(())
     }
@@ -663,7 +713,7 @@ mod test {
 
     use super::{
         AliasValue, EnforceExtension, ResolveOptions, Restriction, TsconfigDiscovery,
-        TsconfigOptions, TsconfigReferences,
+        TsconfigOptions, TsconfigReferences, TypesVersions,
     };
 
     #[test]
@@ -704,10 +754,11 @@ mod test {
             roots: vec![PathBuf::from("roots")],
             builtin_modules: true,
             allow_package_exports_in_directory_resolve: true,
+            types_versions: TypesVersions::Ignore,
             ..ResolveOptions::default()
         };
 
-        let expected = r#"tsconfig:Manual(TsconfigOptions { config_file: "tsconfig.json", references: Auto }),alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,"#;
+        let expected = r#"tsconfig:Manual(TsconfigOptions { config_file: "tsconfig.json", references: Auto }),alias:[("a", [Ignore])],alias_fields:[["browser"]],condition_names:["require"],enforce_extension:Enabled,exports_fields:[["exports"]],imports_fields:[["imports"]],extension_alias:[(".js", [".ts"])],extensions:[".js", ".json", ".node"],fallback:[("fallback", [Ignore])],fully_specified:true,main_fields:["main"],main_files:["index"],modules:["node_modules"],resolve_to_context:true,prefer_relative:true,prefer_absolute:true,restrictions:[Path("restrictions")],roots:["roots"],symlinks:true,builtin_modules:true,allow_package_exports_in_directory_resolve:true,types_versions:Ignore,"#;
         assert_eq!(format!("{options}"), expected);
 
         let options = ResolveOptions {
@@ -715,6 +766,7 @@ mod test {
             alias: vec![],
             alias_fields: vec![],
             node_path: true,
+            package_map: None,
             builtin_modules: false,
             condition_names: vec![],
             enforce_extension: EnforceExtension::Disabled,
@@ -738,6 +790,7 @@ mod test {
             tsconfig: None,
             module_type: false,
             allow_package_exports_in_directory_resolve: false,
+            types_versions: TypesVersions::Latest,
         };
 
         assert_eq!(format!("{options}"), "");

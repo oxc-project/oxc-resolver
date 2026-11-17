@@ -77,9 +77,9 @@ impl<'a> Specifier<'a> {
 
         let path = escaped_indexes.map_or(Cow::Borrowed(path), |escaped_indexes| {
             let mut s = String::with_capacity(path.len());
-            for (i, &b) in path.as_bytes().iter().enumerate() {
+            for (i, character) in path.char_indices() {
                 if !escaped_indexes.contains(&i) {
-                    s.push(b as char);
+                    s.push(character);
                 }
             }
             Cow::Owned(s)
@@ -186,6 +186,23 @@ mod tests {
             assert_eq!(specifier.path, "a", "{specifier_str}");
             assert_eq!(specifier.query, query, "{specifier_str}");
             assert_eq!(specifier.fragment, fragment, "{specifier_str}");
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn escaped_fragment_preserves_unicode() -> Result<(), SpecifierError> {
+        let data = [
+            ("./测\0#试.js", "./测#试.js", None, None),
+            ("./\0#café\0#🦀.js?查询#片段", "./#café#🦀.js", Some("?查询"), Some("#片段")),
+        ];
+
+        for (request, path, query, fragment) in data {
+            let parsed = Specifier::parse(request)?;
+            assert_eq!(parsed.path(), path, "{request}");
+            assert_eq!(parsed.query, query, "{request}");
+            assert_eq!(parsed.fragment, fragment, "{request}");
         }
 
         Ok(())

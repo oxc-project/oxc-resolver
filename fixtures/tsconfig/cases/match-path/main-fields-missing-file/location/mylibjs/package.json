@@ -1,0 +1,4 @@
+{
+  "main": "./kalle.js",
+  "browser": "./nope.js"
+}

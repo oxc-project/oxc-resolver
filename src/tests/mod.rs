@@ -27,18 +27,26 @@ mod scoped_packages;
 mod simple;
 mod symlink;
 mod tsconfck;
+mod tsconfig_cache;
 mod tsconfig_discovery;
 mod tsconfig_extends;
-mod tsconfig_lookup;
+mod tsconfig_parse;
 mod tsconfig_paths;
 mod tsconfig_project_references;
 mod tsconfig_root_dirs;
 #[cfg(target_os = "windows")]
 mod windows;
 
-use std::{path::PathBuf, sync::Arc, thread};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread,
+};
 
-use crate::Resolver;
+use crate::{
+    ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
+    package_json::{ImportsExportsEntry, ImportsExportsEntryGeneric},
+};
 
 pub fn fixture_root() -> PathBuf {
     // In WASI, the filesystem is mounted at `/` so we use `/fixtures`.
@@ -57,19 +65,118 @@ pub fn fixture() -> PathBuf {
     fixture_root().join("enhanced-resolve").join("test").join("fixtures")
 }
 
+/// Maps a path written relative to `root` with a leading `/` onto disk, e.g. `/a/index.js?query`
+/// to `<root>/a/index.js?query`.
+///
+/// Tables ported from enhanced-resolve spell their paths this way; the result uses native
+/// separators, so it can also be passed to options that compare paths as strings.
+pub fn on_disk(root: &Path, path: &str) -> PathBuf {
+    let (path, postfix) = path.find(['?', '#']).map_or((path, ""), |index| path.split_at(index));
+    let path = path
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .fold(root.to_path_buf(), |path, part| path.join(part));
+    let mut path = path.into_os_string();
+    path.push(postfix);
+    PathBuf::from(path)
+}
+
+/// The `tsconfig` option that reads one explicit `config_file`.
+pub fn manual_tsconfig(config_file: PathBuf, references: TsconfigReferences) -> TsconfigDiscovery {
+    TsconfigDiscovery::Manual(TsconfigOptions { config_file, references })
+}
+
+/// A resolver that reads `config_file`, follows its project references and tries `extensions`.
+pub fn manual_resolver(config_file: PathBuf, extensions: Vec<String>) -> Resolver {
+    Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(config_file, TsconfigReferences::Auto)),
+        extensions,
+        ..ResolveOptions::default()
+    })
+}
+
+/// Parses `value` with the JSON backend the resolver uses on this target and leaks it, so that
+/// test tables can hold `'static` "imports" / "exports" entries.
+#[cfg(target_endian = "little")]
+pub fn imports_exports_entry(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
+    // Serialize back to JSON string and parse with simd_json for little-endian
+    let json_str = serde_json::to_string(value).unwrap();
+    let bytes = Box::leak::<'static>(Box::new(json_str.into_bytes()));
+    let borrowed = simd_json::to_borrowed_value(bytes).unwrap();
+    let value = Box::leak::<'static>(Box::new(borrowed));
+    ImportsExportsEntryGeneric(value)
+}
+
+/// Parses `value` with the JSON backend the resolver uses on this target and leaks it, so that
+/// test tables can hold `'static` "imports" / "exports" entries.
+#[cfg(target_endian = "big")]
+pub fn imports_exports_entry(value: &serde_json::Value) -> ImportsExportsEntry<'static> {
+    // Clone and leak the value to get a 'static reference for big-endian
+    let value = Box::leak::<'static>(Box::new(value.clone()));
+    ImportsExportsEntryGeneric(value)
+}
+
+/// A filesystem wrapper that returns `PermissionDenied` for `read_to_string`
+/// on a specific path, delegating everything else to the real OS filesystem.
+pub struct UnreadableFs {
+    pub unreadable_path: PathBuf,
+}
+
+impl crate::FileSystem for UnreadableFs {
+    #[cfg(not(feature = "yarn_pnp"))]
+    fn new() -> Self {
+        unreachable!()
+    }
+
+    #[cfg(feature = "yarn_pnp")]
+    fn new(_yarn_pnp: bool) -> Self {
+        unreachable!()
+    }
+
+    fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        std::fs::read(path)
+    }
+
+    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+        if path == self.unreadable_path {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "permission denied",
+            ));
+        }
+        crate::FileSystemOs::read_to_string(path)
+    }
+
+    fn metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
+        crate::FileSystemOs::metadata(path)
+    }
+
+    fn symlink_metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
+        crate::FileSystemOs::symlink_metadata(path)
+    }
+
+    fn read_link(&self, path: &Path) -> Result<PathBuf, crate::ResolveError> {
+        crate::FileSystemOs::read_link(path)
+    }
+
+    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        crate::FileSystemOs::canonicalize(path)
+    }
+}
+
 #[test]
 #[cfg_attr(target_os = "wasi", ignore)]
 fn threaded_environment() {
-    let cwd = fixture_root();
+    let cwd = fixture();
     let resolver = Arc::new(Resolver::default());
     for _ in 0..2 {
-        _ = thread::spawn({
+        let resolved_path = thread::spawn({
             let cwd = cwd.clone();
             let resolver = Arc::clone(&resolver);
-            move || {
-                _ = resolver.resolve(cwd, ".");
-            }
+            move || resolver.resolve(cwd, "./main1.js").map(|resolution| resolution.full_path())
         })
-        .join();
+        .join()
+        .unwrap();
+        assert_eq!(resolved_path, Ok(cwd.join("main1.js")));
     }
 }

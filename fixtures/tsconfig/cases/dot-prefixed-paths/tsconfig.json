@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      ".exact": ["./exact.ts"],
+      ".storybook/*": ["./alias/*"],
+      "..alias/*": ["./alias/*"],
+      ".../*": ["./alias/*"],
+      "./alias/*": ["./exact.ts"],
+      "../dot-prefixed-paths/alias/*": ["./exact.ts"]
+    }
+  }
+}

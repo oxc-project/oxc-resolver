@@ -1,0 +1,7 @@
+{
+  "packages": {
+    "dependency": {
+      "url": "  https://example.com/package  "
+    }
+  }
+}

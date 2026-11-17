@@ -1,8 +1,7 @@
 //! Tests for tsconfig project references
 
-use crate::{
-    ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-};
+use super::manual_tsconfig;
+use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigReferences};
 
 #[test]
 fn auto() {
@@ -11,10 +10,7 @@ fn auto() {
     // The following resolver's `config_file` has defined it's own paths alias which has higher priority
     // some cases will work without references
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("app"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -43,10 +39,10 @@ fn auto() {
 
     // The following resolver's `config_file` has no `paths` alias with `references` enabled
     let no_paths_resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app/tsconfig.nopaths.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(
+            f.join("app/tsconfig.nopaths.json"),
+            TsconfigReferences::Auto,
+        )),
         ..ResolveOptions::default()
     });
 
@@ -81,19 +77,16 @@ fn disabled() {
     // The following resolver's `config_file` has defined it's own paths alias which has higher priority
     // some cases will work without references
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("app"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
     // The following resolver's `config_file` has no `paths` alias with `references` enabled
     let no_paths_resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("app/tsconfig.nopaths.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(
+            f.join("app/tsconfig.nopaths.json"),
+            TsconfigReferences::Disabled,
+        )),
         ..ResolveOptions::default()
     });
 
@@ -140,10 +133,7 @@ fn references_with_extends() {
 
     let resolver = Resolver::new(ResolveOptions {
         extensions: vec![".ts".into(), ".tsx".into()],
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.clone(),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.clone(), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -167,6 +157,53 @@ fn referenced_paths_win_over_root_with_no_paths() {
         resolver.resolve_file(f.join("app/index.ts"), "1/foo").map(|f| f.full_path());
 
     assert_eq!(resolved_path, Ok(f.join("lib/foo.ts")));
+}
+
+#[test]
+fn sibling_reference_without_paths_does_not_shadow_parent() {
+    // https://github.com/unrs/unrs-resolver/issues/221
+    // The referenced `tsconfig.node.json` lives in the same directory as the parent and
+    // has no `paths`; it must not take over alias resolution for the parent's files.
+    let f = super::fixture_root().join("tsconfig/cases/project-references-sibling-paths");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
+        ..ResolveOptions::default()
+    });
+
+    let expected = f.join("src/utils/helper.ts");
+    assert_eq!(
+        resolver.resolve(f.join("src"), "$/utils/helper").map(|r| r.full_path()),
+        Ok(expected.clone()),
+    );
+    assert_eq!(
+        resolver.resolve_file(f.join("src/app.ts"), "$/utils/helper").map(|r| r.full_path()),
+        Ok(expected),
+    );
+}
+
+#[test]
+fn directory_fallback_to_parent_paths_for_unmapped_reference() {
+    // `resolve()` only hands an importer directory to the reference-aware lookup, so
+    // ownership cannot be established: a reference without a mapping falls back to the
+    // parent's `paths` (the pre-1.12 `[ref_paths, self_paths].concat()` semantics).
+    let f = super::fixture_root().join("tsconfig/cases/project-references");
+
+    let resolver = Resolver::new(ResolveOptions {
+        extensions: vec![".ts".into()],
+        tsconfig: Some(manual_tsconfig(f.join("app"), TsconfigReferences::Auto)),
+        ..ResolveOptions::default()
+    });
+
+    assert_eq!(
+        resolver.resolve(f.join("project-c"), "@/index.ts").map(|r| r.full_path()),
+        Ok(f.join("app/aliased/index.ts")),
+    );
+    assert_eq!(
+        resolver.resolve_file(f.join("project-c/index.ts"), "@/index.ts"),
+        Err(ResolveError::NotFound("@/index.ts".into())),
+    );
 }
 
 #[test]
@@ -375,4 +412,87 @@ fn solution_style_nested_non_ts_walks_up() {
     // continues up. No ancestor owns a bare `.js` either, so discovery finds no
     // config for it (it would land in an inferred project).
     assert!(resolver.find_tsconfig(f.join("src/feature/legacy.js")).unwrap().is_none());
+}
+
+/// When a tsconfig's `references` target does not exist,
+/// `resolve_tsconfig` should return `TsconfigNotFound`.
+#[test]
+fn test_references_not_found() {
+    let f = super::fixture_root().join("tsconfig/cases/references-not-found");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigNotFound(_))),
+        "expected TsconfigNotFound for missing references target, got {result:?}",
+    );
+}
+
+/// When a tsconfig's `references` target exists but is not readable (e.g. permission denied),
+/// `resolve_tsconfig` should return a `TsconfigLoadFailed` wrapping an `IOError`.
+#[test]
+fn test_references_unreadable_file() {
+    let f = super::fixture_root().join("tsconfig/cases/references-unreadable");
+
+    let fs = super::UnreadableFs { unreadable_path: f.join("referenced/tsconfig.json") };
+    let resolver = crate::ResolverGeneric::new_with_file_system(
+        fs,
+        ResolveOptions {
+            tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
+            ..ResolveOptions::default()
+        },
+    );
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(
+            &result,
+            Err(ResolveError::TsconfigLoadFailed { source, .. })
+                if matches!(source.as_ref(), ResolveError::IOError(_))
+        ),
+        "expected TsconfigLoadFailed wrapping IOError for unreadable references target, got {result:?}",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: self reference and multiple references
+// ---------------------------------------------------------------------------
+
+#[test]
+fn references_self() {
+    let f = super::fixture_root().join("tsconfig/cases/references-self");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigSelfReference(_))),
+        "expected TsconfigSelfReference, got {result:?}",
+    );
+}
+
+#[test]
+fn project_references_both_resolve_via_their_own_paths() {
+    let f = super::fixture_root().join("tsconfig/cases/references-multi");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path =
+        resolver.resolve_file(f.join("pkg-a/index.ts"), "@shared/lib").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("shared/lib.ts")));
+
+    let resolved_path =
+        resolver.resolve_file(f.join("pkg-b/index.ts"), "@shared/lib").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("shared/lib.ts")));
 }

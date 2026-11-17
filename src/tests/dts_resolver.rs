@@ -1,4 +1,6 @@
-use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions};
+use crate::{
+    ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TypesVersions,
+};
 
 fn dts_fixture() -> std::path::PathBuf {
     super::fixture_root().join("dts-resolver")
@@ -38,6 +40,16 @@ fn relative_directory_index() {
     let r = resolver();
     let result = r.resolve_dts(containing_file(), "./relative-basic").unwrap();
     assert_eq!(result.path(), dts_fixture().join("relative-basic/index.ts"));
+}
+
+// -------- JSON --------
+
+#[test]
+fn json_file() {
+    let r = resolver();
+    let result = r.resolve_dts(containing_file(), "./relative-json/data.json").unwrap();
+    assert_eq!(result.path(), dts_fixture().join("relative-json/data.json"));
+    assert_eq!(result.module_type(), Some(crate::ModuleType::Json));
 }
 
 // -------- Extension substitution --------
@@ -147,6 +159,147 @@ fn types_versions_subpath() {
     assert_eq!(result.path(), dts_fixture().join("node_modules/with-types-versions/dist/sub.d.ts"));
 }
 
+#[test]
+fn types_versions_ranges() {
+    // Modeled after `@types/node`, which keeps legacy typings for old compilers
+    let pkg = dts_fixture().join("node_modules/ranged-types-versions");
+    let cases = [
+        (TypesVersions::Ignore, ""),
+        (TypesVersions::Latest, ""),
+        (TypesVersions::Version("5.5.0".into()), "ts5.6/"),
+        (TypesVersions::Version("5.6.3".into()), "ts5.6/"),
+        (TypesVersions::Version("5.7.2".into()), "ts5.7/"),
+        (TypesVersions::Version("5.8.0-beta".into()), ""),
+        (TypesVersions::Version("6.0.3".into()), ""),
+        // Invalid version, no entry matches
+        (TypesVersions::Version("next".into()), ""),
+    ];
+    for (types_versions, dir) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        for (specifier, file) in
+            [("ranged-types-versions", "index.d.ts"), ("ranged-types-versions/fs", "fs.d.ts")]
+        {
+            let result = r.resolve_dts(containing_file(), specifier).unwrap();
+            assert_eq!(
+                result.path(),
+                pkg.join(format!("{dir}{file}")),
+                "{types_versions:?} {specifier}"
+            );
+        }
+    }
+}
+
+#[test]
+fn types_versions_wildcard_range() {
+    // The `*` range matches any version
+    for types_versions in [TypesVersions::Latest, TypesVersions::Version("6.0.3".into())] {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions,
+            ..ResolveOptions::default()
+        });
+        let result = r.resolve_dts(containing_file(), "with-types-versions/sub").unwrap();
+        assert_eq!(
+            result.path(),
+            dts_fixture().join("node_modules/with-types-versions/dist/sub.d.ts")
+        );
+    }
+}
+
+#[test]
+fn types_versions_default_latest() {
+    // By default, ranges are matched as if the compiler were the latest version
+    let r = resolver();
+    let node_modules = dts_fixture().join("node_modules");
+    for (specifier, expected) in [
+        ("ranged-types-versions", "ranged-types-versions/index.d.ts"),
+        ("ranged-types-versions/fs", "ranged-types-versions/fs.d.ts"),
+        ("versioned-types-condition", "versioned-types-condition/ts5.2/index.d.ts"),
+        ("jotai-style", "jotai-style/dist/index.d.ts"),
+    ] {
+        let result = r.resolve_dts(containing_file(), specifier).unwrap();
+        assert_eq!(result.path(), node_modules.join(expected), "{specifier}");
+    }
+}
+
+#[test]
+fn versioned_types_condition() {
+    // https://www.typescriptlang.org/docs/handbook/modules/reference.html#example-versioned-types-condition
+    let pkg = dts_fixture().join("node_modules/versioned-types-condition");
+    let cases = [
+        // Versioned conditions never match when `typesVersions` is ignored
+        (TypesVersions::Ignore, "tsold"),
+        (TypesVersions::Latest, "ts5.2"),
+        (TypesVersions::Version("6.0.3".into()), "ts5.2"),
+        (TypesVersions::Version("5.2.0".into()), "ts5.2"),
+        (TypesVersions::Version("5.2.0-beta".into()), "ts5.2"),
+        (TypesVersions::Version("5.1.6".into()), "ts4.6"),
+        (TypesVersions::Version("4.9.5".into()), "ts4.6"),
+        (TypesVersions::Version("4.5.0".into()), "tsold"),
+    ];
+    for (types_versions, dir) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        let result = r.resolve_dts(containing_file(), "versioned-types-condition").unwrap();
+        assert_eq!(result.path(), pkg.join(dir).join("index.d.ts"), "{types_versions:?}");
+
+        let internal_dir = if dir == "ts4.6" { "tsold" } else { dir };
+        let result = r.resolve_dts(pkg.join("index.js"), "#internal").unwrap();
+        assert_eq!(
+            result.path(),
+            pkg.join(internal_dir).join("internal.d.ts"),
+            "{types_versions:?} #internal"
+        );
+    }
+
+    // Versioned conditions require the `types` condition
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into()],
+        types_versions: TypesVersions::Latest,
+        ..ResolveOptions::default()
+    });
+    let result = r.resolve(dts_fixture(), "versioned-types-condition").unwrap();
+    assert_eq!(result.path(), pkg.join("index.js"));
+}
+
+#[test]
+fn versioned_types_condition_jotai_style() {
+    // `jotai` maps the plain `types` condition to a stub that tells users to upgrade TypeScript.
+    // `exports` takes precedence over its `typesVersions`.
+    let pkg = dts_fixture().join("node_modules/jotai-style");
+    let stub = "dist/ts_version_5.5_and_above_is_required.d.ts";
+    let cases = [
+        (TypesVersions::Ignore, false),
+        (TypesVersions::Latest, true),
+        (TypesVersions::Version("6.0.3".into()), true),
+        (TypesVersions::Version("5.5.0".into()), true),
+        (TypesVersions::Version("5.4.5".into()), false),
+    ];
+    for (types_versions, matches) in cases {
+        let r = Resolver::new(ResolveOptions {
+            condition_names: vec!["import".into(), "types".into()],
+            types_versions: types_versions.clone(),
+            ..ResolveOptions::default()
+        });
+        for (specifier, file) in [
+            ("jotai-style", "dist/index.d.ts"),
+            ("jotai-style/utils", "dist/utils.d.ts"),
+            ("jotai-style/vanilla/utils", "dist/vanilla/utils.d.ts"),
+        ] {
+            let result = r.resolve_dts(containing_file(), specifier).unwrap();
+            let expected = if matches { file } else { stub };
+            assert_eq!(result.path(), pkg.join(expected), "{types_versions:?} {specifier}");
+        }
+    }
+}
+
 // -------- node_modules: typings field --------
 
 #[test]
@@ -254,6 +407,35 @@ fn tsconfig_paths_in_dts() {
     let containing = dts_fixture().join("with-tsconfig/index.ts");
     let result = r.resolve_dts(containing, "@lib/utils").unwrap();
     assert_eq!(result.path(), dts_fixture().join("with-tsconfig/lib/utils.ts"));
+}
+
+#[test]
+fn dot_prefixed_tsconfig_paths_in_dts() {
+    let f = super::fixture_root().join("tsconfig/cases/dot-prefixed-paths");
+    let r = Resolver::new(ResolveOptions {
+        condition_names: vec!["import".into(), "types".into()],
+        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
+            config_file: f.join("tsconfig.json"),
+            references: crate::TsconfigReferences::Disabled,
+        })),
+        ..ResolveOptions::default()
+    });
+
+    #[rustfmt::skip]
+    let pass = [
+        (".exact", f.join("exact.ts")),
+        (".storybook/preview", f.join("alias/preview.ts")),
+        ("..alias/module", f.join("alias/module.ts")),
+        (".base-url", f.join(".base-url.ts")),
+        (".../module", f.join("alias/module.ts")),
+        // Relative specifiers must bypass the deliberately conflicting paths mappings.
+        ("./alias/module", f.join("alias/module.ts")),
+        ("../dot-prefixed-paths/alias/module", f.join("alias/module.ts")),
+    ];
+    for (request, expected) in pass {
+        let result = r.resolve_dts(f.join("index.ts"), request).map(|r| r.full_path());
+        assert_eq!(result, Ok(expected), "{request}");
+    }
 }
 
 // -------- Extension substitution: .mjs → .mts priority --------

@@ -5,11 +5,18 @@ use walkdir::WalkDir;
 use crate::{ResolveOptions, Resolver, TsconfigDiscovery};
 
 fn walk(dir: &PathBuf) -> Vec<PathBuf> {
-    WalkDir::new(dir)
+    let paths = WalkDir::new(dir)
         .into_iter()
         .filter_map(Result::ok)
         .map(|entry| entry.path().to_path_buf())
-        .collect()
+        .collect::<Vec<_>>();
+    // Callers loop over the `tsconfig.json` files; without any, they would pass vacuously.
+    assert!(
+        paths.iter().any(|path| path.file_name().is_some_and(|name| name == "tsconfig.json")),
+        "no tsconfig.json under {}",
+        dir.display()
+    );
+    paths
 }
 
 // https://github.com/dominikg/tsconfck/blob/main/packages/tsconfck/tests/parse.js

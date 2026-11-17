@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@p00/*": ["src/first-alias/*"],
+      "@p01/*": ["src/shared/*"],
+      "@p02/*": ["src/shared/*"],
+      "@p03/*": ["src/shared/*"],
+      "@p04/*": ["src/shared/*"],
+      "@p05/*": ["src/shared/*"],
+      "@p06/*": ["src/shared/*"],
+      "@p07/*x": ["src/tie-first/*"],
+      "@p07/*": ["src/tie-second/*"],
+      "@p07/*z": ["src/tie-third/*"],
+      "@p08/*": ["src/shared/*"],
+      "@p09/*": ["src/shared/*"],
+      "@p10/*": ["src/shared/*"],
+      "@p11/*": ["src/shared/*"],
+      "@p12/*": ["src/shared/*"],
+      "@p13/*": ["src/shared/*"],
+      "@p14/*": ["src/shared/*"],
+      "@p15/*": ["src/shared/*"],
+      "@p16/*": ["src/shared/*"],
+      "@p17/*": ["src/shared/*"],
+      "@p18/*": ["src/shared/*"],
+      "@p19/*": ["src/shared/*"],
+      "@p20/*": ["src/shared/*"],
+      "@p21/*": ["src/shared/*"],
+      "@p22/*": ["src/shared/*"],
+      "@p23/*": ["src/shared/*"],
+      "@p24/*": ["src/shared/*"],
+      "@p25/*": ["src/shared/*"],
+      "@p26/*": ["src/shared/*"],
+      "@p27/*": ["src/shared/*"],
+      "@p28/*": ["src/shared/*"],
+      "@p29/*": ["src/last-alias/*"],
+      "*": ["src/fallback.ts"]
+    }
+  }
+}

@@ -2,10 +2,19 @@
 //!
 //! Fixtures copied from <https://github.com/parcel-bundler/parcel/tree/v2/packages/utils/node-resolver-core/test/fixture/tsconfig>.
 
-use crate::{
-    JSONError, ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions,
-    TsconfigReferences,
-};
+use std::path::PathBuf;
+
+use super::manual_tsconfig;
+use crate::{ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigReferences};
+
+/// Auto-discovery when `tsconfig_discovery` is set, the explicit `config_file` otherwise.
+fn discovered_or_manual(tsconfig_discovery: bool, config_file: PathBuf) -> TsconfigDiscovery {
+    if tsconfig_discovery {
+        TsconfigDiscovery::Auto
+    } else {
+        manual_tsconfig(config_file, TsconfigReferences::Auto)
+    }
+}
 
 // <https://github.com/parcel-bundler/parcel/blob/b6224fd519f95e68d8b93ba90376fd94c8b76e69/packages/utils/node-resolver-rs/src/lib.rs#L2303>
 pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
@@ -21,8 +30,6 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
         (f.join("nested"), "main.ts", "ts-path", f.join("nested/test.js")),
         (f.join("cases/extends-paths-outside"), "src/index.js", "ts-path", f.join("src/foo.js")),
         (f.join("cases/index"), "main.ts", "foo", f.join("node_modules/tsconfig-index/foo.js")),
-        // This requires reading package.json.tsconfig field
-        // (f.join("cases/field"), "foo", f.join("node_modules/tsconfig-field/foo.js"))
         (f.join("cases/exports"), "main.ts", "foo", f.join("node_modules/tsconfig-exports/foo.js")),
         (f.join("cases/extends-extension"), "main.ts", "foo", f.join("cases/extends-extension/foo.js")),
         (f.join("cases/extends-extensionless"), "main.ts", "foo", f.join("node_modules/tsconfig-field/foo.js")),
@@ -36,14 +43,7 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
 
     for (dir, importer, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(if tsconfig_discovery {
-                TsconfigDiscovery::Auto
-            } else {
-                TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: dir.join("tsconfig.json"),
-                    references: TsconfigReferences::Auto,
-                })
-            }),
+            tsconfig: Some(discovered_or_manual(tsconfig_discovery, dir.join("tsconfig.json"))),
             extension_alias: vec![(".js".into(), vec![".js".into(), ".ts".into(), ".tsx".into()])],
             ..ResolveOptions::default()
         });
@@ -78,14 +78,7 @@ pub fn tsconfig_resolve_impl(tsconfig_discovery: bool) {
 
     for (path, request, tsconfig, expected) in data {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(if tsconfig_discovery {
-                TsconfigDiscovery::Auto
-            } else {
-                TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: tsconfig,
-                    references: TsconfigReferences::Auto,
-                })
-            }),
+            tsconfig: Some(discovered_or_manual(tsconfig_discovery, tsconfig)),
             ..ResolveOptions::default()
         });
         let resolution = resolver.resolve_file(&path, request).map(|f| f.full_path());
@@ -99,120 +92,76 @@ pub fn tsconfig_resolve() {
 }
 
 #[test]
+fn indexed_paths() {
+    let root = super::fixture_root().join("tsconfig/cases/indexed-paths");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(root.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+    let importer = root.join("app/main.ts");
+    let cases = [
+        ("lib/value", "src/general/value.ts"),
+        ("lib/special/value", "src/specific/value.ts"),
+        ("equal/valueyx", "src/first/valuey.ts"),
+        ("equal/value", "src/fallback.ts"),
+        ("exact", "src/exact.ts"),
+        ("é/value", "src/unicode/value.ts"),
+        ("évalue", "src/fallback.ts"),
+        ("z", "src/fallback.ts"),
+        ("xvalue", "src/exact.ts"),
+        ("static/value", "src/exact.ts"),
+    ];
+    for (specifier, expected) in cases {
+        let actual = resolver.resolve_file(&importer, specifier).map(|path| path.full_path());
+        assert_eq!(actual, Ok(root.join(expected)), "{specifier}");
+    }
+    assert_eq!(
+        resolver.resolve_file(&importer, "empty"),
+        Err(ResolveError::NotFound("empty".into()))
+    );
+}
+
+/// 32 patterns share one prefix length, dense enough for the binary-searched index.
+#[test]
+fn indexed_paths_dense() {
+    let root = super::fixture_root().join("tsconfig/cases/indexed-paths-dense");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(root.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+    let importer = root.join("app/main.ts");
+    let cases = [
+        ("@p00/value", "src/first-alias/value.ts"),
+        ("@p15/value", "src/shared/value.ts"),
+        ("@p29/value", "src/last-alias/value.ts"),
+        // Three patterns share the `@p07/` prefix; the earliest matching declaration wins.
+        ("@p07/valuex", "src/tie-first/value.ts"),
+        ("@p07/valuez", "src/tie-second/valuez.ts"),
+        ("@p07/value", "src/tie-second/value.ts"),
+        // No pattern of this length matches, or the specifier is too short for it.
+        ("@p99/value", "src/fallback.ts"),
+        ("@p", "src/fallback.ts"),
+        ("react", "src/fallback.ts"),
+    ];
+    for (specifier, expected) in cases {
+        let actual = resolver.resolve_file(&importer, specifier).map(|path| path.full_path());
+        assert_eq!(actual, Ok(root.join(expected)), "{specifier}");
+    }
+}
+
+#[test]
 fn tsconfig_fallthrough() {
     let f = super::fixture_root().join("tsconfig");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
     let resolved_path = resolver.resolve_file(&f, "/");
     assert_eq!(resolved_path, Err(ResolveError::NotFound("/".into())));
-}
-
-#[test]
-fn json_with_comments() {
-    let f = super::fixture_root().join("tsconfig/cases/trailing-comma");
-
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
-        ..ResolveOptions::default()
-    });
-
-    let resolved_path = resolver.resolve_file(&f, "foo").map(|f| f.full_path());
-    assert_eq!(resolved_path, Ok(f.join("bar.js")));
-}
-
-#[test]
-fn with_bom() {
-    let f = super::fixture_root().join("tsconfig/cases/with-bom");
-
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
-        ..ResolveOptions::default()
-    });
-
-    let resolved_path = resolver.resolve_file(&f, "foo").map(|f| f.full_path());
-    assert_eq!(resolved_path, Ok(f.join("bar.js")));
-}
-
-#[test]
-fn broken() {
-    let f = super::fixture_root().join("tsconfig");
-
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig_broken.json"),
-            references: TsconfigReferences::Auto,
-        })),
-        ..ResolveOptions::default()
-    });
-
-    let resolved_path = resolver.resolve_file(&f, "/");
-    let error = ResolveError::TsconfigLoadFailed {
-        path: f.join("tsconfig_broken.json"),
-        source: Box::new(ResolveError::Json(JSONError {
-            path: f.join("tsconfig_broken.json"),
-            message: String::from("EOF while parsing an object at line 2 column 0"),
-            line: 2,
-            column: 0,
-        })),
-    };
-    assert_eq!(resolved_path, Err(error));
-}
-
-#[test]
-fn empty() {
-    let f = super::fixture_root().join("tsconfig/cases/empty");
-
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
-        ..ResolveOptions::default()
-    });
-
-    let resolved_path = resolver.resolve_file(f.join("index.js"), "./index").map(|f| f.full_path());
-    assert_eq!(resolved_path, Ok(f.join("index.js")));
-}
-
-#[test]
-fn test_merge_tsconfig() {
-    let resolver = Resolver::default();
-    let dir = super::fixture_root().join("tsconfig/cases/merge-compiler-options");
-    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
-    let compiler_options = &resolution.compiler_options;
-    assert_eq!(compiler_options.experimental_decorators, Some(true));
-    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
-    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
-    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
-    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
-    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
-    assert_eq!(compiler_options.target, Some("ESNext".to_string()));
-}
-
-#[test]
-fn test_no_merge_tsconfig() {
-    let resolver = Resolver::default();
-    let dir = super::fixture_root().join("tsconfig/cases/no-merge-compiler-options");
-    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
-    let compiler_options = &resolution.compiler_options;
-    assert_eq!(compiler_options.experimental_decorators, Some(true));
-    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
-    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
-    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
-    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
 }
 
 // Template variable ${configDir} for substitution of config files directory path
@@ -239,10 +188,7 @@ fn test_template_variable() {
 
     for (dir, tsconfig, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.join(tsconfig),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(dir.join(tsconfig), TsconfigReferences::Auto)),
             ..ResolveOptions::default()
         });
         let resolved_path =
@@ -264,10 +210,10 @@ fn test_paths_nested_base() {
 
     for (dir, tsconfig, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.parent().unwrap().join(tsconfig),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(
+                dir.parent().unwrap().join(tsconfig),
+                TsconfigReferences::Auto,
+            )),
             ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
         let resolved_path = resolver.resolve_file(&dir, request).map(|f| f.full_path());
@@ -288,10 +234,10 @@ fn test_parent_base_url() {
 
     for (dir, tsconfig, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.parent().unwrap().join(tsconfig),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(
+                dir.parent().unwrap().join(tsconfig),
+                TsconfigReferences::Auto,
+            )),
             ..ResolveOptions::default().with_extension(String::from(".ts"))
         });
         let resolved_path = resolver.resolve_file(&dir, request).map(|f| f.full_path());
@@ -300,343 +246,407 @@ fn test_parent_base_url() {
 }
 
 #[test]
-fn test_tsconfig_mixed_root_non_root_cache() {
-    let f = super::fixture_root().join("tsconfig");
-    let f2 = f.join("cases").join("simple-paths");
+fn test_dot_prefixed_non_relative_specifiers() {
+    let f = super::fixture_root().join("tsconfig/cases/dot-prefixed-paths");
 
-    // NOTE: should remove this line before merging as it's not thread safe
-    std::env::set_current_dir(&f2).unwrap();
+    #[rustfmt::skip]
+    let pass = [
+        (".exact", f.join("exact.ts")),
+        (".storybook/preview", f.join("alias/preview.ts")),
+        ("..alias/module", f.join("alias/module.ts")),
+        (".base-url", f.join(".base-url.ts")),
+        (".../module", f.join("alias/module.ts")),
+        // Relative specifiers must bypass the deliberately conflicting paths mappings.
+        ("./alias/module", f.join("alias/module.ts")),
+        ("../dot-prefixed-paths/alias/module", f.join("alias/module.ts")),
+    ];
 
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Auto),
-        ..ResolveOptions::default()
-    });
-    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
-    let resolved_path =
-        resolver.resolve_file(f2.join("foo.ts"), "bar/index.ts").map(|f| f.full_path());
-    assert_eq!(resolved_path, Ok(f2.join("bar/index.ts")));
+    for tsconfig_discovery in [false, true] {
+        let resolver = Resolver::new(ResolveOptions {
+            tsconfig: Some(discovered_or_manual(tsconfig_discovery, f.join("tsconfig.json"))),
+            ..ResolveOptions::default().with_extension(String::from(".ts"))
+        });
+
+        for (request, expected) in &pass {
+            let resolved_path =
+                resolver.resolve_file(f.join("index.ts"), request).map(|f| f.full_path());
+            assert_eq!(resolved_path, Ok(expected.clone()), "{request} {tsconfig_discovery}");
+            if !tsconfig_discovery {
+                let resolved_path = resolver.resolve(&f, request).map(|f| f.full_path());
+                assert_eq!(resolved_path, Ok(expected.clone()), "{request}");
+            }
+        }
+    }
+}
+
+struct OneTest {
+    name: &'static str,
+    /// Directory under `fixtures/tsconfig/cases/match-path` holding this case's `tsconfig.json`
+    /// and files. It stands in for `/root` in the upstream data.
+    dir: &'static str,
+    main_fields: Option<Vec<String>>,
+    requested_module: &'static str,
+    expected_path: &'static str,
+    extensions: Vec<String>,
+}
+
+impl Default for OneTest {
+    fn default() -> Self {
+        Self {
+            name: "",
+            dir: "",
+            main_fields: None,
+            requested_module: "",
+            expected_path: "",
+            extensions: vec![
+                ".js".into(),
+                ".json".into(),
+                ".node".into(),
+                ".ts".into(),
+                ".tsx".into(),
+            ],
+        }
+    }
+}
+
+impl OneTest {
+    fn root(&self) -> std::path::PathBuf {
+        super::fixture_root().join("tsconfig").join("cases").join("match-path").join(self.dir)
+    }
+
+    fn resolver(&self) -> Resolver {
+        let mut options = ResolveOptions {
+            extensions: self.extensions.clone(),
+            tsconfig: Some(manual_tsconfig(
+                self.root().join("tsconfig.json"),
+                TsconfigReferences::Auto,
+            )),
+            ..ResolveOptions::default()
+        };
+        if let Some(main_fields) = &self.main_fields {
+            options.main_fields.clone_from(main_fields);
+        }
+        Resolver::new(options)
+    }
+}
+
+// Path matching tests from tsconfig-paths
+// * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/match-path-sync.test.ts>
+// * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/data/match-path-data.ts>
+#[expect(clippy::too_many_lines, reason = "test table ported from tsconfig-paths")]
+#[test]
+fn match_path() {
+    let pass = [
+        OneTest {
+            name: "should locate path that matches with star and exists",
+            dir: "star",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve to correct path when many are specified",
+            dir: "many-substitutions",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should locate path that matches with star and prioritize pattern with longest prefix",
+            dir: "longest-prefix",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should locate path that matches with star and exists with extension",
+            dir: "custom-extension",
+            requested_module: "lib/mylib",
+            extensions: vec![".js".into(), ".myext".into()],
+            expected_path: "/root/location/mylib.myext",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve request with extension specified",
+            dir: "explicit-extension",
+            requested_module: "lib/test.jpg",
+            expected_path: "/root/location/test.jpg",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should locate path that matches without star and exists",
+            dir: "exact",
+            requested_module: "lib/foo",
+            expected_path: "/root/location/foo.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve to parent folder when filename is in subfolder",
+            dir: "star",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/index.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve from main field in package.json",
+            dir: "main-field",
+            requested_module: "lib/mylib",
+            expected_path: "/root/location/mylib/kalle.ts",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve from main field in package.json (js)",
+            dir: "main-field-js",
+            extensions: vec![".ts".into(), ".js".into()],
+            requested_module: "lib/mylib.js",
+            expected_path: "/root/location/mylib.js/kalle.js",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should resolve from list of fields by priority in package.json",
+            dir: "main-fields-priority",
+            main_fields: Some(vec!["missing".into(), "browser".into(), "main".into()]),
+            extensions: vec![".ts".into(), ".js".into()],
+            requested_module: "lib/mylibjs",
+            expected_path: "/root/location/mylibjs/browser.js",
+        },
+        OneTest {
+            name: "should ignore field mappings to missing files in package.json",
+            dir: "main-fields-missing-file",
+            main_fields: Some(vec!["browser".into(), "main".into()]),
+            extensions: vec![".ts".into(), ".js".into()],
+            requested_module: "lib/mylibjs",
+            expected_path: "/root/location/mylibjs/kalle.js",
+        },
+        // Tests that are not applicable:
+        // name: "should resolve nested main fields"
+        // name: "should ignore advanced field mappings in package.json"
+        // name: "should resolve to with the help of baseUrl when not explicitly set"
+        // name: "should not resolve with the help of baseUrl when asked not to"
+        // name: "should resolve main file with cjs file extension"
+        OneTest {
+            name: "should resolve .ts from .js alias",
+            dir: "js-alias",
+            requested_module: "@/foo", // original data was "@/foo.ts" but I don't get why it is the case?
+            expected_path: "/root/src/foo.ts", // original data was "/root/src/foo"
+            ..OneTest::default()
+        },
+    ];
+
+    for test in pass {
+        let root = test.root();
+        let resolved_path =
+            test.resolver().resolve(&root, test.requested_module).map(|f| f.full_path());
+        let expected_path =
+            super::on_disk(&root, test.expected_path.strip_prefix("/root").unwrap());
+        assert_eq!(resolved_path, Ok(expected_path), "{}", test.name);
+    }
+
+    let fail = [
+        OneTest {
+            name: "should not locate path that does not match",
+            dir: "no-match",
+            requested_module: "lib/mylibjs",
+            ..OneTest::default()
+        },
+        OneTest {
+            name: "should not resolve typings file (index.d.ts)",
+            dir: "typings-only",
+            requested_module: "lib/mylib",
+            ..OneTest::default()
+        },
+    ];
+
+    for test in fail {
+        let resolved_path =
+            test.resolver().resolve(test.root(), test.requested_module).map(|f| f.full_path());
+        assert_eq!(
+            resolved_path,
+            Err(ResolveError::NotFound(test.requested_module.into())),
+            "{}",
+            test.name
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: paths semantics
+// ---------------------------------------------------------------------------
+
+#[test]
+fn paths_empty_array() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-empty-array");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "missing").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("missing.ts")));
 }
 
 #[test]
-fn test_tsconfig_mixed_root_non_root_cache2() {
-    let f = super::fixture_root().join("tsconfig");
-    let f2 = f.join("cases").join("extends-paths");
+fn paths_exact_wins_over_wildcard() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-exact-vs-wildcard");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Auto),
-        ..ResolveOptions::default()
-    });
-    resolver.cache.get_tsconfig(true, &f2.join("tsconfig.base.json"), |_| Ok(())).unwrap();
-    let resolved_path =
-        resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
-    assert_eq!(resolved_path, Ok(f2.join("src/index.js")));
+    let resolved_path = resolver.resolve_file(&f, "foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("exact-foo.ts")));
+
+    let resolved_path = resolver.resolve_file(&f, "foo/bar").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("wildcard/bar.ts")));
 }
 
 #[test]
-fn test_tsconfig_mixed_root_non_root_cache3() {
-    let f = super::fixture_root().join("tsconfig");
-    let f2 = f.join("cases").join("extends-paths");
+fn paths_longest_prefix_wins() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-longest-prefix");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Auto),
-        ..ResolveOptions::default()
-    });
-    resolver.cache.get_tsconfig(false, &f2.join("tsconfig.json"), |_| Ok(())).unwrap();
-    let resolved_path =
-        resolver.resolve_file(f2.join("test.ts"), "@/index.js").map(|f| f.full_path());
-    assert_eq!(resolved_path, Ok(f2.join("src/index.js")));
+    let resolved_path = resolver.resolve_file(&f, "lib/foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("short/foo.ts")));
+
+    let resolved_path = resolver.resolve_file(&f, "lib/sub/baz").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("long/baz.ts")));
 }
 
-#[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
-mod windows_test {
-    use std::path::{Path, PathBuf};
+#[test]
+fn paths_multiple_substitutions_pick_first_existing() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-multiple-substitutions");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
 
-    use super::super::memory_fs::MemoryFS;
-    use crate::{
-        ResolveError, ResolveOptions, ResolverGeneric, TsconfigDiscovery, TsconfigOptions,
-        TsconfigReferences,
+    let resolved_path = resolver.resolve_file(&f, "lib/exists").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("second/exists.ts")));
+
+    let resolved_path = resolver.resolve_file(&f, "lib/onlythird").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("third/onlythird.ts")));
+}
+
+#[test]
+fn paths_child_overrides_extended() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-child-overrides-extended");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "@/x").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("child/x.ts")));
+}
+
+#[test]
+fn paths_inherited_paths_base() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-inherited-paths-base");
+    let resolver = super::manual_resolver(f.join("child-dir/tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path =
+        resolver.resolve_file(f.join("child-dir/index.ts"), "@/foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("parent-dir/lib/foo.ts")));
+}
+
+#[test]
+fn paths_no_base_url_anchors_at_config_dir() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-no-base-url");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "@/foo").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/foo.ts")));
+}
+
+#[test]
+fn paths_explicit_extension_target() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-explicit-extension");
+    let resolver = super::manual_resolver(
+        f.join("tsconfig.json"),
+        vec![".ts".into(), ".json".into(), ".svg".into()],
+    );
+
+    let resolved_path = resolver.resolve_file(&f, "data.json").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("data-file.json")));
+
+    let resolved_path = resolver.resolve_file(&f, "image").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("image.svg")));
+}
+
+#[test]
+fn paths_wildcard_prefix_and_suffix() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-suffix-and-prefix");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "prefix-middle-suffix").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("lib/middle.ts")));
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: paths edge cases — `*` alone, baseUrl only
+// ---------------------------------------------------------------------------
+
+#[test]
+fn paths_star_only_pattern() {
+    let f = super::fixture_root().join("tsconfig/cases/paths-star-only");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "anything").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("fallback-dir/anything.ts")));
+}
+
+#[test]
+fn base_url_only_resolves_bare_specifier() {
+    let f = super::fixture_root().join("tsconfig/cases/base-url-only");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path = resolver.resolve_file(&f, "utils").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("src/utils.ts")));
+}
+
+// ---------------------------------------------------------------------------
+// `TsConfig::resolve_path_alias_or_base_url`
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resolve_path_alias_or_base_url_maps_without_file_check() {
+    // `@/*` -> `./src/*`. The mapping must be applied even when the target does not point at a real file,
+    // so glob-like specifiers (e.g. `import.meta.glob` patterns) can be aliased.
+    let f = super::fixture_root().join("tsconfig/cases/paths-no-base-url");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
+
+    let map = |importer: &std::path::Path, specifier: &str| {
+        resolver
+            .find_tsconfig(importer)
+            .unwrap()
+            .map(|tsconfig| tsconfig.resolve_path_alias_or_base_url(specifier))
+            .unwrap_or_default()
     };
 
-    struct OneTest {
-        name: &'static str,
-        tsconfig: String,
-        package_json: Option<(PathBuf, String)>,
-        main_fields: Option<Vec<String>>,
-        existing_files: Vec<&'static str>,
-        requested_module: &'static str,
-        expected_path: &'static str,
-        extensions: Vec<String>,
-    }
+    let importer = f.join("src/foo.ts");
 
-    impl Default for OneTest {
-        fn default() -> Self {
-            Self {
-                name: "",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/*": ["location/*"]
-                        }
-                    }
-                })
-                .to_string(),
-                package_json: None,
-                main_fields: None,
-                existing_files: vec![],
-                requested_module: "",
-                expected_path: "",
-                extensions: vec![
-                    ".js".into(),
-                    ".json".into(),
-                    ".node".into(),
-                    ".ts".into(),
-                    ".tsx".into(),
-                ],
-            }
-        }
-    }
+    assert_eq!(map(&importer, "@/assets/**/*"), vec![f.join("src/assets/**/*")]);
+    assert_eq!(map(&importer, "@/foo"), vec![f.join("src/foo")]);
+    assert_eq!(map(&importer, "unmatched/bar"), Vec::<std::path::PathBuf>::new());
+    assert_eq!(map(&importer, "./assets/**/*"), Vec::<std::path::PathBuf>::new());
+    assert_eq!(
+        map(&f.join("node_modules/pkg/index.ts"), "@/assets/**/*"),
+        Vec::<std::path::PathBuf>::new()
+    );
+}
 
-    impl OneTest {
-        fn resolver(&self, root: &Path) -> ResolverGeneric<MemoryFS> {
-            let mut file_system = MemoryFS::default();
+#[test]
+fn resolve_path_alias_or_base_url_maps_without_file_check_falls_back_to_base_url() {
+    // `baseUrl: "./src"` with no `paths`, so a non-relative specifier resolves under `./src` even for a glob-like specifier.
+    let f = super::fixture_root().join("tsconfig/cases/base-url");
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(TsconfigDiscovery::Auto),
+        extensions: vec![".ts".into()],
+        ..ResolveOptions::default()
+    });
 
-            file_system.add_file(&root.join("tsconfig.json"), &self.tsconfig);
-            if let Some((path, package_json)) = &self.package_json {
-                file_system.add_file(&root.join(path).join("package.json"), package_json);
-            }
-            for path in &self.existing_files {
-                file_system.add_file(Path::new(path), "");
-            }
+    let map = |importer: &std::path::Path, specifier: &str| {
+        resolver
+            .find_tsconfig(importer)
+            .unwrap()
+            .map(|tsconfig| tsconfig.resolve_path_alias_or_base_url(specifier))
+            .unwrap_or_default()
+    };
 
-            let mut options = ResolveOptions {
-                extensions: self.extensions.clone(),
-                tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                    config_file: root.join("tsconfig.json"),
-                    references: TsconfigReferences::Auto,
-                })),
-                ..ResolveOptions::default()
-            };
-            if let Some(main_fields) = &self.main_fields {
-                options.main_fields.clone_from(main_fields);
-            }
+    let importer = f.join("index.ts");
 
-            ResolverGeneric::new_with_file_system(file_system, options)
-        }
-    }
-
-    // Path matching tests from tsconfig-paths
-    // * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/match-path-sync.test.ts>
-    // * <https://github.com/dividab/tsconfig-paths/blob/master/src/__tests__/data/match-path-data.ts>
-    #[test]
-    fn match_path() {
-        let pass = [
-            OneTest {
-                name: "should locate path that matches with star and exists",
-                existing_files: vec!["/root/location/mylib/index.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve to correct path when many are specified",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/*": ["foo1/*", "foo2/*", "location/*", "foo3/*"],
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/location/mylib/index.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should locate path that matches with star and prioritize pattern with longest prefix",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "*": ["location/*"],
-                            "lib/*": ["location/*"],
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec![
-                    "/root/location/lib/mylib/index.ts",
-                    "/root/location/mylib/index.ts",
-                ],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should locate path that matches with star and exists with extension",
-                existing_files: vec!["/root/location/mylib.myext"],
-                requested_module: "lib/mylib",
-                extensions: vec![".js".into(), ".myext".into()],
-                expected_path: "/root/location/mylib.myext",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve request with extension specified",
-                existing_files: vec!["/root/location/test.jpg"],
-                requested_module: "lib/test.jpg",
-                expected_path: "/root/location/test.jpg",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should locate path that matches without star and exists",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/foo": ["location/foo"]
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/location/foo.ts"],
-                requested_module: "lib/foo",
-                expected_path: "/root/location/foo.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve to parent folder when filename is in subfolder",
-                existing_files: vec!["/root/location/mylib/index.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/index.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve from main field in package.json",
-                package_json: Some((
-                    PathBuf::from("/root/location/mylib"),
-                    serde_json::json!({
-                        "main": "./kalle.ts"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec!["/root/location/mylib/kalle.ts"],
-                requested_module: "lib/mylib",
-                expected_path: "/root/location/mylib/kalle.ts",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve from main field in package.json (js)",
-                package_json: Some((
-                    PathBuf::from("/root/location/mylib.js"),
-                    serde_json::json!({
-                        "main": "./kalle.js"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec!["/root/location/mylib.js/kalle.js"],
-                extensions: vec![".ts".into(), ".js".into()],
-                requested_module: "lib/mylib.js",
-                expected_path: "/root/location/mylib.js/kalle.js",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should resolve from list of fields by priority in package.json",
-                main_fields: Some(vec!["missing".into(), "browser".into(), "main".into()]),
-                package_json: Some((
-                    PathBuf::from("/root/location/mylibjs"),
-                    serde_json::json!({
-                        "main": "./main.js",
-                        "browser": "./browser.js"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec![
-                    "/root/location/mylibjs/main.js",
-                    "/root/location/mylibjs/browser.js",
-                ],
-                extensions: vec![".ts".into(), ".js".into()],
-                requested_module: "lib/mylibjs",
-                expected_path: "/root/location/mylibjs/browser.js",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should ignore field mappings to missing files in package.json",
-                main_fields: Some(vec!["browser".into(), "main".into()]),
-                package_json: Some((
-                    PathBuf::from("/root/location/mylibjs"),
-                    serde_json::json!({
-                        "main": "./kalle.js",
-                        "browser": "./nope.js"
-                    })
-                    .to_string(),
-                )),
-                existing_files: vec!["/root/location/mylibjs/kalle.js"],
-                extensions: vec![".ts".into(), ".js".into()],
-                requested_module: "lib/mylibjs",
-                expected_path: "/root/location/mylibjs/kalle.js",
-                ..OneTest::default()
-            },
-            // Tests that are not applicable:
-            // name: "should resolve nested main fields"
-            // name: "should ignore advanced field mappings in package.json"
-            // name: "should resolve to with the help of baseUrl when not explicitly set"
-            // name: "should not resolve with the help of baseUrl when asked not to"
-            // name: "should resolve main file with cjs file extension"
-            OneTest {
-                name: "should resolve .ts from .js alias",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "@/*": ["src/*"]
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/src/foo.ts"],
-                requested_module: "@/foo", // original data was "@/foo.ts" but I don't get why it is the case?
-                expected_path: "/root/src/foo.ts", // original data was "/root/src/foo"
-                ..OneTest::default()
-            },
-        ];
-
-        let root = PathBuf::from("/root");
-
-        for test in pass {
-            let resolved_path =
-                test.resolver(&root).resolve(&root, test.requested_module).map(|f| f.full_path());
-            assert_eq!(resolved_path, Ok(PathBuf::from(test.expected_path)), "{}", test.name);
-        }
-
-        let fail = [
-            OneTest {
-                name: "should not locate path that does not match",
-                tsconfig: serde_json::json!({
-                    "compilerOptions": {
-                        "paths": {
-                            "lib/*": ["location/*"]
-                        }
-                    }
-                })
-                .to_string(),
-                existing_files: vec!["/root/location/mylib"],
-                requested_module: "lib/mylibjs",
-                ..OneTest::default()
-            },
-            OneTest {
-                name: "should not resolve typings file (index.d.ts)",
-                existing_files: vec!["/root/location/mylib/index.d.ts"],
-                requested_module: "lib/mylib",
-                ..OneTest::default()
-            },
-        ];
-
-        for test in fail {
-            let resolved_path =
-                test.resolver(&root).resolve(&root, test.requested_module).map(|f| f.full_path());
-            assert_eq!(
-                resolved_path,
-                Err(ResolveError::NotFound(test.requested_module.into())),
-                "{}",
-                test.name
-            );
-        }
-    }
+    assert_eq!(map(&importer, "assets/**/*"), vec![f.join("src/assets/**/*")]);
+    assert_eq!(map(&importer, "foo.js"), vec![f.join("src/foo.js")]);
 }

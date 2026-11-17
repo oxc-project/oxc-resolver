@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "lib/*": [
+        "foo1/*",
+        "foo2/*",
+        "location/*",
+        "foo3/*"
+      ]
+    }
+  }
+}

@@ -30,7 +30,7 @@ fn clone() {
 fn debug() {
     let resolution = resolve("./package.json");
     let s = format!("{resolution:?}");
-    assert!(!s.is_empty());
+    assert_ne!(s, "");
 }
 
 #[test]
@@ -95,21 +95,34 @@ fn tsconfig_extends_circular_reference() {
 
 #[test]
 fn clear_cache() {
+    use std::sync::Arc;
+
     let resolver = Resolver::new(ResolveOptions::default());
-    resolver.clear_cache(); // exists
+    let resolve = || resolver.resolve(fixture(), "./package.json").unwrap();
+
+    let first = resolve();
+    let cached = resolve();
+    assert!(Arc::ptr_eq(first.package_json().unwrap(), cached.package_json().unwrap()));
+
+    resolver.clear_cache();
+
+    // `first` is still alive, so a newly parsed package.json cannot reuse its allocation.
+    let fresh = resolve();
+    assert_eq!(fresh.full_path(), first.full_path());
+    assert!(!Arc::ptr_eq(first.package_json().unwrap(), fresh.package_json().unwrap()));
 }
 
 #[test]
 fn options() {
     let resolver = Resolver::new(ResolveOptions::default());
     let options = resolver.options();
-    assert!(!format!("{options:?}").is_empty());
+    assert_ne!(format!("{options:?}"), "");
 }
 
 #[test]
 fn debug_resolver() {
     let resolver = Resolver::new(ResolveOptions::default());
-    assert!(!format!("{resolver:?}").is_empty());
+    assert_ne!(format!("{resolver:?}"), "");
 }
 
 #[test]
@@ -128,19 +141,33 @@ fn dependencies() {
 
 #[test]
 fn options_api() {
-    _ = ResolveOptions::default()
+    // Every value differs from the default, so each assertion can fail.
+    let options = ResolveOptions::default()
         .with_builtin_modules(true)
-        .with_condition_names(&[])
-        .with_extension(".js")
-        .with_force_extension(EnforceExtension::Auto)
+        .with_condition_names(&["node"])
+        .with_extension(".ts")
+        .with_force_extension(EnforceExtension::Enabled)
         .with_fully_specified(true)
         .with_main_field("asdf")
         .with_main_file("main")
         .with_module("module")
         .with_prefer_absolute(true)
         .with_prefer_relative(true)
-        .with_root(PathBuf::new())
-        .with_symbolic_link(true);
+        .with_root(PathBuf::from("root"))
+        .with_symbolic_link(false);
+
+    assert!(options.builtin_modules);
+    assert_eq!(options.condition_names, ["node"]);
+    assert_eq!(options.extensions, [".js", ".json", ".node", ".ts"]);
+    assert_eq!(options.enforce_extension, EnforceExtension::Enabled);
+    assert!(options.fully_specified);
+    assert_eq!(options.main_fields, ["main", "asdf"]);
+    assert_eq!(options.main_files, ["index", "main"]);
+    assert_eq!(options.modules, ["node_modules", "module"]);
+    assert!(options.prefer_absolute);
+    assert!(options.prefer_relative);
+    assert_eq!(options.roots, [PathBuf::from("root")]);
+    assert!(!options.symlinks);
 }
 
 #[test]

@@ -16,11 +16,11 @@ rust-version = "1.95.0"
 description = "ESM / CJS module resolution"
 
 [workspace.dependencies]
-oxc_resolver = { version = "11.24.2", path = "." }
+oxc_resolver = { version = "11.24.3", path = "." }
 
 [package]
 name = "oxc_resolver"
-version = "11.24.2"
+version = "11.24.3"
 authors.workspace = true
 categories.workspace = true
 edition.workspace = true
@@ -115,11 +115,11 @@ thiserror = "2"
 tracing = "0.1"
 
 percent-encoding = "2"
-pnp = { version = "0.12.10", optional = true }
+pnp = { version = "0.12.12", optional = true }
 
 document-features = { version = "0.2.12", optional = true }
 
-[target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
+[target.'cfg(target_os = "linux")'.dependencies]
 rustix = { version = "1.1.4", features = ["fs"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -127,15 +127,15 @@ windows = { version = "0.62.2", features = ["Win32_Storage_FileSystem"] }
 
 [target.'cfg(target_endian = "little")'.dependencies]
 # simd-json only works on little-endian systems
-simd-json = { version = "0.18.0", default-features = false, features = ["runtime-detection"] }
+simd-json = { version = "0.19.0", default-features = false, features = ["runtime-detection"] }
 self_cell = "1" # Used by simd implementation for self-referential struct
 
 [dev-dependencies]
 criterion2 = { version = "3.0.3", default-features = false }
-dirs = { version = "6.0.0" }
+dirs = { version = "7.0.0" }
 pico-args = "0.5.0"
 rayon = { version = "1.12.0" }
-regress = { version = "0.11" } # ECMAScript regex engine for testing `Restriction::Fn`
+regress = { version = "0.12" } # ECMAScript regex engine for testing `Restriction::Fn`
 vfs = "0.13.0" # for testing with in memory file system
 walkdir = "2" # for loading benchmark fixtures
 

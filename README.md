@@ -91,6 +91,27 @@ When resolving from a specific file (e.g., in bundlers, linters, or language ser
 - Honoring `include`, `exclude`, and `files` fields to determine which tsconfig applies
 - Ensuring tsconfig `paths` aliases work correctly based on the file's context
 
+#### Tsconfig Resolution
+
+Use `findTsconfigSync` or `findTsconfigAsync` to load the tsconfig associated with a source
+file. The resolver reuses its internal cache across lookups:
+
+```javascript
+import { ResolverFactory } from "oxc-resolver";
+
+const resolver = new ResolverFactory({ tsconfig: "auto" });
+const result = resolver.findTsconfigSync("/path/to/file.ts");
+const asyncResult = await resolver.findTsconfigAsync("/path/to/file.ts");
+
+if (result) console.log(result.tsconfigFilePaths, result.tsconfig);
+
+// In watch mode, after a tsconfig file changes:
+resolver.clearCache();
+```
+
+Pass `tsconfig: { configFile: path }` to use a specific configuration instead of automatic
+discovery. Files inside `node_modules` are not associated with a tsconfig.
+
 #### Supports WASM
 
 See https://stackblitz.com/edit/oxc-resolver for usage example.
@@ -105,6 +126,15 @@ See [docs.rs/oxc_resolver](https://docs.rs/oxc_resolver/latest/oxc_resolver).
   - the program is called with the `yarn` command, where the value [`process.versions.pnp`](https://yarnpkg.com/advanced/pnpapi#processversionspnp) is set.
   - `.pnp.cjs` manifest file exists in the closest directory, searched from the current working directory,
   - no multi-project setup, per second bullet point in [FIND_PNP_MANIFEST](https://yarnpkg.com/advanced/pnp-spec#find_pnp_manifest)
+
+### [Node.js package maps](https://nodejs.org/api/packages.html#package-maps)
+
+Package-map resolution is enabled automatically when Node's `--experimental-package-map` option is
+passed on the command line or through `NODE_OPTIONS`. Command-line options take precedence.
+Rust callers can supply the map through `ResolveOptions::package_map`. Package managers can generate
+the map and inject the option by enabling
+[`nodeExperimentalPackageMap` in pnpm](https://pnpm.io/settings#nodeexperimentalpackagemap) or
+[`nodeExperimentalPackageMap` in Yarn](https://yarnpkg.com/configuration/yarnrc#nodeExperimentalPackageMap).
 
 ## Terminology
 
@@ -233,6 +263,7 @@ See [index.d.ts](https://github.com/oxc-project/oxc-resolver/blob/main/napi/inde
 | roots                                 | []                        | A list of root paths                                                                                                                                      |
 | symlinks                              | true                      | Whether to resolve symlinks to their symlinked location                                                                                                   |
 | allowPackageExportsInDirectoryResolve | false                     | Allow `exports` field in `require('../directory')`. Not part of `enhanced-resolve`.                                                                       |
+| typesVersions                         | 'latest'                  | Match `typesVersions` and `types@<range>` conditions in `resolveDts*`: `'latest'`, a TypeScript version like `'6.0.3'`, or `false` to ignore.             |
 
 ### TypeScript Configuration
 

@@ -8,16 +8,18 @@
 //! - Two-pass `node_modules` walk: all ancestors for TS/DTS+`@types` before JS
 //! - `@types` scoped name mangling: `@babel/core` -> `@types/babel__core`
 //! - TypeScript extension substitution: `.js` -> `.ts`, `.d.ts` (not extensionAlias)
-//! - `typesVersions` package.json field support
+//! - `typesVersions` package.json field support (see [`crate::TypesVersions`])
 //! - When `exports` exists, `types`/`typings`/`main` are ignored
 
 use std::{borrow::Cow, path::Path};
 
 use crate::{
-    CachedPath, PackageJson, ResolveError, ResolverImpl,
+    CachedPath, ImportsExportsEntry, PackageJson, ResolveError, ResolverImpl, TypesVersions,
     context::ResolveContext as Ctx,
+    path::is_path_relative,
     resolution::{ModuleType, Resolution},
     specifier::Specifier,
+    ts_semver::{Version, VersionRange},
 };
 
 type ResolveResult = Result<Option<CachedPath>, ResolveError>;
@@ -115,7 +117,7 @@ impl ResolverImpl {
         let specifier = parsed.path();
 
         // 1. tsconfig paths (non-relative only)
-        if !specifier.starts_with('.')
+        if !is_path_relative(specifier)
             && !specifier.starts_with('/')
             && let Some(path) = self.dts_resolve_tsconfig_paths(specifier, &mut ctx)?
         {
@@ -123,7 +125,7 @@ impl ResolverImpl {
         }
 
         // 2. Route by specifier type
-        let result = if specifier.starts_with('.') || specifier.starts_with('/') {
+        let result = if is_path_relative(specifier) || specifier.starts_with('/') {
             // Relative or absolute
             let candidate = cached_dir.normalize_with(specifier, &self.cache);
             self.dts_resolve_relative(extensions, &candidate, &mut ctx)?
@@ -251,6 +253,10 @@ impl ResolverImpl {
     }
 
     /// TS: `tryAddingExtensions`
+    #[expect(
+        clippy::too_many_lines,
+        reason = "mirrors TypeScript's `tryAddingExtensions` branch by branch"
+    )]
     fn dts_try_extensions(
         &self,
         base: &CachedPath,
@@ -294,9 +300,14 @@ impl ResolverImpl {
                 }
             }
             ".json" => {
+                // TS: `case Extension.Json`: `.d.json.ts` first, then the `.json` file itself.
+                // https://github.com/microsoft/TypeScript/blob/v6.0.3/src/compiler/moduleNameResolver.ts#L2155-L2158
                 if extensions.contains(Extensions::DECLARATION)
                     && let Some(p) = self.dts_try_file(base, ".d.json.ts", ctx)
                 {
+                    return Some(p);
+                }
+                if let Some(p) = self.dts_try_file(base, ".json", ctx) {
                     return Some(p);
                 }
             }
@@ -401,7 +412,7 @@ impl ResolverImpl {
 
         // Try typesVersions paths
         if let Some(ref pkg) = pkg
-            && let Some(version_paths) = Self::dts_get_matching_version_paths(pkg)
+            && let Some(version_paths) = self.dts_get_matching_version_paths(pkg)
         {
             let entry = Self::dts_package_entry(pkg, extensions, &main_fields);
 
@@ -484,11 +495,8 @@ impl ResolverImpl {
                     let mangled = Self::dts_mangle_scoped_name(package_name);
                     let at_types_dir = nm.push("@types", &self.cache);
                     if self.is_dir(&at_types_dir, ctx) {
-                        let at_types_specifier = if rest.is_empty() {
-                            mangled.clone()
-                        } else {
-                            format!("{mangled}{rest}")
-                        };
+                        let at_types_specifier =
+                            if rest.is_empty() { mangled } else { format!("{mangled}{rest}") };
                         if let Some(path) = self.dts_resolve_in_node_modules_dir(
                             Extensions::DECLARATION,
                             &at_types_specifier,
@@ -562,7 +570,7 @@ impl ResolverImpl {
         // PRIORITY 2: typesVersions (for subpath imports: rest != "")
         if !rest.is_empty()
             && let Some(ref pkg) = pkg
-            && let Some(version_paths) = Self::dts_get_matching_version_paths(pkg)
+            && let Some(version_paths) = self.dts_get_matching_version_paths(pkg)
         {
             let rest_without_slash = rest.strip_prefix('/').unwrap_or(rest);
             if let Some(path) = self.dts_resolve_via_version_paths(
@@ -611,34 +619,65 @@ impl ResolverImpl {
 
     // -------- typesVersions --------
 
-    /// Get the first matching version path from typesVersions.
-    ///
-    /// TypeScript matches `*` (wildcard) as "any version", which is the common case.
-    /// For simplicity, we match all version ranges.
-    fn dts_get_matching_version_paths(pkg: &PackageJson) -> Option<Vec<(String, Vec<String>)>> {
-        let types_versions = pkg.types_versions()?;
-
-        // TypeScript iterates versions and picks the first matching one.
-        // The `*` key matches all versions, which is the overwhelmingly common case.
-        for (_version_range, paths_value) in types_versions.iter() {
-            if let Some(map) = paths_value.as_map() {
-                let mut result = Vec::new();
-                for (pattern, targets_entry) in map.iter() {
-                    let targets: Vec<String> = if let Some(arr) = targets_entry.as_array() {
-                        arr.iter().filter_map(|v| v.as_string().map(String::from)).collect()
-                    } else if let Some(s) = targets_entry.as_string() {
-                        vec![s.to_string()]
-                    } else {
-                        continue;
-                    };
-                    result.push((pattern.to_string(), targets));
-                }
-                if !result.is_empty() {
-                    return Some(result);
-                }
-            }
+    /// The TypeScript version to match version ranges against.
+    /// `None` for [`TypesVersions::Ignore`] or an invalid version, so no range matches.
+    fn dts_typescript_version(&self) -> Option<Version> {
+        match &self.options.types_versions {
+            TypesVersions::Latest => Some(Version::LATEST),
+            TypesVersions::Version(version) => Version::parse(version),
+            TypesVersions::Ignore => None,
         }
-        None
+    }
+
+    /// Whether `key` is a versioned types condition such as `types@>=5.2` in `exports` /
+    /// `imports` that matches the TypeScript version from
+    /// [`ResolveOptions::types_versions`](crate::ResolveOptions::types_versions).
+    ///
+    /// TS: `isApplicableVersionedTypesKey`
+    pub(crate) fn is_applicable_versioned_types_key(
+        &self,
+        conditions: &[String],
+        key: &str,
+    ) -> bool {
+        let Some(version) = self.dts_typescript_version() else { return false };
+        key.strip_prefix("types@").is_some_and(|range| {
+            conditions.iter().any(|condition| condition == "types")
+                && VersionRange::parse(range).is_some_and(|range| range.test(&version))
+        })
+    }
+
+    /// Get the path mappings of the `typesVersions` entry selected by
+    /// [`ResolveOptions::types_versions`](crate::ResolveOptions::types_versions).
+    ///
+    /// TS: `getPackageJsonTypesVersionsPaths`
+    fn dts_get_matching_version_paths(
+        &self,
+        pkg: &PackageJson,
+    ) -> Option<Vec<(String, Vec<String>)>> {
+        let types_versions = pkg.types_versions()?;
+        let version = self.dts_typescript_version()?;
+
+        // TypeScript picks the first entry whose range matches, skipping invalid ranges.
+        let (_, paths_value) = types_versions.iter().find(|(version_range, _)| {
+            VersionRange::parse(version_range).is_some_and(|range| range.test(&version))
+        })?;
+        Self::dts_version_paths(&paths_value)
+    }
+
+    fn dts_version_paths(paths_value: &ImportsExportsEntry) -> Option<Vec<(String, Vec<String>)>> {
+        let map = paths_value.as_map()?;
+        let mut result = Vec::new();
+        for (pattern, targets_entry) in map.iter() {
+            let targets: Vec<String> = if let Some(arr) = targets_entry.as_array() {
+                arr.iter().filter_map(|v| v.as_string().map(String::from)).collect()
+            } else if let Some(s) = targets_entry.as_string() {
+                vec![s.to_string()]
+            } else {
+                continue;
+            };
+            result.push((pattern.to_string(), targets));
+        }
+        (!result.is_empty()).then_some(result)
     }
 
     /// Resolve a specifier against typesVersions path mappings.

@@ -23,6 +23,11 @@ pub struct ResolveContext {
     pub depth: u8,
 
     pub resolve_file: bool,
+
+    pub package_map_parent: Option<PathBuf>,
+
+    /// Matching an "imports" key that can end with the query or fragment of the request.
+    pub imports_postfix: bool,
 }
 
 impl ResolveContext {

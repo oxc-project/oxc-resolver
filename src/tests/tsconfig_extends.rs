@@ -3,21 +3,17 @@
 //! Tests the `extend_tsconfig` method which is responsible for inheriting
 //! settings from one tsconfig into another.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use crate::{
-    ResolveOptions, Resolver, TsConfig, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-};
+use super::manual_tsconfig;
+use crate::{ResolveError, ResolveOptions, Resolver, SpecifierError, TsConfig, TsconfigReferences};
 
 #[test]
 fn test_extend_tsconfig() {
     let f = super::fixture_root().join("tsconfig/cases/extends");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -51,10 +47,7 @@ fn test_extend_tsconfig_paths() {
     let f = super::fixture_root().join("tsconfig/cases/extends-paths-inheritance");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         extensions: vec![".ts".into(), ".js".into()],
         ..ResolveOptions::default()
     });
@@ -70,10 +63,7 @@ fn test_extend_tsconfig_override_behavior() {
     let f = super::fixture_root().join("tsconfig/cases/extends-override");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -90,10 +80,7 @@ fn test_extend_tsconfig_template_variables() {
     let f = super::fixture_root().join("tsconfig/cases/extends-template-vars");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         extensions: vec![".ts".into(), ".js".into()],
         ..ResolveOptions::default()
     });
@@ -106,15 +93,13 @@ fn test_extend_tsconfig_template_variables() {
 
 #[test]
 fn test_extend_tsconfig_missing_file() {
-    use crate::ResolveError;
-
     let f = super::fixture_root().join("tsconfig/cases");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("nonexistent-tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(
+            f.join("nonexistent-tsconfig.json"),
+            TsconfigReferences::Auto,
+        )),
         ..ResolveOptions::default()
     });
 
@@ -127,10 +112,7 @@ fn test_extend_tsconfig_multiple_inheritance() {
     let f = super::fixture_root().join("tsconfig/cases/extends-chain");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -148,10 +130,7 @@ fn test_extend_tsconfig_preserves_child_settings() {
     let f = super::fixture_root().join("tsconfig/cases/extends-preserve-child");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -207,15 +186,10 @@ fn test_extend_tsconfig_no_override_existing() {
 /// `resolve_tsconfig` should return `TsconfigNotFound`.
 #[test]
 fn test_extend_tsconfig_not_found() {
-    use crate::ResolveError;
-
     let f = super::fixture_root().join("tsconfig/cases/extends-not-found");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         ..ResolveOptions::default()
     });
 
@@ -226,94 +200,18 @@ fn test_extend_tsconfig_not_found() {
     );
 }
 
-/// When a tsconfig's `references` target does not exist,
-/// `resolve_tsconfig` should return `TsconfigNotFound`.
-#[test]
-fn test_references_not_found() {
-    use crate::ResolveError;
-
-    let f = super::fixture_root().join("tsconfig/cases/references-not-found");
-
-    let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
-        ..ResolveOptions::default()
-    });
-
-    let result = resolver.resolve_tsconfig(&f);
-    assert!(
-        matches!(&result, Err(ResolveError::TsconfigNotFound(_))),
-        "expected TsconfigNotFound for missing references target, got {result:?}",
-    );
-}
-
-/// A filesystem wrapper that returns `PermissionDenied` for `read_to_string`
-/// on a specific path, delegating everything else to the real OS filesystem.
-struct UnreadableFs {
-    unreadable_path: PathBuf,
-}
-
-impl crate::FileSystem for UnreadableFs {
-    #[cfg(not(feature = "yarn_pnp"))]
-    fn new() -> Self {
-        unreachable!()
-    }
-
-    #[cfg(feature = "yarn_pnp")]
-    fn new(_yarn_pnp: bool) -> Self {
-        unreachable!()
-    }
-
-    fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
-        std::fs::read(path)
-    }
-
-    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-        if path == self.unreadable_path {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "permission denied",
-            ));
-        }
-        crate::FileSystemOs::read_to_string(path)
-    }
-
-    fn metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
-        crate::FileSystemOs::metadata(path)
-    }
-
-    fn symlink_metadata(&self, path: &Path) -> std::io::Result<crate::FileMetadata> {
-        crate::FileSystemOs::symlink_metadata(path)
-    }
-
-    fn read_link(&self, path: &Path) -> Result<PathBuf, crate::ResolveError> {
-        crate::FileSystemOs::read_link(path)
-    }
-
-    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
-        crate::FileSystemOs::canonicalize(path)
-    }
-}
-
 /// When a tsconfig's `extends` target exists but is not readable (e.g. permission denied),
 /// `resolve_tsconfig` should return a `TsconfigLoadFailed` wrapping an `IOError`
 /// (not silently skip it).
 #[test]
 fn test_extend_tsconfig_unreadable_file() {
-    use crate::ResolveError;
-
     let f = super::fixture_root().join("tsconfig/cases/extends-unreadable");
 
-    let fs = UnreadableFs { unreadable_path: f.join("base.json") };
+    let fs = super::UnreadableFs { unreadable_path: f.join("base.json") };
     let resolver = crate::ResolverGeneric::new_with_file_system(
         fs,
         ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: f.join("tsconfig.json"),
-                references: TsconfigReferences::Disabled,
-            })),
+            tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
             ..ResolveOptions::default()
         },
     );
@@ -329,37 +227,6 @@ fn test_extend_tsconfig_unreadable_file() {
     );
 }
 
-/// When a tsconfig's `references` target exists but is not readable (e.g. permission denied),
-/// `resolve_tsconfig` should return a `TsconfigLoadFailed` wrapping an `IOError`.
-#[test]
-fn test_references_unreadable_file() {
-    use crate::ResolveError;
-
-    let f = super::fixture_root().join("tsconfig/cases/references-unreadable");
-
-    let fs = UnreadableFs { unreadable_path: f.join("referenced/tsconfig.json") };
-    let resolver = crate::ResolverGeneric::new_with_file_system(
-        fs,
-        ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: f.join("tsconfig.json"),
-                references: TsconfigReferences::Auto,
-            })),
-            ..ResolveOptions::default()
-        },
-    );
-
-    let result = resolver.resolve_tsconfig(&f);
-    assert!(
-        matches!(
-            &result,
-            Err(ResolveError::TsconfigLoadFailed { source, .. })
-                if matches!(source.as_ref(), ResolveError::IOError(_))
-        ),
-        "expected TsconfigLoadFailed wrapping IOError for unreadable references target, got {result:?}",
-    );
-}
-
 #[test]
 fn test_extend_package() {
     let f = super::fixture_root().join("tsconfig/cases");
@@ -367,10 +234,7 @@ fn test_extend_package() {
     let data = ["extends-esm", "extends-main"];
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -386,10 +250,7 @@ fn test_extend_imports() {
     let f = super::fixture_root().join("tsconfig/cases/extends-imports");
 
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Auto,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Auto)),
         ..ResolveOptions::default()
     });
 
@@ -409,10 +270,7 @@ fn test_extend_imports() {
 fn assert_extends_symlink_resolves_to_canonical(config_file: &Path) {
     let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: config_file.to_path_buf(),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(config_file.to_path_buf(), TsconfigReferences::Disabled)),
         extensions: vec![".ts".into()],
         ..ResolveOptions::default()
     });
@@ -436,4 +294,233 @@ fn test_extend_tsconfig_via_symlink_package() {
 fn test_extend_tsconfig_via_symlink_relative() {
     let f = super::fixture_root().join("tsconfig/cases/extends-symlink");
     assert_extends_symlink_resolves_to_canonical(&f.join("project/tsconfig.relative.json"));
+}
+
+#[test]
+fn test_merge_tsconfig() {
+    let resolver = Resolver::default();
+    let dir = super::fixture_root().join("tsconfig/cases/merge-compiler-options");
+    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
+    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
+    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
+    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
+    assert_eq!(compiler_options.target, Some("ESNext".to_string()));
+}
+
+#[test]
+fn test_no_merge_tsconfig() {
+    let resolver = Resolver::default();
+    let dir = super::fixture_root().join("tsconfig/cases/no-merge-compiler-options");
+    let resolution = resolver.resolve_tsconfig(&dir).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+    assert_eq!(compiler_options.jsx, Some("react-jsx".to_string()));
+    assert_eq!(compiler_options.jsx_factory, Some("h".to_string()));
+    assert_eq!(compiler_options.jsx_fragment_factory, Some("Fragment".to_string()));
+    assert_eq!(compiler_options.jsx_import_source, Some("xxx".to_string()));
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: extends error scenarios
+// ---------------------------------------------------------------------------
+
+#[test]
+fn extends_circular_two_files() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-circular");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigCircularExtend(_))),
+        "expected TsconfigCircularExtend, got {result:?}",
+    );
+}
+
+#[test]
+fn extends_self() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-self");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::TsconfigCircularExtend(_))),
+        "expected TsconfigCircularExtend for self-extending tsconfig, got {result:?}",
+    );
+}
+
+#[test]
+fn extends_empty_string() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-empty-string");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let result = resolver.resolve_tsconfig(&f);
+    assert!(
+        matches!(&result, Err(ResolveError::Specifier(SpecifierError::Empty(_)))),
+        "expected SpecifierError::Empty for empty extends, got {result:?}",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: extends path resolution
+// ---------------------------------------------------------------------------
+
+#[test]
+fn extends_pkg_subpath() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-pkg-subpath");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(&f).expect("should resolve through node_modules");
+    let compiler_options = &resolution.compiler_options;
+    assert_eq!(compiler_options.target, Some("ES2022".to_string()));
+    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+}
+
+#[test]
+fn extends_scoped_pkg() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-scoped-pkg");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(&f).expect("should resolve through @scope");
+    assert_eq!(resolution.compiler_options.target, Some("ES2021".to_string()));
+    assert_eq!(resolution.compiler_options.jsx, Some("react-jsx".to_string()));
+}
+
+#[test]
+fn extends_pkg_tsconfig_file() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-pkg-tsconfig-file");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(&f).expect("should resolve explicit subpath");
+    assert_eq!(resolution.compiler_options.target, Some("ES2024".to_string()));
+    assert_eq!(resolution.compiler_options.module, Some("Preserve".to_string()));
+}
+
+#[test]
+fn extends_with_json_extension() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-with-json");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(&f).expect("explicit .json extension should work");
+    assert_eq!(resolution.compiler_options.target, Some("ES2020".to_string()));
+    assert_eq!(resolution.compiler_options.module, Some("ESNext".to_string()));
+}
+
+#[test]
+fn extends_folder_resolves_to_tsconfig_json() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-folder-tsconfig");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver
+        .resolve_tsconfig(&f)
+        .expect("relative folder extends should resolve tsconfig.json");
+    assert_eq!(resolution.compiler_options.target, Some("ES2019".to_string()));
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: extends array semantics
+// ---------------------------------------------------------------------------
+
+#[test]
+fn extends_array_last_wins() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-array-last-wins");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+
+    assert_eq!(compiler_options.target, Some("ES2022".to_string()));
+    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
+    assert_eq!(compiler_options.jsx, Some("preserve".to_string()));
+}
+
+#[test]
+fn extends_diamond() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-diamond");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let compiler_options = &resolution.compiler_options;
+
+    assert_eq!(compiler_options.target, Some("ES2018".to_string()));
+    assert_eq!(compiler_options.experimental_decorators, Some(true));
+    assert_eq!(compiler_options.jsx, Some("react".to_string()));
+    assert_eq!(compiler_options.module, Some("ESNext".to_string()));
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: extends array edge cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn extends_empty_array() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-empty-array");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution =
+        resolver.resolve_tsconfig(&f).expect("empty extends array should be a no-op, not an error");
+    assert_eq!(resolution.compiler_options.target, Some("ES2020".to_string()));
+}
+
+#[test]
+fn extends_no_compiler_options_in_base() {
+    let f = super::fixture_root().join("tsconfig/cases/extends-no-compiler-options");
+
+    let resolver = Resolver::new(ResolveOptions {
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver
+        .resolve_tsconfig(&f)
+        .expect("extending a config without compilerOptions should still work");
+    assert_eq!(resolution.compiler_options.target, Some("ES2020".to_string()));
 }

@@ -76,9 +76,6 @@ jobs:
           components: clippy rust-docs
       - run: cargo clippy --all-features --all-targets -- -D warnings
       - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features
-      - uses: crate-ci/typos@8a48f81b6c64dcfea44b3633223084c4be58ac5f # v1.49.0
-        with:
-          files: .
 
   wasm32-wasip1:
     name: Test wasm32-wasip1

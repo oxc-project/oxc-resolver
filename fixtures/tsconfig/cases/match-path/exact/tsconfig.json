@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "lib/foo": [
+        "location/foo"
+      ]
+    }
+  }
+}

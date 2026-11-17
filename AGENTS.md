@@ -29,7 +29,7 @@ oxc-resolver/
 
 ## Development Workflow
 
-`just init` has already been run, all tools (`typos-cli`, `cargo-shear`) are already installed, do not run `just init`.
+`just init` has already been run, all tools (`cargo-shear`) are already installed, do not run `just init`.
 
 Rust and `cargo` components `clippy`, `rust-docs` and `rustfmt` have already been installed, do not install them.
 
@@ -131,6 +131,7 @@ fixtures/
 ├── pnpm/                  # pnpm node_modules structure
 ├── tsconfck/              # tsconfck compatibility
 ├── tsconfig/              # TypeScript config resolution
+├── unit/                  # Fixtures for single unit tests, one directory per test file
 └── yarn/                  # Yarn monorepo fixtures
 ```
 

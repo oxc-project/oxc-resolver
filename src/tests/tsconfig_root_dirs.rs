@@ -6,9 +6,8 @@
 //!
 //! TypeScript reference: https://www.typescriptlang.org/tsconfig#rootDirs
 
-use crate::{
-    ResolveError, ResolveOptions, Resolver, TsconfigDiscovery, TsconfigOptions, TsconfigReferences,
-};
+use super::manual_tsconfig;
+use crate::{ResolveError, ResolveOptions, Resolver, TsconfigReferences};
 
 #[test]
 fn test() {
@@ -56,10 +55,7 @@ fn test() {
 
     for (dir, from_path, request, expected) in pass {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.join("tsconfig.json"),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(dir.join("tsconfig.json"), TsconfigReferences::Auto)),
             extensions: vec![".ts".into()],
             ..ResolveOptions::default()
         });
@@ -86,10 +82,7 @@ fn test() {
 
     for (dir, from_path, request) in fail {
         let resolver = Resolver::new(ResolveOptions {
-            tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-                config_file: dir.join("tsconfig.json"),
-                references: TsconfigReferences::Auto,
-            })),
+            tsconfig: Some(manual_tsconfig(dir.join("tsconfig.json"), TsconfigReferences::Auto)),
             extensions: vec![".ts".into()],
             ..ResolveOptions::default()
         });
@@ -106,10 +99,7 @@ fn test() {
 fn test_root_dirs_via_extends() {
     let f = super::fixture_root().join("tsconfig/cases/root-dirs-extends");
     let resolver = Resolver::new(ResolveOptions {
-        tsconfig: Some(TsconfigDiscovery::Manual(TsconfigOptions {
-            config_file: f.join("tsconfig.json"),
-            references: TsconfigReferences::Disabled,
-        })),
+        tsconfig: Some(manual_tsconfig(f.join("tsconfig.json"), TsconfigReferences::Disabled)),
         extensions: vec![".ts".into(), ".d.ts".into()],
         ..ResolveOptions::default()
     });
@@ -117,4 +107,18 @@ fn test_root_dirs_via_extends() {
     let path = resolver.resolve(&from, "./$types").map(|r| r.full_path());
     let expected = f.join(".svelte-kit/types/src/routes/$types.d.ts");
     assert_eq!(path, Ok(expected), "from {from:?} resolve ./$types");
+}
+
+// ---------------------------------------------------------------------------
+// Ported from typescript-go: ${configDir} template substitution
+// ---------------------------------------------------------------------------
+
+#[test]
+fn config_dir_in_root_dirs() {
+    let f = super::fixture_root().join("tsconfig/cases/config-dir-root-dirs");
+    let resolver = super::manual_resolver(f.join("tsconfig.json"), vec![".ts".into()]);
+
+    let resolved_path =
+        resolver.resolve_file(f.join("src/index.ts"), "./gen").map(|r| r.full_path());
+    assert_eq!(resolved_path, Ok(f.join("generated/gen.ts")));
 }
