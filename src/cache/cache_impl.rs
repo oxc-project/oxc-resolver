@@ -4,8 +4,8 @@ use std::{
     collections::HashSet as StdHashSet,
     hash::{BuildHasherDefault, Hash, Hasher},
     io,
-    path::{Component, Path, PathBuf},
-    sync::{Arc, atomic::Ordering},
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use dashmap::{DashMap, mapref::entry::Entry};
@@ -374,19 +374,6 @@ impl Cache {
         }
     }
 
-    /// Whether `path` is the entry interned under its key, rather than one that [`Self::clear`]
-    /// dropped while a caller was still holding it.
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "shard selection needs only the low bits of the hash"
-    )]
-    fn is_interned(&self, path: &CachedPath) -> bool {
-        // Probe the shard directly, as `value` does: going through `DashMap::get` here costs
-        // cold resolution about 2% more instructions.
-        let shard = self.paths.shards()[self.paths.determine_shard(path.hash as usize)].read();
-        shard.get(path.hash, |(k, _)| Arc::ptr_eq(&k.0, &path.0)).is_some()
-    }
-
     /// Returns the canonical path, resolving all symbolic links.
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
@@ -430,8 +417,6 @@ impl Cache {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
 
-        // Whether `res` is certain to name the same entry as `path`. A root is its own.
-        let mut is_exact = true;
         let res = path.parent(self).map_or_else(
             || Ok(path.normalize_root(self)),
             |parent| {
@@ -439,7 +424,7 @@ impl Cache {
                 // When no ancestor is a symlink — the common case — the parent
                 // canonicalizes to itself, so `parent_canonical` is `parent`'s own interned
                 // Arc and the rebuild below would just re-derive `path`'s existing key.
-                // Skip it (the strip_prefix, scratch-buffer copy, hash, and shard probe)
+                // Skip it (the scratch-buffer copy, hash, and shard probe)
                 // and return this entry directly. That is only sound when the key is
                 // spelled exactly `<parent><MAIN_SEPARATOR><file_name>`: spellings the
                 // rebuild would fold — `.`/`..` tails, trailing or doubled separators, a
@@ -451,62 +436,39 @@ impl Cache {
                 // NULs, which reuse would keep.
                 let path_bytes = path.path().as_os_str().as_encoded_bytes();
                 let parent_len = parent.path().as_os_str().len();
-                let file_name = path.path().file_name();
-                let is_exact_child = file_name.is_some_and(|name| {
-                    parent_len + 1 + name.len() == path_bytes.len()
-                        && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
-                        && path_bytes[parent_len - 1] != std::path::MAIN_SEPARATOR as u8
-                });
                 let normalized = if cfg!(not(target_family = "wasm"))
                     && Arc::ptr_eq(&parent_canonical.0, &parent.0)
-                    && is_exact_child
-                {
+                    && path.path().file_name().is_some_and(|name| {
+                        parent_len + 1 + name.len() == path_bytes.len()
+                            && path_bytes[parent_len] == std::path::MAIN_SEPARATOR as u8
+                            && path_bytes[parent_len - 1] != std::path::MAIN_SEPARATOR as u8
+                    }) {
                     path.clone()
                 } else {
-                    // The tail of `path` below `parent` is its file name whenever it has one.
-                    let tail = file_name.map_or_else(
+                    // The tail of `path` below `parent` is its file name whenever it has one,
+                    // which saves `strip_prefix` walking the components of both paths.
+                    let tail = path.path().file_name().map_or_else(
                         || path.path().strip_prefix(parent.path()).unwrap(),
                         Path::new,
                     );
                     parent_canonical.normalize_with(tail, self)
                 };
 
-                let link_metadata = path.link_metadata(self.fs());
-
-                // `path` and `normalized` spell one entry when `parent` and `parent_canonical`
-                // are one directory for certain and `path` ends with the entry's name: `..`
-                // has no name, and a trailing separator or `.` makes the OS follow a final
-                // symlink.
-                is_exact = parent.canonical_is_exact.load(Ordering::Relaxed)
-                    && file_name.is_some_and(|name| path_bytes.ends_with(name.as_encoded_bytes()));
-
-                // Hand the `lstat` to the real spelling, so that resolving from the real
-                // location (where the imports of a linked package start) does not repeat it.
-                // An entry dropped by `clear` must not seed one created since.
-                if is_exact
-                    && let Some(link_metadata) = link_metadata
-                    && !Arc::ptr_eq(&normalized.0, &path.0)
-                    && self.is_interned(path)
-                {
-                    normalized.meta.link_or_init(|| Some(link_metadata));
-                }
-
-                if link_metadata.is_some_and(|m| m.is_symlink) {
+                if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
                     match self.fs.read_link(normalized.path()) {
                         Ok(link) => {
-                            let target = if link.is_absolute() {
-                                Some(self.value(&link.normalize()))
-                            } else {
+                            if link.is_absolute() {
+                                return self.canonicalize_with_visited(
+                                    &self.value(&link.normalize()),
+                                    visited,
+                                );
+                            } else if let Some(dir) = normalized.parent(self) {
                                 // Symlink is relative `../../foo.js`, use the path directory
                                 // to resolve this symlink.
-                                normalized.parent(self).map(|dir| dir.normalize_with(&link, self))
-                            };
-                            if let Some(target) = target {
-                                let canonical = self.canonicalize_with_visited(&target, visited)?;
-                                is_exact = is_exact
-                                    && target.canonical_is_exact.load(Ordering::Relaxed)
-                                    && is_folded_like_os(&link);
-                                return Ok(canonical);
+                                return self.canonicalize_with_visited(
+                                    &dir.normalize_with(&link, self),
+                                    visited,
+                                );
                             }
                             debug_assert!(
                                 false,
@@ -521,8 +483,6 @@ impl Cache {
                         Err(ResolveError::PathNotSupported(_)) => {}
                         Err(err) => return Err(err),
                     }
-                    // The link is kept, so the result is not a real spelling.
-                    is_exact = false;
                 }
 
                 Ok(normalized)
@@ -531,28 +491,10 @@ impl Cache {
 
         // Cache the result before removing from visited set
         // This ensures parent canonicalization results are cached and reused
-        path.canonical_is_exact.store(is_exact, Ordering::Relaxed);
         let _ = path.canonicalized.set((Arc::downgrade(&res.0), res.0.path.clone()));
 
         // Remove from visited set when unwinding the recursion
         visited.remove(&path.hash);
         Ok(res)
     }
-}
-
-/// Whether folding the `..` of symlink target `link` lexically, as canonicalization does, is what
-/// the OS does too. POSIX follows a name before applying the `..` after it, so the two differ
-/// when that name is a symlink. A relative target that restarts from a root or a drive is not
-/// resolved against the link's directory at all.
-fn is_folded_like_os(link: &Path) -> bool {
-    let mut named = false;
-    link.components().all(|component| match component {
-        Component::Normal(_) => {
-            named = true;
-            true
-        }
-        Component::ParentDir => !named,
-        Component::Prefix(_) | Component::RootDir => link.is_absolute(),
-        Component::CurDir => true,
-    })
 }
