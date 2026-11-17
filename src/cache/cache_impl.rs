@@ -424,7 +424,7 @@ impl Cache {
                 // When no ancestor is a symlink — the common case — the parent
                 // canonicalizes to itself, so `parent_canonical` is `parent`'s own interned
                 // Arc and the rebuild below would just re-derive `path`'s existing key.
-                // Skip it (the strip_prefix, scratch-buffer copy, hash, and shard probe)
+                // Skip it (the scratch-buffer copy, hash, and shard probe)
                 // and return this entry directly. That is only sound when the key is
                 // spelled exactly `<parent><MAIN_SEPARATOR><file_name>`: spellings the
                 // rebuild would fold — `.`/`..` tails, trailing or doubled separators, a
@@ -445,8 +445,13 @@ impl Cache {
                     }) {
                     path.clone()
                 } else {
-                    parent_canonical
-                        .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self)
+                    // The tail of `path` below `parent` is its file name whenever it has one,
+                    // which saves `strip_prefix` walking the components of both paths.
+                    let tail = path.path().file_name().map_or_else(
+                        || path.path().strip_prefix(parent.path()).unwrap(),
+                        Path::new,
+                    );
+                    parent_canonical.normalize_with(tail, self)
                 };
 
                 if path.link_metadata(self.fs()).is_some_and(|m| m.is_symlink) {
