@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../package/src/*"]
+    }
+  },
+  "include": ["../package/src"]
+}
