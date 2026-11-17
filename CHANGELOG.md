@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0](https://github.com/oxc-project/oxc-resolver/compare/v11.24.3...v12.0.0) - 2026-11-17
+
+### <!-- 0 -->🚀 Features
+
+- *(dts)* [**breaking**] default `typesVersions` to `Latest` and remove `TypesVersions::First` ([#1445](https://github.com/oxc-project/oxc-resolver/pull/1445)) (by @sxzzbot)
+- *(dts)* add `typesVersions` option to select entries by TypeScript version ([#1422](https://github.com/oxc-project/oxc-resolver/pull/1422)) (by @sxzzbot)
+- *(napi)* expose findTsconfig methods in Node API ([#1403](https://github.com/oxc-project/oxc-resolver/pull/1403)) (by @sapphi-red)
+- support Node.js package maps ([#1331](https://github.com/oxc-project/oxc-resolver/pull/1331)) (by @Boshen)
+
+### <!-- 1 -->🐛 Bug Fixes
+
+- *(tsconfig)* preserve inherited file pattern anchors ([#1358](https://github.com/oxc-project/oxc-resolver/pull/1358)) (by @camc314)
+- align subpath imports containing `?` and `#` with Vite ([#1443](https://github.com/oxc-project/oxc-resolver/pull/1443)) (by @Boshen)
+- honor Node's package-map CLI option ([#1441](https://github.com/oxc-project/oxc-resolver/pull/1441)) (by @Boshen)
+- *(tsconfig)* resolve dot-prefixed path aliases ([#1388](https://github.com/oxc-project/oxc-resolver/pull/1388)) (by @Boshen)
+- *(bench)* stabilize CodSpeed workloads ([#1435](https://github.com/oxc-project/oxc-resolver/pull/1435)) (by @Boshen)
+- *(cache)* keep links to unsupported DOS device paths instead of failing ([#1428](https://github.com/oxc-project/oxc-resolver/pull/1428)) (by @shulaoda)
+- *(tsconfig)* do not let a reference without paths shadow the parent ([#1424](https://github.com/oxc-project/oxc-resolver/pull/1424)) (by @JounQin)
+- isolate tsconfig caches across resolver clones ([#1402](https://github.com/oxc-project/oxc-resolver/pull/1402)) (by @sapphi-red)
+- reject invalid IPv6 file URL hosts ([#1434](https://github.com/oxc-project/oxc-resolver/pull/1434)) (by @Boshen)
+- preserve unicode in escaped fragment paths ([#1433](https://github.com/oxc-project/oxc-resolver/pull/1433)) (by @Boshen)
+- *(dts)* try the `.json` file itself after `.d.json.ts` for json imports ([#1377](https://github.com/oxc-project/oxc-resolver/pull/1377)) (by @ocavue)
+
+### <!-- 2 -->🚜 Refactor
+
+- *(tsconfig)* share ${configDir} handling ([#1460](https://github.com/oxc-project/oxc-resolver/pull/1460)) (by @Boshen)
+- merge the two bare-package loaders ([#1455](https://github.com/oxc-project/oxc-resolver/pull/1455)) (by @Boshen)
+- fold the repeated exports-field loops ([#1454](https://github.com/oxc-project/oxc-resolver/pull/1454)) (by @Boshen)
+- share the percent-encoded separator and drive-letter checks ([#1449](https://github.com/oxc-project/oxc-resolver/pull/1449)) (by @Boshen)
+- *(napi)* share the alias and fallback conversion ([#1450](https://github.com/oxc-project/oxc-resolver/pull/1450)) (by @Boshen)
+
+### <!-- 3 -->📚 Documentation
+
+- fix stale comments ([#1447](https://github.com/oxc-project/oxc-resolver/pull/1447)) (by @Boshen)
+
+### <!-- 4 -->⚡ Performance
+
+- *(cache)* skip `strip_prefix` when canonicalizing below a symlink ([#1470](https://github.com/oxc-project/oxc-resolver/pull/1470)) (by @Boshen)
+- *(tsconfig)* index wildcard path prefixes ([#1430](https://github.com/oxc-project/oxc-resolver/pull/1430)) (by @Dunqing)
+- enable Wasm 128bit SIMD Extension ([#1400](https://github.com/oxc-project/oxc-resolver/pull/1400)) (by @sapphi-red)
+
+### Contributors
+
+* @camc314
+* @Boshen
+* @sxzzbot
+* @renovate[bot]
+* @Dunqing
+* @sapphi-red
+* @shulaoda
+* @JounQin
+* @ocavue
+
 ## [11.24.3](https://github.com/oxc-project/oxc-resolver/compare/v11.24.2...v11.24.3) - 2026-08-24
 
 ### <!-- 2 -->🚜 Refactor
