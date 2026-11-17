@@ -101,7 +101,9 @@ impl TsConfig {
     /// Parses the tsconfig from a JSON string.
     ///
     /// `path` is the requested path (used as identity for cache lookup and error
-    /// reporting). `canonical_path` anchors `baseUrl` / `paths` at the real
+    /// reporting). It also anchors `files` / `include` / `exclude`, which are
+    /// matched against importers under the paths they were given.
+    /// `canonical_path` anchors `baseUrl` / `paths` at the real
     /// tsconfig directory when `extends` traverses a symlink. Callers that don't
     /// care about symlinks may pass the same value for both.
     ///
@@ -111,7 +113,7 @@ impl TsConfig {
     ///
     /// # Panics
     ///
-    /// * When `canonical_path` has no parent directory.
+    /// * When `path` or `canonical_path` has no parent directory.
     pub fn parse(
         root: bool,
         path: &Path,
@@ -140,13 +142,17 @@ impl TsConfig {
                     }
                 },
             );
+        // Anchor these where they are declared, so that a config inheriting them through
+        // `extends` keeps the anchor. The directory is the requested one, not the canonical
+        // one: an importer below a symlinked directory is matched under the path it was given.
+        let directory = path.parent().unwrap();
         for paths in [&mut tsconfig.files, &mut tsconfig.include, &mut tsconfig.exclude]
             .into_iter()
             .flatten()
         {
             for path in paths {
-                if !path.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
-                    *path = canonical_directory.normalize_with(&path);
+                if !is_template_path(path) {
+                    *path = directory.normalize_with(&path);
                 }
             }
         }
@@ -418,19 +424,15 @@ impl TsConfig {
 
         let config_dir = self.directory().to_path_buf();
 
-        // Substitute template variable in `tsconfig.files`.
-        if let Some(files) = self.files.take() {
-            self.files = Some(files.into_iter().map(|p| self.adjust_path(p)).collect());
-        }
-
-        // Substitute template variable in `tsconfig.include`.
-        if let Some(includes) = self.include.take() {
-            self.include = Some(includes.into_iter().map(|p| self.adjust_path(p)).collect());
-        }
-
-        // Substitute template variable in `tsconfig.exclude`.
-        if let Some(excludes) = self.exclude.take() {
-            self.exclude = Some(excludes.into_iter().map(|p| self.adjust_path(p)).collect());
+        // Substitute template variable in `tsconfig.files`, `include` and `exclude`. `parse`
+        // has anchored the other entries, and anchoring them again would repeat the directory
+        // of a tsconfig that was given as a relative path.
+        for paths in [&mut self.files, &mut self.include, &mut self.exclude].into_iter().flatten() {
+            for path in paths {
+                if let Some(substituted) = substitute_template(path, &config_dir) {
+                    *path = substituted;
+                }
+            }
         }
 
         if let Some(base_url) = &self.compiler_options.base_url {
