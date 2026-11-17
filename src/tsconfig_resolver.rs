@@ -458,7 +458,7 @@ impl ResolverImpl {
                         _ => err,
                     })?;
                 resolved
-                    .map(|p| p.path().to_path_buf())
+                    .map(|p| self.extended_package_tsconfig_path(&p))
                     .ok_or_else(|| ResolveError::TsconfigNotFound(PathBuf::from(specifier)))
             }
             _ => self
@@ -470,7 +470,7 @@ impl ResolverImpl {
                     None,
                     &mut Ctx::default(),
                 )
-                .map(|p| p.to_path_buf())
+                .map(|p| self.extended_package_tsconfig_path(&p))
                 .map_err(|err| match err {
                     ResolveError::NotFound(_) => {
                         ResolveError::TsconfigNotFound(PathBuf::from(specifier))
@@ -478,5 +478,20 @@ impl ResolverImpl {
                     _ => err,
                 }),
         }
+    }
+
+    /// The path to read a tsconfig from, when `extends` found it through package resolution.
+    ///
+    /// TypeScript reads a config found below `node_modules` from its real path, so its `files` /
+    /// `include` / `exclude` and its own relative `extends` are relative to the real directory
+    /// of the package, not to the symlink it was found through. Any other `extends` keeps the
+    /// path it was found under.
+    fn extended_package_tsconfig_path(&self, path: &CachedPath) -> PathBuf {
+        if path.inside_node_modules()
+            && let Ok(real_path) = self.cache.canonicalize(path)
+        {
+            return real_path;
+        }
+        path.to_path_buf()
     }
 }
