@@ -130,6 +130,7 @@ pub struct ResolverImpl {
     cache: Arc<Cache>,
     alias: CompiledAlias,
     fallback: CompiledAlias,
+    prefer_root_tsconfig: bool,
 }
 
 /// Generic implementation of the resolver, parameterized by its [FileSystem] implementation.
@@ -169,7 +170,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             _ => Fs::new(),
         };
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback };
+        let inner = ResolverImpl { options, cache, alias, fallback, prefer_root_tsconfig: false };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
@@ -178,8 +179,28 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback };
+        let inner = ResolverImpl { options, cache, alias, fallback, prefer_root_tsconfig: false };
         Self { inner, _marker: std::marker::PhantomData }
+    }
+
+    /// Prefer the root tsconfig in file resolution with [`TsconfigDiscovery::Manual`]
+    /// and [`TsconfigReferences::Auto`].
+    ///
+    /// Keep the root if it includes the importer or does not support its extension.
+    /// Otherwise, choose the first matching reference, falling back to the root.
+    /// In this mode, an omitted `include` without `files` can match outside a reference's
+    /// directory, and explicit JavaScript patterns can match with `allowJs` disabled.
+    ///
+    /// This also affects [`ResolverImpl::find_tsconfig`]. Clones made with
+    /// [`Self::clone_with_options`] retain the preference.
+    #[must_use]
+    pub fn with_tsconfig_root_preference(mut self) -> Self {
+        if !self.inner.prefer_root_tsconfig {
+            // Cached importer-to-tsconfig selections depend on this preference.
+            self.inner.cache = Arc::new(Cache::new(Arc::clone(&self.inner.cache.fs)));
+            self.inner.prefer_root_tsconfig = true;
+        }
+        self
     }
 
     /// Clone the resolver, reusing the underlying cache when tsconfig, package map, and Yarn PnP
@@ -209,7 +230,13 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
                 }
             },
         };
-        let inner = ResolverImpl { options, cache, alias, fallback };
+        let inner = ResolverImpl {
+            options,
+            cache,
+            alias,
+            fallback,
+            prefer_root_tsconfig: self.inner.prefer_root_tsconfig,
+        };
         Self { inner, _marker: std::marker::PhantomData }
     }
 }
