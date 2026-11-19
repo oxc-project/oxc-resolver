@@ -759,6 +759,7 @@ impl ResolverImpl {
     ) -> Result<CachedPath, ResolveError> {
         // There is an edge-case where a request with # can be a path or a fragment -> try both
         if ctx.fragment.is_some() && ctx.query.is_none() {
+            let fully_specified = ctx.fully_specified;
             let fragment = ctx.fragment.take().unwrap();
             let path = format!("{specifier}{fragment}");
             if let Ok(path) = self.require_without_parse(
@@ -770,6 +771,7 @@ impl ResolverImpl {
             ) {
                 return Ok(path);
             }
+            ctx.fully_specified = fully_specified;
             ctx.query = None;
             ctx.fragment.replace(fragment);
         }

@@ -388,6 +388,33 @@ fn literal_alias_restores_fragment_after_failed_file_lookup() {
 }
 
 #[test]
+fn literal_fragment_fallback_preserves_extension_inference() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    let options = ResolveOptions {
+        alias: vec![("outer/*".into(), vec!["./*#part.alt".into()])],
+        extensions: vec![".cjs".into()],
+        ..ResolveOptions::default()
+    };
+    let direct = Resolver::new(options.clone()).resolve_file_literal(&file, "outer/index").unwrap();
+    assert_eq!(direct.path(), dir.join("index#part.alt"));
+    assert_eq!(direct.fragment(), None);
+
+    let resolver = Resolver::new(ResolveOptions {
+        extension_alias: vec![(".alt".into(), vec![".missing".into()])],
+        ..options
+    });
+    for result in [
+        resolver.resolve_file_literal(&file, "outer/index"),
+        resolver.resolve_file(&file, "outer/index"),
+    ] {
+        let result = result.unwrap();
+        assert_eq!(result.path(), file);
+        assert_eq!((result.query(), result.fragment()), (None, Some("#part.alt")));
+    }
+}
+
+#[test]
 fn literal_alias_rejects_empty_rewrites() {
     let file = fixture().join("literal-request/index.cjs");
     let resolver = Resolver::new(ResolveOptions {
