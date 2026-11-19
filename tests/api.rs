@@ -368,6 +368,45 @@ fn literal_wildcard_alias_preserves_configured_fragment_lookup() {
 }
 
 #[test]
+fn literal_alias_restores_fragment_after_failed_file_lookup() {
+    let file = fixture().join("literal-request/index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![
+            ("outer/*".into(), vec!["./*#part".into()]),
+            ("./index.cjs#part$".into(), vec!["./missing?leaked".into()]),
+        ],
+        ..ResolveOptions::default()
+    });
+    for result in [
+        resolver.resolve_file_literal(&file, "outer/index.cjs"),
+        resolver.resolve_file(&file, "outer/index.cjs"),
+    ] {
+        let result = result.unwrap();
+        assert_eq!(result.path(), file);
+        assert_eq!((result.query(), result.fragment()), (None, Some("#part")));
+    }
+}
+
+#[test]
+fn literal_alias_rejects_empty_rewrites() {
+    let file = fixture().join("literal-request/index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![
+            ("empty/*".into(), vec!["*".into()]),
+            ("alias".into(), vec!["literal-request".into()]),
+        ],
+        ..ResolveOptions::default()
+    });
+    for key in ["empty/", "alias/.."] {
+        assert_eq!(
+            resolver.resolve_file_literal(&file, key).unwrap_err(),
+            ResolveError::Specifier(oxc_resolver::SpecifierError::Empty(String::new())),
+            "{key}"
+        );
+    }
+}
+
+#[test]
 fn literal_import_redirect_preserves_package_subpath() {
     let dir = fixture();
     let file = dir.join("literal-request/index.cjs");

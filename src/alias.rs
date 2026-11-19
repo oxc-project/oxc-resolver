@@ -268,6 +268,9 @@ impl ResolverImpl {
                     Cow::Owned(normalized)
                 }
             };
+            if new_specifier.is_empty() {
+                return Err(ResolveError::Specifier(crate::SpecifierError::Empty(String::new())));
+            }
             *should_stop = true;
             ctx.with_fully_specified(false);
             let result = if let Some(parsed) = &parsed {

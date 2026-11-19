@@ -770,6 +770,7 @@ impl ResolverImpl {
             ) {
                 return Ok(path);
             }
+            ctx.query = None;
             ctx.fragment.replace(fragment);
         }
         self.require_without_parse(cached_path, specifier, request, tsconfig, ctx)
