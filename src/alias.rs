@@ -3,8 +3,8 @@ use std::{borrow::Cow, path::Path};
 use compact_str::CompactString;
 
 use crate::{
-    Alias, AliasValue, CachedPath, ResolveError, ResolverImpl, TsConfig,
-    context::ResolveContext as Ctx,
+    Alias, AliasValue, CachedPath, ResolveError, ResolverImpl, Specifier, TsConfig,
+    context::{RequestSyntax, ResolveContext as Ctx},
     path::{PathUtil, SLASH_START},
 };
 
@@ -207,47 +207,65 @@ impl ResolverImpl {
         if request != alias_value
             && !request.strip_prefix(alias_value).is_some_and(|prefix| prefix.starts_with('/'))
         {
-            let new_specifier = match alias_match_kind {
+            let (tail, mut capture) = match alias_match_kind {
                 AliasMatchKind::Wildcard { prefix, suffix } => {
                     // Resolve wildcard, e.g. `@/*` -> `./src/*`
-                    let Some(alias_key) = request
+                    let Some(capture) = request
                         .strip_prefix(prefix.as_str())
                         .and_then(|specifier| specifier.strip_suffix(suffix.as_str()))
                     else {
                         return Ok(None);
                     };
-                    if alias_value.contains('*') {
-                        Cow::Owned(alias_value.replacen('*', alias_key, 1))
-                    } else {
-                        Cow::Borrowed(alias_value)
-                    }
+                    ("", alias_value.contains('*').then_some(capture))
                 }
                 AliasMatchKind::Exact | AliasMatchKind::Prefix => {
-                    let tail = &request[alias_key.len()..];
-                    if tail.is_empty() {
-                        Cow::Borrowed(alias_value)
-                    } else {
-                        let alias_path = Path::new(alias_value).normalize();
-                        // Must not append anything to alias_value if it is a file.
-                        let cached_alias_path = self.cache.value(&alias_path);
-                        if self.is_file(&cached_alias_path, ctx) {
-                            return Ok(None);
-                        }
-                        // Remove the leading slash so the final path is concatenated.
-                        let tail = tail.trim_start_matches(SLASH_START);
-                        if tail.is_empty() {
-                            Cow::Borrowed(alias_value)
-                        } else {
-                            let normalized = alias_path.normalize_with(tail);
-                            Cow::Owned(normalized.to_string_lossy().to_string())
-                        }
-                    }
+                    (&request[alias_key.len()..], None)
                 }
             };
+            let subpath = tail.trim_start_matches(SLASH_START);
+            let syntax = if capture.is_some() || !subpath.is_empty() {
+                ctx.request_syntax
+            } else {
+                RequestSyntax::EnhancedResolve
+            };
+            // Parse configured metadata before inserting literal request text.
+            let parsed = (syntax == RequestSyntax::Literal)
+                .then(|| Specifier::parse(alias_value))
+                .transpose()
+                .map_err(ResolveError::Specifier)?;
+            let target = parsed.as_ref().map_or(alias_value, Specifier::path);
+            let mut substitute = |text: &str| {
+                capture
+                    .take_if(|_| text.contains('*'))
+                    .map(|capture| text.replacen('*', capture, 1))
+            };
+            let new_specifier = if tail.is_empty() {
+                substitute(target).map_or(Cow::Borrowed(target), Cow::Owned)
+            } else {
+                let alias_path = Path::new(target).normalize();
+                if self.is_file(&self.cache.value(&alias_path), ctx) {
+                    return Ok(None);
+                }
+                if subpath.is_empty() {
+                    Cow::Borrowed(target)
+                } else if syntax == RequestSyntax::Literal {
+                    Cow::Owned(format!("{}/{subpath}", target.trim_end_matches('/')))
+                } else {
+                    Cow::Owned(alias_path.normalize_with(subpath).to_string_lossy().into_owned())
+                }
+            };
+            if let Some(parsed) = &parsed {
+                let query = parsed.query.and_then(&mut substitute);
+                let fragment = parsed.fragment.and_then(substitute);
+                ctx.with_query_fragment(
+                    query.as_deref().or(parsed.query),
+                    fragment.as_deref().or(parsed.fragment),
+                );
+            }
 
             *should_stop = true;
             ctx.with_fully_specified(false);
-            return match self.require(cached_path, new_specifier.as_ref(), tsconfig, ctx) {
+            return match self.require(cached_path, new_specifier.as_ref(), syntax, tsconfig, ctx) {
                 Err(ResolveError::NotFound(_) | ResolveError::MatchedAliasNotFound(_, _)) => {
                     Ok(None)
                 }

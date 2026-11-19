@@ -269,7 +269,7 @@ impl ResolverImpl {
     /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
     /// For ECMAScript modules, it is the value of `import.meta.url`.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] does not work for this API, use [ResolverImpl::resolve_file] instead.
+    /// For [TsconfigDiscovery::Auto], use [Self::resolve_file] or [Self::resolve_file_literal].
     ///
     /// # Errors
     ///
@@ -287,7 +287,7 @@ impl ResolverImpl {
 
     /// Resolve `specifier` for an absolute path to a file.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] only work for this API.
+    /// Supports [TsconfigDiscovery::Auto], as does [Self::resolve_file_literal].
     ///
     /// # Errors
     ///
@@ -303,7 +303,8 @@ impl ResolverImpl {
 
     /// Resolve from an absolute file path, treating `?` and `#` in the request as literal
     /// characters. For example, `pkg/item?raw` can match the export key `"./item?*"`.
-    /// Package targets can still supply a query or fragment in the resulting [`Resolution`].
+    /// Configured alias and package targets can supply a query or fragment in the resulting
+    /// [`Resolution`]. This method supports [TsconfigDiscovery::Auto].
     ///
     /// # Errors
     ///
@@ -403,7 +404,8 @@ impl ResolverImpl {
         ctx.with_fully_specified(self.options.fully_specified);
 
         let cached_path = self.cache.value(path);
-        let cached_path = self.require(&cached_path, specifier, tsconfig, ctx)?;
+        let cached_path =
+            self.require(&cached_path, specifier, ctx.request_syntax, tsconfig, ctx)?;
         let path = self.load_realpath(&cached_path)?;
 
         let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
@@ -481,12 +483,13 @@ impl ResolverImpl {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
+        syntax: RequestSyntax,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         ctx.test_for_infinite_recursion()?;
 
-        if ctx.request_syntax == RequestSyntax::Literal && ctx.depth == 1 && !specifier.is_empty() {
+        if syntax == RequestSyntax::Literal && !specifier.is_empty() {
             return self.require_without_parse(cached_path, specifier, None, tsconfig, ctx);
         }
 
@@ -1321,7 +1324,8 @@ impl ResolverImpl {
 
                 // try as file or directory `path` in the pnp folder
                 let cached_path = self.cache.value(&path);
-                let Ok(inner_resolution) = self.require(&cached_path, &inner_request, None, ctx)
+                let Ok(inner_resolution) =
+                    self.require(&cached_path, &inner_request, ctx.request_syntax, None, ctx)
                 else {
                     return Err(ResolveError::NotFound(specifier.to_string()));
                 };
@@ -1487,7 +1491,8 @@ impl ResolverImpl {
         ctx.with_resolving_alias(new_specifier.to_string());
         ctx.with_fully_specified(false);
         let package_url = self.cache.value(package_json.path().parent().unwrap());
-        self.require(&package_url, new_specifier, None, ctx).map(Some)
+        self.require(&package_url, new_specifier, RequestSyntax::EnhancedResolve, None, ctx)
+            .map(Some)
     }
 
     /// Given an extension alias map `{".js": [".ts", ".js"]}`,
@@ -1651,7 +1656,13 @@ impl ResolverImpl {
                     }
                     ctx.with_fully_specified(false);
                     return self
-                        .require(&cached_path, dot_subpath.as_ref(), tsconfig, ctx)
+                        .require(
+                            &cached_path,
+                            dot_subpath.as_ref(),
+                            ctx.request_syntax,
+                            tsconfig,
+                            ctx,
+                        )
                         .map(Some);
                 }
             }
