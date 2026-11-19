@@ -81,7 +81,7 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     alias::{CompiledAlias, compile_alias},
-    context::ResolveContext as Ctx,
+    context::{RequestSyntax, ResolveContext as Ctx},
     path::SLASH_START,
     specifier::Specifier,
 };
@@ -271,12 +271,33 @@ impl ResolverImpl {
         file: P,
         specifier: &str,
     ) -> Result<Resolution, ResolveError> {
-        self.resolve_file_impl(file.as_ref(), specifier)
+        self.resolve_file_impl(file.as_ref(), specifier, RequestSyntax::EnhancedResolve)
     }
 
-    fn resolve_file_impl(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
+    /// Resolve from an absolute file path, treating `?` and `#` in the request as literal
+    /// characters. For example, `pkg/item?raw` can match the export key `"./item?*"`.
+    /// Package targets can still supply a query or fragment in the resulting [`Resolution`].
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::resolve_file`].
+    pub fn resolve_file_literal<P: AsRef<Path>>(
+        &self,
+        file: P,
+        specifier: &str,
+    ) -> Result<Resolution, ResolveError> {
+        self.resolve_file_impl(file.as_ref(), specifier, RequestSyntax::Literal)
+    }
+
+    fn resolve_file_impl(
+        &self,
+        path: &Path,
+        specifier: &str,
+        request_syntax: RequestSyntax,
+    ) -> Result<Resolution, ResolveError> {
         let mut ctx = Ctx {
             resolve_file: true,
+            request_syntax,
             package_map_parent: Some(path.to_path_buf()),
             ..Ctx::default()
         };
@@ -438,6 +459,10 @@ impl ResolverImpl {
     ) -> Result<CachedPath, ResolveError> {
         ctx.test_for_infinite_recursion()?;
 
+        if ctx.request_syntax == RequestSyntax::Literal && ctx.depth == 1 && !specifier.is_empty() {
+            return self.require_without_parse(cached_path, specifier, None, tsconfig, ctx);
+        }
+
         // enhanced-resolve: parse
         let (parsed, try_fragment_as_path) =
             self.load_parse(cached_path, specifier, tsconfig, ctx)?;
@@ -445,16 +470,15 @@ impl ResolverImpl {
             return Ok(path);
         }
 
-        self.require_without_parse(cached_path, parsed.path(), specifier, tsconfig, ctx)
+        self.require_without_parse(cached_path, parsed.path(), Some(specifier), tsconfig, ctx)
     }
 
-    /// `specifier` has its query and fragment removed, `request` is the original specifier,
-    /// which is matched against the "imports" field for `#` specifiers.
+    /// `specifier` is the lookup key. A parsed request also keeps its original text for Vite subpath imports.
     fn require_without_parse(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        request: &str,
+        request: Option<&str>,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
@@ -600,7 +624,7 @@ impl ResolverImpl {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        request: &str,
+        request: Option<&str>,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
@@ -608,7 +632,8 @@ impl ResolverImpl {
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
         // `request` keeps its query and fragment, which can be part of an "imports" key.
         // Requests with `\0` escapes use the unescaped `specifier` as before.
-        let result = if request.starts_with('#')
+        let result = if let Some(request) = request
+            && request.starts_with('#')
             && memchr::memchr2(b'?', b'#', &request.as_bytes()[1..]).is_some()
             && !request.contains('\0')
         {
@@ -713,7 +738,9 @@ impl ResolverImpl {
             let specifier = parsed.path();
             let fragment = ctx.fragment.take().unwrap();
             let path = format!("{specifier}{fragment}");
-            if let Ok(path) = self.require_without_parse(cached_path, &path, &path, tsconfig, ctx) {
+            if let Ok(path) =
+                self.require_without_parse(cached_path, &path, Some(&path), tsconfig, ctx)
+            {
                 return Ok((parsed, Some(path)));
             }
             ctx.fragment.replace(fragment);
@@ -1920,7 +1947,19 @@ impl ResolverImpl {
 
         // 1. If target is a String, then
         if let Some(target) = target.as_string() {
-            // Target string con contain queries or fragments:
+            // A relative package target is a URL after substituting the literal pattern match.
+            let expanded;
+            let (target, pattern_match) = if ctx.request_syntax == RequestSyntax::Literal
+                && target.starts_with("./")
+                && target.contains('*')
+                && let Some(pattern) = pattern_match
+            {
+                expanded = target.replace('*', pattern);
+                (expanded.as_str(), None)
+            } else {
+                (target, pattern_match)
+            };
+            // Target strings can contain queries or fragments:
             // `"exports": { ".": { "default": "./foo.js?query#fragment" }`
             let parsed = Specifier::parse(target).map_err(ResolveError::Specifier)?;
             ctx.with_query_fragment(parsed.query, parsed.fragment);

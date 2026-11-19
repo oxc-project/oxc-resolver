@@ -233,3 +233,64 @@ fn clone_with_options_recompiles_alias() {
     assert_eq!(base, fixture.join("a.js"));
     assert_eq!(cloned, fixture.join("b.js"));
 }
+
+#[test]
+fn literal_package_keys() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    for (condition, target) in [("import", "package.json"), ("require", "index.cjs")] {
+        let resolver = Resolver::new(ResolveOptions {
+            condition_names: vec![condition.into()],
+            ..ResolveOptions::default()
+        });
+        for key in ["#choice?raw", "literal-request/item?raw"] {
+            let result = resolver.resolve_file_literal(&file, key).unwrap();
+            assert_eq!(result.path(), dir.join(target), "{key}");
+            assert_eq!((result.query(), result.fragment()), (None, None), "{key}");
+        }
+    }
+}
+
+#[test]
+fn literal_request_requires_the_whole_key() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    let resolver = Resolver::default();
+    for (key, query, fragment) in [
+        ("#plain?raw", Some("?raw"), None),
+        ("literal-request/plain?raw", Some("?raw"), None),
+        ("./index.cjs?raw", Some("?raw"), None),
+        ("./index.cjs#raw", None, Some("#raw")),
+    ] {
+        assert!(
+            matches!(
+                resolver.resolve_file_literal(&file, key),
+                Err(ResolveError::PackageImportNotDefined(..)
+                    | ResolveError::PackagePathNotExported { .. }
+                    | ResolveError::NotFound(_))
+            ),
+            "{key}"
+        );
+        let parsed = resolver.resolve_file(&file, key).unwrap();
+        assert_eq!(parsed.path(), file, "{key}");
+        assert_eq!((parsed.query(), parsed.fragment()), (query, fragment), "{key}");
+    }
+    assert!(matches!(resolver.resolve_file_literal(&file, ""), Err(ResolveError::Specifier(_))));
+}
+
+#[test]
+fn literal_request_preserves_target_query_and_fragment() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    let resolver = Resolver::default();
+    for (key, query, fragment) in [
+        ("#star/index.cjs?raw#part", "?raw", "#part"),
+        ("literal-request/star/index.cjs?raw#part", "?raw", "#part"),
+        ("literal-request/target?raw", "?mode=raw", "#entry"),
+    ] {
+        let result = resolver.resolve_file_literal(&file, key).unwrap();
+        assert_eq!(result.path(), file, "{key}");
+        assert_eq!(result.query(), Some(query), "{key}");
+        assert_eq!(result.fragment(), Some(fragment), "{key}");
+    }
+}
