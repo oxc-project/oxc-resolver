@@ -494,13 +494,9 @@ impl ResolverImpl {
         }
 
         // enhanced-resolve: parse
-        let (parsed, try_fragment_as_path) =
-            self.load_parse(cached_path, specifier, tsconfig, ctx)?;
-        if let Some(path) = try_fragment_as_path {
-            return Ok(path);
-        }
-
-        self.require_without_parse(cached_path, parsed.path(), Some(specifier), tsconfig, ctx)
+        let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
+        ctx.with_query_fragment(parsed.query, parsed.fragment);
+        self.require_with_fragment(cached_path, parsed.path(), Some(specifier), tsconfig, ctx)
     }
 
     /// `specifier` is the lookup key. A parsed request also keeps its original text for Vite subpath imports.
@@ -753,29 +749,30 @@ impl ResolverImpl {
     /// When a # is resolved as path it will be escaped in the result. Here: `.../some\0#thing.js`.
     ///
     /// <https://github.com/webpack/enhanced-resolve#escaping>
-    fn load_parse<'s>(
+    fn require_with_fragment(
         &self,
         cached_path: &CachedPath,
-        specifier: &'s str,
+        specifier: &str,
+        request: Option<&str>,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
-    ) -> Result<(Specifier<'s>, Option<CachedPath>), ResolveError> {
-        let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
-        ctx.with_query_fragment(parsed.query, parsed.fragment);
-
+    ) -> Result<CachedPath, ResolveError> {
         // There is an edge-case where a request with # can be a path or a fragment -> try both
         if ctx.fragment.is_some() && ctx.query.is_none() {
-            let specifier = parsed.path();
             let fragment = ctx.fragment.take().unwrap();
             let path = format!("{specifier}{fragment}");
-            if let Ok(path) =
-                self.require_without_parse(cached_path, &path, Some(&path), tsconfig, ctx)
-            {
-                return Ok((parsed, Some(path)));
+            if let Ok(path) = self.require_without_parse(
+                cached_path,
+                &path,
+                request.map(|_| path.as_str()),
+                tsconfig,
+                ctx,
+            ) {
+                return Ok(path);
             }
             ctx.fragment.replace(fragment);
         }
-        Ok((parsed, None))
+        self.require_without_parse(cached_path, specifier, request, tsconfig, ctx)
     }
 
     fn load_node_modules_or_not_found(

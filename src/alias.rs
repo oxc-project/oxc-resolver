@@ -248,24 +248,41 @@ impl ResolverImpl {
                 }
                 if subpath.is_empty() {
                     Cow::Borrowed(target)
-                } else if syntax == RequestSyntax::Literal {
+                } else if syntax == RequestSyntax::Literal
+                    && (target.starts_with("file://")
+                        || !matches!(
+                            Path::new(target).components().next(),
+                            Some(std::path::Component::Normal(_))
+                        ))
+                {
                     Cow::Owned(format!("{}/{subpath}", target.trim_end_matches('/')))
                 } else {
-                    Cow::Owned(alias_path.normalize_with(subpath).to_string_lossy().into_owned())
+                    let normalized =
+                        alias_path.normalize_with(subpath).to_string_lossy().into_owned();
+                    #[cfg(windows)]
+                    let normalized = if syntax == RequestSyntax::Literal {
+                        normalized.replace('\\', "/")
+                    } else {
+                        normalized
+                    };
+                    Cow::Owned(normalized)
                 }
             };
-            if let Some(parsed) = &parsed {
+            *should_stop = true;
+            ctx.with_fully_specified(false);
+            let result = if let Some(parsed) = &parsed {
                 let query = parsed.query.and_then(&mut substitute);
                 let fragment = parsed.fragment.and_then(substitute);
                 ctx.with_query_fragment(
                     query.as_deref().or(parsed.query),
                     fragment.as_deref().or(parsed.fragment),
                 );
-            }
-
-            *should_stop = true;
-            ctx.with_fully_specified(false);
-            return match self.require(cached_path, new_specifier.as_ref(), syntax, tsconfig, ctx) {
+                ctx.test_for_infinite_recursion()?;
+                self.require_with_fragment(cached_path, &new_specifier, None, tsconfig, ctx)
+            } else {
+                self.require(cached_path, &new_specifier, syntax, tsconfig, ctx)
+            };
+            return match result {
                 Err(ResolveError::NotFound(_) | ResolveError::MatchedAliasNotFound(_, _)) => {
                     Ok(None)
                 }

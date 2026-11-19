@@ -302,6 +302,7 @@ fn literal_alias_preserves_package_subpaths() {
     let resolver = Resolver::new(ResolveOptions {
         alias: vec![
             ("alias".into(), vec!["literal-request".into()]),
+            ("dotted".into(), vec!["literal-request/.".into()]),
             ("configured".into(), vec!["alias?mode=raw#entry".into()]),
             ("wild/*".into(), vec!["literal-request/*?mode=raw#entry".into()]),
             ("query/*".into(), vec!["literal-request/plain?mode=*#entry".into()]),
@@ -331,9 +332,39 @@ fn literal_alias_preserves_package_subpaths() {
         assert_eq!(result.path(), file, "{request}");
         assert_eq!((result.query(), result.fragment()), (Some(query), Some("#entry")), "{request}");
     }
+    for request in [
+        "alias/./plain",
+        "alias/missing/../item?raw",
+        "alias/./item#part",
+        "dotted/plain",
+        "dotted/item?raw",
+    ] {
+        let result = resolver.resolve_file_literal(&file, request).unwrap();
+        assert_eq!(result.path(), file, "{request}");
+        assert_eq!((result.query(), result.fragment()), (None, None), "{request}");
+    }
     let parsed = resolver.resolve_file(&file, "fallback/plain?raw#part").unwrap();
     assert_eq!(parsed.path(), file);
     assert_eq!((parsed.query(), parsed.fragment()), (Some("?raw"), Some("#part")));
+}
+
+#[test]
+fn literal_wildcard_alias_preserves_configured_fragment_lookup() {
+    let file = fixture().join("literal-request/index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![("fragment/*".into(), vec!["literal-request/*#part".into()])],
+        condition_names: vec!["require".into()],
+        ..ResolveOptions::default()
+    });
+    for (key, fragment) in [("item", None), ("plain", Some("#part")), ("item?raw", None)] {
+        let result = resolver.resolve_file_literal(&file, &format!("fragment/{key}")).unwrap();
+        assert_eq!(result.path(), file, "{key}");
+        assert_eq!((result.query(), result.fragment()), (None, fragment), "{key}");
+    }
+    assert!(matches!(
+        resolver.resolve_file_literal(&file, "fragment/plain?missing"),
+        Err(ResolveError::PackagePathNotExported { .. })
+    ));
 }
 
 #[test]
