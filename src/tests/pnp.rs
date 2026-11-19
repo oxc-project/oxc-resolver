@@ -91,6 +91,33 @@ fn resolve_in_pnp_linked_folder() {
 }
 
 #[test]
+fn resolve_literal_pnp_subpath() {
+    let fixture = super::fixture_root().join("pnp");
+    let importer = fixture.join("index.test.mjs");
+    let resolver = Resolver::new(ResolveOptions {
+        cwd: Some(fixture.clone()),
+        yarn_pnp: true,
+        ..ResolveOptions::default()
+    });
+
+    for (request, query, fragment) in
+        [("lib/lib.js?raw", Some("?raw"), None), ("lib/lib.js#part", None, Some("#part"))]
+    {
+        assert_eq!(
+            resolver.resolve_file_literal(&importer, request),
+            Err(NotFound(request.to_string()))
+        );
+        let parsed = resolver.resolve_file(&importer, request).unwrap();
+        assert_eq!(parsed.path(), fixture.join("shared/lib.js"), "{request}");
+        assert_eq!((parsed.query(), parsed.fragment()), (query, fragment), "{request}");
+    }
+
+    let literal = resolver.resolve_file_literal(&importer, "lib/literal.js#part").unwrap();
+    assert_eq!(literal.path(), fixture.join("shared/literal.js#part"));
+    assert_eq!((literal.query(), literal.fragment()), (None, None));
+}
+
+#[test]
 fn resolve_pnp_pkg_should_failed_while_disable_pnp_mode() {
     let fixture = super::fixture_root().join("pnp");
 

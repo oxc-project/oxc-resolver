@@ -1,0 +1,17 @@
+{
+  "name": "literal-request",
+  "imports": {
+    "#choice?raw": { "import": "./package.json", "require": "./index.cjs" },
+    "#plain": "./index.cjs",
+    "#star/*": "./*",
+    "#redirect/*": "literal-request/*"
+  },
+  "exports": {
+    "./item?raw": { "import": "./package.json", "require": "./index.cjs" },
+    "./item?*": { "import": "./package.json", "require": "./index.cjs" },
+    "./item#part": "./index.cjs",
+    "./plain": "./index.cjs",
+    "./star/*": "./*",
+    "./target?*": "./index.cjs?mode=*#entry"
+  }
+}

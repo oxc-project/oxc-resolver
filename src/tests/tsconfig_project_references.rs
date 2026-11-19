@@ -71,6 +71,49 @@ fn auto() {
 }
 
 #[test]
+fn manual_root_preference() {
+    let f = super::fixture_root().join("tsconfig/cases/referenced-allow-js-off");
+    let options = ResolveOptions {
+        extensions: vec![".ts".into(), ".js".into()],
+        tsconfig: Some(manual_tsconfig(
+            f.join("tsconfig.root-preference.json"),
+            TsconfigReferences::Auto,
+        )),
+        ..ResolveOptions::default()
+    };
+    let resolver = Resolver::new(options.clone());
+    let ts = f.join("src/consumer.ts");
+    let js = f.join("src/consumer.js");
+    let root_config = f.join("tsconfig.root-preference.json");
+    let reference_config = f.join("tsconfig.lib.json");
+    let root_target = f.join("src/consumer.js");
+    let reference_target = f.join("src/foo.ts");
+
+    assert_eq!(resolver.find_tsconfig(&ts).unwrap().unwrap().path(), reference_config);
+    assert_eq!(resolver.find_tsconfig(&js).unwrap().unwrap().path(), root_config);
+
+    let preferred = resolver.clone_with_options(options.clone()).with_tsconfig_root_preference();
+    assert_eq!(preferred.find_tsconfig(&ts).unwrap().unwrap().path(), root_config);
+    assert_eq!(preferred.find_tsconfig(&js).unwrap().unwrap().path(), reference_config);
+    assert_eq!(preferred.resolve_file(&ts, "@lib/foo").unwrap().full_path(), root_target);
+    assert_eq!(
+        preferred.resolve_file_literal(&js, "@lib/foo").unwrap().full_path(),
+        reference_target
+    );
+
+    let cloned = preferred
+        .clone_with_options(ResolveOptions { condition_names: vec!["require".into()], ..options });
+    assert_eq!(
+        cloned.resolve_file_literal(&reference_target, "@lib/foo").unwrap().full_path(),
+        root_target,
+    );
+    assert_eq!(
+        resolver.resolve_file_literal(&ts, "@lib/foo").unwrap().full_path(),
+        reference_target
+    );
+}
+
+#[test]
 fn disabled() {
     let f = super::fixture_root().join("tsconfig/cases/project-references");
 

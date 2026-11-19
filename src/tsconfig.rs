@@ -676,12 +676,19 @@ fn to_forward_slashes(s: Cow<'_, str>) -> Cow<'_, str> {
 
 /// Tsconfig resolver
 impl TsConfig {
-    pub(crate) fn resolve_tsconfig_solution(tsconfig: Arc<Self>, path: &Path) -> Arc<Self> {
+    pub(crate) fn resolve_tsconfig_solution(
+        tsconfig: Arc<Self>,
+        path: &Path,
+        prefer_root: bool,
+    ) -> Arc<Self> {
         if !tsconfig.references_resolved.is_empty()
+            && (!prefer_root
+                || (tsconfig.is_file_extension_allowed_in_tsconfig(path)
+                    && !tsconfig.is_file_included_in_tsconfig(path, prefer_root)))
             && let Some(solution_tsconfig) = tsconfig
                 .references_resolved
                 .iter()
-                .find(|referenced| referenced.is_file_included_in_tsconfig(path))
+                .find(|referenced| referenced.is_file_included_in_tsconfig(path, prefer_root))
                 .map(Arc::clone)
         {
             return solution_tsconfig;
@@ -697,7 +704,7 @@ impl TsConfig {
     pub(crate) fn claims_ownership_of(&self, path: &Path) -> bool {
         // Any matching reference claims ownership (consistent with
         // resolve_tsconfig_solution).
-        if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path)) {
+        if self.references_resolved.iter().any(|r| r.is_file_included_in_tsconfig(path, false)) {
             return true;
         }
         // Solution-style configs (have `references` and explicit empty
@@ -711,10 +718,10 @@ impl TsConfig {
         if is_solution_style {
             return false;
         }
-        self.is_file_included_in_tsconfig(path)
+        self.is_file_included_in_tsconfig(path, false)
     }
 
-    fn is_file_included_in_tsconfig(&self, path: &Path) -> bool {
+    fn is_file_included_in_tsconfig(&self, path: &Path, prefer_root: bool) -> bool {
         // 1. Check files array (highest priority - overrides exclude)
         if self.files.as_ref().is_some_and(|files| files.iter().any(|file| Path::new(file) == path))
         {
@@ -722,17 +729,14 @@ impl TsConfig {
         }
         // 2. Reject non-program inputs: a `.js`-family file with `allowJs` off
         //    (even if a glob names `.js`), or an extensionless path
-        if self.is_extensionless_or_uncompiled_js(path) {
+        if !prefer_root && self.is_extensionless_or_uncompiled_js(path) {
             return false;
         }
         // 3. Check include patterns
         let is_included = self.include.as_ref().map_or_else(
             || {
-                if self.files.is_some() {
-                    false
-                } else {
-                    self.is_glob_matches(path, GlobPattern::All)
-                }
+                self.files.is_none()
+                    && (prefer_root || self.is_glob_matches(path, GlobPattern::All))
             },
             |include_patterns| self.is_glob_matches(path, GlobPattern::Pattern(include_patterns)),
         );
