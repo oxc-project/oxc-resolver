@@ -2,6 +2,13 @@ use std::path::{Path, PathBuf};
 
 use crate::error::ResolveError;
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum RequestSyntax {
+    #[default]
+    EnhancedResolve,
+    Literal,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct ResolveContext {
     pub fully_specified: bool,
@@ -23,6 +30,8 @@ pub struct ResolveContext {
     pub depth: u8,
 
     pub resolve_file: bool,
+
+    pub request_syntax: RequestSyntax,
 
     pub package_map_parent: Option<PathBuf>,
 

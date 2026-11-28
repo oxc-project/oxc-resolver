@@ -81,7 +81,7 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     alias::{CompiledAlias, compile_alias},
-    context::ResolveContext as Ctx,
+    context::{RequestSyntax, ResolveContext as Ctx},
     path::SLASH_START,
     specifier::Specifier,
 };
@@ -130,6 +130,7 @@ pub struct ResolverImpl {
     cache: Arc<Cache>,
     alias: CompiledAlias,
     fallback: CompiledAlias,
+    prefer_root_tsconfig: bool,
 }
 
 /// Generic implementation of the resolver, parameterized by its [FileSystem] implementation.
@@ -169,7 +170,7 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
             _ => Fs::new(),
         };
         let cache = Arc::new(Cache::new(Arc::new(fs) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback };
+        let inner = ResolverImpl { options, cache, alias, fallback, prefer_root_tsconfig: false };
         Self { inner, _marker: std::marker::PhantomData }
     }
 
@@ -178,8 +179,28 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
         let alias = compile_alias(&options.alias);
         let fallback = compile_alias(&options.fallback);
         let cache = Arc::new(Cache::new(Arc::new(file_system) as Arc<dyn FileSystem>));
-        let inner = ResolverImpl { options, cache, alias, fallback };
+        let inner = ResolverImpl { options, cache, alias, fallback, prefer_root_tsconfig: false };
         Self { inner, _marker: std::marker::PhantomData }
+    }
+
+    /// Prefer the root tsconfig in file resolution with [`TsconfigDiscovery::Manual`]
+    /// and [`TsconfigReferences::Auto`].
+    ///
+    /// Keep the root if it includes the importer or does not support its extension.
+    /// Otherwise, choose the first matching reference, falling back to the root.
+    /// In this mode, an omitted `include` without `files` can match outside a reference's
+    /// directory, and explicit JavaScript patterns can match with `allowJs` disabled.
+    ///
+    /// This also affects [`ResolverImpl::find_tsconfig`]. Clones made with
+    /// [`Self::clone_with_options`] retain the preference.
+    #[must_use]
+    pub fn with_tsconfig_root_preference(mut self) -> Self {
+        if !self.inner.prefer_root_tsconfig {
+            // Cached importer-to-tsconfig selections depend on this preference.
+            self.inner.cache = Arc::new(Cache::new(Arc::clone(&self.inner.cache.fs)));
+            self.inner.prefer_root_tsconfig = true;
+        }
+        self
     }
 
     /// Clone the resolver, reusing the underlying cache when tsconfig, package map, and Yarn PnP
@@ -209,7 +230,13 @@ impl<Fs: FileSystem + 'static> ResolverGeneric<Fs> {
                 }
             },
         };
-        let inner = ResolverImpl { options, cache, alias, fallback };
+        let inner = ResolverImpl {
+            options,
+            cache,
+            alias,
+            fallback,
+            prefer_root_tsconfig: self.inner.prefer_root_tsconfig,
+        };
         Self { inner, _marker: std::marker::PhantomData }
     }
 }
@@ -242,7 +269,7 @@ impl ResolverImpl {
     /// For CommonJS modules, it is the `__dirname` variable that contains the absolute path to the folder containing current module.
     /// For ECMAScript modules, it is the value of `import.meta.url`.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] does not work for this API, use [ResolverImpl::resolve_file] instead.
+    /// For [TsconfigDiscovery::Auto], use [Self::resolve_file] or [Self::resolve_file_literal].
     ///
     /// # Errors
     ///
@@ -260,7 +287,7 @@ impl ResolverImpl {
 
     /// Resolve `specifier` for an absolute path to a file.
     ///
-    /// NOTE: [TsconfigDiscovery::Auto] only work for this API.
+    /// Supports [TsconfigDiscovery::Auto], as does [Self::resolve_file_literal].
     ///
     /// # Errors
     ///
@@ -271,12 +298,34 @@ impl ResolverImpl {
         file: P,
         specifier: &str,
     ) -> Result<Resolution, ResolveError> {
-        self.resolve_file_impl(file.as_ref(), specifier)
+        self.resolve_file_impl(file.as_ref(), specifier, RequestSyntax::EnhancedResolve)
     }
 
-    fn resolve_file_impl(&self, path: &Path, specifier: &str) -> Result<Resolution, ResolveError> {
+    /// Resolve from an absolute file path, treating `?` and `#` in the request as literal
+    /// characters. For example, `pkg/item?raw` can match the export key `"./item?*"`.
+    /// Configured alias and package targets can supply a query or fragment in the resulting
+    /// [`Resolution`]. This method supports [TsconfigDiscovery::Auto].
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::resolve_file`].
+    pub fn resolve_file_literal<P: AsRef<Path>>(
+        &self,
+        file: P,
+        specifier: &str,
+    ) -> Result<Resolution, ResolveError> {
+        self.resolve_file_impl(file.as_ref(), specifier, RequestSyntax::Literal)
+    }
+
+    fn resolve_file_impl(
+        &self,
+        path: &Path,
+        specifier: &str,
+        request_syntax: RequestSyntax,
+    ) -> Result<Resolution, ResolveError> {
         let mut ctx = Ctx {
             resolve_file: true,
+            request_syntax,
             package_map_parent: Some(path.to_path_buf()),
             ..Ctx::default()
         };
@@ -355,7 +404,8 @@ impl ResolverImpl {
         ctx.with_fully_specified(self.options.fully_specified);
 
         let cached_path = self.cache.value(path);
-        let cached_path = self.require(&cached_path, specifier, tsconfig, ctx)?;
+        let cached_path =
+            self.require(&cached_path, specifier, ctx.request_syntax, tsconfig, ctx)?;
         let path = self.load_realpath(&cached_path)?;
 
         let package_json = self.find_package_json_for_a_package(&cached_path, ctx)?;
@@ -433,28 +483,28 @@ impl ResolverImpl {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
+        syntax: RequestSyntax,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
         ctx.test_for_infinite_recursion()?;
 
-        // enhanced-resolve: parse
-        let (parsed, try_fragment_as_path) =
-            self.load_parse(cached_path, specifier, tsconfig, ctx)?;
-        if let Some(path) = try_fragment_as_path {
-            return Ok(path);
+        if syntax == RequestSyntax::Literal && !specifier.is_empty() {
+            return self.require_without_parse(cached_path, specifier, None, tsconfig, ctx);
         }
 
-        self.require_without_parse(cached_path, parsed.path(), specifier, tsconfig, ctx)
+        // enhanced-resolve: parse
+        let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
+        ctx.with_query_fragment(parsed.query, parsed.fragment);
+        self.require_with_fragment(cached_path, parsed.path(), Some(specifier), tsconfig, ctx)
     }
 
-    /// `specifier` has its query and fragment removed, `request` is the original specifier,
-    /// which is matched against the "imports" field for `#` specifiers.
+    /// `specifier` is the lookup key. A parsed request also keeps its original text for Vite subpath imports.
     fn require_without_parse(
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        request: &str,
+        request: Option<&str>,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
@@ -600,7 +650,7 @@ impl ResolverImpl {
         &self,
         cached_path: &CachedPath,
         specifier: &str,
-        request: &str,
+        request: Option<&str>,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
     ) -> Result<CachedPath, ResolveError> {
@@ -608,7 +658,8 @@ impl ResolverImpl {
         // a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
         // `request` keeps its query and fragment, which can be part of an "imports" key.
         // Requests with `\0` escapes use the unescaped `specifier` as before.
-        let result = if request.starts_with('#')
+        let result = if let Some(request) = request
+            && request.starts_with('#')
             && memchr::memchr2(b'?', b'#', &request.as_bytes()[1..]).is_some()
             && !request.contains('\0')
         {
@@ -698,27 +749,33 @@ impl ResolverImpl {
     /// When a # is resolved as path it will be escaped in the result. Here: `.../some\0#thing.js`.
     ///
     /// <https://github.com/webpack/enhanced-resolve#escaping>
-    fn load_parse<'s>(
+    fn require_with_fragment(
         &self,
         cached_path: &CachedPath,
-        specifier: &'s str,
+        specifier: &str,
+        request: Option<&str>,
         tsconfig: Option<&TsConfig>,
         ctx: &mut Ctx,
-    ) -> Result<(Specifier<'s>, Option<CachedPath>), ResolveError> {
-        let parsed = Specifier::parse(specifier).map_err(ResolveError::Specifier)?;
-        ctx.with_query_fragment(parsed.query, parsed.fragment);
-
+    ) -> Result<CachedPath, ResolveError> {
         // There is an edge-case where a request with # can be a path or a fragment -> try both
         if ctx.fragment.is_some() && ctx.query.is_none() {
-            let specifier = parsed.path();
+            let fully_specified = ctx.fully_specified;
             let fragment = ctx.fragment.take().unwrap();
             let path = format!("{specifier}{fragment}");
-            if let Ok(path) = self.require_without_parse(cached_path, &path, &path, tsconfig, ctx) {
-                return Ok((parsed, Some(path)));
+            if let Ok(path) = self.require_without_parse(
+                cached_path,
+                &path,
+                request.map(|_| path.as_str()),
+                tsconfig,
+                ctx,
+            ) {
+                return Ok(path);
             }
+            ctx.fully_specified = fully_specified;
+            ctx.query = None;
             ctx.fragment.replace(fragment);
         }
-        Ok((parsed, None))
+        self.require_without_parse(cached_path, specifier, request, tsconfig, ctx)
     }
 
     fn load_node_modules_or_not_found(
@@ -1267,7 +1324,8 @@ impl ResolverImpl {
 
                 // try as file or directory `path` in the pnp folder
                 let cached_path = self.cache.value(&path);
-                let Ok(inner_resolution) = self.require(&cached_path, &inner_request, None, ctx)
+                let Ok(inner_resolution) =
+                    self.require(&cached_path, &inner_request, ctx.request_syntax, None, ctx)
                 else {
                     return Err(ResolveError::NotFound(specifier.to_string()));
                 };
@@ -1433,7 +1491,8 @@ impl ResolverImpl {
         ctx.with_resolving_alias(new_specifier.to_string());
         ctx.with_fully_specified(false);
         let package_url = self.cache.value(package_json.path().parent().unwrap());
-        self.require(&package_url, new_specifier, None, ctx).map(Some)
+        self.require(&package_url, new_specifier, RequestSyntax::EnhancedResolve, None, ctx)
+            .map(Some)
     }
 
     /// Given an extension alias map `{".js": [".ts", ".js"]}`,
@@ -1597,7 +1656,13 @@ impl ResolverImpl {
                     }
                     ctx.with_fully_specified(false);
                     return self
-                        .require(&cached_path, dot_subpath.as_ref(), tsconfig, ctx)
+                        .require(
+                            &cached_path,
+                            dot_subpath.as_ref(),
+                            ctx.request_syntax,
+                            tsconfig,
+                            ctx,
+                        )
                         .map(Some);
                 }
             }
@@ -1920,7 +1985,19 @@ impl ResolverImpl {
 
         // 1. If target is a String, then
         if let Some(target) = target.as_string() {
-            // Target string con contain queries or fragments:
+            // A relative package target is a URL after substituting the literal pattern match.
+            let expanded;
+            let (target, pattern_match) = if ctx.request_syntax == RequestSyntax::Literal
+                && target.starts_with("./")
+                && target.contains('*')
+                && let Some(pattern) = pattern_match
+            {
+                expanded = target.replace('*', pattern);
+                (expanded.as_str(), None)
+            } else {
+                (target, pattern_match)
+            };
+            // Target strings can contain queries or fragments:
             // `"exports": { ".": { "default": "./foo.js?query#fragment" }`
             let parsed = Specifier::parse(target).map_err(ResolveError::Specifier)?;
             ctx.with_query_fragment(parsed.query, parsed.fragment);

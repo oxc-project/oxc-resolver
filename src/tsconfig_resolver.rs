@@ -39,12 +39,11 @@ impl ResolverImpl {
     ///
     /// If the `path` is inside `node_modules`, this function always returns `None`.
     ///
-    /// Algorithm:
     ///
-    /// 1. Search for `tsconfig.json` in ancestor directories.
-    /// 2. If the path is not included in this `tsconfig.json` through the `files`, `include`, or `exclude` fields:
-    ///    2.1. Search through project references until a referenced `tsconfig` includes this file.
-    ///    2.2. If none of the references include this path, return the `tsconfig.json` found in step 1.
+    /// With [`TsconfigDiscovery::Auto`], find the nearest ancestor `tsconfig.json` that
+    /// includes the path directly or through a project reference. With
+    /// [`TsconfigDiscovery::Manual`], use the configured tsconfig as the root.
+    /// By default, the first matching reference takes precedence over the root.
     ///
     /// # Errors
     ///
@@ -79,7 +78,14 @@ impl ResolverImpl {
             .get_or_try_init(|| {
                 self.find_tsconfig_impl(cached_path).map(|option_tsconfig| {
                     option_tsconfig.map(|tsconfig| {
-                        let r = TsConfig::resolve_tsconfig_solution(tsconfig, cached_path.path());
+                        let prefer_root = self.prefer_root_tsconfig
+                            && matches!(&self.options.tsconfig, Some(TsconfigDiscovery::Manual(o))
+                                if o.references == TsconfigReferences::Auto);
+                        let r = TsConfig::resolve_tsconfig_solution(
+                            tsconfig,
+                            cached_path.path(),
+                            prefer_root,
+                        );
                         tracing::debug!(path = %cached_path, ret = ?r);
                         r
                     })
@@ -431,7 +437,13 @@ impl ResolverImpl {
         let fallback = crate::alias::compile_alias(&options.fallback);
         // Extends-resolution never toggles `yarn_pnp`, so reuse the same cache (and thus the
         // same underlying filesystem) rather than rebuilding it.
-        Self { options, cache: Arc::clone(&self.cache), alias, fallback }
+        Self {
+            options,
+            cache: Arc::clone(&self.cache),
+            alias,
+            fallback,
+            prefer_root_tsconfig: self.prefer_root_tsconfig,
+        }
     }
 
     fn get_extended_tsconfig_path(

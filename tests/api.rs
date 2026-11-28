@@ -233,3 +233,218 @@ fn clone_with_options_recompiles_alias() {
     assert_eq!(base, fixture.join("a.js"));
     assert_eq!(cloned, fixture.join("b.js"));
 }
+
+#[test]
+fn literal_package_keys() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    for (condition, target) in [("import", "package.json"), ("require", "index.cjs")] {
+        let resolver = Resolver::new(ResolveOptions {
+            condition_names: vec![condition.into()],
+            ..ResolveOptions::default()
+        });
+        for key in ["#choice?raw", "literal-request/item?raw"] {
+            let result = resolver.resolve_file_literal(&file, key).unwrap();
+            assert_eq!(result.path(), dir.join(target), "{key}");
+            assert_eq!((result.query(), result.fragment()), (None, None), "{key}");
+        }
+    }
+}
+
+#[test]
+fn literal_request_requires_the_whole_key() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    let resolver = Resolver::default();
+    for (key, query, fragment) in [
+        ("#plain?raw", Some("?raw"), None),
+        ("literal-request/plain?raw", Some("?raw"), None),
+        ("./index.cjs?raw", Some("?raw"), None),
+        ("./index.cjs#raw", None, Some("#raw")),
+    ] {
+        assert!(
+            matches!(
+                resolver.resolve_file_literal(&file, key),
+                Err(ResolveError::PackageImportNotDefined(..)
+                    | ResolveError::PackagePathNotExported { .. }
+                    | ResolveError::NotFound(_))
+            ),
+            "{key}"
+        );
+        let parsed = resolver.resolve_file(&file, key).unwrap();
+        assert_eq!(parsed.path(), file, "{key}");
+        assert_eq!((parsed.query(), parsed.fragment()), (query, fragment), "{key}");
+    }
+    assert!(matches!(resolver.resolve_file_literal(&file, ""), Err(ResolveError::Specifier(_))));
+}
+
+#[test]
+fn literal_request_preserves_target_query_and_fragment() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    let resolver = Resolver::default();
+    for (key, query, fragment) in [
+        ("#star/index.cjs?raw#part", "?raw", "#part"),
+        ("literal-request/star/index.cjs?raw#part", "?raw", "#part"),
+        ("literal-request/target?raw", "?mode=raw", "#entry"),
+    ] {
+        let result = resolver.resolve_file_literal(&file, key).unwrap();
+        assert_eq!(result.path(), file, "{key}");
+        assert_eq!(result.query(), Some(query), "{key}");
+        assert_eq!(result.fragment(), Some(fragment), "{key}");
+    }
+}
+
+#[test]
+fn literal_alias_preserves_package_subpaths() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![
+            ("alias".into(), vec!["literal-request".into()]),
+            ("dotted".into(), vec!["literal-request/.".into()]),
+            ("configured".into(), vec!["alias?mode=raw#entry".into()]),
+            ("wild/*".into(), vec!["literal-request/*?mode=raw#entry".into()]),
+            ("query/*".into(), vec!["literal-request/plain?mode=*#entry".into()]),
+            ("exact$".into(), vec!["literal-request/plain?mode=raw#entry".into()]),
+        ],
+        fallback: vec![("fallback/*".into(), vec!["literal-request/*".into()])],
+        condition_names: vec!["require".into()],
+        ..ResolveOptions::default()
+    });
+    for subpath in ["item?raw", "item#part"] {
+        let direct =
+            resolver.resolve_file_literal(&file, &format!("literal-request/{subpath}")).unwrap();
+        for (alias, query, fragment) in [
+            ("alias", None, None),
+            ("configured", Some("?mode=raw"), Some("#entry")),
+            ("wild", Some("?mode=raw"), Some("#entry")),
+            ("fallback", None, None),
+        ] {
+            let request = format!("{alias}/{subpath}");
+            let result = resolver.resolve_file_literal(&file, &request).unwrap();
+            assert_eq!(result.path(), direct.path(), "{request}");
+            assert_eq!((result.query(), result.fragment()), (query, fragment), "{request}");
+        }
+    }
+    for (request, query) in [("exact", "?mode=raw"), ("query/item?raw", "?mode=item?raw")] {
+        let result = resolver.resolve_file_literal(&file, request).unwrap();
+        assert_eq!(result.path(), file, "{request}");
+        assert_eq!((result.query(), result.fragment()), (Some(query), Some("#entry")), "{request}");
+    }
+    for request in [
+        "alias/./plain",
+        "alias/missing/../item?raw",
+        "alias/./item#part",
+        "dotted/plain",
+        "dotted/item?raw",
+    ] {
+        let result = resolver.resolve_file_literal(&file, request).unwrap();
+        assert_eq!(result.path(), file, "{request}");
+        assert_eq!((result.query(), result.fragment()), (None, None), "{request}");
+    }
+    let parsed = resolver.resolve_file(&file, "fallback/plain?raw#part").unwrap();
+    assert_eq!(parsed.path(), file);
+    assert_eq!((parsed.query(), parsed.fragment()), (Some("?raw"), Some("#part")));
+}
+
+#[test]
+fn literal_wildcard_alias_preserves_configured_fragment_lookup() {
+    let file = fixture().join("literal-request/index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![("fragment/*".into(), vec!["literal-request/*#part".into()])],
+        condition_names: vec!["require".into()],
+        ..ResolveOptions::default()
+    });
+    for (key, fragment) in [("item", None), ("plain", Some("#part")), ("item?raw", None)] {
+        let result = resolver.resolve_file_literal(&file, &format!("fragment/{key}")).unwrap();
+        assert_eq!(result.path(), file, "{key}");
+        assert_eq!((result.query(), result.fragment()), (None, fragment), "{key}");
+    }
+    assert!(matches!(
+        resolver.resolve_file_literal(&file, "fragment/plain?missing"),
+        Err(ResolveError::PackagePathNotExported { .. })
+    ));
+}
+
+#[test]
+fn literal_alias_restores_fragment_after_failed_file_lookup() {
+    let file = fixture().join("literal-request/index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![
+            ("outer/*".into(), vec!["./*#part".into()]),
+            ("./index.cjs#part$".into(), vec!["./missing?leaked".into()]),
+        ],
+        ..ResolveOptions::default()
+    });
+    for result in [
+        resolver.resolve_file_literal(&file, "outer/index.cjs"),
+        resolver.resolve_file(&file, "outer/index.cjs"),
+    ] {
+        let result = result.unwrap();
+        assert_eq!(result.path(), file);
+        assert_eq!((result.query(), result.fragment()), (None, Some("#part")));
+    }
+}
+
+#[test]
+fn literal_fragment_fallback_preserves_extension_inference() {
+    let dir = fixture().join("literal-request");
+    let file = dir.join("index.cjs");
+    let options = ResolveOptions {
+        alias: vec![("outer/*".into(), vec!["./*#part.alt".into()])],
+        extensions: vec![".cjs".into()],
+        ..ResolveOptions::default()
+    };
+    let direct = Resolver::new(options.clone()).resolve_file_literal(&file, "outer/index").unwrap();
+    assert_eq!(direct.path(), dir.join("index#part.alt"));
+    assert_eq!(direct.fragment(), None);
+
+    let resolver = Resolver::new(ResolveOptions {
+        extension_alias: vec![(".alt".into(), vec![".missing".into()])],
+        ..options
+    });
+    for result in [
+        resolver.resolve_file_literal(&file, "outer/index"),
+        resolver.resolve_file(&file, "outer/index"),
+    ] {
+        let result = result.unwrap();
+        assert_eq!(result.path(), file);
+        assert_eq!((result.query(), result.fragment()), (None, Some("#part.alt")));
+    }
+}
+
+#[test]
+fn literal_alias_rejects_empty_rewrites() {
+    let file = fixture().join("literal-request/index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        alias: vec![
+            ("empty/*".into(), vec!["*".into()]),
+            ("alias".into(), vec!["literal-request".into()]),
+        ],
+        ..ResolveOptions::default()
+    });
+    for key in ["empty/", "alias/.."] {
+        assert_eq!(
+            resolver.resolve_file_literal(&file, key).unwrap_err(),
+            ResolveError::Specifier(oxc_resolver::SpecifierError::Empty(String::new())),
+            "{key}"
+        );
+    }
+}
+
+#[test]
+fn literal_import_redirect_preserves_package_subpath() {
+    let dir = fixture();
+    let file = dir.join("literal-request/index.cjs");
+    let resolver = Resolver::new(ResolveOptions {
+        exports_fields: vec![],
+        modules: vec![dir.to_string_lossy().into_owned()],
+        ..ResolveOptions::default()
+    });
+    assert_eq!(resolver.resolve_file_literal(&file, "#redirect/index.cjs").unwrap().path(), file);
+    assert!(matches!(
+        resolver.resolve_file_literal(&file, "#redirect/index.cjs?raw"),
+        Err(ResolveError::NotFound(..))
+    ));
+}
